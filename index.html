@@ -1,0 +1,318 @@
+
+<h2 class="sr-only">人員資訊管理系統，含面試候選人與在職員工完整管理，員工模組包含績效、請假、訓練、薪資歷程、緊急聯絡人等功能</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{font-family:var(--font-sans);min-height:600px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.topbar h1{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.topbar small{font-size:12px;color:var(--color-text-secondary)}
+.tabs{display:flex;padding:0 20px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.tab{padding:10px 16px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;white-space:nowrap}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary);font-weight:500}
+.tab:hover:not(.active){background:var(--color-background-secondary);color:var(--color-text-primary)}
+.main{padding:18px 20px}
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);height:32px}
+.toolbar select{font-size:13px;padding:6px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);height:32px;cursor:pointer}
+.btn{font-size:13px;padding:6px 13px;border-radius:var(--border-radius-md);cursor:pointer;height:32px;font-weight:400;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.btn-primary{background:var(--color-text-primary);color:var(--color-background-primary);border:0.5px solid var(--color-text-primary)}
+.btn-sm{font-size:12px;padding:4px 10px;height:26px;border-radius:var(--border-radius-md);cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:400}
+.btn-outline{background:transparent;color:var(--color-text-primary);border:0.5px solid var(--color-border-secondary)}
+.btn-outline:hover,.btn-sm.btn-outline:hover{background:var(--color-background-secondary)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.sc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px}
+.sc .sl{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.sc .sn{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.sc .ss{font-size:11px;color:var(--color-text-tertiary);margin-top:1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+th{text-align:left;padding:9px 12px;font-size:11px;font-weight:500;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td{padding:9px 12px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--color-text-primary)}
+tr:last-child td{border-bottom:none}
+tr.data-row:hover td{background:var(--color-background-secondary);cursor:pointer}
+tr.data-row.selected td{background:var(--color-background-secondary)}
+.av{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+.av-b{background:#E6F1FB;color:#0C447C}.av-t{background:#E1F5EE;color:#085041}.av-c{background:#FAECE7;color:#712B13}.av-p{background:#EEEDFE;color:#3C3489}.av-a{background:#FAEEDA;color:#633806}.av-k{background:#FBEAF0;color:#72243E}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px}
+.bg{background:#EAF3DE;color:#3B6D11}.bb{background:#E6F1FB;color:#185FA5}.ba{background:#FAEEDA;color:#854F0B}.bgr{background:#F1EFE8;color:#5F5E5A}.br{background:#FCEBEB;color:#A32D2D}.bp{background:#EEEDFE;color:#534AB7}.bt{background:#E1F5EE;color:#0F6E56}
+.nc{display:flex;align-items:center;gap:7px}
+.nc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibt{background:none;border:none;cursor:pointer;color:var(--color-text-secondary);padding:3px 5px;border-radius:4px;font-size:12px;line-height:1}
+.ibt:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.detail{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-top:14px;overflow:hidden}
+.detail-header{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.detail-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);padding:0 18px;background:var(--color-background-primary)}
+.dtab{padding:8px 14px;font-size:12px;color:var(--color-text-secondary);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;white-space:nowrap}
+.dtab.active{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary);font-weight:500}
+.dtab:hover:not(.active){background:var(--color-background-secondary)}
+.detail-body{padding:16px 18px}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.di .dl{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.di .dv{font-size:13px;color:var(--color-text-primary)}
+.nb{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:9px 11px;font-size:13px;color:var(--color-text-primary);line-height:1.6;min-height:32px}
+.sec-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.hist-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.hist-row:last-child{border-bottom:none}
+.hist-dot{width:8px;height:8px;border-radius:50%;background:#B5D4F4;flex-shrink:0;margin-top:4px}
+.hist-dot.green{background:#C0DD97}
+.hist-dot.amber{background:#FAC775}
+.hist-meta{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.prog-bar{height:6px;border-radius:3px;background:var(--color-border-tertiary);margin-top:4px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px}
+.modal-bg{min-height:500px;background:rgba(0,0,0,0.38);display:flex;align-items:center;justify-content:center;border-radius:var(--border-radius-lg);margin-top:14px}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-secondary);width:500px;max-width:100%;padding:22px;max-height:480px;overflow-y:auto}
+.modal h2{font-size:14px;font-weight:500;margin-bottom:16px}
+.fr{margin-bottom:11px}
+.fr label{display:block;font-size:12px;color:var(--color-text-secondary);margin-bottom:4px}
+.fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.fr textarea{resize:vertical;min-height:55px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:0.5px solid var(--color-border-tertiary)}
+.empty-state{text-align:center;padding:40px;color:var(--color-text-secondary);font-size:13px}
+.add-row-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;border-top:0.5px solid var(--color-border-tertiary);background:none;width:100%;border-left:none;border-right:none;border-bottom:none}
+.add-row-btn:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+</style>
+
+<div class="app">
+<div class="topbar"><h1>人員資訊管理系統</h1><small id="todayLabel"></small></div>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('interview')">面試候選人</button>
+  <button class="tab" onclick="switchTab('employee')">在職員工</button>
+</div>
+<div class="main" id="mainContent"></div>
+</div>
+<div id="modalArea"></div>
+
+<script>
+document.getElementById('todayLabel').textContent=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+
+let tab='interview', selId=null, detailTab='basic', sq='', sf='';
+let editMode=null, editTarget=null;
+
+const avCls=n=>['av-b','av-t','av-c','av-p','av-a','av-k'][n.charCodeAt(0)%6];
+const ini=n=>n.slice(0,2);
+
+let interviews=[
+  {id:1,name:'張雅婷',position:'前端工程師',date:'2024-11-20',source:'104人力銀行',status:'錄取',score:88,phone:'0912-345-678',email:'ya.zhang@gmail.com',education:'台灣大學 資訊工程',experience:'3年',note:'技術能力優秀，溝通表達佳，薪資期望45K，建議錄取。'},
+  {id:2,name:'林志豪',position:'後端工程師',date:'2024-12-05',source:'內部推薦',status:'待通知',score:75,phone:'0933-456-789',email:'zhihao.lin@gmail.com',education:'成功大學 電機系',experience:'2年',note:'Java基礎扎實，但系統設計普通，可考慮試用期觀察。'},
+  {id:3,name:'陳怡君',position:'UI設計師',date:'2025-01-10',source:'LinkedIn',status:'已婉拒',score:62,phone:'0966-567-890',email:'yijun.chen@gmail.com',education:'實踐大學 設計系',experience:'1年',note:'作品集風格單一，互動設計理解不足，建議婉拒。'},
+  {id:4,name:'王建仁',position:'產品經理',date:'2025-02-18',source:'104人力銀行',status:'面試中',score:82,phone:'0922-678-901',email:'jianren.wang@gmail.com',education:'政治大學 企管系',experience:'5年',note:'產品思維清晰，有用戶研究經驗，準備第二輪面試。'},
+  {id:5,name:'吳欣儀',position:'數據分析師',date:'2025-03-22',source:'Yourator',status:'錄取',score:91,phone:'0955-789-012',email:'xinyi.wu@gmail.com',education:'台灣大學 統計系',experience:'4年',note:'Python及SQL能力極強，強烈建議錄取。'},
+];
+
+let employees=[
+  {id:1,name:'李明翰',dept:'工程部',title:'資深前端工程師',status:'在職',startDate:'2022-03-01',salary:65000,phone:'0912-111-222',email:'minghan.li@company.com',education:'台灣大學 資訊系',skill:'React, TypeScript, Vue',note:'表現優異，負責主要產品前端架構，2023年度最佳員工。',
+    emergency:{name:'李母',relation:'母親',phone:'0933-100-200'},
+    salaryHistory:[{date:'2022-03-01',amount:55000,reason:'到職薪資'},{date:'2023-01-01',amount:60000,reason:'年度調薪'},{date:'2024-01-01',amount:65000,reason:'晉升調薪'}],
+    performance:[{period:'2023 Q4',score:92,level:'優秀',note:'主導架構重構，效能提升40%'},{period:'2024 Q2',score:88,level:'良好',note:'產品如期上線，協作順暢'}],
+    leaves:[{year:2025,annual:15,used:3,remain:12},{year:2024,annual:14,used:11,remain:3}],
+    trainings:[{date:'2024-06-10',name:'React 進階工作坊',hours:8,result:'通過'},{date:'2024-11-20',name:'資安意識培訓',hours:3,result:'通過'}]},
+  {id:2,name:'蔡佩琪',dept:'設計部',title:'設計主任',status:'在職',startDate:'2021-07-15',salary:72000,phone:'0933-222-333',email:'peiqi.cai@company.com',education:'實踐大學 工業設計',skill:'Figma, Illustrator, 用戶研究',note:'帶領設計團隊3人，主導品牌重塑專案，執行力強。',
+    emergency:{name:'蔡先生',relation:'配偶',phone:'0966-200-300'},
+    salaryHistory:[{date:'2021-07-15',amount:60000,reason:'到職薪資'},{date:'2022-07-01',amount:65000,reason:'年度調薪'},{date:'2023-07-01',amount:72000,reason:'主任職調薪'}],
+    performance:[{period:'2024 Q1',score:95,level:'優秀',note:'品牌重塑獲得客戶高度評價'}],
+    leaves:[{year:2025,annual:16,used:2,remain:14}],
+    trainings:[{date:'2024-09-15',name:'管理職能培訓',hours:16,result:'通過'},{date:'2025-01-10',name:'Figma AI功能研習',hours:4,result:'通過'}]},
+  {id:3,name:'許文豪',dept:'工程部',title:'後端工程師',status:'留職停薪',startDate:'2023-01-10',salary:58000,phone:'0966-333-444',email:'wenhao.xu@company.com',education:'中央大學 資工系',skill:'Node.js, Python, PostgreSQL',note:'育嬰留職停薪中，預計2025年8月回歸。',
+    emergency:{name:'許太太',relation:'配偶',phone:'0922-300-400'},
+    salaryHistory:[{date:'2023-01-10',amount:52000,reason:'到職薪資'},{date:'2024-01-01',amount:58000,reason:'年度調薪'}],
+    performance:[{period:'2023 Q3',score:80,level:'良好',note:'API開發效率高，文件撰寫完整'}],
+    leaves:[{year:2024,annual:14,used:14,remain:0}],
+    trainings:[{date:'2023-08-20',name:'Docker & K8s 基礎',hours:12,result:'通過'}]},
+  {id:4,name:'劉雅芸',dept:'行銷部',title:'行銷企劃',status:'在職',startDate:'2023-06-01',salary:48000,phone:'0922-444-555',email:'yayun.liu@company.com',education:'政治大學 廣告系',skill:'GA4, Meta廣告, 內容行銷',note:'社群媒體操作出色，2024年Q4績效達成120%。',
+    emergency:{name:'劉父',relation:'父親',phone:'0955-400-500'},
+    salaryHistory:[{date:'2023-06-01',amount:44000,reason:'到職薪資'},{date:'2024-06-01',amount:48000,reason:'年度調薪'}],
+    performance:[{period:'2024 Q4',score:90,level:'優秀',note:'活動ROI超標，創歷史新高'}],
+    leaves:[{year:2025,annual:13,used:1,remain:12}],
+    trainings:[{date:'2024-07-05',name:'GA4 認證培訓',hours:6,result:'通過'}]},
+  {id:5,name:'方美玲',dept:'人資部',title:'人資專員',status:'試用期',startDate:'2025-02-01',salary:42000,phone:'0988-666-777',email:'meiling.fang@company.com',education:'輔仁大學 人資管理',skill:'招募, 薪酬制度, 勞基法',note:'試用期中，招募執行能力良好，待3個月期滿轉正。',
+    emergency:{name:'方母',relation:'母親',phone:'0912-600-700'},
+    salaryHistory:[{date:'2025-02-01',amount:42000,reason:'到職薪資'}],
+    performance:[],
+    leaves:[{year:2025,annual:0,used:0,remain:0}],
+    trainings:[{date:'2025-02-15',name:'新進人員職前訓練',hours:8,result:'通過'}]},
+];
+
+function switchTab(t){tab=t;selId=null;detailTab='basic';sq='';sf='';render()}
+
+function isBadge(s){const m={錄取:'bg',待通知:'ba',面試中:'bb',已婉拒:'bgr'};return`<span class="badge ${m[s]||'bgr'}">${s}</span>`}
+function eBadge(s){const m={在職:'bt',試用期:'bb',留職停薪:'ba',離職:'bgr'};return`<span class="badge ${m[s]||'bgr'}">${s}</span>`}
+function perfBadge(l){const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'};return`<span class="badge ${m[l]||'bgr'}">${l}</span>`}
+
+function getList(){
+  const src=tab==='interview'?interviews:employees;
+  return src.filter(r=>{
+    const q=sq.toLowerCase();
+    const nm=(r.name+((tab==='interview'?r.position:r.dept)||'')+(r.email||'')).toLowerCase().includes(q);
+    const st=!sf||r.status===sf;
+    return nm&&st;
+  });
+}
+
+function calcYears(d){
+  const ms=Date.now()-new Date(d).getTime();
+  const y=Math.floor(ms/31536000000),m=Math.floor((ms%31536000000)/2592000000);
+  return y>0?`${y}年${m}個月`:`${m}個月`;
+}
+
+function render(){
+  const list=getList();
+  const all=tab==='interview'?interviews:employees;
+  let stats='',tbl='',det='';
+
+  if(tab==='interview'){
+    const total=all.length,hired=all.filter(r=>r.status==='錄取').length,pending=all.filter(r=>['待通知','面試中'].includes(r.status)).length,avg=all.length?Math.round(all.reduce((s,r)=>s+r.score,0)/all.length):0;
+    stats=`<div class="stats"><div class="sc"><div class="sl">面試總數</div><div class="sn">${total}</div></div><div class="sc"><div class="sl">已錄取</div><div class="sn">${hired}</div></div><div class="sc"><div class="sl">待回覆</div><div class="sn">${pending}</div></div><div class="sc"><div class="sl">平均評分</div><div class="sn">${avg}</div><div class="ss">滿分100</div></div></div>`;
+    const sopts=['','錄取','面試中','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
+    tbl=`<div class="toolbar"><input type="text" placeholder="搜尋姓名、職位..." value="${sq}" oninput="sq=this.value;selId=null;render()"><select onchange="sf=this.value;selId=null;render()">${sopts}</select><button class="btn btn-primary" onclick="openModal('addInterview')">+ 新增候選人</button></div>
+    <div class="tw"><table><thead><tr><th style="width:140px">姓名</th><th style="width:110px">應徵職位</th><th style="width:88px">日期</th><th style="width:80px">來源</th><th style="width:55px">評分</th><th style="width:80px">狀態</th><th style="width:70px">操作</th></tr></thead><tbody>
+    ${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="selId=${r.id};render()">
+    <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+    <td>${r.position}</td><td>${r.date}</td><td>${r.source}</td><td><span style="font-weight:500">${r.score}</span></td>
+    <td>${isBadge(r.status)}</td>
+    <td><div style="display:flex;gap:4px"><button class="ibt" onclick="event.stopPropagation();openModal('editInterview',${r.id})">✎</button><button class="ibt" onclick="event.stopPropagation();delRow(${r.id})">✕</button></div></td>
+    </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+    </tbody></table></div>`;
+
+    const sel=interviews.find(r=>r.id===selId);
+    if(sel){det=`<div class="detail"><div class="detail-header">
+    <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
+    <div><div style="font-size:14px;font-weight:500">${sel.name}</div><div style="font-size:12px;color:var(--color-text-secondary)">${sel.position} · ${isBadge(sel.status)}</div></div>
+    </div><div class="detail-body">
+    <div class="dg"><div class="di"><div class="dl">電話</div><div class="dv">${sel.phone}</div></div><div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email}</div></div><div class="di"><div class="dl">學歷</div><div class="dv">${sel.education}</div></div><div class="di"><div class="dl">年資</div><div class="dv">${sel.experience}</div></div><div class="di"><div class="dl">來源</div><div class="dv">${sel.source}</div></div><div class="di"><div class="dl">評分</div><div class="dv" style="font-size:16px;font-weight:500">${sel.score}<span style="font-size:11px;font-weight:400;color:var(--color-text-secondary)"> / 100</span></div></div></div>
+    <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">面試備註</div><div class="nb">${sel.note}</div></div>
+    </div></div>`;}
+  } else {
+    const total=all.length,active=all.filter(r=>r.status==='在職').length,prob=all.filter(r=>r.status==='試用期').length,depts=new Set(all.map(r=>r.dept)).size;
+    stats=`<div class="stats"><div class="sc"><div class="sl">員工總數</div><div class="sn">${total}</div></div><div class="sc"><div class="sl">正式在職</div><div class="sn">${active}</div></div><div class="sc"><div class="sl">試用期中</div><div class="sn">${prob}</div></div><div class="sc"><div class="sl">部門數</div><div class="sn">${depts}</div></div></div>`;
+    const sopts=['','在職','試用期','留職停薪','離職'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
+    tbl=`<div class="toolbar"><input type="text" placeholder="搜尋姓名、部門..." value="${sq}" oninput="sq=this.value;selId=null;render()"><select onchange="sf=this.value;selId=null;render()">${sopts}</select><button class="btn btn-primary" onclick="openModal('addEmployee')">+ 新增員工</button></div>
+    <div class="tw"><table><thead><tr><th style="width:130px">姓名</th><th style="width:80px">部門</th><th style="width:120px">職稱</th><th style="width:88px">到職日</th><th style="width:90px">年資</th><th style="width:80px">狀態</th><th style="width:70px">操作</th></tr></thead><tbody>
+    ${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="selId=${r.id};detailTab='basic';render()">
+    <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+    <td>${r.dept}</td><td>${r.title}</td><td>${r.startDate}</td><td>${calcYears(r.startDate)}</td>
+    <td>${eBadge(r.status)}</td>
+    <td><div style="display:flex;gap:4px"><button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})">✎</button><button class="ibt" onclick="event.stopPropagation();delRow(${r.id})">✕</button></div></td>
+    </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+    </tbody></table></div>`;
+
+    const sel=employees.find(r=>r.id===selId);
+    if(sel){
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['perf','績效考核'],['leave','特休假管理'],['training','教育訓練']];
+      let body='';
+      if(detailTab==='basic'){
+        body=`<div class="dg"><div class="di"><div class="dl">電話</div><div class="dv">${sel.phone}</div></div><div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email}</div></div><div class="di"><div class="dl">學歷</div><div class="dv">${sel.education}</div></div><div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${sel.salary.toLocaleString()}</div></div><div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate}</div></div><div class="di"><div class="dl">年資</div><div class="dv">${calcYears(sel.startDate)}</div></div></div>
+        <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">專長技能</div><div class="nb">${sel.skill}</div></div>
+        <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">備註</div><div class="nb">${sel.note}</div></div>`;
+      } else if(detailTab==='emergency'){
+        const e=sel.emergency;
+        body=`<div class="dg3" style="margin-bottom:12px"><div class="di"><div class="dl">聯絡人姓名</div><div class="dv">${e.name}</div></div><div class="di"><div class="dl">關係</div><div class="dv">${e.relation}</div></div><div class="di"><div class="dl">電話</div><div class="dv">${e.phone}</div></div></div>
+        <button class="btn btn-sm btn-outline" onclick="openModal('editEmergency',${sel.id})">編輯緊急聯絡人</button>`;
+      } else if(detailTab==='salary'){
+        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span class="sec-title" style="margin:0">薪資調整歷程</span><button class="btn btn-sm btn-outline" onclick="openModal('addSalary',${sel.id})">+ 新增記錄</button></div>
+        ${sel.salaryHistory.map((h,i)=>`<div class="hist-row"><div class="hist-dot green"></div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">$${h.amount.toLocaleString()}</div><div class="hist-meta">${h.date} · ${h.reason}</div></div>${i>0?`<div style="font-size:12px;color:#3B6D11">+$${(h.amount-(sel.salaryHistory[i-1]||{amount:0}).amount).toLocaleString()}</div>`:''}</div>`).join('')}`;
+      } else if(detailTab==='perf'){
+        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span class="sec-title" style="margin:0">績效考核記錄</span><button class="btn btn-sm btn-outline" onclick="openModal('addPerf',${sel.id})">+ 新增考核</button></div>
+        ${sel.performance.length?sel.performance.map(p=>`<div class="hist-row"><div class="hist-dot blue" style="background:#B5D4F4"></div><div style="flex:1"><div style="font-size:13px;display:flex;align-items:center;gap:8px">${p.period} ${perfBadge(p.level)} <span style="font-weight:500">${p.score}分</span></div><div class="hist-meta">${p.note}</div></div></div>`).join(''):'<div class="empty-state" style="padding:24px">尚無績效考核記錄</div>'}`;
+      } else if(detailTab==='leave'){
+        const yr=new Date().getFullYear();
+        const thisYr=sel.leaves.find(l=>l.year===yr)||{year:yr,annual:0,used:0,remain:0};
+        const pct=thisYr.annual>0?Math.round(thisYr.used/thisYr.annual*100):0;
+        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span class="sec-title" style="margin:0">${yr} 年度特休</span><button class="btn btn-sm btn-outline" onclick="openModal('editLeave',${sel.id})">編輯</button></div>
+        <div class="dg3" style="margin-bottom:14px"><div class="sc"><div class="sl">應有天數</div><div class="sn">${thisYr.annual}</div></div><div class="sc"><div class="sl">已使用</div><div class="sn">${thisYr.used}</div></div><div class="sc"><div class="sl">剩餘天數</div><div class="sn">${thisYr.remain}</div></div></div>
+        <div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-secondary);margin-bottom:4px"><span>使用進度</span><span>${pct}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct>80?'#E24B4A':pct>50?'#EF9F27':'#1D9E75'}"></div></div></div>
+        ${sel.leaves.filter(l=>l.year<yr).length?`<div style="margin-top:14px"><div class="sec-title">歷年紀錄</div>${sel.leaves.filter(l=>l.year<yr).map(l=>`<div class="hist-row"><div class="hist-dot"></div><div style="flex:1"><div style="font-size:13px">${l.year} 年</div><div class="hist-meta">應有 ${l.annual} 天 · 已用 ${l.used} 天 · 剩餘 ${l.remain} 天</div></div></div>`).join('')}</div>`:''}`;
+      } else if(detailTab==='training'){
+        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span class="sec-title" style="margin:0">教育訓練紀錄</span><button class="btn btn-sm btn-outline" onclick="openModal('addTraining',${sel.id})">+ 新增訓練</button></div>
+        ${sel.trainings.length?sel.trainings.map(t=>`<div class="hist-row"><div class="hist-dot amber" style="background:#FAC775"></div><div style="flex:1"><div style="font-size:13px;font-weight:500">${t.name}</div><div class="hist-meta">${t.date} · ${t.hours}小時 · <span style="color:${t.result==='通過'?'#3B6D11':'#A32D2D'}">${t.result}</span></div></div></div>`).join(''):'<div class="empty-state" style="padding:24px">尚無訓練紀錄</div>'}`;
+      }
+      det=`<div class="detail"><div class="detail-header">
+      <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:500">${sel.name}</div><div style="font-size:12px;color:var(--color-text-secondary)">${sel.dept} · ${sel.title} · ${eBadge(sel.status)}</div></div>
+      </div>
+      <div class="detail-tabs">${dtabs.map(([id,lb])=>`<button class="dtab${detailTab===id?' active':''}" onclick="detailTab='${id}';render()">${lb}</button>`).join('')}</div>
+      <div class="detail-body">${body}</div></div>`;
+    }
+  }
+  document.getElementById('mainContent').innerHTML=stats+tbl+det;
+}
+
+function delRow(id){
+  if(!confirm('確定要刪除此筆資料？'))return;
+  if(tab==='interview')interviews=interviews.filter(r=>r.id!==id);
+  else employees=employees.filter(r=>r.id!==id);
+  if(selId===id)selId=null;
+  render();
+}
+
+function openModal(mode,targetId){
+  editMode=mode;editTarget=targetId||null;
+  let html='',title='';
+
+  if(mode==='addInterview'||mode==='editInterview'){
+    const r=mode==='editInterview'?interviews.find(x=>x.id===targetId):{};
+    title=(mode==='addInterview'?'新增':'編輯')+'候選人';
+    html=`<div class="fg"><div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div><div class="fr"><label>應徵職位</label><input id="m-position" value="${r.position||''}"></div><div class="fr"><label>面試日期</label><input id="m-date" type="date" value="${r.date||''}"></div><div class="fr"><label>來源</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div><div class="fr"><label>評分（0-100）</label><input id="m-score" type="number" min="0" max="100" value="${r.score||''}"></div><div class="fr"><label>狀態</label><select id="m-status"><option>面試中</option><option>待通知</option><option>錄取</option><option>已婉拒</option></select></div><div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div><div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div><div class="fr"><label>學歷</label><input id="m-education" value="${r.education||''}"></div><div class="fr"><label>工作年資</label><input id="m-experience" value="${r.experience||''}"></div></div><div class="fr"><label>面試備註</label><textarea id="m-note">${r.note||''}</textarea></div>
+    <script>if('${r.status}')document.getElementById('m-status').value='${r.status||'面試中'}';if('${r.source}')document.getElementById('m-source').value='${r.source||'104人力銀行'}';<\/script>`;
+  } else if(mode==='addEmployee'||mode==='editEmployee'){
+    const r=mode==='editEmployee'?employees.find(x=>x.id===targetId):{};
+    title=(mode==='addEmployee'?'新增':'編輯')+'員工';
+    html=`<div class="fg"><div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div><div class="fr"><label>部門</label><input id="m-dept" value="${r.dept||''}"></div><div class="fr"><label>職稱</label><input id="m-title" value="${r.title||''}"></div><div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>試用期</option><option>留職停薪</option><option>離職</option></select></div><div class="fr"><label>到職日期</label><input id="m-startDate" type="date" value="${r.startDate||''}"></div><div class="fr"><label>月薪</label><input id="m-salary" type="number" value="${r.salary||''}"></div><div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div><div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div><div class="fr"><label>學歷</label><input id="m-education" value="${r.education||''}"></div><div class="fr"><label>專長技能</label><input id="m-skill" value="${r.skill||''}"></div></div><div class="fr"><label>備註</label><textarea id="m-note">${r.note||''}</textarea></div>
+    <script>document.getElementById('m-status').value='${r.status||'在職'}';<\/script>`;
+  } else if(mode==='editEmergency'){
+    const r=employees.find(x=>x.id===targetId);const e=r.emergency||{};
+    title='編輯緊急聯絡人';
+    html=`<div class="fg"><div class="fr"><label>聯絡人姓名</label><input id="m-ename" value="${e.name||''}"></div><div class="fr"><label>關係</label><input id="m-erel" value="${e.relation||''}"></div><div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" value="${e.phone||''}"></div></div>`;
+  } else if(mode==='addSalary'){
+    title='新增薪資調整記錄';
+    html=`<div class="fg"><div class="fr"><label>生效日期</label><input id="m-sdate" type="date"></div><div class="fr"><label>調整後月薪</label><input id="m-samount" type="number" placeholder="例：65000"></div></div><div class="fr"><label>調整原因</label><input id="m-sreason" placeholder="例：年度調薪、晉升"></div>`;
+  } else if(mode==='addPerf'){
+    title='新增績效考核';
+    html=`<div class="fg"><div class="fr"><label>考核期間</label><input id="m-pperiod" placeholder="例：2025 Q1"></div><div class="fr"><label>分數（0-100）</label><input id="m-pscore" type="number" min="0" max="100"></div><div class="fr"><label>評級</label><select id="m-plevel"><option>優秀</option><option>良好</option><option>待改善</option><option>不合格</option></select></div></div><div class="fr"><label>備註</label><textarea id="m-pnote"></textarea></div>`;
+  } else if(mode==='editLeave'){
+    const r=employees.find(x=>x.id===targetId);const yr=new Date().getFullYear();const l=r.leaves.find(x=>x.year===yr)||{year:yr,annual:0,used:0,remain:0};
+    title=`編輯 ${yr} 年特休`;
+    html=`<div class="fg"><div class="fr"><label>應有天數</label><input id="m-lann" type="number" value="${l.annual}"></div><div class="fr"><label>已使用天數</label><input id="m-lused" type="number" value="${l.used}"></div></div>`;
+  } else if(mode==='addTraining'){
+    title='新增教育訓練紀錄';
+    html=`<div class="fg"><div class="fr"><label>訓練日期</label><input id="m-tdate" type="date"></div><div class="fr"><label>訓練時數</label><input id="m-thours" type="number" placeholder="小時"></div><div class="fr" style="grid-column:span 2"><label>課程名稱</label><input id="m-tname" placeholder="例：React 進階工作坊"></div><div class="fr"><label>結果</label><select id="m-tresult"><option>通過</option><option>未通過</option><option>進行中</option></select></div></div>`;
+  }
+
+  document.getElementById('modalArea').innerHTML=`<div class="modal-bg"><div class="modal"><h2>${title}</h2>${html}<div class="mf"><button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveModal()">儲存</button></div></div></div>`;
+}
+
+function closeModal(){document.getElementById('modalArea').innerHTML='';editMode=null;editTarget=null}
+
+function g(id){const el=document.getElementById(id);return el?el.value.trim():''}
+
+function saveModal(){
+  const m=editMode,tid=editTarget;
+  if(m==='addInterview'||m==='editInterview'){
+    if(!g('m-name')){alert('請填寫姓名');return}
+    const obj={id:tid||Date.now(),name:g('m-name'),position:g('m-position'),date:g('m-date'),source:g('m-source'),score:parseInt(g('m-score'))||0,status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),experience:g('m-experience'),note:g('m-note')};
+    if(m==='editInterview'){const i=interviews.findIndex(r=>r.id===tid);interviews[i]=obj;}else interviews.unshift(obj);
+  } else if(m==='addEmployee'||m==='editEmployee'){
+    if(!g('m-name')){alert('請填寫姓名');return}
+    if(m==='editEmployee'){
+      const r=employees.find(x=>x.id===tid);
+      Object.assign(r,{name:g('m-name'),dept:g('m-dept'),title:g('m-title'),status:g('m-status'),startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),skill:g('m-skill'),note:g('m-note')});
+    }else{
+      employees.unshift({id:Date.now(),name:g('m-name'),dept:g('m-dept'),title:g('m-title'),status:g('m-status'),startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),skill:g('m-skill'),note:g('m-note'),emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
+    }
+  } else if(m==='editEmergency'){
+    const r=employees.find(x=>x.id===tid);r.emergency={name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')};
+  } else if(m==='addSalary'){
+    const r=employees.find(x=>x.id===tid);r.salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
+  } else if(m==='addPerf'){
+    const r=employees.find(x=>x.id===tid);r.performance.unshift({period:g('m-pperiod'),score:parseInt(g('m-pscore'))||0,level:g('m-plevel'),note:g('m-pnote')});
+  } else if(m==='editLeave'){
+    const r=employees.find(x=>x.id===tid);const yr=new Date().getFullYear();const ann=parseInt(g('m-lann'))||0,used=parseInt(g('m-lused'))||0;const idx=r.leaves.findIndex(l=>l.year===yr);const obj={year:yr,annual:ann,used:used,remain:ann-used};if(idx>=0)r.leaves[idx]=obj;else r.leaves.unshift(obj);
+  } else if(m==='addTraining'){
+    const r=employees.find(x=>x.id===tid);r.trainings.unshift({date:g('m-tdate'),name:g('m-tname'),hours:parseInt(g('m-thours'))||0,result:g('m-tresult')});
+  }
+  closeModal();render();
+}
+
+render();
+</script>
