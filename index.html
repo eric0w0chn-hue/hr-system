@@ -128,7 +128,42 @@ let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
 let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[];
 
-// ── 雲端讀寫 ──
+// ── 民國年轉換工具 ──
+// 西元 YYYY-MM-DD → 民國 YYY年MM月DD日
+function toROC(dateStr){
+  if(!dateStr)return '—';
+  const [y,m,d]=dateStr.split('-');
+  if(!y||!m||!d)return dateStr;
+  return `民國 ${parseInt(y)-1911} 年 ${parseInt(m)} 月 ${parseInt(d)} 日`;
+}
+// 民國輸入框：顯示民國年，底層儲存西元 YYYY-MM-DD
+// 使用自訂輸入：三欄（年/月/日）組合
+function rocInputHtml(id, val){
+  let yy='',mm='',dd='';
+  if(val){const [y,m,d]=val.split('-');yy=y?parseInt(y)-1911:'';mm=m?parseInt(m):'';dd=d?parseInt(d):'';}
+  return `<div style="display:flex;gap:4px;align-items:center">
+    <input id="${id}-y" type="number" placeholder="年" value="${yy}" style="width:64px;font-size:13px;padding:7px 8px;border:1px solid #d4d4d0;border-radius:8px" oninput="syncROC('${id}')">
+    <span style="color:#6b6b68;font-size:12px">年</span>
+    <input id="${id}-m" type="number" placeholder="月" min="1" max="12" value="${mm}" style="width:50px;font-size:13px;padding:7px 8px;border:1px solid #d4d4d0;border-radius:8px" oninput="syncROC('${id}')">
+    <span style="color:#6b6b68;font-size:12px">月</span>
+    <input id="${id}-d" type="number" placeholder="日" min="1" max="31" value="${dd}" style="width:50px;font-size:13px;padding:7px 8px;border:1px solid #d4d4d0;border-radius:8px" oninput="syncROC('${id}')">
+    <span style="color:#6b6b68;font-size:12px">日</span>
+    <input type="hidden" id="${id}" value="${val||''}">
+  </div>`;
+}
+window.syncROC=function(id){
+  const y=parseInt(document.getElementById(id+'-y').value)||'';
+  const m=parseInt(document.getElementById(id+'-m').value)||'';
+  const d=parseInt(document.getElementById(id+'-d').value)||'';
+  if(y&&m&&d){
+    const yy=String(y+1911).padStart(4,'0');
+    const mm=String(m).padStart(2,'0');
+    const dd=String(d).padStart(2,'0');
+    document.getElementById(id).value=`${yy}-${mm}-${dd}`;
+  }else{document.getElementById(id).value='';}
+};
+function getROC(id){return document.getElementById(id)?document.getElementById(id).value:'';}
+
 function showLoading(show) {
   let el=document.getElementById('loadingBar');
   if(!el){el=document.createElement('div');el.id='loadingBar';el.style.cssText='position:fixed;top:0;left:0;right:0;height:3px;background:#1a1a19;z-index:9999;transition:opacity .4s';document.body.appendChild(el);}
@@ -302,8 +337,7 @@ function render() {
   } else if(tab==='resigned') {
     const all2=resigned;
     stats=`<div class="stats">
-      <div class="sc"><div class="sl">離職人數</div><div class="sn">${all2.length}</div></div>
-      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${all2.filter(r=>r.status==='留職停薪').length}</div></div>
+      <div class="sc"><div class="sl">離職同仁人數</div><div class="sn">${all2.length}</div></div>
     </div>`;
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" oninput="setSq(this.value)">
@@ -382,18 +416,18 @@ function render() {
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
-      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['perf','績效考核'],['leave','特休假管理'],['training','教育訓練']];
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['perf','績效考核'],['leave','特休假管理'],['insurance','投保資料'],['training','教育訓練']];
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
           <div class="di"><div class="dl">同仁編號</div><div class="dv">${sel.empNo||'—'}</div></div>
           <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
           <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
-          <div class="di"><div class="dl">生日</div><div class="dv">${sel.birthday||'—'}</div></div>
+          <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
           <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
           <div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>
-          <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate||'—'}</div></div>
+          <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
           <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${sel.bankName||'—'} ${sel.bankAccount?'· '+sel.bankAccount:''}</div></div>
         </div>
@@ -476,15 +510,55 @@ function render() {
         </div>
         ${sel.leaves&&sel.leaves.filter(l=>l.year<yr).length?`<div style="margin-top:4px">
           <div class="sec-title">歷年紀錄</div>
-          ${sel.leaves.filter(l=>l.year<yr).sort((a,b)=>b.year-a.year).map(l=>`<div class="hist-row">
-            <div class="hist-dot"></div>
-            <div style="flex:1"><div style="font-size:13px">${l.year} 年</div>
-            <div class="hist-meta">應有 ${l.annual} 天 · 已用 ${(l.usedDates||[]).length} 天 · 剩餘 ${l.remain} 天</div></div>
-          </div>`).join('')}
+          ${sel.leaves.filter(l=>l.year<yr).sort((a,b)=>b.year-a.year).map(l=>{
+            const lDates=l.usedDates||[];
+            const lUsed=lDates.length;
+            const lRemain=typeof l.remain==='number'?l.remain:(l.annual-lUsed);
+            return `<div class="hist-row">
+              <div class="hist-dot"></div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:500">${l.year} 年</div>
+                <div class="hist-meta">應有 ${l.annual} 天 · 已用 ${lUsed} 天 · 剩餘 ${lRemain} 天</div>
+                ${l.year===yr-1&&lRemain>0?`<div style="font-size:11px;color:#e24b4a;margin-top:2px">⚠ 去年未休 ${lRemain} 天，將於今年到職日（${toROC(sel.startDate)}）結算</div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
         </div>`:''}
         <div style="margin-top:10px;font-size:11px;color:#9b9b98;line-height:1.6">
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
-        </div>`; 
+        </div>`;
+      } else if(detailTab==='insurance'){
+        const ins=sel.insurance||{grade:'',dependents:[]};
+        body=`<div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span class="sec-title" style="margin:0">投保資料</span>
+            <button class="btn btn-sm btn-outline" onclick="openModal('editInsurance',${sel.id})">編輯投保級距</button>
+          </div>
+          <div class="sc" style="display:inline-block;min-width:120px">
+            <div class="sl">現有投保級距</div>
+            <div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span class="sec-title" style="margin:0">眷屬資料</span>
+            <button class="btn btn-sm btn-outline" onclick="openModal('addDependent',${sel.id})">＋ 新增眷屬</button>
+          </div>
+          ${(ins.dependents||[]).length?`<div class="tw"><table>
+            <thead><tr>
+              <th style="width:90px">姓名</th>
+              <th style="width:130px">生日</th>
+              <th style="width:130px">身分證號</th>
+              <th style="width:50px">操作</th>
+            </tr></thead>
+            <tbody>${ins.dependents.map((d,i)=>`<tr>
+              <td>${d.name||'—'}</td>
+              <td>${toROC(d.birthday)}</td>
+              <td>${d.idNo||'—'}</td>
+              <td><button class="ibt" onclick="removeDependent(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+            </tr>`).join('')}</tbody>
+          </table></div>`:'<div class="empty-state" style="padding:20px">尚無眷屬資料，點上方按鈕新增</div>'}
+        </div>`;
       } else if(detailTab==='training'){
         body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <span class="sec-title" style="margin:0">教育訓練紀錄</span>
@@ -532,9 +606,10 @@ function openModal(mode, targetId) {
       <div class="fr"><label>面試日期</label><input id="m-date" type="date" value="${r.date||''}"></div>
       <div class="fr" style="grid-column:span 2">
         <label>面試地點</label>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
           <select id="m-location" style="flex:1"><option value="">請選擇或新增地點</option>${locOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addLocation()" style="white-space:nowrap">＋ 新增地點</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addLocation()">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('interviewLocations','m-location')">✕ 刪除</button>
         </div>
       </div>
       <div class="fr"><label>來源管道</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div>
@@ -556,7 +631,7 @@ function openModal(mode, targetId) {
     },10);
   } else if(mode==='addEmployee'||mode==='editEmployee'){
     const r=mode==='editEmployee'?employees.find(x=>x.id===targetId):{};
-    title=(mode==='addEmployee'?'新增':'編輯')+'員工';
+    title=(mode==='addEmployee'?'新增':'編輯')+'同仁';
     const wlocOpts=workLocations.map(l=>`<option value="${l}"${r.workLocation===l?' selected':''}>${l}</option>`).join('');
     const titleOpts=titleOptions.map(l=>`<option value="${l}"${r.title===l?' selected':''}>${l}</option>`).join('');
     html=`<div class="fg">
@@ -564,31 +639,34 @@ function openModal(mode, targetId) {
       <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
       <div class="fr" style="grid-column:span 2">
         <label>工作地點</label>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
           <select id="m-workLocation" style="flex:1"><option value="">請選擇或新增地點</option>${wlocOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addWorkLocation()" style="white-space:nowrap">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addWorkLocation()">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('workLocations','m-workLocation')">✕ 刪除</button>
         </div>
       </div>
       <div class="fr" style="grid-column:span 2">
         <label>職稱</label>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;align-items:center">
           <select id="m-title" style="flex:1"><option value="">請選擇或新增職稱</option>${titleOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addTitle()" style="white-space:nowrap">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addTitle()">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('titleOptions','m-title')">✕ 刪除</button>
         </div>
       </div>
-      <div class="fr"><label>到職日期</label><input id="m-startDate" type="date" value="${r.startDate||''}"></div>
+      <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
       <div class="fr"><label>月薪（元）</label><input id="m-salary" type="number" value="${r.salary||''}"></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
-      <div class="fr"><label>生日</label><input id="m-birthday" type="date" value="${r.birthday||''}"></div>
+      <div class="fr"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
       <div class="fr"><label>身分證號</label><input id="m-idNo" value="${r.idNo||''}" placeholder="A123456789"></div>
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
       <div class="fr" style="grid-column:span 2">
         <label>銀行帳戶</label>
-        <div style="display:flex;gap:6px">
-          <select id="m-bankName" style="width:160px"><option value="">請選擇或新增銀行</option>${(bankOptions||[]).map(b=>`<option value="${b}"${r.bankName===b?' selected':''}>${b}</option>`).join('')}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addBank()" style="white-space:nowrap">＋ 新增</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="m-bankName" style="width:150px"><option value="">請選擇或新增銀行</option>${(bankOptions||[]).map(b=>`<option value="${b}"${r.bankName===b?' selected':''}>${b}</option>`).join('')}</select>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addBank()">＋ 新增</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('bankOptions','m-bankName')">✕ 刪除</button>
           <input id="m-bankAccount" value="${r.bankAccount||''}" placeholder="銀行帳號" style="flex:1">
         </div>
       </div>
@@ -608,6 +686,18 @@ function openModal(mode, targetId) {
       <div class="fr"><label>聯絡人姓名</label><input id="m-ename" value="${e.name||''}"></div>
       <div class="fr"><label>關係</label><input id="m-erel" value="${e.relation||''}"></div>
       <div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" value="${e.phone||''}"></div>
+    </div>`;
+  } else if(mode==='editInsurance'){
+    const r=employees.find(x=>x.id===targetId)||{};
+    const ins=r.insurance||{grade:'',dependents:[]};
+    title='編輯投保級距';
+    html=`<div class="fr"><label>現有投保級距（元）</label><input id="m-grade" type="number" value="${ins.grade||''}" placeholder="例：26400"></div>`;
+  } else if(mode==='addDependent'){
+    title='新增眷屬資料';
+    html=`<div class="fg">
+      <div class="fr"><label>眷屬姓名 *</label><input id="m-dname" placeholder="姓名"></div>
+      <div class="fr"><label>身分證號</label><input id="m-didNo" placeholder="A123456789"></div>
+      <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-dbday','')}</div>
     </div>`;
   } else if(mode==='addSalary'){
     title='新增薪資調整記錄';
@@ -670,13 +760,23 @@ async function saveModal(){
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const newStatus=g('m-status');
-    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:g('m-birthday'),idNo:g('m-idNo'),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
+    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:g('m-idNo'),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
       Object.assign(r,empFields);
     } else {
       employees.unshift({id:Date.now(),...empFields,emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
     }
+  } else if(m==='editInsurance'){
+    const r=employees.find(x=>x.id===tid);
+    if(!r.insurance)r.insurance={grade:'',dependents:[]};
+    r.insurance.grade=g('m-grade');
+  } else if(m==='addDependent'){
+    if(!g('m-dname')){alert('請填寫眷屬姓名');return;}
+    const r=employees.find(x=>x.id===tid);
+    if(!r.insurance)r.insurance={grade:'',dependents:[]};
+    if(!r.insurance.dependents)r.insurance.dependents=[];
+    r.insurance.dependents.push({name:g('m-dname'),idNo:g('m-didNo'),birthday:getROC('m-dbday')});
   } else if(m==='editEmergency'){
     const r=employees.find(x=>x.id===tid);
     r.emergency={name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')};
@@ -728,6 +828,31 @@ window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
 window.updateLeaveUsed=(id,annual)=>updateLeaveUsed(id,annual);
 window.addBank=()=>addBank();
+
+// ── 刪除自訂下拉選項 ──
+window.delCustomOption=function(listName, selectId){
+  const sel=document.getElementById(selectId);
+  if(!sel||!sel.value){showToast('請先選擇要刪除的項目');return;}
+  const val=sel.value;
+  if(!confirm(`確定要刪除「${val}」嗎？`))return;
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const arr=maps[listName];
+  if(!arr)return;
+  const idx=arr.indexOf(val);
+  if(idx>=0)arr.splice(idx,1);
+  saveData(); showToast(`已刪除「${val}」`);
+  sel.remove(sel.selectedIndex); sel.value='';
+};
+
+// ── 刪除眷屬 ──
+window.removeDependent=async function(empId,idx){
+  if(!confirm('確定要刪除此眷屬資料？'))return;
+  const r=employees.find(x=>x.id===empId);
+  if(!r||!r.insurance)return;
+  r.insurance.dependents.splice(idx,1);
+  render(); showToast('儲存中...');
+  await saveData(); showToast('已刪除 ✓');
+};
 window.addLeaveDate=async function(id){
   const r=employees.find(x=>x.id===id); if(!r)return;
   const el=document.getElementById('leave-input-'+id); if(!el||!el.value)return;
