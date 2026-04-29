@@ -403,20 +403,20 @@ function render() {
         <th style="width:120px">職稱</th><th style="width:90px">到職日</th>
         <th style="width:90px">年資</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
       </tr></thead>
-      <tbody>${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
-        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.startDate||'—'}</td><td>${calcYears(r.startDate)}</td>
+      <tbody>${list.length?list.map(r=>{const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;const mo=Math.floor(ms/(1000*60*60*24*30.44));const bonusAlert=mo>=3&&!r.bonusUnlocked;return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${bonusAlert?'<span title="試用期滿3個月，請確認獎金發放" style="color:#f59e0b;font-size:12px">⚠️</span>':''}</div></td>
+        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
           <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
         </div></td>
-      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+      </tr>`}).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
       </tbody></table></div>`;
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
-      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['perf','績效考核'],['leave','特休假管理'],['insurance','投保資料'],['training','教育訓練']];
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助'],['training','教育訓練']];
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
@@ -452,17 +452,48 @@ function render() {
           ${i>0?`<div style="font-size:12px;color:#166534;font-weight:500">+$${(h.amount-(sel.salaryHistory[i-1]||{amount:0}).amount).toLocaleString()}</div>`:'<div style="font-size:11px;color:#9b9b98">起薪</div>'}
         </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無薪資記錄</div>'}`;
       } else if(detailTab==='perf'){
-        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-          <span class="sec-title" style="margin:0">績效考核記錄</span>
-          <button class="btn btn-sm btn-outline" onclick="openModal('addPerf',${sel.id})">＋ 新增考核</button>
+      } else if(detailTab==='bonus'){
+        const bonuses=sel.bonuses||[];
+        const msOnJob=sel.startDate?Date.now()-new Date(sel.startDate).getTime():0;
+        const monthsOnJob=Math.floor(msOnJob/(1000*60*60*24*30.44));
+        const over3mo=monthsOnJob>=3;
+        const unlocked=sel.bonusUnlocked||false;
+        const showAlert=over3mo&&!unlocked;
+        body=`<div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <span class="sec-title" style="margin:0">獎金／補助紀錄</span>
+          <button class="btn btn-sm btn-outline" onclick="openModal('addBonus',${sel.id})">＋ 新增項目</button>
         </div>
-        ${sel.performance.length?sel.performance.map(p=>`<div class="hist-row">
-          <div class="hist-dot" style="background:#93c5fd"></div>
+        ${showAlert?`<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:18px">⚠️</span>
           <div style="flex:1">
-            <div style="font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${p.period} ${perfBadge(p.level)} <span style="font-weight:500">${p.score}分</span></div>
-            <div class="hist-meta">${p.note}</div>
+            <div style="font-size:13px;font-weight:500;color:#92400e">試用期滿3個月提醒</div>
+            <div style="font-size:12px;color:#92400e;margin-top:2px">此同仁已到職 ${monthsOnJob} 個月，請確認獎金/補助發放狀況</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+              <input id="bonus-unlock-${sel.id}" placeholder="輸入「已發放獎金」以解除提醒" style="font-size:12px;padding:5px 8px;border:1px solid #fcd34d;border-radius:6px;width:220px;background:#fff">
+              <button class="btn btn-sm btn-outline" onclick="unlockBonusAlert(${sel.id})" style="border-color:#f59e0b;color:#92400e">確認解除</button>
+            </div>
           </div>
-        </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無績效考核記錄</div>'}`;
+        </div>`:''}
+        ${unlocked?`<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#166534;display:flex;align-items:center;gap:6px">
+          <span>✓</span> 3個月獎金提醒已確認解除
+          <button onclick="resetBonusAlert(${sel.id})" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:11px;color:#9b9b98">重置</button>
+        </div>`:''}
+        ${bonuses.length?`<div class="tw"><table>
+          <thead><tr>
+            <th style="width:120px">項目名稱</th>
+            <th style="width:90px">金額</th>
+            <th style="width:80px">狀態</th>
+            <th style="width:100px">發放日期</th>
+            <th style="width:50px">操作</th>
+          </tr></thead>
+          <tbody>${bonuses.map((b,i)=>`<tr>
+            <td>${b.title||'—'}</td>
+            <td style="font-weight:500">${b.amount?'$'+Number(b.amount).toLocaleString():'—'}</td>
+            <td><span class="badge ${b.status==='已發放'?'bg':'ba'}">${b.status||'未發放'}</span></td>
+            <td>${b.date||'—'}</td>
+            <td><button class="ibt" onclick="removeBonus(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`:'<div class="empty-state" style="padding:24px">尚無獎金／補助紀錄</div>'}`;
       } else if(detailTab==='leave'){
         function calcAnnualLeave(startDate) {
           if(!startDate) return 0;
@@ -699,6 +730,14 @@ function openModal(mode, targetId) {
       <div class="fr"><label>身分證號</label><input id="m-didNo" placeholder="A123456789"></div>
       <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-dbday','')}</div>
     </div>`;
+  } else if(mode==='addBonus'){
+    title='新增獎金／補助項目';
+    html=`<div class="fg">
+      <div class="fr" style="grid-column:span 2"><label>項目名稱 *</label><input id="m-btitle" placeholder="例：到職獎金、交通補助、年終獎金"></div>
+      <div class="fr"><label>金額（元）</label><input id="m-bamount" type="number" placeholder="例：5000"></div>
+      <div class="fr"><label>狀態</label><select id="m-bstatus"><option>未發放</option><option>已發放</option></select></div>
+      <div class="fr" style="grid-column:span 2"><label>發放日期</label><input id="m-bdate" type="date"></div>
+    </div>`;
   } else if(mode==='addSalary'){
     title='新增薪資調整記錄';
     html=`<div class="fg">
@@ -782,15 +821,11 @@ async function saveModal(){
     r.emergency={name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')};
   } else if(m==='addSalary'){
     employees.find(x=>x.id===tid).salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
-  } else if(m==='addPerf'){
-    employees.find(x=>x.id===tid).performance.unshift({period:g('m-pperiod'),score:parseInt(g('m-pscore'))||0,level:g('m-plevel'),note:g('m-pnote')});
-  } else if(m==='editLeave'){
+  } else if(m==='addBonus'){
+    if(!g('m-btitle')){alert('請填寫項目名稱');return;}
     const r=employees.find(x=>x.id===tid);
-    const yr=new Date().getFullYear();
-    const ann=parseInt(g('m-lann'))||0, used=parseInt(g('m-lused'))||0;
-    const idx=r.leaves.findIndex(l=>l.year===yr);
-    const obj={year:yr,annual:ann,used:used,remain:ann-used};
-    if(idx>=0)r.leaves[idx]=obj; else r.leaves.unshift(obj);
+    if(!r.bonuses)r.bonuses=[];
+    r.bonuses.unshift({title:g('m-btitle'),amount:parseInt(g('m-bamount'))||0,status:g('m-bstatus'),date:g('m-bdate')});
   } else if(m==='addTraining'){
     employees.find(x=>x.id===tid).trainings.unshift({date:g('m-tdate'),name:g('m-tname'),hours:parseInt(g('m-thours'))||0,result:g('m-tresult')});
   }
@@ -842,6 +877,28 @@ window.delCustomOption=function(listName, selectId){
   if(idx>=0)arr.splice(idx,1);
   saveData(); showToast(`已刪除「${val}」`);
   sel.remove(sel.selectedIndex); sel.value='';
+};
+
+// ── 獎金相關 ──
+window.removeBonus=async function(empId,idx){
+  if(!confirm('確定要刪除此筆獎金/補助紀錄？'))return;
+  const r=employees.find(x=>x.id===empId); if(!r)return;
+  if(!r.bonuses)return;
+  r.bonuses.splice(idx,1);
+  render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
+};
+window.unlockBonusAlert=async function(empId){
+  const el=document.getElementById('bonus-unlock-'+empId);
+  if(!el)return;
+  if(el.value.trim()!=='已發放獎金'){showToast('請輸入正確文字「已發放獎金」');return;}
+  const r=employees.find(x=>x.id===empId); if(!r)return;
+  r.bonusUnlocked=true;
+  render(); showToast('儲存中...'); await saveData(); showToast('提醒已解除 ✓');
+};
+window.resetBonusAlert=async function(empId){
+  const r=employees.find(x=>x.id===empId); if(!r)return;
+  r.bonusUnlocked=false;
+  render(); await saveData(); showToast('已重置提醒');
 };
 
 // ── 刪除眷屬 ──
