@@ -95,8 +95,8 @@ tr.data-row.selected td{background:#f5f5f4}
       <small id="todayLabel"></small>
     </div>
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('interview')">面試候選人</button>
-      <button class="tab" onclick="switchTab('employee')">在職員工</button>
+      <button class="tab active" onclick="switchTab('employee')">在職員工</button>
+      <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
     </div>
     <div class="main" id="mainContent"></div>
   </div>
@@ -123,8 +123,9 @@ const db  = getFirestore(app);
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
 
 // ── 狀態 ──
-let tab='interview', selId=null, detailTab='basic', sq='', sf='';
+let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
+let interviewLocations = [];
 
 // ── 雲端讀寫 ──
 function showLoading(show) {
@@ -136,16 +137,18 @@ function showLoading(show) {
 async function loadData() {
   try {
     showLoading(true);
-    const [ivSnap,evSnap] = await Promise.all([
+    const [ivSnap,evSnap,locSnap] = await Promise.all([
       getDoc(doc(db,'hr','interviews')),
       getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','settings')),
     ]);
     interviews = ivSnap.exists() ? ivSnap.data().list : [];
     employees  = evSnap.exists() ? evSnap.data().list : [];
+    interviewLocations = locSnap.exists() ? (locSnap.data().locations||[]) : [];
   } catch(e) {
     console.error(e);
     showToast('載入資料失敗，請重新整理');
-    interviews=[]; employees=[];
+    interviews=[]; employees=[]; interviewLocations=[];
   } finally {
     showLoading(false);
   }
@@ -156,6 +159,7 @@ async function saveData() {
     await Promise.all([
       setDoc(doc(db,'hr','interviews'),{list:interviews}),
       setDoc(doc(db,'hr','employees'), {list:employees}),
+      setDoc(doc(db,'hr','settings'),  {locations:interviewLocations}),
     ]);
   } catch(e) {
     console.error(e);
@@ -182,9 +186,10 @@ const calcYears = d => {
   const y=Math.floor(ms/31536000000),m=Math.floor((ms%31536000000)/2592000000);
   return y>0?`${y}年${m}個月`:`${m}個月`;
 };
-const isBadge = s => { const m={錄取:'bg',待通知:'ba',面試中:'bb',已婉拒:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
+const isBadge = s => { const m={錄取:'bg',待通知:'ba',已婉拒:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
 const eBadge  = s => { const m={在職:'bt',試用期:'bb',留職停薪:'ba',離職:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
+const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
 function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';render(); }
 
@@ -192,7 +197,7 @@ function getList() {
   const src = tab==='interview' ? interviews : employees;
   return src.filter(r => {
     const q=sq.toLowerCase();
-    const nm=(r.name+((tab==='interview'?r.position:r.dept)||'')+(r.email||'')).toLowerCase().includes(q);
+    const nm=(r.name+((tab==='interview'?r.location:r.dept)||'')+(r.email||'')).toLowerCase().includes(q);
     const st=!sf||r.status===sf;
     return nm&&st;
   });
@@ -231,33 +236,33 @@ function render() {
   let stats='',tbl='',det='';
 
   if(tab==='interview'){
-    const total=all.length,hired=all.filter(r=>r.status==='錄取').length,
-          pending=all.filter(r=>['待通知','面試中'].includes(r.status)).length,
-          avg=all.length?Math.round(all.reduce((s,r)=>s+r.score,0)/all.length):0;
+    const total=all.length,
+          fit=all.filter(r=>r.fit==='合適').length,
+          pending=all.filter(r=>r.status==='待通知').length;
     stats=`<div class="stats">
-      <div class="sc"><div class="sl">面試總數</div><div class="sn">${total}</div></div>
-      <div class="sc"><div class="sl">已錄取</div><div class="sn">${hired}</div></div>
+      <div class="sc"><div class="sl">求職者總數</div><div class="sn">${total}</div></div>
+      <div class="sc"><div class="sl">已錄取</div><div class="sn">${all.filter(r=>r.status==='錄取').length}</div></div>
       <div class="sc"><div class="sl">待回覆</div><div class="sn">${pending}</div></div>
-      <div class="sc"><div class="sl">平均評分</div><div class="sn">${avg}</div><div class="ss">滿分100</div></div>
+      <div class="sc"><div class="sl">評為合適</div><div class="sn">${fit}</div></div>
     </div>`;
-    const sopts=['','錄取','面試中','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
+    const sopts=['','錄取','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、職位..." value="${sq}" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" oninput="setSq(this.value)">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
-      <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增候選人</button>
+      <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增求職者</button>
     </div>
     <div class="tw"><table>
       <thead><tr>
-        <th style="width:140px">姓名</th><th style="width:110px">應徵職位</th>
+        <th style="width:130px">姓名</th><th style="width:120px">面試地點</th>
         <th style="width:90px">日期</th><th style="width:80px">來源</th>
-        <th style="width:55px">評分</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
+        <th style="width:70px">適合度</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
       </tr></thead>
       <tbody>${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
-        <td>${r.position}</td><td>${r.date}</td><td>${r.source}</td>
-        <td><span style="font-weight:500">${r.score}</span></td>
+        <td>${r.location||'—'}</td><td>${r.date||'—'}</td><td>${r.source||'—'}</td>
+        <td>${fitBadge(r.fit)}</td>
         <td>${isBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editInterview',${r.id})" title="編輯">✎</button>
@@ -271,17 +276,17 @@ function render() {
       <div class="detail-header">
         <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
         <div><div style="font-size:14px;font-weight:500">${sel.name}</div>
-        <div style="font-size:12px;color:#6b6b68">${sel.position} · ${isBadge(sel.status)}</div></div>
+        <div style="font-size:12px;color:#6b6b68">${sel.location||'—'} · ${isBadge(sel.status)}</div></div>
         <button class="btn btn-sm btn-outline" style="margin-left:auto" onclick="openModal('editInterview',${sel.id})">編輯</button>
       </div>
       <div class="detail-body">
         <div class="dg">
-          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email}</div></div>
-          <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education}</div></div>
-          <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience}</div></div>
-          <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source}</div></div>
-          <div class="di"><div class="dl">評分</div><div class="dv" style="font-size:18px;font-weight:500">${sel.score}<span style="font-size:11px;font-weight:400;color:#9b9b98"> / 100</span></div></div>
+          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
+          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
+          <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
+          <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
+          <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source||'—'}</div></div>
+          <div class="di"><div class="dl">適合度評估</div><div class="dv">${fitBadge(sel.fit)}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">面試備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
       </div></div>`;}
@@ -423,7 +428,7 @@ function render() {
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
   // sync active tab button
-  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='interview')||(i===1&&tab==='employee'))});
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='interview'))});
 }
 
 // ── Modal ──
@@ -433,14 +438,21 @@ function openModal(mode, targetId) {
 
   if(mode==='addInterview'||mode==='editInterview'){
     const r=mode==='editInterview'?interviews.find(x=>x.id===targetId):{};
-    title=(mode==='addInterview'?'新增':'編輯')+'候選人';
+    title=(mode==='addInterview'?'新增':'編輯')+'求職者';
+    const locOpts=interviewLocations.map(l=>`<option value="${l}"${r.location===l?' selected':''}>${l}</option>`).join('');
     html=`<div class="fg">
       <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div>
-      <div class="fr"><label>應徵職位</label><input id="m-position" value="${r.position||''}"></div>
       <div class="fr"><label>面試日期</label><input id="m-date" type="date" value="${r.date||''}"></div>
+      <div class="fr" style="grid-column:span 2">
+        <label>面試地點</label>
+        <div style="display:flex;gap:6px">
+          <select id="m-location" style="flex:1"><option value="">請選擇或新增地點</option>${locOpts}</select>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addLocation()" style="white-space:nowrap">＋ 新增地點</button>
+        </div>
+      </div>
       <div class="fr"><label>來源管道</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div>
-      <div class="fr"><label>評分（0-100）</label><input id="m-score" type="number" min="0" max="100" value="${r.score||''}"></div>
-      <div class="fr"><label>狀態</label><select id="m-status"><option>面試中</option><option>待通知</option><option>錄取</option><option>已婉拒</option></select></div>
+      <div class="fr"><label>適合度評估</label><select id="m-fit"><option value="">未評估</option><option>合適</option><option>尚可</option><option>不佳</option></select></div>
+      <div class="fr"><label>狀態</label><select id="m-status"><option>待通知</option><option>錄取</option><option>已婉拒</option></select></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>學歷</label><input id="m-education" value="${r.education||''}"></div>
@@ -450,6 +462,7 @@ function openModal(mode, targetId) {
     setTimeout(()=>{
       if(r.status)document.getElementById('m-status').value=r.status;
       if(r.source)document.getElementById('m-source').value=r.source;
+      if(r.fit)document.getElementById('m-fit').value=r.fit;
     },10);
   } else if(mode==='addEmployee'||mode==='editEmployee'){
     const r=mode==='editEmployee'?employees.find(x=>x.id===targetId):{};
@@ -531,7 +544,7 @@ async function saveModal(){
   const m=editMode, tid=editTarget;
   if(m==='addInterview'||m==='editInterview'){
     if(!g('m-name')){alert('請填寫姓名');return;}
-    const obj={id:tid||Date.now(),name:g('m-name'),position:g('m-position'),date:g('m-date'),source:g('m-source'),score:parseInt(g('m-score'))||0,status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),experience:g('m-experience'),note:g('m-note')};
+    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),experience:g('m-experience'),note:g('m-note')};
     if(m==='editInterview'){const i=interviews.findIndex(r=>r.id===tid);interviews[i]=obj;}
     else interviews.unshift(obj);
   } else if(m==='addEmployee'||m==='editEmployee'){
@@ -591,6 +604,18 @@ window.setSq=(v)=>{sq=v;selId=null;render();};
 window.setSf=(v)=>{sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
+window.addLocation=function(){
+  const name=prompt('請輸入新的面試地點名稱：');
+  if(!name||!name.trim())return;
+  const n=name.trim();
+  if(interviewLocations.includes(n)){showToast('此地點已存在');return;}
+  interviewLocations.push(n);
+  saveData();
+  showToast(`已新增「${n}」`);
+  // 重新渲染下拉選單
+  const sel=document.getElementById('m-location');
+  if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
+};
 </script>
 </body>
 </html>
