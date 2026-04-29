@@ -378,14 +378,6 @@ function render() {
         </div></td>
       </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
       </tbody></table></div>`;
-        <td>${r.dept}</td><td>${r.title}</td><td>${r.startDate}</td><td>${calcYears(r.startDate)}</td>
-        <td>${eBadge(r.status)}</td>
-        <td><div style="display:flex;gap:4px">
-          <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
-          <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
-        </div></td>
-      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
-      </tbody></table></div>`;
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
