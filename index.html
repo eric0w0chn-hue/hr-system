@@ -96,6 +96,7 @@ tr.data-row.selected td{background:#f5f5f4}
     </div>
     <div class="tabs">
       <button class="tab active" onclick="switchTab('employee')">在職員工</button>
+      <button class="tab" onclick="switchTab('resigned')">離職員工</button>
       <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
     </div>
     <div class="main" id="mainContent"></div>
@@ -125,7 +126,7 @@ document.getElementById('todayLabel').textContent = new Date().toLocaleDateStrin
 // ── 狀態 ──
 let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
-let interviewLocations = [];
+let interviewLocations=[], workLocations=[], titleOptions=[];
 
 // ── 雲端讀寫 ──
 function showLoading(show) {
@@ -137,18 +138,22 @@ function showLoading(show) {
 async function loadData() {
   try {
     showLoading(true);
-    const [ivSnap,evSnap,locSnap] = await Promise.all([
+    const [ivSnap,evSnap,rsSnap,locSnap] = await Promise.all([
       getDoc(doc(db,'hr','interviews')),
       getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','resigned')),
       getDoc(doc(db,'hr','settings')),
     ]);
-    interviews = ivSnap.exists() ? ivSnap.data().list : [];
-    employees  = evSnap.exists() ? evSnap.data().list : [];
-    interviewLocations = locSnap.exists() ? (locSnap.data().locations||[]) : [];
+    interviews       = ivSnap.exists() ? ivSnap.data().list : [];
+    employees        = evSnap.exists() ? evSnap.data().list : [];
+    resigned         = rsSnap.exists() ? rsSnap.data().list : [];
+    interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
+    workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
+    titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
   } catch(e) {
     console.error(e);
     showToast('載入資料失敗，請重新整理');
-    interviews=[]; employees=[]; interviewLocations=[];
+    interviews=[]; employees=[]; resigned=[]; interviewLocations=[]; workLocations=[]; titleOptions=[];
   } finally {
     showLoading(false);
   }
@@ -159,7 +164,8 @@ async function saveData() {
     await Promise.all([
       setDoc(doc(db,'hr','interviews'),{list:interviews}),
       setDoc(doc(db,'hr','employees'), {list:employees}),
-      setDoc(doc(db,'hr','settings'),  {locations:interviewLocations}),
+      setDoc(doc(db,'hr','resigned'),  {list:resigned}),
+      setDoc(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions}),
     ]);
   } catch(e) {
     console.error(e);
@@ -167,8 +173,7 @@ async function saveData() {
   }
 }
 
-let interviews=[], employees=[];
-// 啟動後立即載入再渲染（async IIFE）
+let interviews=[], employees=[], resigned=[];
 (async()=>{ await loadData(); render(); })();
 
 // ── Toast ──
@@ -187,17 +192,17 @@ const calcYears = d => {
   return y>0?`${y}年${m}個月`:`${m}個月`;
 };
 const isBadge = s => { const m={錄取:'bg',待通知:'ba',已婉拒:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
-const eBadge  = s => { const m={在職:'bt',試用期:'bb',留職停薪:'ba',離職:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
+const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
 function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';render(); }
 
 function getList() {
-  const src = tab==='interview' ? interviews : employees;
+  const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
   return src.filter(r => {
     const q=sq.toLowerCase();
-    const nm=(r.name+((tab==='interview'?r.location:r.dept)||'')+(r.email||'')).toLowerCase().includes(q);
+    const nm=(r.name+((tab==='interview'?r.location:r.workLocation)||'')+(r.email||'')).toLowerCase().includes(q);
     const st=!sf||r.status===sf;
     return nm&&st;
   });
@@ -287,23 +292,71 @@ function render() {
           <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
           <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source||'—'}</div></div>
           <div class="di"><div class="dl">適合度評估</div><div class="dv">${fitBadge(sel.fit)}</div></div>
+          <div class="di"><div class="dl">兵役狀況</div><div class="dv">${sel.military||'—'}</div></div>
+          <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">面試備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
       </div></div>`;}
 
+  } else if(tab==='resigned') {
+    const all2=resigned;
+    stats=`<div class="stats">
+      <div class="sc"><div class="sl">離職人數</div><div class="sn">${all2.length}</div></div>
+      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${all2.filter(r=>r.status==='留職停薪').length}</div></div>
+    </div>`;
+    tbl=`<div class="toolbar">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" oninput="setSq(this.value)">
+      <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
+    </div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th style="width:130px">姓名</th><th style="width:100px">工作地點</th>
+        <th style="width:120px">職稱</th><th style="width:90px">到職日</th>
+        <th style="width:90px">離職日</th><th style="width:80px">狀態</th><th style="width:60px">操作</th>
+      </tr></thead>
+      <tbody>${getList().length?getList().map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.startDate||'—'}</td><td>${r.resignDate||'—'}</td>
+        <td>${eBadge(r.status)}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="ibt" onclick="event.stopPropagation();restoreEmployee(${r.id})" title="復職">↩</button>
+          <button class="ibt" onclick="event.stopPropagation();delResigned(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
+        </div></td>
+      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有離職員工記錄</div></td></tr>`}
+      </tbody></table></div>`;
+
+    const sel=resigned.find(r=>r.id===selId);
+    if(sel){det=`<div class="detail">
+      <div class="detail-header">
+        <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:500">${sel.name}</div>
+        <div style="font-size:12px;color:#6b6b68">${sel.workLocation||'—'} · ${sel.title||'—'} · ${eBadge(sel.status)}</div></div>
+        <button class="btn btn-sm btn-outline" onclick="restoreEmployee(${sel.id})">↩ 復職</button>
+      </div>
+      <div class="detail-body">
+        <div class="dg">
+          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
+          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
+          <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate||'—'}</div></div>
+          <div class="di"><div class="dl">離職日</div><div class="dv">${sel.resignDate||'—'}</div></div>
+          <div class="di"><div class="dl">月薪</div><div class="dv">$${(sel.salary||0).toLocaleString()}</div></div>
+          <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
+        </div>
+        <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
+      </div></div>`;}
+
   } else {
-    const total=all.length,active=all.filter(r=>r.status==='在職').length,
-          prob=all.filter(r=>r.status==='試用期').length,
-          depts=new Set(all.map(r=>r.dept)).size;
+    const total=all.length, active=all.filter(r=>r.status==='在職').length,
+          stores=new Set(all.map(r=>r.workLocation).filter(Boolean)).size;
     stats=`<div class="stats">
       <div class="sc"><div class="sl">員工總數</div><div class="sn">${total}</div></div>
       <div class="sc"><div class="sl">正式在職</div><div class="sn">${active}</div></div>
-      <div class="sc"><div class="sl">試用期中</div><div class="sn">${prob}</div></div>
-      <div class="sc"><div class="sl">部門數</div><div class="sn">${depts}</div></div>
+      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${all.filter(r=>r.status==='留職停薪').length}</div></div>
+      <div class="sc"><div class="sl">現有店面數</div><div class="sn">${stores}</div></div>
     </div>`;
-    const sopts=['','在職','試用期','留職停薪','離職'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
+    const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、部門..." value="${sq}" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" oninput="setSq(this.value)">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -311,12 +364,20 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
-        <th style="width:130px">姓名</th><th style="width:80px">部門</th>
+        <th style="width:130px">姓名</th><th style="width:100px">工作地點</th>
         <th style="width:120px">職稱</th><th style="width:90px">到職日</th>
         <th style="width:90px">年資</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
       </tr></thead>
       <tbody>${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.startDate||'—'}</td><td>${calcYears(r.startDate)}</td>
+        <td>${eBadge(r.status)}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
+          <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
+        </div></td>
+      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+      </tbody></table></div>`;
         <td>${r.dept}</td><td>${r.title}</td><td>${r.startDate}</td><td>${calcYears(r.startDate)}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
@@ -332,14 +393,13 @@ function render() {
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
-          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email}</div></div>
-          <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education}</div></div>
-          <div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${sel.salary.toLocaleString()}</div></div>
-          <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate}</div></div>
-          <div class="di"><div class="dl">年資</div><div class="dv">${calcYears(sel.startDate)}</div></div>
+          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
+          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
+          <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
+          <div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>
+          <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate||'—'}</div></div>
+          <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
         </div>
-        <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">專長技能</div><div class="nb">${sel.skill||'（未填寫）'}</div></div>
         <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>`;
       } else if(detailTab==='emergency'){
         const e=sel.emergency||{};
@@ -416,9 +476,10 @@ function render() {
           <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:500">${sel.name}</div>
-            <div style="font-size:12px;color:#6b6b68">${sel.dept} · ${sel.title} · ${eBadge(sel.status)}</div>
+            <div style="font-size:12px;color:#6b6b68">${sel.workLocation||'—'} · ${sel.title||'—'} · ${eBadge(sel.status)}</div>
           </div>
           <button class="btn btn-sm btn-outline" onclick="openModal('editEmployee',${sel.id})">編輯</button>
+          <button class="btn btn-sm btn-outline" style="color:#e24b4a;border-color:#e24b4a" onclick="resignEmployee(${sel.id})">離職</button>
         </div>
         <div class="detail-tabs">${dtabs.map(([id,lb])=>`<button class="dtab${detailTab===id?' active':''}" onclick="setDetailTab('${id}')">${lb}</button>`).join('')}</div>
         <div class="detail-body">${body}</div>
@@ -427,8 +488,7 @@ function render() {
   }
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
-  // sync active tab button
-  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='interview'))});
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='resigned')||(i===2&&tab==='interview'));});
 }
 
 // ── Modal ──
@@ -455,7 +515,8 @@ function openModal(mode, targetId) {
       <div class="fr"><label>狀態</label><select id="m-status"><option>待通知</option><option>錄取</option><option>已婉拒</option></select></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
-      <div class="fr"><label>學歷</label><input id="m-education" value="${r.education||''}"></div>
+      <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
+      <div class="fr"><label>兵役狀況</label><select id="m-military"><option value="">請選擇</option><option>役退</option><option>免役</option><option>待役中</option></select></div>
       <div class="fr"><label>工作年資</label><input id="m-experience" value="${r.experience||''}"></div>
     </div>
     <div class="fr"><label>面試備註</label><textarea id="m-note">${r.note||''}</textarea></div>`;
@@ -463,24 +524,43 @@ function openModal(mode, targetId) {
       if(r.status)document.getElementById('m-status').value=r.status;
       if(r.source)document.getElementById('m-source').value=r.source;
       if(r.fit)document.getElementById('m-fit').value=r.fit;
+      if(r.education)document.getElementById('m-education').value=r.education;
+      if(r.military)document.getElementById('m-military').value=r.military;
     },10);
   } else if(mode==='addEmployee'||mode==='editEmployee'){
     const r=mode==='editEmployee'?employees.find(x=>x.id===targetId):{};
     title=(mode==='addEmployee'?'新增':'編輯')+'員工';
+    const wlocOpts=workLocations.map(l=>`<option value="${l}"${r.workLocation===l?' selected':''}>${l}</option>`).join('');
+    const titleOpts=titleOptions.map(l=>`<option value="${l}"${r.title===l?' selected':''}>${l}</option>`).join('');
     html=`<div class="fg">
       <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div>
-      <div class="fr"><label>部門</label><input id="m-dept" value="${r.dept||''}"></div>
-      <div class="fr"><label>職稱</label><input id="m-title" value="${r.title||''}"></div>
-      <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>試用期</option><option>留職停薪</option><option>離職</option></select></div>
+      <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
+      <div class="fr" style="grid-column:span 2">
+        <label>工作地點</label>
+        <div style="display:flex;gap:6px">
+          <select id="m-workLocation" style="flex:1"><option value="">請選擇或新增地點</option>${wlocOpts}</select>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addWorkLocation()" style="white-space:nowrap">＋ 新增</button>
+        </div>
+      </div>
+      <div class="fr" style="grid-column:span 2">
+        <label>職稱</label>
+        <div style="display:flex;gap:6px">
+          <select id="m-title" style="flex:1"><option value="">請選擇或新增職稱</option>${titleOpts}</select>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addTitle()" style="white-space:nowrap">＋ 新增</button>
+        </div>
+      </div>
       <div class="fr"><label>到職日期</label><input id="m-startDate" type="date" value="${r.startDate||''}"></div>
       <div class="fr"><label>月薪（元）</label><input id="m-salary" type="number" value="${r.salary||''}"></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>學歷</label><input id="m-education" value="${r.education||''}"></div>
-      <div class="fr"><label>專長技能</label><input id="m-skill" value="${r.skill||''}"></div>
     </div>
     <div class="fr"><label>備註</label><textarea id="m-note">${r.note||''}</textarea></div>`;
-    setTimeout(()=>{ if(r.status)document.getElementById('m-status').value=r.status; },10);
+    setTimeout(()=>{
+      if(r.status)document.getElementById('m-status').value=r.status;
+      if(r.workLocation){const s=document.getElementById('m-workLocation');if(s)s.value=r.workLocation;}
+      if(r.title){const s=document.getElementById('m-title');if(s)s.value=r.title;}
+    },10);
   } else if(mode==='editEmergency'){
     const e=(employees.find(x=>x.id===targetId)||{}).emergency||{};
     title='編輯緊急聯絡人';
@@ -544,16 +624,17 @@ async function saveModal(){
   const m=editMode, tid=editTarget;
   if(m==='addInterview'||m==='editInterview'){
     if(!g('m-name')){alert('請填寫姓名');return;}
-    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),experience:g('m-experience'),note:g('m-note')};
+    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
     if(m==='editInterview'){const i=interviews.findIndex(r=>r.id===tid);interviews[i]=obj;}
     else interviews.unshift(obj);
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
+    const newStatus=g('m-status');
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
-      Object.assign(r,{name:g('m-name'),dept:g('m-dept'),title:g('m-title'),status:g('m-status'),startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),skill:g('m-skill'),note:g('m-note')});
+      Object.assign(r,{name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),note:g('m-note')});
     } else {
-      employees.unshift({id:Date.now(),name:g('m-name'),dept:g('m-dept'),title:g('m-title'),status:g('m-status'),startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),skill:g('m-skill'),note:g('m-note'),emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
+      employees.unshift({id:Date.now(),name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:g('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),note:g('m-note'),emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
     }
   } else if(m==='editEmergency'){
     const r=employees.find(x=>x.id===tid);
@@ -604,6 +685,8 @@ window.setSq=(v)=>{sq=v;selId=null;render();};
 window.setSf=(v)=>{sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
+
+// ── 新增面試地點 ──
 window.addLocation=function(){
   const name=prompt('請輸入新的面試地點名稱：');
   if(!name||!name.trim())return;
@@ -612,9 +695,76 @@ window.addLocation=function(){
   interviewLocations.push(n);
   saveData();
   showToast(`已新增「${n}」`);
-  // 重新渲染下拉選單
   const sel=document.getElementById('m-location');
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
+};
+
+// ── 新增工作地點 ──
+window.addWorkLocation=function(){
+  const name=prompt('請輸入新的工作地點名稱：');
+  if(!name||!name.trim())return;
+  const n=name.trim();
+  if(workLocations.includes(n)){showToast('此地點已存在');return;}
+  workLocations.push(n);
+  saveData();
+  showToast(`已新增「${n}」`);
+  const sel=document.getElementById('m-workLocation');
+  if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
+};
+
+// ── 新增職稱 ──
+window.addTitle=function(){
+  const name=prompt('請輸入新的職稱：');
+  if(!name||!name.trim())return;
+  const n=name.trim();
+  if(titleOptions.includes(n)){showToast('此職稱已存在');return;}
+  titleOptions.push(n);
+  saveData();
+  showToast(`已新增「${n}」`);
+  const sel=document.getElementById('m-title');
+  if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
+};
+
+// ── 離職：移到離職員工 ──
+window.resignEmployee=async function(id){
+  const r=employees.find(x=>x.id===id);
+  if(!r)return;
+  const resignDate=prompt('請輸入離職日期（格式：YYYY-MM-DD）：',new Date().toISOString().slice(0,10));
+  if(resignDate===null)return;
+  const record={...r, status:'離職', resignDate:resignDate.trim()};
+  resigned.unshift(record);
+  employees=employees.filter(x=>x.id!==id);
+  if(selId===id)selId=null;
+  render();
+  showToast('已移至離職員工...');
+  await saveData();
+  showToast('離職記錄已儲存 ✓');
+};
+
+// ── 復職 ──
+window.restoreEmployee=async function(id){
+  const r=resigned.find(x=>x.id===id);
+  if(!r)return;
+  if(!confirm(`確定要將「${r.name}」復職嗎？`))return;
+  const record={...r, status:'在職', resignDate:undefined};
+  delete record.resignDate;
+  employees.unshift(record);
+  resigned=resigned.filter(x=>x.id!==id);
+  if(selId===id)selId=null;
+  tab='employee';
+  render();
+  showToast('已復職，移回在職員工 ✓');
+  await saveData();
+};
+
+// ── 刪除離職記錄 ──
+window.delResigned=async function(id){
+  if(!confirm('確定要永久刪除此離職記錄？'))return;
+  resigned=resigned.filter(r=>r.id!==id);
+  if(selId===id)selId=null;
+  render();
+  await saveData();
+  showToast('已刪除 ✓');
 };
 </script>
 </body>
