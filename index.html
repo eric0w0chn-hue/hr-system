@@ -95,8 +95,8 @@ tr.data-row.selected td{background:#f5f5f4}
       <small id="todayLabel"></small>
     </div>
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('employee')">在職員工</button>
-      <button class="tab" onclick="switchTab('resigned')">離職員工</button>
+      <button class="tab active" onclick="switchTab('employee')">在職同仁</button>
+      <button class="tab" onclick="switchTab('resigned')">離職同仁</button>
       <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
     </div>
     <div class="main" id="mainContent"></div>
@@ -281,9 +281,10 @@ function render() {
     if(sel){det=`<div class="detail">
       <div class="detail-header">
         <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
-        <div><div style="font-size:14px;font-weight:500">${sel.name}</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:500">${sel.name}</div>
         <div style="font-size:12px;color:#6b6b68">${sel.location||'—'} · ${isBadge(sel.status)}</div></div>
-        <button class="btn btn-sm btn-outline" style="margin-left:auto" onclick="openModal('editInterview',${sel.id})">編輯</button>
+        <button class="btn btn-sm btn-outline" onclick="openModal('editInterview',${sel.id})">編輯</button>
+        ${sel.status==='錄取'?`<button class="btn btn-sm btn-primary" onclick="transferToEmployee(${sel.id})">✦ 轉為在職同仁</button>`:''}
       </div>
       <div class="detail-body">
         <div class="dg">
@@ -294,7 +295,6 @@ function render() {
           <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source||'—'}</div></div>
           <div class="di"><div class="dl">適合度評估</div><div class="dv">${fitBadge(sel.fit)}</div></div>
           <div class="di"><div class="dl">兵役狀況</div><div class="dv">${sel.military||'—'}</div></div>
-          <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">面試備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
       </div></div>`;}
@@ -323,7 +323,7 @@ function render() {
           <button class="ibt" onclick="event.stopPropagation();restoreEmployee(${r.id})" title="復職">↩</button>
           <button class="ibt" onclick="event.stopPropagation();delResigned(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
         </div></td>
-      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有離職員工記錄</div></td></tr>`}
+      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有離職同仁記錄</div></td></tr>`}
       </tbody></table></div>`;
 
     const sel=resigned.find(r=>r.id===selId);
@@ -361,7 +361,7 @@ function render() {
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
-      <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增員工</button>
+      <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table>
       <thead><tr>
@@ -430,31 +430,26 @@ function render() {
           </div>
         </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無績效考核記錄</div>'}`;
       } else if(detailTab==='leave'){
-        // 台灣勞基法特休計算
         function calcAnnualLeave(startDate) {
           if(!startDate) return 0;
-          const start=new Date(startDate);
-          const today=new Date();
+          const start=new Date(startDate), today=new Date();
           const months=Math.floor((today-start)/(1000*60*60*24*30.44));
-          if(months<6) return 0;
-          if(months<12) return 3;
+          if(months<6) return 0; if(months<12) return 3;
           const years=Math.floor(months/12);
-          if(years<1) return 3;
-          if(years<2) return 7;
-          if(years<3) return 10;
-          if(years<5) return 14;
-          if(years<10) return 15;
-          return Math.min(15+years-10, 30);
+          if(years<2) return 7; if(years<3) return 10;
+          if(years<5) return 14; if(years<10) return 15;
+          return Math.min(15+years-10,30);
         }
-        const autoAnnual = calcAnnualLeave(sel.startDate);
+        const autoAnnual=calcAnnualLeave(sel.startDate);
         const yr=new Date().getFullYear();
-        const stored=sel.leaves.find(l=>l.year===yr)||{year:yr,annual:autoAnnual,used:0,remain:autoAnnual};
-        const usedDays=stored.used||0;
+        const stored=sel.leaves.find(l=>l.year===yr)||{year:yr,annual:autoAnnual,usedDates:[],remain:autoAnnual};
+        const usedDates=(stored.usedDates||[]).sort();
+        const usedDays=usedDates.length;
         const remain=autoAnnual-usedDays;
         const pct=autoAnnual>0?Math.round(usedDays/autoAnnual*100):0;
         const color=pct>80?'#e24b4a':pct>50?'#f59e0b':'#10b981';
-        body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-          <span class="sec-title" style="margin:0">${yr} 年度特休（依勞基法自動計算）</span>
+        body=`<div style="margin-bottom:10px">
+          <span class="sec-title">${yr} 年度特休（依勞基法自動計算）</span>
         </div>
         <div class="dg3" style="margin-bottom:14px">
           <div class="sc"><div class="sl">法定應有天數</div><div class="sn">${autoAnnual}</div><div class="ss">${sel.startDate?'依到職日計算':'請先填到職日'}</div></div>
@@ -465,23 +460,32 @@ function render() {
           <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b6b68;margin-bottom:4px"><span>使用進度</span><span>${pct}%</span></div>
           <div class="prog-bar"><div class="prog-fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;padding:12px;background:#f9f9f8;border-radius:8px;border:1px solid #e5e5e3">
-          <span style="font-size:13px;color:#6b6b68;white-space:nowrap">更新已使用天數：</span>
-          <input id="leave-used-${sel.id}" type="number" min="0" max="${autoAnnual}" value="${usedDays}" style="width:70px;font-size:13px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:6px;text-align:center">
-          <span style="font-size:13px;color:#6b6b68">天</span>
-          <button class="btn btn-sm btn-primary" onclick="updateLeaveUsed(${sel.id},${autoAnnual})">更新</button>
+        <div style="background:#f9f9f8;border:1px solid #e5e5e3;border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:500;color:#6b6b68;margin-bottom:8px">已使用假日紀錄（每筆為1天）</div>
+          <div id="leave-dates-${sel.id}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            ${usedDates.map((d,i)=>`<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d4d4d0;border-radius:6px;padding:3px 8px;font-size:12px">
+              <span>${d}</span>
+              <button onclick="removeLeaveDate(${sel.id},'${d}')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>
+            </div>`).join('')}
+            ${usedDates.length===0?'<span style="font-size:12px;color:#9b9b98">尚未登記任何假日</span>':''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="leave-input-${sel.id}" type="date" style="font-size:13px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:6px">
+            <button class="btn btn-sm btn-primary" onclick="addLeaveDate(${sel.id})">＋ 新增假日</button>
+          </div>
         </div>
-        ${sel.leaves&&sel.leaves.filter(l=>l.year<yr).length?`<div style="margin-top:16px">
+        ${sel.leaves&&sel.leaves.filter(l=>l.year<yr).length?`<div style="margin-top:4px">
           <div class="sec-title">歷年紀錄</div>
           ${sel.leaves.filter(l=>l.year<yr).sort((a,b)=>b.year-a.year).map(l=>`<div class="hist-row">
             <div class="hist-dot"></div>
             <div style="flex:1"><div style="font-size:13px">${l.year} 年</div>
-            <div class="hist-meta">應有 ${l.annual} 天 · 已用 ${l.used} 天 · 剩餘 ${l.remain} 天</div></div>
+            <div class="hist-meta">應有 ${l.annual} 天 · 已用 ${(l.usedDates||[]).length} 天 · 剩餘 ${l.remain} 天</div></div>
           </div>`).join('')}
         </div>`:''}
-        <div style="margin-top:12px;font-size:11px;color:#9b9b98;line-height:1.6">
+        <div style="margin-top:10px;font-size:11px;color:#9b9b98;line-height:1.6">
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
-        </div>`;      } else if(detailTab==='training'){
+        </div>`; 
+      } else if(detailTab==='training'){
         body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <span class="sec-title" style="margin:0">教育訓練紀錄</span>
           <button class="btn btn-sm btn-outline" onclick="openModal('addTraining',${sel.id})">＋ 新增訓練</button>
@@ -724,6 +728,45 @@ window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
 window.updateLeaveUsed=(id,annual)=>updateLeaveUsed(id,annual);
 window.addBank=()=>addBank();
+window.addLeaveDate=async function(id){
+  const r=employees.find(x=>x.id===id); if(!r)return;
+  const el=document.getElementById('leave-input-'+id); if(!el||!el.value)return;
+  const date=el.value;
+  const yr=new Date().getFullYear();
+  let stored=r.leaves.find(l=>l.year===yr);
+  if(!stored){stored={year:yr,annual:0,usedDates:[],remain:0};r.leaves.unshift(stored);}
+  if(!stored.usedDates)stored.usedDates=[];
+  if(stored.usedDates.includes(date)){showToast('此日期已登記過');return;}
+  stored.usedDates.push(date);
+  stored.used=stored.usedDates.length;
+  stored.remain=stored.annual-stored.used;
+  render(); showToast('儲存中...'); await saveData(); showToast('假日已新增 ✓');
+};
+window.removeLeaveDate=async function(id,date){
+  const r=employees.find(x=>x.id===id); if(!r)return;
+  const yr=new Date().getFullYear();
+  const stored=r.leaves.find(l=>l.year===yr); if(!stored)return;
+  stored.usedDates=(stored.usedDates||[]).filter(d=>d!==date);
+  stored.used=stored.usedDates.length;
+  stored.remain=stored.annual-stored.used;
+  render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
+};
+window.transferToEmployee=async function(id){
+  const r=interviews.find(x=>x.id===id); if(!r)return;
+  if(!confirm(`確定要將「${r.name}」轉為在職同仁嗎？\n基本資料會自動帶入，可再到在職同仁頁面補充到職日等資訊。`))return;
+  const newEmp={
+    id:Date.now(), name:r.name, phone:r.phone||'', email:r.email||'',
+    education:r.education||'', workLocation:'', title:'', status:'在職',
+    startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
+    note:r.note||'', emergency:{name:'',relation:'',phone:''},
+    salaryHistory:[], performance:[], leaves:[], trainings:[]
+  };
+  employees.unshift(newEmp);
+  interviews=interviews.filter(x=>x.id!==id);
+  selId=null; tab='employee';
+  render(); showToast('轉移中...');
+  await saveData(); showToast(`${r.name} 已轉為在職同仁 ✓`);
+};
 
 // ── 新增銀行 ──
 function addBank(){
@@ -803,7 +846,7 @@ window.resignEmployee=async function(id){
   employees=employees.filter(x=>x.id!==id);
   if(selId===id)selId=null;
   render();
-  showToast('已移至離職員工...');
+  showToast('已移至離職同仁...');
   await saveData();
   showToast('離職記錄已儲存 ✓');
 };
@@ -820,7 +863,7 @@ window.restoreEmployee=async function(id){
   if(selId===id)selId=null;
   tab='employee';
   render();
-  showToast('已復職，移回在職員工 ✓');
+  showToast('已復職，移回在職同仁 ✓');
   await saveData();
 };
 
