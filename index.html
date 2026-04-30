@@ -137,7 +137,10 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
   <div class="card">
     <div class="topbar">
       <h1>🍗 梁平人員資訊管理系統</h1>
-      <small id="todayLabel"></small>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+        <small id="todayLabel"></small>
+        <small id="clockLabel" style="color:rgba(255,255,255,.9);font-size:13px;font-weight:500;letter-spacing:.5px"></small>
+      </div>
     </div>
     <div class="tabs">
       <button class="tab active" onclick="switchTab('employee')">在職同仁</button>
@@ -165,8 +168,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ── 日期 ──
+// ── 日期 & 時鐘 ──
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+function updateClock(){
+  const now=new Date();
+  const tw=now.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const el=document.getElementById('clockLabel');
+  if(el)el.textContent=tw;
+}
+updateClock();
+setInterval(updateClock,1000);
 
 // ── 狀態 ──
 let tab='employee', selId=null, detailTab='basic', sq='', sf='';
@@ -1033,7 +1044,7 @@ window.setSq=function(v){
     render();
     const inp=document.querySelector('.search-input');
     if(inp&&document.activeElement!==inp){inp.focus();}
-  },300);
+  },600);
 };
 
 function bindSearchInput(){
