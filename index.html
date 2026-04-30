@@ -417,7 +417,7 @@ function render() {
     </div>`;
     const sopts=['','錄取','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -473,7 +473,7 @@ function render() {
       <div class="sc"><div class="sl">離職同仁人數</div><div class="sn">${all2.length}</div></div>
     </div>`;
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input">
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
     </div>
     <div class="tw"><table>
@@ -528,7 +528,7 @@ function render() {
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -801,6 +801,7 @@ function render() {
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
   document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='resigned')||(i===2&&tab==='interview'));});
+  bindSearchInput();
 }
 
 // ── Modal ──
@@ -1027,10 +1028,25 @@ window.render=render;
 window.setSq=function(v){
   sq=v; selId=null;
   render();
-  // 重新聚焦搜尋框並移游標到末尾
   const inp=document.querySelector('.search-input');
   if(inp){inp.focus();const len=inp.value.length;inp.setSelectionRange(len,len);}
 };
+
+// 掛載搜尋框的中文輸入法相容事件（在 render 後呼叫）
+function bindSearchInput(){
+  const inp=document.querySelector('.search-input');
+  if(!inp||inp._bound)return;
+  inp._bound=true;
+  let composing=false;
+  inp.addEventListener('compositionstart',()=>{composing=true;});
+  inp.addEventListener('compositionend',()=>{
+    composing=false;
+    setSq(inp.value);
+  });
+  inp.addEventListener('input',()=>{
+    if(!composing) setSq(inp.value);
+  });
+}
 window.setSf=function(v){sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
