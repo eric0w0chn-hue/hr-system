@@ -1037,22 +1037,19 @@ window.exportJSON=exportJSON;
 window.importJSON=importJSON;
 window.render=render;
 let _sqTimer=null;
-window.setSq=function(v){
+function doSearch(v){
   sq=v; selId=null;
-  clearTimeout(_sqTimer);
-  _sqTimer=setTimeout(()=>{
-    render();
-    const inp=document.querySelector('.search-input');
-    if(inp&&document.activeElement!==inp){inp.focus();}
-  },600);
-};
-
-function bindSearchInput(){
-  const inp=document.querySelector('.search-input');
-  if(!inp||inp._bound)return;
-  inp._bound=true;
-  inp.addEventListener('input',()=>{ setSq(inp.value); });
+  render();
 }
+
+// 事件委派：掛在不會被重建的容器，避免重複綁定
+document.getElementById('mainContent').addEventListener('input',function(e){
+  if(!e.target.classList.contains('search-input'))return;
+  clearTimeout(_sqTimer);
+  _sqTimer=setTimeout(()=>doSearch(e.target.value),2000);
+});
+
+function bindSearchInput(){} // 保留空函式避免其他地方呼叫報錯
 window.setSf=function(v){sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
