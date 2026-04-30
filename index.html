@@ -85,6 +85,22 @@ tr.data-row.selected td{background:#f5f5f4}
 .toast.show{opacity:1;transform:translateY(0)}
 /* Responsive */
 @media(max-width:600px){.dg,.dg3,.fg{grid-template-columns:1fr}.detail-tabs{overflow-x:auto}.stats{grid-template-columns:1fr 1fr}}
+/* 自製下拉選單 */
+.cdd{position:relative;display:inline-block;width:100%}
+.cdd-trigger{width:100%;font-size:13px;padding:7px 32px 7px 10px;border:1px solid #d4d4d0;border-radius:8px;background:#fff;color:#1a1a19;cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none}
+.cdd-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:#6b6b68;font-size:11px}
+.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #d4d4d0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:500;max-height:220px;overflow-y:auto;display:none}
+.cdd-menu.open{display:block}
+.cdd-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;font-size:13px;color:#1a1a19}
+.cdd-item:hover{background:#f5f5f4}
+.cdd-item.selected{background:#f5f5f4;font-weight:500}
+.cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#d4d4d0;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;flex-shrink:0}
+.cdd-item .cdd-del:hover{color:#e24b4a;background:#fee2e2}
+.cdd-placeholder{color:#9b9b98}
+.cdd-add{display:flex;align-items:center;gap:6px;padding:7px 10px;border-top:1px solid #f0f0ee;font-size:12px;color:#6b6b68;cursor:pointer}
+.cdd-add:hover{background:#f5f5f4;color:#1a1a19}
+.cdd-add input{flex:1;font-size:12px;padding:4px 8px;border:1px solid #d4d4d0;border-radius:6px;font-family:inherit}
+
 </style>
 </head>
 <body>
@@ -164,7 +180,71 @@ window.syncROC=function(id){
 };
 function getROC(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 
-function showLoading(show) {
+// ── 自製下拉選單 ──
+function cddHtml(id, options, value, listName, placeholder='請選擇或新增'){
+  const safeId=id.replace(/[^a-zA-Z0-9_]/g,'_');
+  return `<div class="cdd" id="cdd-wrap-${safeId}">
+    <button type="button" class="cdd-trigger" onclick="cddToggle('${safeId}')">
+      <span id="cdd-label-${safeId}" class="${value?'':'cdd-placeholder'}">${value||placeholder}</span>▾
+    </button>
+    <input type="hidden" id="${id}" value="${value||''}">
+    <div class="cdd-menu" id="cdd-menu-${safeId}">
+      ${options.map(o=>`<div class="cdd-item${o===value?' selected':''}" onclick="cddSelect('${safeId}','${id}','${o.replace(/'/g,'\\\'')}')">
+        <span>${o}</span>
+        <button class="cdd-del" onclick="event.stopPropagation();cddDel('${listName}','${o.replace(/'/g,'\\\'')}','${safeId}','${id}')" title="刪除">×</button>
+      </div>`).join('')}
+      <div class="cdd-add" onclick="event.stopPropagation()">
+        <input id="cdd-input-${safeId}" placeholder="輸入後按 ＋ 新增" onkeydown="if(event.key==='Enter'){event.preventDefault();cddAdd('${listName}','${safeId}','${id}')}">
+        <button type="button" onclick="cddAdd('${listName}','${safeId}','${id}')" style="background:#1a1a19;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap">＋</button>
+      </div>
+    </div>
+  </div>`;
+}
+window.cddToggle=function(safeId){
+  const menu=document.getElementById('cdd-menu-'+safeId);
+  if(!menu)return;
+  const open=menu.classList.contains('open');
+  document.querySelectorAll('.cdd-menu.open').forEach(m=>m.classList.remove('open'));
+  if(!open)menu.classList.add('open');
+};
+window.cddSelect=function(safeId,inputId,val){
+  const inp=document.getElementById(inputId);
+  const lbl=document.getElementById('cdd-label-'+safeId);
+  const menu=document.getElementById('cdd-menu-'+safeId);
+  if(inp)inp.value=val;
+  if(lbl){lbl.textContent=val;lbl.classList.remove('cdd-placeholder');}
+  if(menu){menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span').textContent===val));menu.classList.remove('open');}
+};
+window.cddDel=function(listName,val,safeId,inputId){
+  if(!confirm(`確定要刪除「${val}」嗎？`))return;
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const arr=maps[listName];if(!arr)return;
+  const idx=arr.indexOf(val);if(idx>=0)arr.splice(idx,1);
+  saveData();showToast(`已刪除「${val}」`);
+  const menu=document.getElementById('cdd-menu-'+safeId);
+  if(menu){const item=Array.from(menu.querySelectorAll('.cdd-item')).find(el=>el.querySelector('span')&&el.querySelector('span').textContent===val);if(item)item.remove();}
+  const inp=document.getElementById(inputId);
+  if(inp&&inp.value===val){inp.value='';const lbl=document.getElementById('cdd-label-'+safeId);if(lbl){lbl.textContent='請選擇或新增';lbl.classList.add('cdd-placeholder');}}
+};
+window.cddAdd=function(listName,safeId,inputId){
+  const cinp=document.getElementById('cdd-input-'+safeId);if(!cinp||!cinp.value.trim())return;
+  const n=cinp.value.trim();
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const arr=maps[listName];if(!arr)return;
+  if(arr.includes(n)){showToast('此項目已存在');return;}
+  arr.push(n);saveData();showToast(`已新增「${n}」`);cinp.value='';
+  const menu=document.getElementById('cdd-menu-'+safeId);
+  if(menu){
+    const addRow=menu.querySelector('.cdd-add');
+    const div=document.createElement('div');div.className='cdd-item selected';
+    div.innerHTML=`<span>${n}</span><button class="cdd-del" onclick="event.stopPropagation();cddDel('${listName}','${n}','${safeId}','${inputId}')">×</button>`;
+    div.onclick=()=>cddSelect(safeId,inputId,n);
+    menu.insertBefore(div,addRow);
+  }
+  cddSelect(safeId,inputId,n);
+};
+document.addEventListener('click',e=>{if(!e.target.closest('.cdd'))document.querySelectorAll('.cdd-menu.open').forEach(m=>m.classList.remove('open'));});
+
   let el=document.getElementById('loadingBar');
   if(!el){el=document.createElement('div');el.id='loadingBar';el.style.cssText='position:fixed;top:0;left:0;right:0;height:3px;background:#1a1a19;z-index:9999;transition:opacity .4s';document.body.appendChild(el);}
   el.style.opacity=show?'1':'0';
@@ -416,7 +496,7 @@ function render() {
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
-      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助'],['training','教育訓練']];
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助'],['training','教育訓練'],['interview','訪談紀錄']];
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
@@ -602,7 +682,45 @@ function render() {
             <div class="hist-meta">${t.date} · ${t.hours} 小時 · <span style="color:${t.result==='通過'?'#166534':'#991b1b'}">${t.result}</span></div>
           </div>
         </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無訓練紀錄</div>'}`;
-      }
+      } else if(detailTab==='interview'){
+        const iv=sel.interviewRecord||{memo:'',files:[]};
+        body=`<div style="margin-bottom:14px">
+          <div class="sec-title">備忘錄</div>
+          <textarea id="iv-memo-${sel.id}" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #d4d4d0;border-radius:8px;font-family:inherit;min-height:120px;resize:vertical">${iv.memo||''}</textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:6px">
+            <button class="btn btn-sm btn-primary" onclick="saveInterviewMemo(${sel.id})">儲存備忘錄</button>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span class="sec-title" style="margin:0">文件連結</span>
+          </div>
+          <div style="background:#f9f9f8;border:1px solid #e5e5e3;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-size:12px;color:#6b6b68;margin-bottom:8px">將 Google 雲端硬碟的檔案設為「知道連結的人都能開啟」後，貼上連結即可</div>
+            <div style="display:flex;gap:6px;margin-bottom:6px">
+              <input id="iv-fname-${sel.id}" placeholder="檔案名稱（例：訪談紀錄_王小明）" style="flex:1;font-size:13px;padding:6px 10px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit">
+            </div>
+            <div style="display:flex;gap:6px">
+              <input id="iv-furl-${sel.id}" placeholder="貼上 Google 雲端硬碟或其他連結" style="flex:1;font-size:13px;padding:6px 10px;border:1px solid #d4d4d0;border-radius:7px;font-family:inherit">
+              <button class="btn btn-sm btn-primary" onclick="addInterviewFile(${sel.id})">＋ 新增</button>
+            </div>
+          </div>
+          ${(iv.files||[]).length?`<div class="tw"><table>
+            <thead><tr>
+              <th style="width:220px">檔案名稱</th>
+              <th style="width:110px">新增日期</th>
+              <th style="width:80px">操作</th>
+            </tr></thead>
+            <tbody>${iv.files.map((f,i)=>`<tr>
+              <td><a href="${f.url}" target="_blank" style="color:#1a1a19;text-decoration:none;display:flex;align-items:center;gap:5px">📄 <span style="overflow:hidden;text-overflow:ellipsis">${f.name}</span></a></td>
+              <td style="font-size:11px;color:#6b6b68">${f.date||'—'}</td>
+              <td style="display:flex;gap:4px;align-items:center">
+                <a href="${f.url}" target="_blank" class="ibt" title="開啟">↗</a>
+                <button class="ibt" onclick="deleteInterviewFile(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
+              </td>
+            </tr>`).join('')}</tbody>
+          </table></div>`:'<div class="empty-state" style="padding:20px">尚無文件連結，在上方輸入後按「＋ 新增」</div>'}
+        </div>`;
       det=`<div class="detail">
         <div class="detail-header">
           <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
@@ -637,11 +755,7 @@ function openModal(mode, targetId) {
       <div class="fr"><label>面試日期</label><input id="m-date" type="date" value="${r.date||''}"></div>
       <div class="fr" style="grid-column:span 2">
         <label>面試地點</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select id="m-location" style="flex:1"><option value="">請選擇或新增地點</option>${locOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addLocation()">＋ 新增</button>
-          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('interviewLocations','m-location')">✕ 刪除</button>
-        </div>
+        ${cddHtml('m-location', interviewLocations, r.location||'', 'interviewLocations')}
       </div>
       <div class="fr"><label>來源管道</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div>
       <div class="fr"><label>適合度評估</label><select id="m-fit"><option value="">未評估</option><option>合適</option><option>尚可</option><option>不佳</option></select></div>
@@ -670,19 +784,11 @@ function openModal(mode, targetId) {
       <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
       <div class="fr" style="grid-column:span 2">
         <label>工作地點</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select id="m-workLocation" style="flex:1"><option value="">請選擇或新增地點</option>${wlocOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addWorkLocation()">＋ 新增</button>
-          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('workLocations','m-workLocation')">✕ 刪除</button>
-        </div>
+        ${cddHtml('m-workLocation', workLocations, r.workLocation||'', 'workLocations')}
       </div>
       <div class="fr" style="grid-column:span 2">
         <label>職稱</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select id="m-title" style="flex:1"><option value="">請選擇或新增職稱</option>${titleOpts}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addTitle()">＋ 新增</button>
-          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('titleOptions','m-title')">✕ 刪除</button>
-        </div>
+        ${cddHtml('m-title', titleOptions, r.title||'', 'titleOptions')}
       </div>
       <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
       <div class="fr"><label>月薪（元）</label><input id="m-salary" type="number" value="${r.salary||''}"></div>
@@ -695,20 +801,15 @@ function openModal(mode, targetId) {
       <div class="fr" style="grid-column:span 2">
         <label>銀行帳戶</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <select id="m-bankName" style="width:150px"><option value="">請選擇或新增銀行</option>${(bankOptions||[]).map(b=>`<option value="${b}"${r.bankName===b?' selected':''}>${b}</option>`).join('')}</select>
-          <button type="button" class="btn btn-sm btn-outline" onclick="addBank()">＋ 新增</button>
-          <button type="button" class="btn btn-sm btn-outline" style="color:#e24b4a" onclick="delCustomOption('bankOptions','m-bankName')">✕ 刪除</button>
-          <input id="m-bankAccount" value="${r.bankAccount||''}" placeholder="銀行帳號" style="flex:1">
+          <div style="flex:1">${cddHtml('m-bankName', bankOptions||[], r.bankName||'', 'bankOptions','請選擇或新增銀行')}</div>
+          <input id="m-bankAccount" value="${r.bankAccount||''}" placeholder="銀行帳號" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid #d4d4d0;border-radius:8px;font-family:inherit">
         </div>
       </div>
     </div>
     <div class="fr"><label>備註</label><textarea id="m-note">${r.note||''}</textarea></div>`;
     setTimeout(()=>{
       if(r.status)document.getElementById('m-status').value=r.status;
-      if(r.workLocation){const s=document.getElementById('m-workLocation');if(s)s.value=r.workLocation;}
-      if(r.title){const s=document.getElementById('m-title');if(s)s.value=r.title;}
       if(r.education){const s=document.getElementById('m-education');if(s)s.value=r.education;}
-      if(r.bankName){const s=document.getElementById('m-bankName');if(s)s.value=r.bankName;}
     },10);
   } else if(mode==='editEmergency'){
     const e=(employees.find(x=>x.id===targetId)||{}).emergency||{};
@@ -1047,6 +1148,35 @@ window.restoreEmployee=async function(id){
   render();
   showToast('已復職，移回在職同仁 ✓');
   await saveData();
+};
+
+// ── 訪談紀錄 ──
+window.saveInterviewMemo=async function(empId){
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  const el=document.getElementById('iv-memo-'+empId);if(!el)return;
+  if(!r.interviewRecord)r.interviewRecord={memo:'',files:[]};
+  r.interviewRecord.memo=el.value;
+  showToast('儲存中...'); await saveData(); showToast('備忘錄已儲存 ✓');
+};
+window.addInterviewFile=async function(empId){
+  const nameEl=document.getElementById('iv-fname-'+empId);
+  const urlEl=document.getElementById('iv-furl-'+empId);
+  if(!nameEl||!urlEl)return;
+  const name=nameEl.value.trim();
+  const url=urlEl.value.trim();
+  if(!name){showToast('請填寫檔案名稱');return;}
+  if(!url){showToast('請貼上連結');return;}
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  if(!r.interviewRecord)r.interviewRecord={memo:'',files:[]};
+  r.interviewRecord.files.push({name,url,date:new Date().toLocaleDateString('zh-TW')});
+  nameEl.value=''; urlEl.value='';
+  render(); showToast('儲存中...'); await saveData(); showToast('文件連結已新增 ✓');
+};
+window.deleteInterviewFile=async function(empId,idx){
+  if(!confirm('確定要刪除此文件連結？'))return;
+  const r=employees.find(x=>x.id===empId);if(!r||!r.interviewRecord)return;
+  r.interviewRecord.files.splice(idx,1);
+  render(); showToast('刪除中...'); await saveData(); showToast('已刪除 ✓');
 };
 
 // ── 刪除離職記錄 ──
