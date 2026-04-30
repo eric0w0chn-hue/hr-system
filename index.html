@@ -91,7 +91,12 @@ tr.data-row.selected td{background:var(--orange-light)}
 /* Toast */
 .toast{position:fixed;bottom:24px;right:24px;background:#1F2937;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateY(0)}
-/* Responsive */
+/* 可排序欄位標題 */
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{background:#FFF4E6;color:var(--orange)}
+th.sort-asc::after{content:' ↑';color:var(--orange)}
+th.sort-desc::after{content:' ↓';color:var(--orange)}
+
 @media(max-width:600px){.dg,.dg3,.fg{grid-template-columns:1fr}.detail-tabs{overflow-x:auto}.stats{grid-template-columns:1fr 1fr}}
 /* 自製下拉選單 */
 .cdd{position:relative;display:inline-block;width:100%}
@@ -152,6 +157,7 @@ document.getElementById('todayLabel').textContent = new Date().toLocaleDateStrin
 let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
 let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[];
+let sortField='', sortDir=1; // sortDir: 1=升冪 -1=降冪
 
 // ── 民國年轉換工具 ──
 // 西元 YYYY-MM-DD → 民國 YYY年MM月DD日
@@ -322,16 +328,30 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';render(); }
+function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sortField='';sortDir=1;render(); }
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
-  return src.filter(r => {
+  let list = src.filter(r => {
     const q=sq.toLowerCase();
     const nm=(r.name+((tab==='interview'?r.location:r.workLocation)||'')+(r.email||'')).toLowerCase().includes(q);
     const st=!sf||r.status===sf;
     return nm&&st;
   });
+  if(sortField){
+    list=[...list].sort((a,b)=>{
+      let va=a[sortField]||'', vb=b[sortField]||'';
+      // 年資特殊處理：用到職日做數值排序
+      if(sortField==='calcYears'){
+        va=a.startDate?new Date(a.startDate).getTime():0;
+        vb=b.startDate?new Date(b.startDate).getTime():0;
+        return (va-vb)*sortDir*-1; // 越早到職年資越長
+      }
+      if(typeof va==='number'&&typeof vb==='number') return (va-vb)*sortDir;
+      return String(va).localeCompare(String(vb),'zh-TW')*sortDir;
+    });
+  }
+  return list;
 }
 
 // ── 匯出 JSON ──
@@ -361,6 +381,10 @@ function importJSON() {
 }
 
 // ── 主渲染 ──
+function sth(label,field,w){
+  const cls=sortField===field?(sortDir===1?'sort-asc':'sort-desc'):'';
+  return `<th style="width:${w}" class="sortable ${cls}" onclick="setSort('${field}')">${label}</th>`;
+}
 function render() {
   const list=getList();
   const all=tab==='interview'?interviews:employees;
@@ -386,9 +410,13 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
-        <th style="width:130px">姓名</th><th style="width:120px">面試地點</th>
-        <th style="width:90px">日期</th><th style="width:80px">來源</th>
-        <th style="width:70px">適合度</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
+        ${sth('姓名','name','130px')}
+        ${sth('面試地點','location','120px')}
+        ${sth('日期','date','90px')}
+        ${sth('來源','source','80px')}
+        ${sth('適合度','fit','70px')}
+        ${sth('狀態','status','80px')}
+        <th style="width:70px">操作</th>
       </tr></thead>
       <tbody>${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
@@ -435,9 +463,13 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
-        <th style="width:130px">姓名</th><th style="width:100px">工作地點</th>
-        <th style="width:120px">職稱</th><th style="width:90px">到職日</th>
-        <th style="width:90px">離職日</th><th style="width:80px">狀態</th><th style="width:60px">操作</th>
+        ${sth('姓名','name','130px')}
+        ${sth('工作地點','workLocation','100px')}
+        ${sth('職稱','title','120px')}
+        ${sth('到職日','startDate','90px')}
+        ${sth('離職日','resignDate','90px')}
+        ${sth('狀態','status','80px')}
+        <th style="width:60px">操作</th>
       </tr></thead>
       <tbody>${getList().length?getList().map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
@@ -489,9 +521,13 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
-        <th style="width:130px">姓名</th><th style="width:100px">工作地點</th>
-        <th style="width:120px">職稱</th><th style="width:90px">到職日</th>
-        <th style="width:90px">年資</th><th style="width:80px">狀態</th><th style="width:70px">操作</th>
+        ${sth('姓名','name','130px')}
+        ${sth('工作地點','workLocation','100px')}
+        ${sth('職稱','title','120px')}
+        ${sth('到職日','startDate','90px')}
+        ${sth('年資','calcYears','90px')}
+        ${sth('狀態','status','80px')}
+        <th style="width:70px">操作</th>
       </tr></thead>
       <tbody>${list.length?list.map(r=>{const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;const mo=Math.floor(ms/(1000*60*60*24*30.44));const bonusAlert=mo>=3&&!r.bonusUnlocked;return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${bonusAlert?'<span title="試用期滿3個月，請確認獎金發放" style="color:#f59e0b;font-size:12px">⚠️</span>':''}</div></td>
@@ -962,6 +998,10 @@ async function delRow(id){
 
 // 把需要從 HTML onclick 呼叫的函式掛到 window
 window.switchTab=switchTab;
+window.setSort=function(field){
+  if(sortField===field){sortDir*=-1;}else{sortField=field;sortDir=1;}
+  render();
+};
 window.openModal=openModal;
 window.closeModal=closeModal;
 window.saveModal=()=>saveModal();
