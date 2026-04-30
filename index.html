@@ -428,7 +428,7 @@ function render() {
     </div>`;
     const sopts=['','錄取','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input">
+      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -484,7 +484,7 @@ function render() {
       <div class="sc"><div class="sl">離職同仁人數</div><div class="sn">${all2.length}</div></div>
     </div>`;
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
     </div>
     <div class="tw"><table>
@@ -539,7 +539,7 @@ function render() {
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -1036,20 +1036,22 @@ window.delRow=(id)=>delRow(id);
 window.exportJSON=exportJSON;
 window.importJSON=importJSON;
 window.render=render;
-let _sqTimer=null;
 function doSearch(v){
   sq=v; selId=null;
   render();
 }
 
-// 事件委派：掛在不會被重建的容器，避免重複綁定
-document.getElementById('mainContent').addEventListener('input',function(e){
+// 按 Enter 或點搜尋按鈕才觸發
+document.getElementById('mainContent').addEventListener('keydown',function(e){
   if(!e.target.classList.contains('search-input'))return;
-  clearTimeout(_sqTimer);
-  _sqTimer=setTimeout(()=>doSearch(e.target.value),2000);
+  if(e.key==='Enter') doSearch(e.target.value);
 });
+window.triggerSearch=function(){
+  const inp=document.querySelector('.search-input');
+  if(inp) doSearch(inp.value);
+};
 
-function bindSearchInput(){} // 保留空函式避免其他地方呼叫報錯
+function bindSearchInput(){}
 window.setSf=function(v){sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
