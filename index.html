@@ -38,7 +38,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sc .sn{font-size:24px;font-weight:700;color:var(--text)}
 .sc .ss{font-size:11px;color:var(--text-3);margin-top:2px}
 /* 表格 */
-.tw{border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.tw{border:1px solid var(--border);border-radius:10px;overflow-x:auto;box-shadow:0 1px 4px rgba(0,0,0,.04);-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
 th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);background:#F9FAFB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px;text-transform:uppercase}
 td{padding:10px 14px;border-bottom:1px solid #F3F4F6;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
@@ -97,7 +97,22 @@ th.sortable:hover{background:#FFF4E6;color:var(--orange)}
 th.sort-asc::after{content:' ↑';color:var(--orange)}
 th.sort-desc::after{content:' ↓';color:var(--orange)}
 
-@media(max-width:600px){.dg,.dg3,.fg{grid-template-columns:1fr}.detail-tabs{overflow-x:auto}.stats{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){
+  .dg,.dg3,.fg{grid-template-columns:1fr}
+  .detail-tabs{overflow-x:auto}
+  .stats{grid-template-columns:1fr 1fr}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{table-layout:auto;min-width:480px}
+  th,td{padding:8px 10px;font-size:12px}
+  .toolbar{flex-wrap:wrap}
+  .toolbar .search-input{min-width:100%;order:-1}
+  .btn{font-size:12px;padding:5px 10px}
+  .detail-header{flex-wrap:wrap;gap:8px}
+  body{padding:8px 8px 24px}
+  .topbar{padding:0 14px}
+  .topbar h1{font-size:13px}
+  .main{padding:12px 14px}
+}
 /* 自製下拉選單 */
 .cdd{position:relative;display:inline-block;width:100%}
 .cdd-trigger{width:100%;font-size:13px;padding:8px 32px 8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none;transition:border-color .15s}
@@ -402,7 +417,7 @@ function render() {
     </div>`;
     const sopts=['','錄取','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -458,7 +473,7 @@ function render() {
       <div class="sc"><div class="sl">離職同仁人數</div><div class="sn">${all2.length}</div></div>
     </div>`;
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
     </div>
     <div class="tw"><table>
@@ -513,7 +528,7 @@ function render() {
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
-      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" oninput="setSq(this.value)">
+      <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" oninput="setSq(this.value)">
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
@@ -1009,8 +1024,14 @@ window.delRow=(id)=>delRow(id);
 window.exportJSON=exportJSON;
 window.importJSON=importJSON;
 window.render=render;
-window.setSq=(v)=>{sq=v;selId=null;render();};
-window.setSf=(v)=>{sf=v;selId=null;render();};
+window.setSq=function(v){
+  sq=v; selId=null;
+  render();
+  // 重新聚焦搜尋框並移游標到末尾
+  const inp=document.querySelector('.search-input');
+  if(inp){inp.focus();const len=inp.value.length;inp.setSelectionRange(len,len);}
+};
+window.setSf=function(v){sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
 window.setDetailTab=(t)=>{detailTab=t;render();};
 window.updateLeaveUsed=(id,annual)=>updateLeaveUsed(id,annual);
