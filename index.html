@@ -1025,27 +1025,22 @@ window.delRow=(id)=>delRow(id);
 window.exportJSON=exportJSON;
 window.importJSON=importJSON;
 window.render=render;
+let _sqTimer=null;
 window.setSq=function(v){
   sq=v; selId=null;
-  render();
-  const inp=document.querySelector('.search-input');
-  if(inp){inp.focus();const len=inp.value.length;inp.setSelectionRange(len,len);}
+  clearTimeout(_sqTimer);
+  _sqTimer=setTimeout(()=>{
+    render();
+    const inp=document.querySelector('.search-input');
+    if(inp&&document.activeElement!==inp){inp.focus();}
+  },300);
 };
 
-// 掛載搜尋框的中文輸入法相容事件（在 render 後呼叫）
 function bindSearchInput(){
   const inp=document.querySelector('.search-input');
   if(!inp||inp._bound)return;
   inp._bound=true;
-  let composing=false;
-  inp.addEventListener('compositionstart',()=>{composing=true;});
-  inp.addEventListener('compositionend',()=>{
-    composing=false;
-    setSq(inp.value);
-  });
-  inp.addEventListener('input',()=>{
-    if(!composing) setSq(inp.value);
-  });
+  inp.addEventListener('input',()=>{ setSq(inp.value); });
 }
 window.setSf=function(v){sf=v;selId=null;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
