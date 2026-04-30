@@ -245,6 +245,7 @@ window.cddAdd=function(listName,safeId,inputId){
 };
 document.addEventListener('click',e=>{if(!e.target.closest('.cdd'))document.querySelectorAll('.cdd-menu.open').forEach(m=>m.classList.remove('open'));});
 
+function showLoading(show) {
   let el=document.getElementById('loadingBar');
   if(!el){el=document.createElement('div');el.id='loadingBar';el.style.cssText='position:fixed;top:0;left:0;right:0;height:3px;background:#1a1a19;z-index:9999;transition:opacity .4s';document.body.appendChild(el);}
   el.style.opacity=show?'1':'0';
