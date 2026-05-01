@@ -105,7 +105,11 @@ th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
 th.sortable:hover{background:#EFF6FF;color:var(--primary)}
 th.sort-asc::after{content:' ↑';color:var(--primary)}
 th.sort-desc::after{content:' ↓';color:var(--primary)}
-/* 分頁 */
+/* 頭像上傳 */
+.av-wrap{position:relative;display:inline-flex;flex-shrink:0}
+.av-wrap .av-upload{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;font-size:14px;opacity:0}
+.av-wrap:hover .av-upload{background:rgba(0,0,0,.45);opacity:1}
+.av-photo{border-radius:50%;object-fit:cover;display:block}
 .pagination{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px}
 .pg-btn{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--text-2);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
 .pg-btn:hover:not([disabled]){background:#F0F7FF;border-color:var(--primary);color:var(--primary)}
@@ -613,9 +617,33 @@ function render() {
         const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday&&yrs>=1;
         const tenureKey2='tenure_'+td2.getFullYear();
         const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
-        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
+        // 特休結算警示：有上一週期未休且未標記已結算
+        const leaveSettleAlert=(()=>{
+          if(!r.startDate)return false;
+          // 計算上一週期起迄
+          const sd3=r.startDate.split('-');const sdObj=new Date(parseInt(sd3[0]),parseInt(sd3[1])-1,parseInt(sd3[2]));
+          const today3=new Date();
+          let pStart=new Date(sdObj);
+          while(true){const next=new Date(pStart.getFullYear()+1,sdObj.getMonth(),sdObj.getDate());if(next>today3)break;pStart=next;}
+          const lastStart=new Date(pStart.getFullYear()-1,sdObj.getMonth(),sdObj.getDate());
+          if(lastStart<sdObj)return false;
+          if(!(today3>=pStart))return false; // 還沒到結算日
+          if(r.leaveSettled===pStart.toLocaleDateString('en-CA'))return false; // 已結算
+          // 檢查上一週期是否有未休
+          const lastS=lastStart.toLocaleDateString('en-CA');
+          const pS=pStart.toLocaleDateString('en-CA');
+          const allD=(r.leaves||[]).flatMap(l=>l.usedDates||[]);
+          const lastUsedN=allD.filter(d=>d>=lastS&&d<pS).length;
+          // 計算上一週期應有天數
+          const ms3=(pStart-sdObj);const mo3=Math.floor(ms3/(1000*60*60*24*30.44));
+          let lastAnn=0;
+          if(mo3>=6&&mo3<12)lastAnn=3;
+          else if(mo3>=12){const y3=Math.floor((pStart-sdObj-365.25*24*3600*1000*(Math.round(mo3/12)-1))/0||0);const yr3=Math.floor(mo3/12);if(yr3===1)lastAnn=7;else if(yr3===2)lastAnn=10;else if(yr3<5)lastAnn=14;else if(yr3<10)lastAnn=15;else lastAnn=Math.min(15+yr3-10,30);}
+          return(lastAnn-lastUsedN)>0;
+        })();
+        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span title="${[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':''].filter(Boolean).join('、')}" style="color:#f59e0b;font-size:12px">⚠️</span>`:''}</div></td>
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span title="${[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、')}" style="color:#f59e0b;font-size:12px">⚠️</span>`:''}</div></td>
         <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
@@ -804,46 +832,87 @@ function render() {
           if(!startDate||!periodStartObj) return 0;
           const sd=parseLocalDate(startDate);
           const ref=refDate||new Date();
-          const mFromStart=monthsDiff(sd, periodStartObj);
-          // 第一年週期（到職日 ~ 到職1年）
-          if(mFromStart===0){
-            // 6個月時解鎖3天
-            const unlock6m=new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate());
-            return ref>=unlock6m?3:0;
+          const bounds=getAllPeriodBoundaries(startDate);
+          // 找出這個週期是第幾個
+          let idx=-1;
+          for(let i=0;i<bounds.length;i++){
+            if(bounds[i].getTime()===periodStartObj.getTime()){idx=i;break;}
           }
-          // 後續年度：週期開始時即全部解鎖
-          const yearsAtPeriodStart=Math.round(mFromStart/12);
-          return getDaysForYear(yearsAtPeriodStart);
+          if(idx<0){
+            // fallback：用月數判斷
+            const m=monthsDiff(sd,periodStartObj);
+            if(m===0){const u=new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate());return ref>=u?3:0;}
+            return getDaysForYear(Math.round(m/12));
+          }
+          if(idx===0){
+            // 到職日 ~ 滿6個月：這段期間沒有特休
+            return 0;
+          }
+          if(idx===1){
+            // 滿6個月 ~ 滿1年：解鎖3天
+            return 3;
+          }
+          // 滿1年以後每個週期，idx-1 對應年數（idx=2→1年、idx=3→2年...）
+          return getDaysForYear(idx-1);
         }
-        // 計算「當前週期」（以到職日週年為基礎）
+        // 取得所有特休週期邊界（含第一個6個月週期）
+        function getAllPeriodBoundaries(startDate){
+          if(!startDate)return[];
+          const sd=parseLocalDate(startDate);
+          const boundaries=[];
+          // 第1個邊界：到職日（0個月）
+          boundaries.push(new Date(sd));
+          // 第2個邊界：滿6個月
+          const m6=new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate());
+          boundaries.push(m6);
+          // 之後每年到職日依序加入
+          let y=1;
+          while(true){
+            const anniv=new Date(sd.getFullYear()+y,sd.getMonth(),sd.getDate());
+            boundaries.push(anniv);
+            if(anniv>new Date(new Date().getFullYear()+5,0,1))break; // 最多算到5年後
+            y++;
+          }
+          return boundaries;
+        }
+        // 當前特休週期
         function getAnnivPeriod(startDate){
           if(!startDate)return{start:null,end:null,startObj:null,endObj:null};
-          const sd=parseLocalDate(startDate);
           const today=new Date();
-          let periodStart=new Date(sd);
-          while(true){
-            const next=new Date(periodStart.getFullYear()+1,sd.getMonth(),sd.getDate());
-            if(next>today) break;
-            periodStart=next;
+          const bounds=getAllPeriodBoundaries(startDate);
+          let periodStart=bounds[0], periodEnd=bounds[1];
+          for(let i=0;i<bounds.length-1;i++){
+            if(bounds[i]<=today&&today<bounds[i+1]){
+              periodStart=bounds[i];
+              periodEnd=bounds[i+1];
+              break;
+            }
           }
-          const periodEnd=new Date(periodStart.getFullYear()+1,sd.getMonth(),sd.getDate());
           return{
             start:periodStart.toLocaleDateString('en-CA'),
             end:periodEnd.toLocaleDateString('en-CA'),
             startObj:periodStart, endObj:periodEnd
           };
         }
+        // 上一個特休週期
         function getLastAnnivPeriod(startDate){
           if(!startDate)return{start:null,end:null,startObj:null};
-          const cur=getAnnivPeriod(startDate);
-          if(!cur.startObj)return{start:null,end:null,startObj:null};
-          const sd=parseLocalDate(startDate);
-          const lastStart=new Date(cur.startObj.getFullYear()-1,sd.getMonth(),sd.getDate());
-          if(lastStart<sd)return{start:null,end:null,startObj:null};
+          const today=new Date();
+          const bounds=getAllPeriodBoundaries(startDate);
+          let lastStart=null, lastEnd=null;
+          for(let i=0;i<bounds.length-1;i++){
+            if(bounds[i]<=today&&today<bounds[i+1]){
+              if(i===0)return{start:null,end:null,startObj:null}; // 還在第一個週期前
+              lastStart=bounds[i-1];
+              lastEnd=bounds[i];
+              break;
+            }
+          }
+          if(!lastStart)return{start:null,end:null,startObj:null};
           return{
             start:lastStart.toLocaleDateString('en-CA'),
-            end:cur.start,
-            startObj:lastStart
+            end:lastEnd.toLocaleDateString('en-CA'),
+            startObj:lastStart, endObj:lastEnd
           };
         }
 
@@ -872,6 +941,7 @@ function render() {
         const lastUsed=lastUsedDates.length;
         const lastRemain=lastAnnual-lastUsed;
         const needSettle=lastRemain>0&&curPeriod.start&&new Date()>=new Date(curPeriod.start);
+        const isSettled=sel.leaveSettled===curPeriod.start; // 用週期起始日作為 key
 
         const rocCurStart=toROC(curPeriod.start);
         const rocCurEnd=toROC(curPeriod.end);
@@ -884,7 +954,7 @@ function render() {
         <div style="border:2px solid #93C5FD;border-radius:12px;padding:14px;margin-bottom:16px;background:#EFF6FF">
           <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">
             📘 上一週期特休結算（${rocLastStart} ～ ${rocLastEnd}）
-            ${needSettle?'<span style="margin-left:8px;background:#EF4444;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px">需結算</span>':''}
+            ${needSettle?`<button onclick="toggleLeaveSettle(${sel.id},'${curPeriod.start}')" style="margin-left:8px;border:none;cursor:pointer;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600;transition:all .2s;${isSettled?'background:#22C55E;color:#fff':'background:#EF4444;color:#fff'}">${isSettled?'✓ 已結算':'需結算'}</button>`:''}
           </div>
           <div class="dg3" style="gap:8px;margin-bottom:10px">
             <div style="background:#DBEAFE;border-radius:8px;padding:10px 12px">
@@ -911,7 +981,7 @@ function render() {
               </div>`).join('')}
             </div>
           </div>`:''}
-          ${lastRemain>0?`<div style="font-size:12px;color:#DC2626;margin-top:8px">⚠ 尚有 ${lastRemain} 天未休，請於結算日前確認處理</div>`:'<div style="font-size:12px;color:#16A34A;margin-top:8px">✓ 上一週期特休已全數使用完畢</div>'}
+          ${lastRemain>0&&!isSettled?`<div style="font-size:12px;color:#DC2626;margin-top:8px">⚠ 尚有 ${lastRemain} 天未休，請確認是否已結算</div>`:lastRemain>0&&isSettled?`<div style="font-size:12px;color:#16A34A;margin-top:8px">✓ 已確認結算完成</div>`:'<div style="font-size:12px;color:#16A34A;margin-top:8px">✓ 上一週期特休已全數使用完畢</div>'}
         </div>`:''}
 
         <!-- 本年度特休週期 -->
@@ -1360,6 +1430,18 @@ window.delCustomOption=function(listName, selectId){
   if(idx>=0)arr.splice(idx,1);
   saveData(); showToast(`已刪除「${val}」`);
   sel.remove(sel.selectedIndex); sel.value='';
+};
+
+// ── 特休結算切換 ──
+window.toggleLeaveSettle=async function(empId, periodStart){
+  const r=employees.find(x=>x.id===empId); if(!r)return;
+  if(r.leaveSettled===periodStart){
+    // 切回未結算
+    delete r.leaveSettled;
+  } else {
+    r.leaveSettled=periodStart;
+  }
+  render(); showToast('儲存中...'); await saveData(); showToast('已更新 ✓');
 };
 
 // ── 薪資記錄刪除 ──
