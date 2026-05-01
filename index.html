@@ -5,97 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>人員資訊管理系統</title>
 <style>
-:root{--orange:#E8820C;--orange-dark:#C96F08;--orange-light:#FFF4E6;--orange-border:#FBCF8A;--gray-bg:#F4F5F7;--card-bg:#fff;--border:#E5E7EB;--text:#1F2937;--text-2:#6B7280;--text-3:#9CA3AF}
+:root{
+  --primary:#2563EB;--primary-dark:#1D4ED8;--primary-light:#EFF6FF;--primary-border:#BFDBFE;
+  --accent:#0891B2;--accent-light:#ECFEFF;
+  --gray-bg:#F8FAFC;--card-bg:#fff;--border:#E2E8F0;
+  --text:#0F172A;--text-2:#64748B;--text-3:#94A3B8
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;font-size:14px;padding:16px 16px 32px}
 .app{max-width:1140px;margin:0 auto;padding:0}
-/* 頂部橘色 bar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--orange);height:52px;margin-bottom:0}
-.topbar h1{font-size:16px;font-weight:600;color:#fff;letter-spacing:.5px}
-.topbar small{font-size:12px;color:rgba(255,255,255,.75)}
-.card{background:var(--card-bg);border-radius:0 0 12px 12px;border:1px solid var(--border);border-top:none;overflow:hidden;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+/* 頂部 bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 60%,#0891B2 100%);height:62px;margin-bottom:0}
+.topbar h1{font-size:20px;font-weight:800;color:#fff;letter-spacing:1px;text-shadow:0 1px 4px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px}
+.topbar h1::before{content:'';display:inline-block;width:4px;height:22px;background:linear-gradient(180deg,#60A5FA,#38BDF8);border-radius:2px}
+.topbar-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.topbar small{font-size:11px;color:rgba(255,255,255,.7)}
+#clockLabel{font-size:14px;font-weight:600;color:#fff;letter-spacing:.5px}
+.card{background:var(--card-bg);border-radius:0 0 14px 14px;border:1px solid var(--border);border-top:none;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 16px rgba(15,23,42,.07)}
 /* 分頁列 */
 .tabs{display:flex;padding:0 20px;border-bottom:2px solid var(--border);background:#fff}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
-.tab.active{color:var(--orange);border-bottom-color:var(--orange);font-weight:600}
-.tab:hover:not(.active){color:var(--text);background:#FFF8F0}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.tab:hover:not(.active){color:var(--text);background:#F1F5F9}
 .main{padding:18px 20px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit}
-.toolbar input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,130,12,.1)}
+.toolbar input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .toolbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;cursor:pointer;font-family:inherit}
 /* 按鈕 */
 .btn{font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;height:36px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s}
-.btn-primary{background:var(--orange);color:#fff;border:1px solid var(--orange-dark)}
-.btn-primary:hover{background:var(--orange-dark)}
+.btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary-dark)}
+.btn-primary:hover{background:var(--primary-dark)}
 .btn-sm{font-size:12px;padding:4px 11px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500;font-family:inherit}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
-.btn-outline:hover{background:#f9fafb;border-color:#9CA3AF}
+.btn-outline:hover{background:#F8FAFC;border-color:#94A3B8}
 /* 統計卡片 */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
-.sc{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--orange);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sc{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .sc .sl{font-size:11px;color:var(--text-2);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
 .sc .sn{font-size:24px;font-weight:700;color:var(--text)}
 .sc .ss{font-size:11px;color:var(--text-3);margin-top:2px}
 /* 表格 */
 .tw{border:1px solid var(--border);border-radius:10px;overflow-x:auto;box-shadow:0 1px 4px rgba(0,0,0,.04);-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
-th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);background:#F9FAFB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px;text-transform:uppercase}
-td{padding:10px 14px;border-bottom:1px solid #F3F4F6;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);background:#F8FAFC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px;text-transform:uppercase}
+td{padding:10px 14px;border-bottom:1px solid #F1F5F9;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 tr:last-child td{border-bottom:none}
-tr.data-row:hover td{background:#FFF8F0;cursor:pointer}
-tr.data-row.selected td{background:var(--orange-light)}
+tr.data-row:hover td{background:#F0F7FF;cursor:pointer}
+tr.data-row.selected td{background:var(--primary-light)}
 /* 頭像 */
 .av{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
 .av-b{background:#DBEAFE;color:#1E40AF}.av-t{background:#D1FAE5;color:#065F46}.av-c{background:#FEE2E2;color:#991B1B}.av-p{background:#EDE9FE;color:#5B21B6}.av-a{background:#FEF3C7;color:#92400E}.av-k{background:#FCE7F3;color:#9D174D}
 /* 標籤 */
 .badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
-.bg{background:#D1FAE5;color:#065F46}.bb{background:#DBEAFE;color:#1D4ED8}.ba{background:#FEF3C7;color:#92400E}.bgr{background:#F3F4F6;color:#4B5563}.br{background:#FEE2E2;color:#991B1B}.bp{background:#EDE9FE;color:#6D28D9}.bt{background:#D1FAE5;color:#065F46}
+.bg{background:#D1FAE5;color:#065F46}.bb{background:#DBEAFE;color:#1D4ED8}.ba{background:#FEF3C7;color:#92400E}.bgr{background:#F1F5F9;color:#475569}.br{background:#FEE2E2;color:#991B1B}.bp{background:#EDE9FE;color:#6D28D9}.bt{background:#CCFBF1;color:#0F766E}
 .nc{display:flex;align-items:center;gap:8px}
 .nc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ibt{background:none;border:none;cursor:pointer;color:var(--text-3);padding:3px 6px;border-radius:5px;font-size:13px;line-height:1;font-family:inherit;transition:all .1s}
-.ibt:hover{background:#F3F4F6;color:var(--text)}
+.ibt:hover{background:#F1F5F9;color:var(--text)}
 /* 詳細資料 */
-.detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-.detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#FFF8F0 0%,#fff 100%)}
+.detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+.detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#EFF6FF 0%,#fff 100%)}
 .detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 20px;background:#fff;overflow-x:auto}
 .dtab{padding:9px 14px;font-size:12px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
-.dtab.active{color:var(--orange);border-bottom-color:var(--orange);font-weight:600}
-.dtab:hover:not(.active){background:#FFF8F0;color:var(--text)}
+.dtab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.dtab:hover:not(.active){background:#F1F5F9;color:var(--text)}
 .detail-body{padding:18px 20px}
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .di .dl{font-size:11px;color:var(--text-2);margin-bottom:3px;font-weight:500;text-transform:uppercase;letter-spacing:.3px}
 .di .dv{font-size:13px;color:var(--text);font-weight:400}
-.nb{background:#F9FAFB;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border)}
+.nb{background:#F8FAFC;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border)}
 .sec-title{font-size:11px;font-weight:600;color:var(--text-2);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
-.hist-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F3F4F6}
+.hist-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9}
 .hist-row:last-child{border-bottom:none}
 .hist-dot{width:8px;height:8px;border-radius:50%;background:#93C5FD;flex-shrink:0;margin-top:5px}
 .hist-dot.green{background:#6EE7B7}.hist-dot.amber{background:#FCD34D}
 .hist-meta{font-size:11px;color:var(--text-3);margin-top:2px}
-.prog-bar{height:7px;border-radius:4px;background:#E5E7EB;margin-top:5px;overflow:hidden}
+.prog-bar{height:7px;border-radius:4px;background:#E2E8F0;margin-top:5px;overflow:hidden}
 .prog-fill{height:100%;border-radius:4px;transition:width .3s}
 .empty-state{text-align:center;padding:40px;color:var(--text-3);font-size:13px}
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
-.modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 60px rgba(15,23,42,.2)}
 .modal h2{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border)}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
 .fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
-.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,130,12,.1)}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .fr textarea{resize:vertical;min-height:60px}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
 /* Toast */
-.toast{position:fixed;bottom:24px;right:24px;background:#1F2937;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateY(0)}
 /* 可排序欄位標題 */
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
-th.sortable:hover{background:#FFF4E6;color:var(--orange)}
-th.sort-asc::after{content:' ↑';color:var(--orange)}
-th.sort-desc::after{content:' ↓';color:var(--orange)}
+th.sortable:hover{background:#EFF6FF;color:var(--primary)}
+th.sort-asc::after{content:' ↑';color:var(--primary)}
+th.sort-desc::after{content:' ↓';color:var(--primary)}
+
 
 @media(max-width:700px){
   .dg,.dg3,.fg{grid-template-columns:1fr}
@@ -122,7 +131,7 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
 .cdd-menu.open{display:block}
 .cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
 .cdd-item:hover{background:#FFF8F0}
-.cdd-item.selected{background:var(--orange-light);color:var(--orange);font-weight:500}
+.cdd-item.selected{background:var(--primary-light);color:var(--primary);font-weight:500}
 .cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
 .cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
 .cdd-placeholder{color:var(--text-3)}
@@ -137,9 +146,9 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
   <div class="card">
     <div class="topbar">
       <h1>🍗 梁平人員資訊管理系統</h1>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+      <div class="topbar-right">
         <small id="todayLabel"></small>
-        <small id="clockLabel" style="color:rgba(255,255,255,.9);font-size:13px;font-weight:500;letter-spacing:.5px"></small>
+        <span id="clockLabel"></span>
       </div>
     </div>
     <div class="tabs">
@@ -589,9 +598,9 @@ function render() {
         const todayMD=new Date().toISOString().slice(5,10);
         const bdMD=r.birthday?r.birthday.slice(5,10):'';
         const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday;
-        const yrs=Math.floor(ms/(1000*60*60*24*365.25));
         const sd2=r.startDate?new Date(r.startDate):null;
         const td2=new Date();
+        const yrs=sd2?(td2.getFullYear()-sd2.getFullYear()-(td2.getMonth()<sd2.getMonth()||(td2.getMonth()===sd2.getMonth()&&td2.getDate()<sd2.getDate())?1:0)):0;
         const tenureKey2='tenure_'+td2.getFullYear();
         const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
@@ -673,11 +682,11 @@ function render() {
         const todayStr=new Date().toISOString().slice(5,10);
         const birthdayStr=sel.birthday?sel.birthday.slice(5,10):'';
         const isBirthday=birthdayStr&&todayStr===birthdayStr;
-        const yearsOnJob=Math.floor(msOnJob/(1000*60*60*24*365.25));
         const sd=sel.startDate?new Date(sel.startDate):null;
         const todayD=new Date();
+        const yearsOnJob=sd?(()=>{const t=new Date();return t.getFullYear()-sd.getFullYear()-(t.getMonth()<sd.getMonth()||(t.getMonth()===sd.getMonth()&&t.getDate()<sd.getDate())?1:0);})():0;
         const isAnnivToday=sd&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
-        const tenureKey='tenure_'+todayD.getFullYear(); // 每年獨立key
+        const tenureKey='tenure_'+todayD.getFullYear();
         const tenureChecked=fi[tenureKey]||false;
         body=`
         ${over3mo?`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
@@ -686,7 +695,7 @@ function render() {
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid ${fi.shoe?'#86EFAC':'#FCA5A5'}">
               <div><div style="font-size:13px;font-weight:500">👟 廚師鞋補助</div><div style="font-size:12px;color:#6B7280">金額：$2,000</div></div>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.shoe?'#16A34A':'#DC2626'}">
-                <input type="checkbox" ${fi.shoe?'checked':''} onchange="toggleFixedBonus(${sel.id},'shoe',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+                <input type="checkbox" ${fi.shoe?'checked':''} onchange="toggleFixedBonus(${sel.id},'shoe',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
                 ${fi.shoe?'已發放':'未發放'}
               </label>
             </div>
@@ -701,7 +710,7 @@ function render() {
                 </div>
               </div>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.health?'#16A34A':'#DC2626'}">
-                <input type="checkbox" ${fi.health?'checked':''} onchange="toggleFixedBonus(${sel.id},'health',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+                <input type="checkbox" ${fi.health?'checked':''} onchange="toggleFixedBonus(${sel.id},'health',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
                 ${fi.health?'已發放':'未發放'}
               </label>
             </div>
@@ -711,7 +720,7 @@ function render() {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:13px;font-weight:600">🎂 生日禮金</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 的生日！金額：$1,000</div></div>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.birthday?'#16A34A':'#92400E'}">
-              <input type="checkbox" ${fi.birthday?'checked':''} onchange="toggleFixedBonus(${sel.id},'birthday',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+              <input type="checkbox" ${fi.birthday?'checked':''} onchange="toggleFixedBonus(${sel.id},'birthday',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
               ${fi.birthday?'已發放':'未發放'}
             </label>
           </div>
@@ -720,7 +729,7 @@ function render() {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:13px;font-weight:600">🏆 發放久任獎金！</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 到職 ${yearsOnJob} 週年紀念日</div></div>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${tenureChecked?'#16A34A':'#1D4ED8'}">
-              <input type="checkbox" ${tenureChecked?'checked':''} onchange="toggleFixedBonus(${sel.id},'${tenureKey}',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+              <input type="checkbox" ${tenureChecked?'checked':''} onchange="toggleFixedBonus(${sel.id},'${tenureKey}',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
               OK
             </label>
           </div>
