@@ -941,7 +941,7 @@ function render() {
         const lastUsed=lastUsedDates.length;
         const lastRemain=lastAnnual-lastUsed;
         const needSettle=lastRemain>0&&curPeriod.start&&new Date()>=new Date(curPeriod.start);
-        const isSettled=sel.leaveSettled===curPeriod.start; // 用週期起始日作為 key
+        const isSettled=needSettle&&sel.leaveSettled===curPeriod.start;
 
         const rocCurStart=toROC(curPeriod.start);
         const rocCurEnd=toROC(curPeriod.end);
@@ -954,7 +954,7 @@ function render() {
         <div style="border:2px solid #93C5FD;border-radius:12px;padding:14px;margin-bottom:16px;background:#EFF6FF">
           <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">
             📘 上一週期特休結算（${rocLastStart} ～ ${rocLastEnd}）
-            ${needSettle?`<button onclick="toggleLeaveSettle(${sel.id},'${curPeriod.start}')" style="margin-left:8px;border:none;cursor:pointer;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600;transition:all .2s;${isSettled?'background:#22C55E;color:#fff':'background:#EF4444;color:#fff'}">${isSettled?'✓ 已結算':'需結算'}</button>`:''}
+            ${needSettle?`<button id="settle-btn-${sel.id}" onclick="toggleLeaveSettle(${sel.id})" style="margin-left:10px;border:2px solid ${isSettled?'#16A34A':'#DC2626'};cursor:pointer;font-size:12px;padding:4px 12px;border-radius:20px;font-weight:700;background:${isSettled?'#16A34A':'#DC2626'};color:#fff;transition:all .2s;letter-spacing:.3px">${isSettled?'✓ 已結算 ':'⚠ 需結算 '}<span style="font-size:10px;opacity:.8">${isSettled?'（點擊還原）':'（點擊確認）'}</span></button>`:''}
           </div>
           <div class="dg3" style="gap:8px;margin-bottom:10px">
             <div style="background:#DBEAFE;border-radius:8px;padding:10px 12px">
@@ -1433,13 +1433,29 @@ window.delCustomOption=function(listName, selectId){
 };
 
 // ── 特休結算切換 ──
-window.toggleLeaveSettle=async function(empId, periodStart){
-  const r=employees.find(x=>x.id===empId); if(!r)return;
-  if(r.leaveSettled===periodStart){
-    // 切回未結算
+window.toggleLeaveSettle=async function(empId){
+  const r=employees.find(x=>x.id===empId); if(!r||!r.startDate)return;
+  // 重新計算當前週期起始日
+  const sd=r.startDate.split('-');
+  const sdObj=new Date(parseInt(sd[0]),parseInt(sd[1])-1,parseInt(sd[2]));
+  const today=new Date();
+  // 建立所有邊界
+  const bounds=[new Date(sdObj)];
+  bounds.push(new Date(sdObj.getFullYear(),sdObj.getMonth()+6,sdObj.getDate()));
+  let y=1;
+  while(bounds[bounds.length-1]<new Date(today.getFullYear()+2,0,1)){
+    bounds.push(new Date(sdObj.getFullYear()+y,sdObj.getMonth(),sdObj.getDate()));y++;
+  }
+  // 找當前週期起始
+  let periodStart=bounds[0];
+  for(let i=0;i<bounds.length-1;i++){
+    if(bounds[i]<=today&&today<bounds[i+1]){periodStart=bounds[i];break;}
+  }
+  const key=periodStart.toLocaleDateString('en-CA');
+  if(r.leaveSettled===key){
     delete r.leaveSettled;
   } else {
-    r.leaveSettled=periodStart;
+    r.leaveSettled=key;
   }
   render(); showToast('儲存中...'); await saveData(); showToast('已更新 ✓');
 };
