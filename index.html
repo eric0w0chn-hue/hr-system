@@ -79,7 +79,7 @@ tr.data-row.selected td{background:var(--orange-light)}
 .empty-state{text-align:center;padding:40px;color:var(--text-3);font-size:13px}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
-.modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal h2{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border)}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
@@ -118,7 +118,7 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
 .cdd-trigger{width:100%;font-size:13px;padding:8px 32px 8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none;transition:border-color .15s}
 .cdd-trigger:hover{border-color:#9CA3AF}
 .cdd-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-2);font-size:11px}
-.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;max-height:200px;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:thin}
+.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:2000;max-height:200px;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:thin}
 .cdd-menu.open{display:block}
 .cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
 .cdd-item:hover{background:#FFF8F0}
@@ -569,7 +569,8 @@ function render() {
         const yrs=Math.floor(ms/(1000*60*60*24*365.25));
         const sd2=r.startDate?new Date(r.startDate):null;
         const td2=new Date();
-        const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi.tenure;
+        const tenureKey2='tenure_'+td2.getFullYear();
+        const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span title="${[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':''].filter(Boolean).join('、')}" style="color:#f59e0b;font-size:12px">⚠️</span>`:''}</div></td>
@@ -629,9 +630,15 @@ function render() {
         </div>
         ${sel.salaryHistory.length?sel.salaryHistory.map((h,i)=>`<div class="hist-row">
           <div class="hist-dot green"></div>
-          <div style="flex:1"><div style="font-size:13px;font-weight:500">$${h.amount.toLocaleString()}</div>
-          <div class="hist-meta">${h.date} · ${h.reason}</div></div>
-          ${i>0?`<div style="font-size:12px;color:#166534;font-weight:500">+$${(h.amount-(sel.salaryHistory[i-1]||{amount:0}).amount).toLocaleString()}</div>`:'<div style="font-size:11px;color:#9b9b98">起薪</div>'}
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">$${h.amount.toLocaleString()}</div>
+            <div class="hist-meta">${h.date} · ${h.reason}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${i>0?`<div style="font-size:12px;color:#166534;font-weight:500">+$${(h.amount-(sel.salaryHistory[i-1]||{amount:0}).amount).toLocaleString()}</div>`:'<div style="font-size:11px;color:#9b9b98">起薪</div>'}
+            <button class="ibt" onclick="openModal('editSalary',${sel.id},${i})" title="編輯">✎</button>
+            <button class="ibt" onclick="deleteSalaryRecord(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
+          </div>
         </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無薪資記錄</div>'}`;
       } else if(detailTab==='perf'){
       } else if(detailTab==='bonus'){
@@ -647,6 +654,8 @@ function render() {
         const sd=sel.startDate?new Date(sel.startDate):null;
         const todayD=new Date();
         const isAnnivToday=sd&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
+        const tenureKey='tenure_'+todayD.getFullYear(); // 每年獨立key
+        const tenureChecked=fi[tenureKey]||false;
         body=`
         ${over3mo?`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
           <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:12px">📋 固定補助項目（到職滿3個月）</div>
@@ -684,11 +693,11 @@ function render() {
             </label>
           </div>
         </div>`:''}
-        ${isAnnivToday?`<div style="border:1px solid ${fi.tenure?'#86EFAC':'#93C5FD'};border-radius:10px;padding:12px 14px;margin-bottom:14px;background:${fi.tenure?'#F0FDF4':'#EFF6FF'}">
+        ${isAnnivToday?`<div style="border:1px solid ${tenureChecked?'#86EFAC':'#93C5FD'};border-radius:10px;padding:12px 14px;margin-bottom:14px;background:${tenureChecked?'#F0FDF4':'#EFF6FF'}">
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:13px;font-weight:600">🏆 發放久任獎金！</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 到職 ${yearsOnJob} 週年紀念日</div></div>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.tenure?'#16A34A':'#1D4ED8'}">
-              <input type="checkbox" ${fi.tenure?'checked':''} onchange="toggleFixedBonus(${sel.id},'tenure',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${tenureChecked?'#16A34A':'#1D4ED8'}">
+              <input type="checkbox" ${tenureChecked?'checked':''} onchange="toggleFixedBonus(${sel.id},'${tenureKey}',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
               OK
             </label>
           </div>
@@ -797,6 +806,14 @@ function render() {
               <div style="font-size:11px;color:${lastRemain>0?'#EF4444':'#22C55E'}">天${lastRemain>0?'（需折算）':' ✓'}</div>
             </div>
           </div>
+          ${lastUsed>0?`<div style="margin-top:10px">
+            <div style="font-size:11px;font-weight:500;color:#1D4ED8;margin-bottom:6px">已使用假日日期（鎖定，僅供查閱）</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${lastUsedDates.map(d=>`<div style="display:flex;align-items:center;gap:4px;background:#DBEAFE;border:1px solid #93C5FD;border-radius:6px;padding:3px 10px;font-size:12px;color:#1E40AF">
+                🔒 ${d}
+              </div>`).join('')}
+            </div>
+          </div>`:''}
           ${lastRemain>0?`<div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400E">
             💰 需折算薪資：<strong>${lastRemain} 天 × $${dailySalary.toLocaleString()}/天 = $${settleAmt.toLocaleString()}</strong>
             <div style="font-size:11px;margin-top:2px">（以月薪 $${(sel.salary||0).toLocaleString()} ÷ 30 計算日薪）</div>
@@ -955,7 +972,7 @@ function render() {
 }
 
 // ── Modal ──
-function openModal(mode, targetId) {
+function openModal(mode, targetId, extraIdx) {
   editMode=mode; editTarget=targetId||null;
   let html='', title='';
 
@@ -1051,13 +1068,17 @@ function openModal(mode, targetId) {
       <div class="fr"><label>狀態</label><select id="m-bstatus"><option>未發放</option><option>已發放</option></select></div>
       <div class="fr" style="grid-column:span 2"><label>發放日期</label><input id="m-bdate" type="date"></div>
     </div>`;
-  } else if(mode==='addSalary'){
-    title='新增薪資調整記錄';
+  } else if(mode==='addSalary'||mode==='editSalary'){
+    const isEdit=mode==='editSalary';
+    const r=isEdit?employees.find(x=>x.id===targetId):null;
+    const h=isEdit&&r?r.salaryHistory[extraIdx]:{};
+    title=isEdit?'編輯薪資記錄':'新增薪資調整記錄';
     html=`<div class="fg">
-      <div class="fr"><label>生效日期</label><input id="m-sdate" type="date"></div>
-      <div class="fr"><label>調整後月薪（元）</label><input id="m-samount" type="number" placeholder="例：65000"></div>
+      <div class="fr"><label>生效日期</label><input id="m-sdate" type="date" value="${h.date||''}"></div>
+      <div class="fr"><label>調整後月薪（元）</label><input id="m-samount" type="number" value="${h.amount||''}" placeholder="例：65000"></div>
     </div>
-    <div class="fr"><label>調整原因</label><input id="m-sreason" placeholder="例：年度調薪、晉升調薪"></div>`;
+    <div class="fr"><label>調整原因</label><input id="m-sreason" value="${h.reason||''}" placeholder="例：年度調薪、晉升調薪"></div>`;
+    if(isEdit) editTarget={empId:targetId, idx:extraIdx};
   } else if(mode==='addPerf'){
     title='新增績效考核';
     html=`<div class="fg">
@@ -1132,8 +1153,15 @@ async function saveModal(){
     const r=employees.find(x=>x.id===tid);if(!r)return;
     if(!r.emergencyContacts)r.emergencyContacts=[];
     r.emergencyContacts.push({name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')});
-  } else if(m==='addSalary'){
-    employees.find(x=>x.id===tid).salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
+  } else if(m==='addSalary'||m==='editSalary'){
+    if(m==='editSalary'&&editTarget&&typeof editTarget==='object'){
+      const r=employees.find(x=>x.id===editTarget.empId);
+      if(r&&r.salaryHistory[editTarget.idx]){
+        r.salaryHistory[editTarget.idx]={date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')};
+      }
+    } else {
+      employees.find(x=>x.id===tid).salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
+    }
   } else if(m==='addBonus'){
     if(!g('m-btitle')){alert('請填寫項目名稱');return;}
     const r=employees.find(x=>x.id===tid);
@@ -1167,7 +1195,7 @@ window.setSort=function(field){
   if(sortField===field){sortDir*=-1;}else{sortField=field;sortDir=1;}
   render();
 };
-window.openModal=openModal;
+window.openModal=(mode,targetId,extraIdx)=>openModal(mode,targetId,extraIdx);
 window.closeModal=closeModal;
 window.saveModal=()=>saveModal();
 window.delRow=(id)=>delRow(id);
@@ -1209,6 +1237,14 @@ window.delCustomOption=function(listName, selectId){
   if(idx>=0)arr.splice(idx,1);
   saveData(); showToast(`已刪除「${val}」`);
   sel.remove(sel.selectedIndex); sel.value='';
+};
+
+// ── 薪資記錄刪除 ──
+window.deleteSalaryRecord=async function(empId,idx){
+  if(!confirm('確定要刪除此筆薪資記錄？'))return;
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  r.salaryHistory.splice(idx,1);
+  render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
 };
 
 // ── 固定獎金勾選 ──
