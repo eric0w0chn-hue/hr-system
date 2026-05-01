@@ -182,7 +182,7 @@ setInterval(updateClock,1000);
 // ── 狀態 ──
 let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
-let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[];
+let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[], insuranceGrades=[];
 let sortField='', sortDir=1; // sortDir: 1=升冪 -1=降冪
 
 // ── 民國年轉換工具 ──
@@ -258,7 +258,7 @@ window.cddSelect=function(safeId,inputId,val){
 };
 window.cddDel=function(listName,val,safeId,inputId){
   if(!confirm(`確定要刪除「${val}」嗎？`))return;
-  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
   const arr=maps[listName];if(!arr)return;
   const idx=arr.indexOf(val);if(idx>=0)arr.splice(idx,1);
   saveData();showToast(`已刪除「${val}」`);
@@ -270,7 +270,7 @@ window.cddDel=function(listName,val,safeId,inputId){
 window.cddAdd=function(listName,safeId,inputId){
   const cinp=document.getElementById('cdd-input-'+safeId);if(!cinp||!cinp.value.trim())return;
   const n=cinp.value.trim();
-  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
   const arr=maps[listName];if(!arr)return;
   if(arr.includes(n)){showToast('此項目已存在');return;}
   arr.push(n);saveData();showToast(`已新增「${n}」`);cinp.value='';
@@ -308,10 +308,11 @@ async function loadData() {
     workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
     titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
     bankOptions        = locSnap.exists() ? (locSnap.data().bankOptions||[]) : [];
+    insuranceGrades    = locSnap.exists() ? (locSnap.data().insuranceGrades||[]) : [];
   } catch(e) {
     console.error(e);
     showToast('載入資料失敗，請重新整理');
-    interviews=[]; employees=[]; resigned=[]; interviewLocations=[]; workLocations=[]; titleOptions=[]; bankOptions=[];
+    interviews=[]; employees=[]; resigned=[]; interviewLocations=[]; workLocations=[]; titleOptions=[]; bankOptions=[]; insuranceGrades=[];
   } finally {
     showLoading(false);
   }
@@ -323,7 +324,7 @@ async function saveData() {
       setDoc(doc(db,'hr','interviews'),{list:interviews}),
       setDoc(doc(db,'hr','employees'), {list:employees}),
       setDoc(doc(db,'hr','resigned'),  {list:resigned}),
-      setDoc(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions}),
+      setDoc(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades}),
     ]);
   } catch(e) {
     console.error(e);
@@ -585,13 +586,27 @@ function render() {
         </div>
         <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>`;
       } else if(detailTab==='emergency'){
-        const e=sel.emergency||{};
-        body=`<div class="dg3" style="margin-bottom:14px">
-          <div class="di"><div class="dl">聯絡人姓名</div><div class="dv">${e.name||'—'}</div></div>
-          <div class="di"><div class="dl">關係</div><div class="dv">${e.relation||'—'}</div></div>
-          <div class="di"><div class="dl">電話</div><div class="dv">${e.phone||'—'}</div></div>
+        const contacts=Array.isArray(sel.emergencyContacts)&&sel.emergencyContacts.length
+          ? sel.emergencyContacts
+          : (sel.emergency&&sel.emergency.name ? [sel.emergency] : []);
+        body=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span class="sec-title" style="margin:0">緊急聯絡人</span>
+          <button class="btn btn-sm btn-outline" onclick="openModal('addEmergency',${sel.id})">＋ 新增聯絡人</button>
         </div>
-        <button class="btn btn-sm btn-outline" onclick="openModal('editEmergency',${sel.id})">編輯緊急聯絡人</button>`;
+        ${contacts.length?`<div class="tw"><table>
+          <thead><tr>
+            <th style="width:100px">姓名</th>
+            <th style="width:80px">關係</th>
+            <th style="width:130px">電話</th>
+            <th style="width:50px">操作</th>
+          </tr></thead>
+          <tbody>${contacts.map((e,i)=>`<tr>
+            <td>${e.name||'—'}</td>
+            <td>${e.relation||'—'}</td>
+            <td>${e.phone||'—'}</td>
+            <td><button class="ibt" onclick="removeEmergencyContact(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`:'<div class="empty-state" style="padding:24px">尚無緊急聯絡人，點上方按鈕新增</div>'}`;
       } else if(detailTab==='salary'){
         body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <span class="sec-title" style="margin:0">薪資調整歷程</span>
@@ -647,10 +662,10 @@ function render() {
           </tr>`).join('')}</tbody>
         </table></div>`:'<div class="empty-state" style="padding:24px">尚無獎金／補助紀錄</div>'}`;
       } else if(detailTab==='leave'){
-        function calcAnnualLeave(startDate) {
+        function calcAnnualLeave(startDate, refDate) {
           if(!startDate) return 0;
-          const start=new Date(startDate), today=new Date();
-          const months=Math.floor((today-start)/(1000*60*60*24*30.44));
+          const start=new Date(startDate), ref=refDate?new Date(refDate):new Date();
+          const months=Math.floor((ref-start)/(1000*60*60*24*30.44));
           if(months<6) return 0; if(months<12) return 3;
           const years=Math.floor(months/12);
           if(years<2) return 7; if(years<3) return 10;
@@ -665,9 +680,62 @@ function render() {
         const remain=autoAnnual-usedDays;
         const pct=autoAnnual>0?Math.round(usedDays/autoAnnual*100):0;
         const color=pct>80?'#e24b4a':pct>50?'#f59e0b':'#10b981';
+
+        // 去年特休結算計算
+        let lastYearBlock='';
+        if(sel.startDate){
+          const startM=new Date(sel.startDate).getMonth()+1;
+          const startD=new Date(sel.startDate).getDate();
+          // 去年到職日（拿到特休的那天）
+          const lastAnnivDate=new Date(yr-1,startM-1,startD);
+          // 今年到職日（結算日）
+          const thisAnnivDate=new Date(yr,startM-1,startD);
+          // 去年到職日拿到的天數（以去年到職日當時的年資計算）
+          const lastYearLeave=calcAnnualLeave(sel.startDate, lastAnnivDate);
+          // 去年到職日到今年到職日之間使用了幾天
+          const lastAnnivStr=lastAnnivDate.toISOString().slice(0,10);
+          const thisAnnivStr=thisAnnivDate.toISOString().slice(0,10);
+          // 找去年和今年的假日紀錄中，屬於去年到職日～今年到職日之間的
+          const allDates=[
+            ...(sel.leaves.find(l=>l.year===yr-1)?.usedDates||[]),
+            ...(sel.leaves.find(l=>l.year===yr)?.usedDates||[]),
+          ].filter(d=>d>=lastAnnivStr&&d<thisAnnivStr);
+          const usedInPeriod=allDates.length;
+          const remainLastYear=lastYearLeave-usedInPeriod;
+          const needSettle=remainLastYear>0&&new Date()>=thisAnnivDate;
+          const dailySalary=sel.salary?Math.round(sel.salary/30):0;
+          const settleAmt=remainLastYear>0&&dailySalary?remainLastYear*dailySalary:0;
+          const rocLastAnniv=toROC(lastAnnivDate.toISOString().slice(0,10));
+          const rocThisAnniv=toROC(thisAnnivDate.toISOString().slice(0,10));
+          lastYearBlock=`<div style="margin-bottom:16px;background:${needSettle?'#FFF7ED':'#F9FAFB'};border:1px solid ${needSettle?'#FED7AA':'#E5E7EB'};border-radius:10px;padding:14px">
+            <div style="font-size:12px;font-weight:600;color:${needSettle?'#C2410C':'#374151'};margin-bottom:10px">
+              ${needSettle?'⚠️ ':'📋 '}去年特休結算（${rocLastAnniv} ～ ${rocThisAnniv}）
+            </div>
+            <div class="dg3" style="gap:8px">
+              <div class="sc" style="border-left-color:${needSettle?'#F97316':'var(--orange)'}">
+                <div class="sl">去年到職日拿到</div>
+                <div class="sn">${lastYearLeave}</div><div class="ss">天特休</div>
+              </div>
+              <div class="sc" style="border-left-color:${needSettle?'#F97316':'var(--orange)'}">
+                <div class="sl">期間已使用</div>
+                <div class="sn">${usedInPeriod}</div><div class="ss">天</div>
+              </div>
+              <div class="sc" style="border-left-color:${needSettle?'#EF4444':'#10B981'}">
+                <div class="sl">到期未休</div>
+                <div class="sn" style="color:${remainLastYear>0?'#DC2626':'#059669'}">${remainLastYear}</div>
+                <div class="ss">天${remainLastYear>0?'（需折算）':''}</div>
+              </div>
+            </div>
+            ${remainLastYear>0?`<div style="margin-top:10px;font-size:13px;color:#92400E;background:#FEF3C7;border-radius:6px;padding:8px 12px">
+              💰 需折算薪資：<strong>${remainLastYear} 天 × $${dailySalary.toLocaleString()}/天 = $${settleAmt.toLocaleString()}</strong>
+              <div style="font-size:11px;color:#92400E;margin-top:2px">（以月薪 $${(sel.salary||0).toLocaleString()} ÷ 30 計算日薪）</div>
+            </div>`:''}
+          </div>`;
+        }
         body=`<div style="margin-bottom:10px">
           <span class="sec-title">${yr} 年度特休（依勞基法自動計算）</span>
         </div>
+        ${lastYearBlock}
         <div class="dg3" style="margin-bottom:14px">
           <div class="sc"><div class="sl">法定應有天數</div><div class="sn">${autoAnnual}</div><div class="ss">${sel.startDate?'依到職日計算':'請先填到職日'}</div></div>
           <div class="sc"><div class="sl">已使用天數</div><div class="sn">${usedDays}</div></div>
@@ -691,35 +759,21 @@ function render() {
             <button class="btn btn-sm btn-primary" onclick="addLeaveDate(${sel.id})">＋ 新增假日</button>
           </div>
         </div>
-        ${sel.leaves&&sel.leaves.filter(l=>l.year<yr).length?`<div style="margin-top:4px">
-          <div class="sec-title">歷年紀錄</div>
-          ${sel.leaves.filter(l=>l.year<yr).sort((a,b)=>b.year-a.year).map(l=>{
-            const lDates=l.usedDates||[];
-            const lUsed=lDates.length;
-            const lRemain=typeof l.remain==='number'?l.remain:(l.annual-lUsed);
-            return `<div class="hist-row">
-              <div class="hist-dot"></div>
-              <div style="flex:1">
-                <div style="font-size:13px;font-weight:500">${l.year} 年</div>
-                <div class="hist-meta">應有 ${l.annual} 天 · 已用 ${lUsed} 天 · 剩餘 ${lRemain} 天</div>
-                ${l.year===yr-1&&lRemain>0?`<div style="font-size:11px;color:#e24b4a;margin-top:2px">⚠ 去年未休 ${lRemain} 天，將於今年到職日（${toROC(sel.startDate)}）結算</div>`:''}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>`:''}
         <div style="margin-top:10px;font-size:11px;color:#9b9b98;line-height:1.6">
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
         </div>`;
       } else if(detailTab==='insurance'){
         const ins=sel.insurance||{grade:'',dependents:[]};
-        body=`<div style="margin-bottom:14px">
+        body=`<div style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span class="sec-title" style="margin:0">投保資料</span>
-            <button class="btn btn-sm btn-outline" onclick="openModal('editInsurance',${sel.id})">編輯投保級距</button>
           </div>
-          <div class="sc" style="display:inline-block;min-width:120px">
-            <div class="sl">現有投保級距</div>
-            <div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div>
+          <div class="dg3" style="margin-bottom:10px">
+            <div class="sc"><div class="sl">現有投保級距</div><div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;max-width:380px">
+            <div style="flex:1">${cddHtml('ins-grade-'+sel.id, insuranceGrades, ins.grade||'', 'insuranceGrades','選擇或新增投保級距')}</div>
+            <button class="btn btn-sm btn-primary" onclick="saveInsuranceGrade(${sel.id})">儲存</button>
           </div>
         </div>
         <div>
@@ -885,13 +939,12 @@ function openModal(mode, targetId) {
       if(r.status)document.getElementById('m-status').value=r.status;
       if(r.education){const s=document.getElementById('m-education');if(s)s.value=r.education;}
     },10);
-  } else if(mode==='editEmergency'){
-    const e=(employees.find(x=>x.id===targetId)||{}).emergency||{};
-    title='編輯緊急聯絡人';
+  } else if(mode==='addEmergency'){
+    title='新增緊急聯絡人';
     html=`<div class="fg">
-      <div class="fr"><label>聯絡人姓名</label><input id="m-ename" value="${e.name||''}"></div>
-      <div class="fr"><label>關係</label><input id="m-erel" value="${e.relation||''}"></div>
-      <div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" value="${e.phone||''}"></div>
+      <div class="fr"><label>聯絡人姓名 *</label><input id="m-ename" placeholder="姓名"></div>
+      <div class="fr"><label>關係</label><input id="m-erel" placeholder="例：配偶、父親、母親"></div>
+      <div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" placeholder="0912-345-678"></div>
     </div>`;
   } else if(mode==='editInsurance'){
     const r=employees.find(x=>x.id===targetId)||{};
@@ -982,18 +1035,18 @@ async function saveModal(){
       employees.unshift({id:Date.now(),...empFields,emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
     }
   } else if(m==='editInsurance'){
-    const r=employees.find(x=>x.id===tid);
-    if(!r.insurance)r.insurance={grade:'',dependents:[]};
-    r.insurance.grade=g('m-grade');
+    closeModal(); return; // handled by saveInsuranceGrade
   } else if(m==='addDependent'){
     if(!g('m-dname')){alert('請填寫眷屬姓名');return;}
     const r=employees.find(x=>x.id===tid);
     if(!r.insurance)r.insurance={grade:'',dependents:[]};
     if(!r.insurance.dependents)r.insurance.dependents=[];
     r.insurance.dependents.push({name:g('m-dname'),idNo:g('m-didNo'),birthday:getROC('m-dbday')});
-  } else if(m==='editEmergency'){
-    const r=employees.find(x=>x.id===tid);
-    r.emergency={name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')};
+  } else if(m==='addEmergency'){
+    if(!g('m-ename')){alert('請填寫聯絡人姓名');return;}
+    const r=employees.find(x=>x.id===tid);if(!r)return;
+    if(!r.emergencyContacts)r.emergencyContacts=[];
+    r.emergencyContacts.push({name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')});
   } else if(m==='addSalary'){
     employees.find(x=>x.id===tid).salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
   } else if(m==='addBonus'){
@@ -1064,7 +1117,7 @@ window.delCustomOption=function(listName, selectId){
   if(!sel||!sel.value){showToast('請先選擇要刪除的項目');return;}
   const val=sel.value;
   if(!confirm(`確定要刪除「${val}」嗎？`))return;
-  const maps={interviewLocations,workLocations,titleOptions,bankOptions};
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
   const arr=maps[listName];
   if(!arr)return;
   const idx=arr.indexOf(val);
@@ -1093,6 +1146,25 @@ window.resetBonusAlert=async function(empId){
   const r=employees.find(x=>x.id===empId); if(!r)return;
   r.bonusUnlocked=false;
   render(); await saveData(); showToast('已重置提醒');
+};
+
+// ── 緊急聯絡人刪除 ──
+window.removeEmergencyContact=async function(empId,idx){
+  if(!confirm('確定要刪除此緊急聯絡人？'))return;
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  if(!r.emergencyContacts)r.emergencyContacts=[];
+  r.emergencyContacts.splice(idx,1);
+  render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
+};
+
+// ── 投保級距儲存 ──
+window.saveInsuranceGrade=async function(empId){
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  const el=document.getElementById('ins-grade-'+empId);
+  if(!el){showToast('請先選擇投保級距');return;}
+  if(!r.insurance)r.insurance={grade:'',dependents:[]};
+  r.insurance.grade=el.value;
+  render(); showToast('儲存中...'); await saveData(); showToast('投保級距已儲存 ✓');
 };
 
 // ── 刪除眷屬 ──
