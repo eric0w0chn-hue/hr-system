@@ -21,7 +21,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .topbar-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .topbar small{font-size:11px;color:rgba(255,255,255,.7)}
 #clockLabel{font-size:14px;font-weight:600;color:#fff;letter-spacing:.5px}
-.card{background:var(--card-bg);border-radius:0 0 14px 14px;border:1px solid var(--border);border-top:none;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 16px rgba(15,23,42,.07)}
+.card{background:var(--card-bg);border-radius:0 0 14px 14px;border:1px solid var(--border);border-top:none;overflow:visible;margin-bottom:16px;box-shadow:0 4px 16px rgba(15,23,42,.07)}
 /* 分頁列 */
 .tabs{display:flex;padding:0 20px;border-bottom:2px solid var(--border);background:#fff}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
@@ -64,10 +64,11 @@ tr.data-row.selected td{background:var(--primary-light)}
 .ibt{background:none;border:none;cursor:pointer;color:var(--text-3);padding:3px 6px;border-radius:5px;font-size:13px;line-height:1;font-family:inherit;transition:all .1s}
 .ibt:hover{background:#F1F5F9;color:var(--text)}
 /* 詳細資料 */
-.detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+.detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:visible;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
 .detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#EFF6FF 0%,#fff 100%)}
-.detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 20px;background:#fff;overflow-x:auto}
-.dtab{padding:9px 14px;font-size:12px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
+.detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.detail-tabs::-webkit-scrollbar{display:none}
+.dtab{padding:9px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
 .dtab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
 .dtab:hover:not(.active){background:#F1F5F9;color:var(--text)}
 .detail-body{padding:18px 20px}
@@ -108,7 +109,6 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 
 @media(max-width:700px){
   .dg,.dg3,.fg{grid-template-columns:1fr}
-  .detail-tabs{overflow-x:auto}
   .stats{grid-template-columns:1fr 1fr}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table{table-layout:auto;min-width:480px}
@@ -747,45 +747,86 @@ function render() {
             <td><button class="ibt" onclick="removeBonus(${sel.id},${i})" style="color:#e24b4a">✕</button></td>
           </tr>`).join('')}</tbody>
         </table></div>`:'<div class="empty-state" style="padding:20px">尚無其他獎金紀錄</div>'}`;      } else if(detailTab==='leave'){
-        function calcAnnualLeave(startDate, refDate) {
-          if(!startDate) return 0;
-          const p2=startDate.split('-');const start=new Date(parseInt(p2[0]),parseInt(p2[1])-1,parseInt(p2[2])), ref=refDate?new Date(refDate):new Date();
-          const months=Math.floor((ref-start)/(1000*60*60*24*30.44));
-          if(months<6) return 0; if(months<12) return 3;
-          const years=Math.floor(months/12);
-          if(years<2) return 7; if(years<3) return 10;
-          if(years<5) return 14; if(years<10) return 15;
-          return Math.min(15+years-10,30);
+        function parseLocalDate(str){
+          if(!str)return null;
+          const p=str.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
         }
-        // 依到職日計算當前特休週期的起迄日
+        function monthsDiff(start, ref){
+          return(ref.getFullYear()-start.getFullYear())*12+(ref.getMonth()-start.getMonth())+(ref.getDate()<start.getDate()?-1:0);
+        }
+        // 台灣勞基法正確累積邏輯：
+        // 滿6個月 → +3天（共3天）
+        // 滿1年  → 再+7天（共10天）
+        // 滿2年  → 再+10天（共20天）
+        // 滿3年  → 再+14天（共34天）...
+        // 實務上每個「年度週期」拿到的天數如下：
+        // 第0~6月：0天；第6~12月：3天；第1年：7天；第2年：10天；第3~4年：14天；第5~9年：15天；第10年起：15+(n-10)天
+        function getDaysForYear(yearsCompleted){
+          // 這個「年度」（第 yearsCompleted 年結束時）給幾天
+          if(yearsCompleted===0) return 3; // 滿6個月給的（放在第一年週期）
+          if(yearsCompleted===1) return 7;
+          if(yearsCompleted===2) return 10;
+          if(yearsCompleted===3||yearsCompleted===4) return 14;
+          if(yearsCompleted<10) return 15;
+          return Math.min(15+(yearsCompleted-9),30);
+        }
+        // 計算截至 refDate 為止，當前週期內已解鎖的天數
+        // 第一年週期（0~1年）：6個月解鎖3天，12個月不在此週期
+        // 後續年度週期（n~n+1年）：週期開始即解鎖該年天數
+        function calcUnlockedInPeriod(startDate, periodStartObj, refDate){
+          if(!startDate||!periodStartObj) return 0;
+          const sd=parseLocalDate(startDate);
+          const ref=refDate||new Date();
+          const mFromStart=monthsDiff(sd, periodStartObj);
+          // 第一年週期（到職日 ~ 到職1年）
+          if(mFromStart===0){
+            // 6個月時解鎖3天
+            const unlock6m=new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate());
+            return ref>=unlock6m?3:0;
+          }
+          // 後續年度：週期開始時即全部解鎖
+          const yearsAtPeriodStart=Math.round(mFromStart/12);
+          return getDaysForYear(yearsAtPeriodStart);
+        }
+        // 計算「當前週期」（以到職日週年為基礎）
         function getAnnivPeriod(startDate){
-          if(!startDate)return{start:null,end:null};
-          const ps=startDate.split('-');const sd=new Date(parseInt(ps[0]),parseInt(ps[1])-1,parseInt(ps[2]));
+          if(!startDate)return{start:null,end:null,startObj:null,endObj:null};
+          const sd=parseLocalDate(startDate);
           const today=new Date();
-          const yr=today.getFullYear();
-          // 今年到職日
-          let thisAnniv=new Date(yr,sd.getMonth(),sd.getDate());
-          if(thisAnniv>today) thisAnniv=new Date(yr-1,sd.getMonth(),sd.getDate());
-          const nextAnniv=new Date(thisAnniv.getFullYear()+1,sd.getMonth(),sd.getDate());
-          return{start:thisAnniv.toISOString().slice(0,10),end:nextAnniv.toISOString().slice(0,10)};
+          let periodStart=new Date(sd);
+          while(true){
+            const next=new Date(periodStart.getFullYear()+1,sd.getMonth(),sd.getDate());
+            if(next>today) break;
+            periodStart=next;
+          }
+          const periodEnd=new Date(periodStart.getFullYear()+1,sd.getMonth(),sd.getDate());
+          return{
+            start:periodStart.toLocaleDateString('en-CA'),
+            end:periodEnd.toLocaleDateString('en-CA'),
+            startObj:periodStart, endObj:periodEnd
+          };
         }
         function getLastAnnivPeriod(startDate){
-          if(!startDate)return{start:null,end:null};
+          if(!startDate)return{start:null,end:null,startObj:null};
           const cur=getAnnivPeriod(startDate);
-          if(!cur.start)return{start:null,end:null};
-          const sd=new Date(startDate);
-          const curStart=new Date(cur.start);
-          const lastStart=new Date(curStart.getFullYear()-1,sd.getMonth(),sd.getDate());
-          return{start:lastStart.toISOString().slice(0,10),end:cur.start};
+          if(!cur.startObj)return{start:null,end:null,startObj:null};
+          const sd=parseLocalDate(startDate);
+          const lastStart=new Date(cur.startObj.getFullYear()-1,sd.getMonth(),sd.getDate());
+          if(lastStart<sd)return{start:null,end:null,startObj:null};
+          return{
+            start:lastStart.toLocaleDateString('en-CA'),
+            end:cur.start,
+            startObj:lastStart
+          };
         }
 
         const curPeriod=getAnnivPeriod(sel.startDate);
         const lastPeriod=getLastAnnivPeriod(sel.startDate);
 
-        // 今年週期特休天數
-        const curAnnual=calcAnnualLeave(sel.startDate,curPeriod.start?new Date(curPeriod.start):new Date());
-        // 去年週期特休天數
-        const lastAnnual=lastPeriod.start?calcAnnualLeave(sel.startDate,new Date(lastPeriod.start)):0;
+        // 本週期已解鎖天數（依今天計算）
+        const curAnnual=calcUnlockedInPeriod(sel.startDate, curPeriod.startObj, new Date());
+        // 上一週期應有天數（以上一週期結束時計算）
+        const lastAnnual=lastPeriod.startObj?calcUnlockedInPeriod(sel.startDate, lastPeriod.startObj, curPeriod.startObj):0;
 
         // 所有請假日期
         const allUsedDates=[
@@ -855,6 +896,13 @@ function render() {
         <div style="border:2px solid ${curColor};border-radius:12px;padding:14px;margin-bottom:14px;background:${curPct>80?'#FFF1F2':curPct>50?'#FFFBEB':'#F0FDF4'}">
           <div style="font-size:12px;font-weight:700;color:${curPct>80?'#BE123C':curPct>50?'#92400E':'#166534'};margin-bottom:10px">
             📗 本特休週期（${rocCurStart} ～ ${rocCurEnd}）
+            ${(()=>{
+              const sd2=parseLocalDate(sel.startDate);
+              const m=monthsDiff(sd2,new Date());
+              if(m<6){const unlock=new Date(sd2.getFullYear(),sd2.getMonth()+6,sd2.getDate());return`<span style="font-size:11px;font-weight:400;color:#6B7280">· ${toROC(unlock.toLocaleDateString('en-CA'))} 解鎖3天</span>`;}
+              if(m<12){const unlock=new Date(sd2.getFullYear()+1,sd2.getMonth(),sd2.getDate());return`<span style="font-size:11px;font-weight:400;color:#6B7280">· 已解鎖3天，${toROC(unlock.toLocaleDateString('en-CA'))} 再解鎖7天</span>`;}
+              return'';
+            })()}
           </div>
           <div class="dg3" style="gap:8px;margin-bottom:12px">
             <div style="background:${curPct>80?'#FFE4E6':curPct>50?'#FEF9C3':'#DCFCE7'};border-radius:8px;padding:10px 12px">
