@@ -944,18 +944,30 @@ function render() {
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
         </div>`;
       } else if(detailTab==='insurance'){
-        const ins=sel.insurance||{grade:'',dependents:[]};
+        const ins=sel.insurance||{grade:'',dependents:[],gradeHistory:[]};
+        const gradeHistory=ins.gradeHistory||[];
         body=`<div style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span class="sec-title" style="margin:0">投保資料</span>
           </div>
-          <div class="dg3" style="margin-bottom:10px">
+          <div class="dg3" style="margin-bottom:12px">
             <div class="sc"><div class="sl">現有投保級距</div><div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div></div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;max-width:380px">
+          <div style="display:flex;align-items:center;gap:8px;max-width:400px;margin-bottom:14px">
             <div style="flex:1">${cddHtml('ins-grade-'+sel.id, insuranceGrades, ins.grade||'', 'insuranceGrades','選擇或新增投保級距')}</div>
             <button class="btn btn-sm btn-primary" onclick="saveInsuranceGrade(${sel.id})">儲存</button>
           </div>
+          ${gradeHistory.length?`<div>
+            <div class="sec-title">投保級距變更紀錄</div>
+            ${gradeHistory.map((h,i)=>`<div class="hist-row">
+              <div class="hist-dot green"></div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:500">$${Number(h.grade).toLocaleString()}</div>
+                <div class="hist-meta">${h.date}</div>
+              </div>
+              <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
+            </div>`).join('')}
+          </div>`:''}
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1375,10 +1387,24 @@ window.removeEmergencyContact=async function(empId,idx){
 window.saveInsuranceGrade=async function(empId){
   const r=employees.find(x=>x.id===empId);if(!r)return;
   const el=document.getElementById('ins-grade-'+empId);
-  if(!el){showToast('請先選擇投保級距');return;}
-  if(!r.insurance)r.insurance={grade:'',dependents:[]};
-  r.insurance.grade=el.value;
-  render(); showToast('儲存中...'); await saveData(); showToast('投保級距已儲存 ✓');
+  if(!el||!el.value){showToast('請先選擇投保級距');return;}
+  if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
+  if(!r.insurance.gradeHistory)r.insurance.gradeHistory=[];
+  const newGrade=el.value;
+  if(newGrade===r.insurance.grade){showToast('級距未變更');return;}
+  // 記錄變更
+  const today=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Taipei'});
+  r.insurance.gradeHistory.unshift({grade:newGrade, date:today});
+  r.insurance.grade=newGrade;
+  render(); showToast('儲存中...'); await saveData(); showToast('投保級距已更新 ✓');
+};
+
+window.deleteInsuranceHistory=async function(empId,idx){
+  if(!confirm('確定要刪除此筆變更記錄？'))return;
+  const r=employees.find(x=>x.id===empId);
+  if(!r||!r.insurance||!r.insurance.gradeHistory)return;
+  r.insurance.gradeHistory.splice(idx,1);
+  render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
 };
 
 // ── 刪除眷屬 ──
