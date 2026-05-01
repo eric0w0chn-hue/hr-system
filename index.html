@@ -118,7 +118,7 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
 .cdd-trigger{width:100%;font-size:13px;padding:8px 32px 8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none;transition:border-color .15s}
 .cdd-trigger:hover{border-color:#9CA3AF}
 .cdd-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-2);font-size:11px}
-.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;max-height:220px;overflow-y:auto;display:none}
+.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;max-height:200px;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:thin}
 .cdd-menu.open{display:block}
 .cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
 .cdd-item:hover{background:#FFF8F0}
@@ -126,7 +126,7 @@ th.sort-desc::after{content:' ↓';color:var(--orange)}
 .cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
 .cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
 .cdd-placeholder{color:var(--text-3)}
-.cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text-2)}
+.cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text-2);position:sticky;bottom:0;background:#fff;z-index:1}
 .cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
 .cdd-add input:focus{outline:none;border-color:var(--orange)}
 
@@ -556,8 +556,23 @@ function render() {
         ${sth('狀態','status','80px')}
         <th style="width:70px">操作</th>
       </tr></thead>
-      <tbody>${list.length?list.map(r=>{const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;const mo=Math.floor(ms/(1000*60*60*24*30.44));const bonusAlert=mo>=3&&!r.bonusUnlocked;return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${bonusAlert?'<span title="試用期滿3個月，請確認獎金發放" style="color:#f59e0b;font-size:12px">⚠️</span>':''}</div></td>
+      <tbody>${list.length?list.map(r=>{
+        const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;
+        const mo=Math.floor(ms/(1000*60*60*24*30.44));
+        const fi=r.fixedBonuses||{};
+        const over3=mo>=3;
+        const shoeAlert=over3&&!fi.shoe;
+        const healthAlert=over3&&!fi.health;
+        const todayMD=new Date().toISOString().slice(5,10);
+        const bdMD=r.birthday?r.birthday.slice(5,10):'';
+        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday;
+        const yrs=Math.floor(ms/(1000*60*60*24*365.25));
+        const sd2=r.startDate?new Date(r.startDate):null;
+        const td2=new Date();
+        const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi.tenure;
+        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
+        return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span title="${[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':''].filter(Boolean).join('、')}" style="color:#f59e0b;font-size:12px">⚠️</span>`:''}</div></td>
         <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
@@ -621,47 +636,77 @@ function render() {
       } else if(detailTab==='perf'){
       } else if(detailTab==='bonus'){
         const bonuses=sel.bonuses||[];
+        const fi=sel.fixedBonuses||{shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
         const msOnJob=sel.startDate?Date.now()-new Date(sel.startDate).getTime():0;
         const monthsOnJob=Math.floor(msOnJob/(1000*60*60*24*30.44));
         const over3mo=monthsOnJob>=3;
-        const unlocked=sel.bonusUnlocked||false;
-        const showAlert=over3mo&&!unlocked;
-        body=`<div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-          <span class="sec-title" style="margin:0">獎金／補助紀錄</span>
-          <button class="btn btn-sm btn-outline" onclick="openModal('addBonus',${sel.id})">＋ 新增項目</button>
-        </div>
-        ${showAlert?`<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">
-          <span style="font-size:18px">⚠️</span>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:500;color:#92400e">試用期滿3個月提醒</div>
-            <div style="font-size:12px;color:#92400e;margin-top:2px">此同仁已到職 ${monthsOnJob} 個月，請確認獎金/補助發放狀況</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-              <input id="bonus-unlock-${sel.id}" placeholder="輸入「已發放獎金」以解除提醒" style="font-size:12px;padding:5px 8px;border:1px solid #fcd34d;border-radius:6px;width:220px;background:#fff">
-              <button class="btn btn-sm btn-outline" onclick="unlockBonusAlert(${sel.id})" style="border-color:#f59e0b;color:#92400e">確認解除</button>
+        const todayStr=new Date().toISOString().slice(5,10);
+        const birthdayStr=sel.birthday?sel.birthday.slice(5,10):'';
+        const isBirthday=birthdayStr&&todayStr===birthdayStr;
+        const yearsOnJob=Math.floor(msOnJob/(1000*60*60*24*365.25));
+        const sd=sel.startDate?new Date(sel.startDate):null;
+        const todayD=new Date();
+        const isAnnivToday=sd&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
+        body=`
+        ${over3mo?`<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:12px">📋 固定補助項目（到職滿3個月）</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid ${fi.shoe?'#86EFAC':'#FCA5A5'}">
+              <div><div style="font-size:13px;font-weight:500">👟 廚師鞋補助</div><div style="font-size:12px;color:#6B7280">金額：$2,000</div></div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.shoe?'#16A34A':'#DC2626'}">
+                <input type="checkbox" ${fi.shoe?'checked':''} onchange="toggleFixedBonus(${sel.id},'shoe',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+                ${fi.shoe?'已發放':'未發放'}
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid ${fi.health?'#86EFAC':'#FCA5A5'}">
+              <div>
+                <div style="font-size:13px;font-weight:500">🏥 健康檢查補助</div>
+                <div style="font-size:12px;color:#6B7280;display:flex;align-items:center;gap:6px">金額：
+                  <select onchange="updateHealthAmt(${sel.id},this.value)" style="font-size:12px;padding:2px 6px;border:1px solid #d4d4d0;border-radius:5px">
+                    <option value="640" ${(fi.healthAmt||'640')==='640'?'selected':''}>$640</option>
+                    <option value="900" ${fi.healthAmt==='900'?'selected':''}>$900</option>
+                  </select>
+                </div>
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.health?'#16A34A':'#DC2626'}">
+                <input type="checkbox" ${fi.health?'checked':''} onchange="toggleFixedBonus(${sel.id},'health',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+                ${fi.health?'已發放':'未發放'}
+              </label>
             </div>
           </div>
+        </div>`:'<div style="background:#F9FAFB;border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;color:#6B7280">⏳ 到職滿3個月後顯示固定補助項目</div>'}
+        ${isBirthday?`<div style="border:1px solid ${fi.birthday?'#86EFAC':'#FCD34D'};border-radius:10px;padding:12px 14px;margin-bottom:14px;background:${fi.birthday?'#F0FDF4':'#FFFBEB'}">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">🎂 生日禮金</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 的生日！金額：$1,000</div></div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.birthday?'#16A34A':'#92400E'}">
+              <input type="checkbox" ${fi.birthday?'checked':''} onchange="toggleFixedBonus(${sel.id},'birthday',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+              ${fi.birthday?'已發放':'未發放'}
+            </label>
+          </div>
         </div>`:''}
-        ${unlocked?`<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#166534;display:flex;align-items:center;gap:6px">
-          <span>✓</span> 3個月獎金提醒已確認解除
-          <button onclick="resetBonusAlert(${sel.id})" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:11px;color:#9b9b98">重置</button>
+        ${isAnnivToday?`<div style="border:1px solid ${fi.tenure?'#86EFAC':'#93C5FD'};border-radius:10px;padding:12px 14px;margin-bottom:14px;background:${fi.tenure?'#F0FDF4':'#EFF6FF'}">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">🏆 發放久任獎金！</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 到職 ${yearsOnJob} 週年紀念日</div></div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.tenure?'#16A34A':'#1D4ED8'}">
+              <input type="checkbox" ${fi.tenure?'checked':''} onchange="toggleFixedBonus(${sel.id},'tenure',this.checked)" style="width:16px;height:16px;accent-color:var(--orange)">
+              OK
+            </label>
+          </div>
         </div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span class="sec-title" style="margin:0">其他獎金／補助</span>
+          <button class="btn btn-sm btn-outline" onclick="openModal('addBonus',${sel.id})">＋ 新增項目</button>
+        </div>
         ${bonuses.length?`<div class="tw"><table>
-          <thead><tr>
-            <th style="width:120px">項目名稱</th>
-            <th style="width:90px">金額</th>
-            <th style="width:80px">狀態</th>
-            <th style="width:100px">發放日期</th>
-            <th style="width:50px">操作</th>
-          </tr></thead>
+          <thead><tr><th style="width:120px">項目名稱</th><th style="width:90px">金額</th><th style="width:80px">狀態</th><th style="width:100px">發放日期</th><th style="width:50px">操作</th></tr></thead>
           <tbody>${bonuses.map((b,i)=>`<tr>
             <td>${b.title||'—'}</td>
             <td style="font-weight:500">${b.amount?'$'+Number(b.amount).toLocaleString():'—'}</td>
             <td><span class="badge ${b.status==='已發放'?'bg':'ba'}">${b.status||'未發放'}</span></td>
             <td>${b.date||'—'}</td>
-            <td><button class="ibt" onclick="removeBonus(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+            <td><button class="ibt" onclick="removeBonus(${sel.id},${i})" style="color:#e24b4a">✕</button></td>
           </tr>`).join('')}</tbody>
-        </table></div>`:'<div class="empty-state" style="padding:24px">尚無獎金／補助紀錄</div>'}`;
-      } else if(detailTab==='leave'){
+        </table></div>`:'<div class="empty-state" style="padding:20px">尚無其他獎金紀錄</div>'}`;      } else if(detailTab==='leave'){
         function calcAnnualLeave(startDate, refDate) {
           if(!startDate) return 0;
           const start=new Date(startDate), ref=refDate?new Date(refDate):new Date();
@@ -672,94 +717,134 @@ function render() {
           if(years<5) return 14; if(years<10) return 15;
           return Math.min(15+years-10,30);
         }
-        const autoAnnual=calcAnnualLeave(sel.startDate);
-        const yr=new Date().getFullYear();
-        const stored=sel.leaves.find(l=>l.year===yr)||{year:yr,annual:autoAnnual,usedDates:[],remain:autoAnnual};
-        const usedDates=(stored.usedDates||[]).sort();
-        const usedDays=usedDates.length;
-        const remain=autoAnnual-usedDays;
-        const pct=autoAnnual>0?Math.round(usedDays/autoAnnual*100):0;
-        const color=pct>80?'#e24b4a':pct>50?'#f59e0b':'#10b981';
-
-        // 去年特休結算計算
-        let lastYearBlock='';
-        if(sel.startDate){
-          const startM=new Date(sel.startDate).getMonth()+1;
-          const startD=new Date(sel.startDate).getDate();
-          // 去年到職日（拿到特休的那天）
-          const lastAnnivDate=new Date(yr-1,startM-1,startD);
-          // 今年到職日（結算日）
-          const thisAnnivDate=new Date(yr,startM-1,startD);
-          // 去年到職日拿到的天數（以去年到職日當時的年資計算）
-          const lastYearLeave=calcAnnualLeave(sel.startDate, lastAnnivDate);
-          // 去年到職日到今年到職日之間使用了幾天
-          const lastAnnivStr=lastAnnivDate.toISOString().slice(0,10);
-          const thisAnnivStr=thisAnnivDate.toISOString().slice(0,10);
-          // 找去年和今年的假日紀錄中，屬於去年到職日～今年到職日之間的
-          const allDates=[
-            ...(sel.leaves.find(l=>l.year===yr-1)?.usedDates||[]),
-            ...(sel.leaves.find(l=>l.year===yr)?.usedDates||[]),
-          ].filter(d=>d>=lastAnnivStr&&d<thisAnnivStr);
-          const usedInPeriod=allDates.length;
-          const remainLastYear=lastYearLeave-usedInPeriod;
-          const needSettle=remainLastYear>0&&new Date()>=thisAnnivDate;
-          const dailySalary=sel.salary?Math.round(sel.salary/30):0;
-          const settleAmt=remainLastYear>0&&dailySalary?remainLastYear*dailySalary:0;
-          const rocLastAnniv=toROC(lastAnnivDate.toISOString().slice(0,10));
-          const rocThisAnniv=toROC(thisAnnivDate.toISOString().slice(0,10));
-          lastYearBlock=`<div style="margin-bottom:16px;background:${needSettle?'#FFF7ED':'#F9FAFB'};border:1px solid ${needSettle?'#FED7AA':'#E5E7EB'};border-radius:10px;padding:14px">
-            <div style="font-size:12px;font-weight:600;color:${needSettle?'#C2410C':'#374151'};margin-bottom:10px">
-              ${needSettle?'⚠️ ':'📋 '}去年特休結算（${rocLastAnniv} ～ ${rocThisAnniv}）
-            </div>
-            <div class="dg3" style="gap:8px">
-              <div class="sc" style="border-left-color:${needSettle?'#F97316':'var(--orange)'}">
-                <div class="sl">去年到職日拿到</div>
-                <div class="sn">${lastYearLeave}</div><div class="ss">天特休</div>
-              </div>
-              <div class="sc" style="border-left-color:${needSettle?'#F97316':'var(--orange)'}">
-                <div class="sl">期間已使用</div>
-                <div class="sn">${usedInPeriod}</div><div class="ss">天</div>
-              </div>
-              <div class="sc" style="border-left-color:${needSettle?'#EF4444':'#10B981'}">
-                <div class="sl">到期未休</div>
-                <div class="sn" style="color:${remainLastYear>0?'#DC2626':'#059669'}">${remainLastYear}</div>
-                <div class="ss">天${remainLastYear>0?'（需折算）':''}</div>
-              </div>
-            </div>
-            ${remainLastYear>0?`<div style="margin-top:10px;font-size:13px;color:#92400E;background:#FEF3C7;border-radius:6px;padding:8px 12px">
-              💰 需折算薪資：<strong>${remainLastYear} 天 × $${dailySalary.toLocaleString()}/天 = $${settleAmt.toLocaleString()}</strong>
-              <div style="font-size:11px;color:#92400E;margin-top:2px">（以月薪 $${(sel.salary||0).toLocaleString()} ÷ 30 計算日薪）</div>
-            </div>`:''}
-          </div>`;
+        // 依到職日計算當前特休週期的起迄日
+        function getAnnivPeriod(startDate){
+          if(!startDate)return{start:null,end:null};
+          const sd=new Date(startDate);
+          const today=new Date();
+          const yr=today.getFullYear();
+          // 今年到職日
+          let thisAnniv=new Date(yr,sd.getMonth(),sd.getDate());
+          if(thisAnniv>today) thisAnniv=new Date(yr-1,sd.getMonth(),sd.getDate());
+          const nextAnniv=new Date(thisAnniv.getFullYear()+1,sd.getMonth(),sd.getDate());
+          return{start:thisAnniv.toISOString().slice(0,10),end:nextAnniv.toISOString().slice(0,10)};
         }
-        body=`<div style="margin-bottom:10px">
-          <span class="sec-title">${yr} 年度特休（依勞基法自動計算）</span>
-        </div>
-        ${lastYearBlock}
-        <div class="dg3" style="margin-bottom:14px">
-          <div class="sc"><div class="sl">法定應有天數</div><div class="sn">${autoAnnual}</div><div class="ss">${sel.startDate?'依到職日計算':'請先填到職日'}</div></div>
-          <div class="sc"><div class="sl">已使用天數</div><div class="sn">${usedDays}</div></div>
-          <div class="sc"><div class="sl">剩餘天數</div><div class="sn" style="color:${remain<3?'#e24b4a':'inherit'}">${remain}</div></div>
-        </div>
-        <div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b6b68;margin-bottom:4px"><span>使用進度</span><span>${pct}%</span></div>
-          <div class="prog-bar"><div class="prog-fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div>
-        </div>
-        <div style="background:#f9f9f8;border:1px solid #e5e5e3;border-radius:8px;padding:12px;margin-bottom:12px">
-          <div style="font-size:12px;font-weight:500;color:#6b6b68;margin-bottom:8px">已使用假日紀錄（每筆為1天）</div>
-          <div id="leave-dates-${sel.id}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-            ${usedDates.map((d,i)=>`<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d4d4d0;border-radius:6px;padding:3px 8px;font-size:12px">
-              <span>${d}</span>
-              <button onclick="removeLeaveDate(${sel.id},'${d}')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>
-            </div>`).join('')}
-            ${usedDates.length===0?'<span style="font-size:12px;color:#9b9b98">尚未登記任何假日</span>':''}
+        function getLastAnnivPeriod(startDate){
+          if(!startDate)return{start:null,end:null};
+          const cur=getAnnivPeriod(startDate);
+          if(!cur.start)return{start:null,end:null};
+          const sd=new Date(startDate);
+          const curStart=new Date(cur.start);
+          const lastStart=new Date(curStart.getFullYear()-1,sd.getMonth(),sd.getDate());
+          return{start:lastStart.toISOString().slice(0,10),end:cur.start};
+        }
+
+        const curPeriod=getAnnivPeriod(sel.startDate);
+        const lastPeriod=getLastAnnivPeriod(sel.startDate);
+
+        // 今年週期特休天數
+        const curAnnual=calcAnnualLeave(sel.startDate,curPeriod.start?new Date(curPeriod.start):new Date());
+        // 去年週期特休天數
+        const lastAnnual=lastPeriod.start?calcAnnualLeave(sel.startDate,new Date(lastPeriod.start)):0;
+
+        // 所有請假日期
+        const allUsedDates=[
+          ...(sel.leaves||[]).flatMap(l=>l.usedDates||[])
+        ];
+        // 今年週期使用的日期
+        const curUsedDates=allUsedDates.filter(d=>d>=curPeriod.start&&d<curPeriod.end).sort();
+        // 去年週期使用的日期
+        const lastUsedDates=lastPeriod.start?allUsedDates.filter(d=>d>=lastPeriod.start&&d<lastPeriod.end).sort():[];
+
+        const curUsed=curUsedDates.length;
+        const curRemain=curAnnual-curUsed;
+        const curPct=curAnnual>0?Math.round(curUsed/curAnnual*100):0;
+        const curColor=curPct>80?'#e24b4a':curPct>50?'#f59e0b':'#10b981';
+
+        const lastUsed=lastUsedDates.length;
+        const lastRemain=lastAnnual-lastUsed;
+        const needSettle=lastRemain>0&&curPeriod.start&&new Date()>=new Date(curPeriod.start);
+        const dailySalary=sel.salary?Math.round(sel.salary/30):0;
+        const settleAmt=lastRemain>0&&dailySalary?lastRemain*dailySalary:0;
+
+        const rocCurStart=toROC(curPeriod.start);
+        const rocCurEnd=toROC(curPeriod.end);
+        const rocLastStart=toROC(lastPeriod.start);
+        const rocLastEnd=toROC(lastPeriod.end||curPeriod.start);
+
+        body=`
+        ${lastPeriod.start?`
+        <!-- 去年特休週期 -->
+        <div style="border:2px solid #93C5FD;border-radius:12px;padding:14px;margin-bottom:16px;background:#EFF6FF">
+          <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">
+            📘 上一週期特休結算（${rocLastStart} ～ ${rocLastEnd}）
+            ${needSettle?'<span style="margin-left:8px;background:#EF4444;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px">需結算</span>':''}
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input id="leave-input-${sel.id}" type="date" style="font-size:13px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:6px">
-            <button class="btn btn-sm btn-primary" onclick="addLeaveDate(${sel.id})">＋ 新增假日</button>
+          <div class="dg3" style="gap:8px;margin-bottom:10px">
+            <div style="background:#DBEAFE;border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:#1D4ED8;margin-bottom:2px">週期應有</div>
+              <div style="font-size:22px;font-weight:700;color:#1E40AF">${lastAnnual}</div>
+              <div style="font-size:11px;color:#3B82F6">天特休</div>
+            </div>
+            <div style="background:#DBEAFE;border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:#1D4ED8;margin-bottom:2px">已使用</div>
+              <div style="font-size:22px;font-weight:700;color:#1E40AF">${lastUsed}</div>
+              <div style="font-size:11px;color:#3B82F6">天</div>
+            </div>
+            <div style="background:${lastRemain>0?'#FEE2E2':'#DCFCE7'};border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:${lastRemain>0?'#DC2626':'#16A34A'};margin-bottom:2px">到期未休</div>
+              <div style="font-size:22px;font-weight:700;color:${lastRemain>0?'#DC2626':'#16A34A'}">${lastRemain}</div>
+              <div style="font-size:11px;color:${lastRemain>0?'#EF4444':'#22C55E'}">天${lastRemain>0?'（需折算）':' ✓'}</div>
+            </div>
+          </div>
+          ${lastRemain>0?`<div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400E">
+            💰 需折算薪資：<strong>${lastRemain} 天 × $${dailySalary.toLocaleString()}/天 = $${settleAmt.toLocaleString()}</strong>
+            <div style="font-size:11px;margin-top:2px">（以月薪 $${(sel.salary||0).toLocaleString()} ÷ 30 計算日薪）</div>
+          </div>`:'<div style="font-size:12px;color:#16A34A">✓ 上一週期特休已全數使用完畢</div>'}
+        </div>`:''}
+
+        <!-- 本年度特休週期 -->
+        <div style="border:2px solid ${curColor};border-radius:12px;padding:14px;margin-bottom:14px;background:${curPct>80?'#FFF1F2':curPct>50?'#FFFBEB':'#F0FDF4'}">
+          <div style="font-size:12px;font-weight:700;color:${curPct>80?'#BE123C':curPct>50?'#92400E':'#166534'};margin-bottom:10px">
+            📗 本特休週期（${rocCurStart} ～ ${rocCurEnd}）
+          </div>
+          <div class="dg3" style="gap:8px;margin-bottom:12px">
+            <div style="background:${curPct>80?'#FFE4E6':curPct>50?'#FEF9C3':'#DCFCE7'};border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:#374151;margin-bottom:2px">法定應有</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text)">${curAnnual}</div>
+              <div style="font-size:11px;color:#6B7280">天特休</div>
+            </div>
+            <div style="background:${curPct>80?'#FFE4E6':curPct>50?'#FEF9C3':'#DCFCE7'};border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:#374151;margin-bottom:2px">已使用</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text)">${curUsed}</div>
+              <div style="font-size:11px;color:#6B7280">天</div>
+            </div>
+            <div style="background:${curPct>80?'#FFE4E6':curPct>50?'#FEF9C3':'#DCFCE7'};border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:#374151;margin-bottom:2px">剩餘天數</div>
+              <div style="font-size:22px;font-weight:700;color:${curRemain<3?'#DC2626':'var(--text)'}">${curRemain}</div>
+              <div style="font-size:11px;color:#6B7280">天</div>
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b6b68;margin-bottom:4px"><span>使用進度</span><span>${curPct}%</span></div>
+            <div class="prog-bar"><div class="prog-fill" style="width:${Math.min(curPct,100)}%;background:${curColor}"></div></div>
+          </div>
+          <div style="background:rgba(255,255,255,.7);border:1px solid ${curColor}44;border-radius:8px;padding:12px">
+            <div style="font-size:12px;font-weight:500;color:#374151;margin-bottom:8px">本週期已使用假日（每筆為1天）</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+              ${curUsedDates.map(d=>`<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d4d4d0;border-radius:6px;padding:3px 8px;font-size:12px">
+                <span>${d}</span>
+                <button onclick="removeLeaveDate(${sel.id},'${d}')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>
+              </div>`).join('')}
+              ${curUsedDates.length===0?'<span style="font-size:12px;color:#9b9b98">本週期尚未登記任何假日</span>':''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="leave-input-${sel.id}" type="date" min="${curPeriod.start}" max="${curPeriod.end}" style="font-size:13px;padding:5px 8px;border:1px solid #d4d4d0;border-radius:6px">
+              <button class="btn btn-sm btn-primary" onclick="addLeaveDate(${sel.id})">＋ 新增假日</button>
+            </div>
           </div>
         </div>
-        <div style="margin-top:10px;font-size:11px;color:#9b9b98;line-height:1.6">
+        <div style="font-size:11px;color:#9b9b98;line-height:1.6">
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
         </div>`;
       } else if(detailTab==='insurance'){
@@ -1126,6 +1211,20 @@ window.delCustomOption=function(listName, selectId){
   sel.remove(sel.selectedIndex); sel.value='';
 };
 
+// ── 固定獎金勾選 ──
+window.toggleFixedBonus=async function(empId,key,checked){
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  if(!r.fixedBonuses)r.fixedBonuses={shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
+  r.fixedBonuses[key]=checked;
+  render(); showToast('儲存中...'); await saveData(); showToast('已更新 ✓');
+};
+window.updateHealthAmt=async function(empId,val){
+  const r=employees.find(x=>x.id===empId);if(!r)return;
+  if(!r.fixedBonuses)r.fixedBonuses={shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
+  r.fixedBonuses.healthAmt=val;
+  await saveData(); showToast('已更新 ✓');
+};
+
 // ── 獎金相關 ──
 window.removeBonus=async function(empId,idx){
   if(!confirm('確定要刪除此筆獎金/補助紀錄？'))return;
@@ -1180,23 +1279,20 @@ window.addLeaveDate=async function(id){
   const r=employees.find(x=>x.id===id); if(!r)return;
   const el=document.getElementById('leave-input-'+id); if(!el||!el.value)return;
   const date=el.value;
-  const yr=new Date().getFullYear();
-  let stored=r.leaves.find(l=>l.year===yr);
-  if(!stored){stored={year:yr,annual:0,usedDates:[],remain:0};r.leaves.unshift(stored);}
-  if(!stored.usedDates)stored.usedDates=[];
-  if(stored.usedDates.includes(date)){showToast('此日期已登記過');return;}
-  stored.usedDates.push(date);
-  stored.used=stored.usedDates.length;
-  stored.remain=stored.annual-stored.used;
+  if(!r.leaves)r.leaves=[];
+  // 統一存在 year=0 的全域紀錄（按日期區分週期）
+  let global=r.leaves.find(l=>l.year===0);
+  if(!global){global={year:0,usedDates:[]};r.leaves.unshift(global);}
+  if(!global.usedDates)global.usedDates=[];
+  if(global.usedDates.includes(date)){showToast('此日期已登記過');return;}
+  global.usedDates.push(date);
   render(); showToast('儲存中...'); await saveData(); showToast('假日已新增 ✓');
 };
 window.removeLeaveDate=async function(id,date){
   const r=employees.find(x=>x.id===id); if(!r)return;
-  const yr=new Date().getFullYear();
-  const stored=r.leaves.find(l=>l.year===yr); if(!stored)return;
-  stored.usedDates=(stored.usedDates||[]).filter(d=>d!==date);
-  stored.used=stored.usedDates.length;
-  stored.remain=stored.annual-stored.used;
+  if(!r.leaves)return;
+  // 從所有紀錄中移除
+  r.leaves.forEach(l=>{if(l.usedDates)l.usedDates=l.usedDates.filter(d=>d!==date);});
   render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
 };
 window.transferToEmployee=async function(id){
