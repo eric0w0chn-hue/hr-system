@@ -598,7 +598,7 @@ function render() {
         const todayMD=new Date().toISOString().slice(5,10);
         const bdMD=r.birthday?r.birthday.slice(5,10):'';
         const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday;
-        const sd2=r.startDate?new Date(r.startDate):null;
+        const sd2=r.startDate?(()=>{const p=r.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
         const td2=new Date();
         const yrs=sd2?(td2.getFullYear()-sd2.getFullYear()-(td2.getMonth()<sd2.getMonth()||(td2.getMonth()===sd2.getMonth()&&td2.getDate()<sd2.getDate())?1:0)):0;
         const tenureKey2='tenure_'+td2.getFullYear();
@@ -682,9 +682,8 @@ function render() {
         const todayStr=new Date().toISOString().slice(5,10);
         const birthdayStr=sel.birthday?sel.birthday.slice(5,10):'';
         const isBirthday=birthdayStr&&todayStr===birthdayStr;
-        const sd=sel.startDate?new Date(sel.startDate):null;
+        const sd=sel.startDate?(()=>{const p=sel.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
         const todayD=new Date();
-        // 除錯：確認日期格式
         if(sd&&isNaN(sd.getTime()))console.warn('startDate格式異常:',sel.startDate);
         const yearsOnJob=sd&&!isNaN(sd.getTime())?(todayD.getFullYear()-sd.getFullYear()-(todayD.getMonth()<sd.getMonth()||(todayD.getMonth()===sd.getMonth()&&todayD.getDate()<sd.getDate())?1:0)):0;
         const isAnnivToday=sd&&!isNaN(sd.getTime())&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
@@ -753,7 +752,7 @@ function render() {
         </table></div>`:'<div class="empty-state" style="padding:20px">尚無其他獎金紀錄</div>'}`;      } else if(detailTab==='leave'){
         function calcAnnualLeave(startDate, refDate) {
           if(!startDate) return 0;
-          const start=new Date(startDate), ref=refDate?new Date(refDate):new Date();
+          const p2=startDate.split('-');const start=new Date(parseInt(p2[0]),parseInt(p2[1])-1,parseInt(p2[2])), ref=refDate?new Date(refDate):new Date();
           const months=Math.floor((ref-start)/(1000*60*60*24*30.44));
           if(months<6) return 0; if(months<12) return 3;
           const years=Math.floor(months/12);
@@ -764,7 +763,7 @@ function render() {
         // 依到職日計算當前特休週期的起迄日
         function getAnnivPeriod(startDate){
           if(!startDate)return{start:null,end:null};
-          const sd=new Date(startDate);
+          const ps=startDate.split('-');const sd=new Date(parseInt(ps[0]),parseInt(ps[1])-1,parseInt(ps[2]));
           const today=new Date();
           const yr=today.getFullYear();
           // 今年到職日
