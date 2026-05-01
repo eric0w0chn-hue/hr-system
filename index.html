@@ -252,22 +252,21 @@ function cddHtml(id, options, value, listName, placeholder='請選擇或新增')
 }
 window.cddToggle=function(safeId){
   const menu=document.getElementById('cdd-menu-'+safeId);
-  const btn=document.getElementById('cdd-btn-'+safeId)||document.querySelector(`[onclick="cddToggle('${safeId}')"]`);
-  if(!menu)return;
+  const trigger=document.querySelector(`[onclick="cddToggle('${safeId}')"]`);
+  if(!menu||!trigger)return;
   const open=menu.classList.contains('open');
-  document.querySelectorAll('.cdd-menu.open').forEach(m=>{m.classList.remove('open');m.style.position='';m.style.top='';m.style.left='';m.style.width='';});
+  document.querySelectorAll('.cdd-menu.open').forEach(m=>{
+    m.classList.remove('open');m.style.cssText='';
+  });
   if(!open){
+    const rect=trigger.getBoundingClientRect();
+    menu.style.position='fixed';
+    menu.style.top=(rect.bottom+4)+'px';
+    menu.style.left=rect.left+'px';
+    menu.style.width=rect.width+'px';
+    menu.style.zIndex='9999';
+    menu.style.display='block';
     menu.classList.add('open');
-    // 計算位置，使用 fixed 定位避免被 overflow 裁切
-    const trigger=menu.previousElementSibling||btn;
-    if(trigger){
-      const rect=trigger.getBoundingClientRect();
-      menu.style.position='fixed';
-      menu.style.top=(rect.bottom+4)+'px';
-      menu.style.left=rect.left+'px';
-      menu.style.width=rect.width+'px';
-      menu.style.zIndex='9999';
-    }
   }
 };
 window.cddSelect=function(safeId,inputId,val){
@@ -277,9 +276,9 @@ window.cddSelect=function(safeId,inputId,val){
   if(inp)inp.value=val;
   if(lbl){lbl.textContent=val;lbl.classList.remove('cdd-placeholder');}
   if(menu){
-    menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span').textContent===val));
+    menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span')?.textContent===val));
     menu.classList.remove('open');
-    menu.style.position='';menu.style.top='';menu.style.left='';menu.style.width='';
+    menu.style.cssText='';
   }
 };
 window.cddDel=function(listName,val,safeId,inputId){
@@ -313,8 +312,7 @@ window.cddAdd=function(listName,safeId,inputId){
 document.addEventListener('click',e=>{
   if(!e.target.closest('.cdd'))
     document.querySelectorAll('.cdd-menu.open').forEach(m=>{
-      m.classList.remove('open');
-      m.style.position='';m.style.top='';m.style.left='';m.style.width='';
+      m.classList.remove('open'); m.style.cssText='';
     });
 });
 
@@ -597,7 +595,7 @@ function render() {
         const healthAlert=over3&&!fi.health;
         const todayMD=new Date().toISOString().slice(5,10);
         const bdMD=r.birthday?r.birthday.slice(5,10):'';
-        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday;
+        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday&&yrs>=1;
         const sd2=r.startDate?(()=>{const p=r.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
         const td2=new Date();
         const yrs=sd2?(td2.getFullYear()-sd2.getFullYear()-(td2.getMonth()<sd2.getMonth()||(td2.getMonth()===sd2.getMonth()&&td2.getDate()<sd2.getDate())?1:0)):0;
@@ -681,13 +679,12 @@ function render() {
         const over3mo=monthsOnJob>=3;
         const todayStr=new Date().toISOString().slice(5,10);
         const birthdayStr=sel.birthday?sel.birthday.slice(5,10):'';
-        const isBirthday=birthdayStr&&todayStr===birthdayStr;
         const sd=sel.startDate?(()=>{const p=sel.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
         const todayD=new Date();
-        if(sd&&isNaN(sd.getTime()))console.warn('startDate格式異常:',sel.startDate);
         const yearsOnJob=sd&&!isNaN(sd.getTime())?(todayD.getFullYear()-sd.getFullYear()-(todayD.getMonth()<sd.getMonth()||(todayD.getMonth()===sd.getMonth()&&todayD.getDate()<sd.getDate())?1:0)):0;
+        // 生日禮金：生日當天 且 到職滿一年
+        const isBirthday=birthdayStr&&todayStr===birthdayStr&&yearsOnJob>=1;
         const isAnnivToday=sd&&!isNaN(sd.getTime())&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
-        console.log('久任獎金檢查:',sel.name,'startDate:',sel.startDate,'yearsOnJob:',yearsOnJob,'isAnnivToday:',isAnnivToday,'sdMonth:',sd?.getMonth(),'todayMonth:',todayD.getMonth(),'sdDate:',sd?.getDate(),'todayDate:',todayD.getDate());
         const tenureKey='tenure_'+todayD.getFullYear();
         const tenureChecked=fi[tenureKey]||false;
         body=`
