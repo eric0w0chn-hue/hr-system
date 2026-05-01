@@ -243,10 +243,23 @@ function cddHtml(id, options, value, listName, placeholder='請選擇或新增')
 }
 window.cddToggle=function(safeId){
   const menu=document.getElementById('cdd-menu-'+safeId);
+  const btn=document.getElementById('cdd-btn-'+safeId)||document.querySelector(`[onclick="cddToggle('${safeId}')"]`);
   if(!menu)return;
   const open=menu.classList.contains('open');
-  document.querySelectorAll('.cdd-menu.open').forEach(m=>m.classList.remove('open'));
-  if(!open)menu.classList.add('open');
+  document.querySelectorAll('.cdd-menu.open').forEach(m=>{m.classList.remove('open');m.style.position='';m.style.top='';m.style.left='';m.style.width='';});
+  if(!open){
+    menu.classList.add('open');
+    // 計算位置，使用 fixed 定位避免被 overflow 裁切
+    const trigger=menu.previousElementSibling||btn;
+    if(trigger){
+      const rect=trigger.getBoundingClientRect();
+      menu.style.position='fixed';
+      menu.style.top=(rect.bottom+4)+'px';
+      menu.style.left=rect.left+'px';
+      menu.style.width=rect.width+'px';
+      menu.style.zIndex='9999';
+    }
+  }
 };
 window.cddSelect=function(safeId,inputId,val){
   const inp=document.getElementById(inputId);
@@ -254,7 +267,11 @@ window.cddSelect=function(safeId,inputId,val){
   const menu=document.getElementById('cdd-menu-'+safeId);
   if(inp)inp.value=val;
   if(lbl){lbl.textContent=val;lbl.classList.remove('cdd-placeholder');}
-  if(menu){menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span').textContent===val));menu.classList.remove('open');}
+  if(menu){
+    menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span').textContent===val));
+    menu.classList.remove('open');
+    menu.style.position='';menu.style.top='';menu.style.left='';menu.style.width='';
+  }
 };
 window.cddDel=function(listName,val,safeId,inputId){
   if(!confirm(`確定要刪除「${val}」嗎？`))return;
@@ -284,7 +301,13 @@ window.cddAdd=function(listName,safeId,inputId){
   }
   cddSelect(safeId,inputId,n);
 };
-document.addEventListener('click',e=>{if(!e.target.closest('.cdd'))document.querySelectorAll('.cdd-menu.open').forEach(m=>m.classList.remove('open'));});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.cdd'))
+    document.querySelectorAll('.cdd-menu.open').forEach(m=>{
+      m.classList.remove('open');
+      m.style.position='';m.style.top='';m.style.left='';m.style.width='';
+    });
+});
 
 function showLoading(show) {
   let el=document.getElementById('loadingBar');
