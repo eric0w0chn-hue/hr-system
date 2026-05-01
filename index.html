@@ -105,6 +105,13 @@ th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
 th.sortable:hover{background:#EFF6FF;color:var(--primary)}
 th.sort-asc::after{content:' ↑';color:var(--primary)}
 th.sort-desc::after{content:' ↓';color:var(--primary)}
+/* 分頁 */
+.pagination{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px}
+.pg-btn{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--text-2);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
+.pg-btn:hover:not([disabled]){background:#F0F7FF;border-color:var(--primary);color:var(--primary)}
+.pg-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600}
+.pg-btn[disabled]{opacity:.4;cursor:not-allowed}
+.pg-info{font-size:12px;color:var(--text-2);margin:0 6px}
 
 
 @media(max-width:700px){
@@ -193,7 +200,9 @@ setInterval(updateClock,1000);
 let tab='employee', selId=null, detailTab='basic', sq='', sf='';
 let editMode=null, editTarget=null;
 let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[], insuranceGrades=[];
-let sortField='', sortDir=1; // sortDir: 1=升冪 -1=降冪
+let sortField='', sortDir=1;
+let currentPage=1;
+const PAGE_SIZE=10; // sortDir: 1=升冪 -1=降冪
 
 // ── 民國年轉換工具 ──
 // 西元 YYYY-MM-DD → 民國 YYY年MM月DD日
@@ -384,7 +393,7 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sortField='';sortDir=1;render(); }
+function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sortField='';sortDir=1;currentPage=1;render(); }
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
@@ -585,7 +594,11 @@ function render() {
         ${sth('狀態','status','80px')}
         <th style="width:70px">操作</th>
       </tr></thead>
-      <tbody>${list.length?list.map(r=>{
+      <tbody>${list.length?(()=>{
+        const totalPages=Math.ceil(list.length/PAGE_SIZE);
+        if(currentPage>totalPages)currentPage=1;
+        const pageList=list.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+        return pageList.map(r=>{
         const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;
         const mo=Math.floor(ms/(1000*60*60*24*30.44));
         const fi=r.fixedBonuses||{};
@@ -594,10 +607,10 @@ function render() {
         const healthAlert=over3&&!fi.health;
         const todayMD=new Date().toISOString().slice(5,10);
         const bdMD=r.birthday?r.birthday.slice(5,10):'';
-        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday&&yrs>=1;
         const sd2=r.startDate?(()=>{const p=r.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
         const td2=new Date();
         const yrs=sd2?(td2.getFullYear()-sd2.getFullYear()-(td2.getMonth()<sd2.getMonth()||(td2.getMonth()===sd2.getMonth()&&td2.getDate()<sd2.getDate())?1:0)):0;
+        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday&&yrs>=1;
         const tenureKey2='tenure_'+td2.getFullYear();
         const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
@@ -609,8 +622,23 @@ function render() {
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
           <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
         </div></td>
-      </tr>`}).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
-      </tbody></table></div>`;
+      </tr>`}).join('');
+      })():`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+      </tbody></table></div>
+    ${list.length>PAGE_SIZE?(()=>{
+      const totalPages=Math.ceil(list.length/PAGE_SIZE);
+      let pages='';
+      pages+=`<button class="pg-btn" onclick="setPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+      for(let p=1;p<=totalPages;p++){
+        if(p===1||p===totalPages||Math.abs(p-currentPage)<=1){
+          pages+=`<button class="pg-btn${p===currentPage?' active':''}" onclick="setPage(${p})">${p}</button>`;
+        } else if(Math.abs(p-currentPage)===2){
+          pages+=`<span class="pg-info">…</span>`;
+        }
+      }
+      pages+=`<button class="pg-btn" onclick="setPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
+      return`<div class="pagination"><span class="pg-info">${list.length} 筆，第 ${currentPage}/${totalPages} 頁</span>${pages}</div>`;
+    })():''}`;
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
@@ -1276,8 +1304,10 @@ async function delRow(id){
 
 // 把需要從 HTML onclick 呼叫的函式掛到 window
 window.switchTab=switchTab;
+window.setPage=function(p){currentPage=p;selId=null;render();window.scrollTo(0,0);};
 window.setSort=function(field){
   if(sortField===field){sortDir*=-1;}else{sortField=field;sortDir=1;}
+  currentPage=1;
   render();
 };
 window.openModal=(mode,targetId,extraIdx)=>openModal(mode,targetId,extraIdx);
@@ -1288,7 +1318,7 @@ window.exportJSON=exportJSON;
 window.importJSON=importJSON;
 window.render=render;
 function doSearch(v){
-  sq=v; selId=null;
+  sq=v; selId=null; currentPage=1;
   render();
 }
 
@@ -1303,9 +1333,17 @@ window.triggerSearch=function(){
 };
 
 function bindSearchInput(){}
-window.setSf=function(v){sf=v;selId=null;render();};
+window.setSf=function(v){sf=v;selId=null;currentPage=1;render();};
 window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
-window.setDetailTab=(t)=>{detailTab=t;render();};
+window.setDetailTab=function(t){
+  detailTab=t;
+  render();
+  // 讓選中的分頁捲入可見範圍
+  setTimeout(()=>{
+    const active=document.querySelector('.dtab.active');
+    if(active) active.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});
+  },0);
+};
 window.updateLeaveUsed=(id,annual)=>updateLeaveUsed(id,annual);
 window.addBank=()=>addBank();
 
