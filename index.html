@@ -684,8 +684,11 @@ function render() {
         const isBirthday=birthdayStr&&todayStr===birthdayStr;
         const sd=sel.startDate?new Date(sel.startDate):null;
         const todayD=new Date();
-        const yearsOnJob=sd?(()=>{const t=new Date();return t.getFullYear()-sd.getFullYear()-(t.getMonth()<sd.getMonth()||(t.getMonth()===sd.getMonth()&&t.getDate()<sd.getDate())?1:0);})():0;
-        const isAnnivToday=sd&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
+        // 除錯：確認日期格式
+        if(sd&&isNaN(sd.getTime()))console.warn('startDate格式異常:',sel.startDate);
+        const yearsOnJob=sd&&!isNaN(sd.getTime())?(todayD.getFullYear()-sd.getFullYear()-(todayD.getMonth()<sd.getMonth()||(todayD.getMonth()===sd.getMonth()&&todayD.getDate()<sd.getDate())?1:0)):0;
+        const isAnnivToday=sd&&!isNaN(sd.getTime())&&yearsOnJob>=2&&sd.getMonth()===todayD.getMonth()&&sd.getDate()===todayD.getDate();
+        console.log('久任獎金檢查:',sel.name,'startDate:',sel.startDate,'yearsOnJob:',yearsOnJob,'isAnnivToday:',isAnnivToday,'sdMonth:',sd?.getMonth(),'todayMonth:',todayD.getMonth(),'sdDate:',sd?.getDate(),'todayDate:',todayD.getDate());
         const tenureKey='tenure_'+todayD.getFullYear();
         const tenureChecked=fi[tenureKey]||false;
         body=`
