@@ -1690,7 +1690,17 @@ window.addTitle=function(){
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
 };
 
-// ── 離職：移到離職員工 ──
+// ── 帳號停用/啟用 工具函式 ──
+async function setAccountDisabled(uid, disabled){
+  if(!uid) return;
+  try {
+    await setDoc(doc(db,'users', uid), { disabled }, { merge: true });
+  } catch(e) {
+    console.error('帳號狀態更新失敗', e);
+  }
+}
+
+// ── 離職：移到離職員工 + 停用帳號 ──
 window.resignEmployee=async function(id){
   const r=employees.find(x=>x.id===id);
   if(!r)return;
@@ -1703,10 +1713,16 @@ window.resignEmployee=async function(id){
   render();
   showToast('已移至離職同仁...');
   await saveData();
-  showToast('離職記錄已儲存 ✓');
+  // 停用帳號
+  if(r.uid){
+    await setAccountDisabled(r.uid, true);
+    showToast('離職記錄已儲存，帳號已停用 ✓');
+  } else {
+    showToast('離職記錄已儲存 ✓');
+  }
 };
 
-// ── 復職 ──
+// ── 復職 + 啟用帳號 ──
 window.restoreEmployee=async function(id){
   const r=resigned.find(x=>x.id===id);
   if(!r)return;
@@ -1718,7 +1734,13 @@ window.restoreEmployee=async function(id){
   if(selId===id)selId=null;
   tab='employee';
   render();
-  showToast('已復職，移回在職同仁 ✓');
+  // 啟用帳號
+  if(r.uid){
+    await setAccountDisabled(r.uid, false);
+    showToast('已復職，帳號已重新啟用 ✓');
+  } else {
+    showToast('已復職，移回在職同仁 ✓');
+  }
   await saveData();
 };
 

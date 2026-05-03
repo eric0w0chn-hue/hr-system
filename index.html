@@ -66,6 +66,11 @@ document.getElementById('idNo').addEventListener('keydown', e => {
   if(e.key === 'Enter') document.getElementById('pwd').focus();
 });
 
+// 檢查是否因帳號停用被導回
+if(new URLSearchParams(window.location.search).get('disabled')==='1'){
+  document.getElementById('errMsg').textContent = '此帳號已停用，請聯繫管理人員';
+}
+
 window.doLogin = async function(){
   const idNo = document.getElementById('idNo').value.trim().toUpperCase();
   const pwd  = document.getElementById('pwd').value.trim();
