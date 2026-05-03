@@ -177,6 +177,7 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
@@ -188,6 +189,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
+const auth = getAuth(app);
 
 // ── 日期 & 時鐘 ──
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
@@ -1316,12 +1318,47 @@ async function saveModal(){
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const newStatus=g('m-status');
-    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:g('m-idNo'),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
+    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
       Object.assign(r,empFields);
     } else {
-      employees.unshift({id:Date.now(),...empFields,emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]});
+      // ── 新增同仁：同步建立 Firebase Auth 帳號 ──
+      const idNo = empFields.idNo ? empFields.idNo.trim().toUpperCase() : '';
+      const birthday = empFields.birthday; // 格式 YYYY-MM-DD（西元）
+      if(!idNo){ alert('請填寫身分證號，系統將用此建立登入帳號'); return; }
+      // 密碼：民國生日 YYMMDD，例如 1994-05-20 → 830520
+      let password = '';
+      if(birthday){
+        const parts = birthday.split('-');
+        if(parts.length===3){
+          const rocYear = parseInt(parts[0]) - 1911;
+          password = String(rocYear) + parts[1] + parts[2];
+        }
+      }
+      if(!password){ alert('請填寫生日，系統將用生日（民國年月日）作為預設密碼'); return; }
+
+      // Firebase Auth 需要 email 格式，用身分證@liangpinghri.com
+      const fakeEmail = `${idNo.toLowerCase()}@liangpinghri.com`;
+
+      try {
+        showToast('建立帳號中...');
+        const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
+        const uid = userCredential.user.uid;
+        const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]};
+        employees.unshift(newEmp);
+        // 在 Firestore 的 users collection 記錄帳號對應
+        await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', createdAt: new Date().toISOString() });
+        showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);
+      } catch(err) {
+        console.error(err);
+        if(err.code === 'auth/email-already-in-use'){
+          alert(`此身分證號（${idNo}）已有帳號，請確認是否重複新增。`);
+        } else {
+          alert('帳號建立失敗：' + err.message);
+        }
+        return;
+      }
     }
   } else if(m==='editInsurance'){
     closeModal(); return; // handled by saveInsuranceGrade
