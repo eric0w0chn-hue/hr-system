@@ -380,7 +380,46 @@ async function saveData() {
 }
 
 let interviews=[], employees=[], resigned=[];
-(async()=>{ await loadData(); render(); })();
+let currentUserRole = 'admin';
+let currentUserLocations = [];
+
+// ── 權限初始化：載入目前使用者角色 ──
+async function initAuth(){
+  const { getAuth, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+  const auth = getAuth(app);
+  return new Promise(resolve => {
+    onAuthStateChanged(auth, async user => {
+      if(!user){
+        window.location.href = '/hr-system/index.html';
+        return;
+      }
+      try{
+        const snap = await getDoc(doc(db,'users', user.uid));
+        if(!snap.exists() || snap.data().disabled){
+          const { signOut:so } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+          await so(auth);
+          window.location.href = '/hr-system/index.html?disabled=1';
+          return;
+        }
+        const data = snap.data();
+        currentUserRole = data.role || 'employee';
+        currentUserLocations = data.locations || [];
+        // employee 不能進人員資訊
+        if(currentUserRole === 'employee'){
+          window.location.href = '/hr-system/dashboard.html';
+          return;
+        }
+      }catch(e){ console.error(e); }
+      resolve();
+    });
+  });
+}
+
+(async()=>{
+  await initAuth();
+  await loadData();
+  render();
+})();
 
 // ── Toast ──
 function showToast(msg) {
@@ -407,6 +446,10 @@ function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sortField
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
   let list = src.filter(r => {
+    // 店面權限過濾：manager/consultant 只看自己負責的店面（離職和求職者全公司可見）
+    if((currentUserRole==='manager'||currentUserRole==='consultant') && tab==='employee'){
+      if(currentUserLocations.length && !currentUserLocations.includes(r.workLocation)) return false;
+    }
     const q=sq.toLowerCase();
     const nm=(r.name+((tab==='interview'?r.location:r.workLocation)||'')+(r.email||'')).toLowerCase().includes(q);
     const st=!sf||r.status===sf;
