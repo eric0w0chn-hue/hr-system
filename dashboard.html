@@ -110,7 +110,7 @@ const db   = getFirestore(app);
 
 onAuthStateChanged(auth, async user => {
   if(!user){
-    window.location.href = 'index.html';
+    window.location.href = '/hr-system/index.html';
     return;
   }
   // 取得使用者資料
@@ -118,7 +118,7 @@ onAuthStateChanged(auth, async user => {
     const snap = await getDoc(doc(db,'users', user.uid));
     if(snap.exists() && snap.data().disabled === true){
       await signOut(auth);
-      window.location.href = 'index.html?disabled=1';
+      window.location.href = '/hr-system/index.html?disabled=1';
       return;
     }
     const name = snap.exists() ? snap.data().name : '使用者';
@@ -143,7 +143,7 @@ window.goTo = function(page){ window.location.href = page; };
 window.doLogout = async function(){
   if(!confirm('確定要登出嗎？')) return;
   await signOut(auth);
-  window.location.href = 'index.html';
+  window.location.href = '/hr-system/index.html';
 };
 </script>
 </body>
