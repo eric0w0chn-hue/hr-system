@@ -179,7 +179,7 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -1402,9 +1402,21 @@ async function saveModal(){
 }
 
 async function delRow(id){
-  if(!confirm('確定要刪除此筆資料？'))return;
-  if(tab==='interview') interviews=interviews.filter(r=>r.id!==id);
-  else employees=employees.filter(r=>r.id!==id);
+  if(!confirm('確定要刪除此筆資料？此操作無法復原，帳號也將一併移除。'))return;
+  // 若是員工，先找出 uid 刪除 users 文件
+  if(tab==='employee'){
+    const r=employees.find(x=>x.id===id);
+    if(r&&r.uid){
+      try{
+        await deleteDoc(doc(db,'users', r.uid));
+      }catch(e){
+        console.error('users 文件刪除失敗', e);
+      }
+    }
+    employees=employees.filter(r=>r.id!==id);
+  } else if(tab==='interview'){
+    interviews=interviews.filter(r=>r.id!==id);
+  }
   if(selId===id) selId=null;
   render();
   showToast('刪除中...');
