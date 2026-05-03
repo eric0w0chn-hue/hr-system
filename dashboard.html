@@ -5,171 +5,136 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>鑫系統 LIANGPING</title>
 <style>
+:root{--bg:#ECEEF2;--surface:#FFFFFF;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#F8FAFC;color:#0F172A;min-height:100vh}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 60%,#0891B2 100%);height:62px}
-.topbar h1{font-size:18px;font-weight:800;color:#fff;letter-spacing:1px;display:flex;align-items:center;gap:10px}
-.topbar h1::before{content:'';display:inline-block;width:4px;height:20px;background:linear-gradient(180deg,#60A5FA,#38BDF8);border-radius:2px}
-.topbar-right{display:flex;align-items:center;gap:14px}
-.user-info{text-align:right}
-.user-info .name{font-size:14px;font-weight:600;color:#fff}
-.user-info .id{font-size:11px;color:rgba(255,255,255,.7)}
-.role-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;margin-top:2px;display:inline-block}
-.role-admin{background:#FEF3C7;color:#92400E}
-.role-consultant{background:#EDE9FE;color:#5B21B6}
-.role-manager{background:#D1FAE5;color:#065F46}
-.role-employee{background:#DBEAFE;color:#1D4ED8}
-.btn-logout{font-size:12px;padding:5px 14px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-family:inherit;transition:background .15s}
-.btn-logout:hover{background:rgba(255,255,255,.25)}
-.main{max-width:960px;margin:0 auto;padding:36px 20px}
-.greeting{margin-bottom:28px}
-.greeting h2{font-size:20px;font-weight:700;color:#0F172A}
-.greeting p{font-size:13px;color:#64748B;margin-top:4px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-.module-card{background:#fff;border-radius:14px;border:1px solid #E2E8F0;padding:24px 20px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:12px;position:relative;box-shadow:0 2px 8px rgba(15,23,42,.04)}
-.module-card:hover{border-color:#2563EB;box-shadow:0 8px 24px rgba(37,99,235,.12);transform:translateY(-2px)}
-.module-card.disabled{cursor:not-allowed;opacity:.55}
-.module-card.disabled:hover{border-color:#E2E8F0;box-shadow:0 2px 8px rgba(15,23,42,.04);transform:none}
-.icon-wrap{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
-.module-card .mod-name{font-size:16px;font-weight:600;color:#0F172A}
-.module-card .mod-desc{font-size:12px;color:#64748B;line-height:1.6}
-.badge{position:absolute;top:14px;right:14px;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
-.badge-active{background:#D1FAE5;color:#065F46}
-.badge-soon{background:#F1F5F9;color:#475569}
-.badge-admin{background:#FEF3C7;color:#92400E}
-.footer{text-align:center;margin-top:40px;font-size:11px;color:#CBD5E1}
-#loading{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:999;font-size:14px;color:#64748B}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-icon{width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.user-chip{display:flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;background:rgba(255,255,255,.1);border-radius:24px;border:1px solid rgba(255,255,255,.15)}
+.user-av{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.user-info .name{font-size:13px;font-weight:600;color:#fff}
+.user-info .sub{font-size:10px;color:rgba(255,255,255,.6)}
+.role-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.role-admin{background:#FFF4E0;color:#C47A00}
+.role-consultant{background:#F0EBFF;color:#6741D9}
+.role-manager{background:#E6FAF0;color:#087443}
+.role-employee{background:#E8EEFF;color:#3B5BDB}
+.btn-logout{font-size:12px;padding:6px 14px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s}
+.btn-logout:hover{background:rgba(255,255,255,.2)}
+.main{max-width:960px;margin:0 auto;padding:36px 24px}
+.greeting{margin-bottom:32px}
+.greeting h2{font-size:22px;font-weight:700;color:var(--text)}
+.greeting p{font-size:13px;color:var(--text3);margin-top:5px}
+.section-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.module-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:22px 20px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:14px;position:relative}
+.module-card:hover{border-color:var(--border2);box-shadow:0 6px 24px rgba(0,0,0,.08);transform:translateY(-2px)}
+.module-card.disabled{cursor:not-allowed;opacity:.5}
+.module-card.disabled:hover{border-color:var(--border);box-shadow:none;transform:none}
+.card-badge{position:absolute;top:14px;right:14px;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge-active{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.badge-soon{background:#F4F5F8;color:#9AA0B4;border:1px solid var(--border)}
+.badge-admin{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.icon-wrap{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--surface2)}
+.mod-name{font-size:15px;font-weight:600;color:var(--text)}
+.mod-desc{font-size:12px;color:var(--text3);line-height:1.6}
+.footer{text-align:center;margin-top:48px;font-size:11px;color:var(--text3)}
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div id="loading">載入中...</div>
-
+<div id="loading"><div class="spinner"></div><div style="font-size:13px;color:#9AA0B4">載入中...</div></div>
 <div id="app" style="display:none">
   <div class="topbar">
-    <h1>🍗 鑫系統 LIANGPING</h1>
+    <div class="topbar-brand">
+      <div class="topbar-icon">🍗</div>
+      <h1>鑫系統 LIANGPING</h1>
+    </div>
     <div class="topbar-right">
-      <div class="user-info">
-        <div class="name" id="userName">—</div>
-        <div class="id" id="userId">—</div>
+      <div class="user-chip">
+        <div class="user-av" id="userAv">—</div>
+        <div class="user-info">
+          <div class="name" id="userName">—</div>
+          <div class="sub" id="userId">—</div>
+        </div>
         <div id="roleLabel"></div>
       </div>
       <button class="btn-logout" onclick="doLogout()">登出</button>
     </div>
   </div>
-
   <div class="main">
     <div class="greeting">
       <h2 id="greetText">歡迎回來</h2>
       <p id="todayText"></p>
     </div>
+    <div class="section-label">功能選單</div>
     <div class="grid" id="moduleGrid"></div>
     <div class="footer">鑫系統 LIANGPING &nbsp;·&nbsp; <span id="yearText"></span></div>
   </div>
 </div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
-  authDomain: "liangpinghri.firebaseapp.com",
-  projectId: "liangpinghri",
-  storageBucket: "liangpinghri.firebasestorage.app",
-  messagingSenderId: "410255807470",
-  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
-};
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-const roleNames      = { admin:'管理員', consultant:'顧問', manager:'店長', employee:'員工' };
-const roleBadgeClass = { admin:'role-admin', consultant:'role-consultant', manager:'role-manager', employee:'role-employee' };
-
-const ALL_MODULES = [
-  { key:'hr',       icon:'👥', bg:'#EFF6FF', name:'人員資訊', desc:'員工基本資料、薪資歷程、特休假管理、投保資料', page:'hr.html',      active:true  },
-  { key:'clock',    icon:'⏱', bg:'#ECFEFF', name:'打卡系統', desc:'上下班打卡、異常補打申請、月份出勤記錄',         page:'clock.html',   active:false },
-  { key:'schedule', icon:'📅', bg:'#FFFBEB', name:'排班管理', desc:'班表設定、輪班規則、換班申請',                   page:'schedule.html',active:false },
-  { key:'salary',   icon:'💰', bg:'#F0FDF4', name:'薪資計算', desc:'月薪結算、固定獎金、勞健保自負額試算',           page:'salary.html',  active:false },
-  { key:'account',  icon:'🔑', bg:'#FEF3C7', name:'帳號管理', desc:'帳號角色設定、店面權限管理、帳號停用',           page:'account.html', active:true, adminOnly:true },
+const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'員工'};
+const roleBadgeClass={admin:'role-admin',consultant:'role-consultant',manager:'role-manager',employee:'role-employee'};
+const ALL_MODULES=[
+  {key:'hr',icon:'👥',name:'人員資訊',desc:'員工基本資料、薪資歷程、特休假管理、投保資料',page:'hr.html',active:true},
+  {key:'clock',icon:'⏱',name:'打卡系統',desc:'上下班打卡、異常補打申請、月份出勤記錄',page:'clock.html',active:false},
+  {key:'schedule',icon:'📅',name:'排班管理',desc:'班表設定、輪班規則、換班申請',page:'schedule.html',active:false},
+  {key:'salary',icon:'💰',name:'薪資計算',desc:'月薪結算、固定獎金、勞健保自負額試算',page:'salary.html',active:false},
+  {key:'account',icon:'🔑',name:'帳號管理',desc:'帳號角色設定、店面權限管理、帳號停用',page:'account.html',active:true,adminOnly:true},
 ];
-
-const VISIBLE_KEYS = {
-  admin:      ['hr','clock','schedule','salary','account'],
-  consultant: ['hr','clock','schedule','salary'],
-  manager:    ['hr','clock','schedule','salary'],
-  employee:   ['clock','schedule'],
-};
-
+const VISIBLE_KEYS={admin:['hr','clock','schedule','salary','account'],consultant:['hr','clock','schedule','salary'],manager:['hr','clock','schedule','salary'],employee:['clock','schedule']};
 function renderModules(role){
-  const keys = VISIBLE_KEYS[role] || VISIBLE_KEYS['employee'];
-  const modules = ALL_MODULES.filter(m => keys.includes(m.key));
-  document.getElementById('moduleGrid').innerHTML = modules.map(m => {
-    const badgeHtml = m.active
-      ? `<span class="badge ${m.adminOnly ? 'badge-admin' : 'badge-active'}">${m.adminOnly ? '管理員' : '可使用'}</span>`
-      : `<span class="badge badge-soon">即將推出</span>`;
-    const clickAttr = m.active ? `onclick="goTo('${m.page}')"` : '';
-    return `<div class="module-card${m.active ? '' : ' disabled'}" ${clickAttr}>
+  const keys=VISIBLE_KEYS[role]||VISIBLE_KEYS['employee'];
+  const modules=ALL_MODULES.filter(m=>keys.includes(m.key));
+  document.getElementById('moduleGrid').innerHTML=modules.map(m=>{
+    const badgeHtml=m.active?`<span class="card-badge ${m.adminOnly?'badge-admin':'badge-active'}">${m.adminOnly?'管理員':'可使用'}</span>`:`<span class="card-badge badge-soon">即將推出</span>`;
+    const clickAttr=m.active?`onclick="goTo('${m.page}')"` :'';
+    return `<div class="module-card${m.active?'':' disabled'}" ${clickAttr}>
       ${badgeHtml}
-      <div class="icon-wrap" style="background:${m.bg}">${m.icon}</div>
-      <div class="mod-name">${m.name}</div>
-      <div class="mod-desc">${m.desc}</div>
+      <div class="icon-wrap">${m.icon}</div>
+      <div><div class="mod-name">${m.name}</div><div class="mod-desc" style="margin-top:4px">${m.desc}</div></div>
     </div>`;
   }).join('');
 }
-
-onAuthStateChanged(auth, async user => {
-  if(!user){
-    window.location.href = '/hr-system/index.html';
-    return;
-  }
-  try {
-    const snap = await getDoc(doc(db,'users', user.uid));
-    if(!snap.exists()){
-      await signOut(auth);
-      window.location.href = '/hr-system/index.html?disabled=1';
-      return;
-    }
-    const data = snap.data();
-    if(data.disabled === true){
-      await signOut(auth);
-      window.location.href = '/hr-system/index.html?disabled=1';
-      return;
-    }
-    const role = data.role || 'employee';
-    const name = data.name || '使用者';
-    const idNo = user.email.split('@')[0].toUpperCase();
-
-    document.getElementById('userName').textContent = name;
-    document.getElementById('userId').textContent = idNo;
-    document.getElementById('roleLabel').innerHTML =
-      `<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
-
-    const h = new Date().getHours();
-    const gr = h < 12 ? '早安' : h < 18 ? '午安' : '晚安';
-    document.getElementById('greetText').textContent = `${gr}，${name} 👋`;
-
+onAuthStateChanged(auth,async user=>{
+  if(!user){window.location.href='/hr-system/index.html';return;}
+  try{
+    const snap=await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
+    const data=snap.data();
+    if(data.disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
+    const role=data.role||'employee';
+    const name=data.name||'使用者';
+    const idNo=user.email.split('@')[0].toUpperCase();
+    document.getElementById('userAv').textContent=(name||'?').slice(0,1);
+    document.getElementById('userName').textContent=name;
+    document.getElementById('userId').textContent=idNo;
+    document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
+    const h=new Date().getHours();
+    const gr=h<12?'早安':h<18?'午安':'晚安';
+    document.getElementById('greetText').textContent=`${gr}，${name} 👋`;
     renderModules(role);
-  } catch(e){
-    console.error(e);
-    renderModules('employee');
-  }
-
-  const now = new Date();
-  document.getElementById('todayText').textContent =
-    now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
-  document.getElementById('yearText').textContent = now.getFullYear();
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  }catch(e){console.error(e);renderModules('employee');}
+  const now=new Date();
+  document.getElementById('todayText').textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  document.getElementById('yearText').textContent=now.getFullYear();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
 });
-
-window.goTo     = function(page){ window.location.href = page; };
-window.doLogout = async function(){
-  if(!confirm('確定要登出嗎？')) return;
-  await signOut(auth);
-  window.location.href = '/hr-system/index.html';
-};
+window.goTo=function(page){window.location.href=page;};
+window.doLogout=async function(){if(!confirm('確定要登出嗎？'))return;await signOut(auth);window.location.href='/hr-system/index.html';};
 </script>
 </body>
 </html>

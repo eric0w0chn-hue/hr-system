@@ -5,91 +5,155 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>帳號管理 — 鑫系統</title>
 <style>
+:root{
+  --bg:#F0F2F5;
+  --surface:#FFFFFF;
+  --surface2:#F7F8FA;
+  --border:#E4E7ED;
+  --border2:#D0D5DD;
+  --text:#1A1D23;
+  --text2:#5A6175;
+  --text3:#9AA0B4;
+  --accent:#3B5BDB;
+  --accent-light:#EEF2FF;
+  --silver:#8892A4;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#F8FAFC;color:#0F172A;min-height:100vh;font-size:14px}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 60%,#0891B2 100%);height:62px}
-.topbar h1{font-size:18px;font-weight:800;color:#fff;letter-spacing:1px;display:flex;align-items:center;gap:10px}
-.topbar h1::before{content:'';display:inline-block;width:4px;height:20px;background:linear-gradient(180deg,#60A5FA,#38BDF8);border-radius:2px}
-.btn-back{font-size:12px;padding:5px 14px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-family:inherit;transition:background .15s}
-.btn-back:hover{background:rgba(255,255,255,.25)}
-.main{max-width:900px;margin:0 auto;padding:28px 20px}
-.page-title{font-size:18px;font-weight:700;margin-bottom:4px}
-.page-sub{font-size:13px;color:#64748B;margin-bottom:20px}
-.card{background:#fff;border-radius:12px;border:1px solid #E2E8F0;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,.04)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:#64748B;border-bottom:1px solid #E2E8F0;background:#F8FAFC;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
-td{padding:12px 16px;border-bottom:1px solid #F1F5F9;vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#F8FBFF}
-.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
-.role-admin{background:#FEF3C7;color:#92400E}
-.role-consultant{background:#EDE9FE;color:#5B21B6}
-.role-manager{background:#D1FAE5;color:#065F46}
-.role-employee{background:#DBEAFE;color:#1D4ED8}
-.status-active{background:#D1FAE5;color:#065F46}
-.status-disabled{background:#FEE2E2;color:#991B1B}
-.btn{font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:4px;border:1px solid #E2E8F0;background:#fff;color:#0F172A}
-.btn:hover{background:#F1F5F9}
-.btn-primary{background:#2563EB;color:#fff;border-color:#1D4ED8}
-.btn-primary:hover{background:#1D4ED8}
-.btn-danger{background:#fff;color:#DC2626;border-color:#FECACA}
-.btn-danger:hover{background:#FEF2F2}
-.av{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
-.av-b{background:#DBEAFE;color:#1E40AF}.av-t{background:#D1FAE5;color:#065F46}.av-c{background:#FEE2E2;color:#991B1B}.av-p{background:#EDE9FE;color:#5B21B6}.av-a{background:#FEF3C7;color:#92400E}.av-k{background:#FCE7F3;color:#9D174D}
-.nc{display:flex;align-items:center;gap:10px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* Topbar */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.divider-v{width:1px;height:20px;background:var(--border)}
+.page-name{font-size:15px;font-weight:600;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.stat-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text2)}
+.stat-pill strong{color:var(--text);font-weight:600}
+
+/* Main */
+.main{max-width:1000px;margin:0 auto;padding:28px 24px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px}
+
+/* Cards grid */
+.accounts-grid{display:flex;flex-direction:column;gap:10px}
+.account-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;transition:box-shadow .15s,border-color .15s}
+.account-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06);border-color:var(--border2)}
+.account-card.is-disabled{opacity:.6}
+
+/* Avatar */
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;letter-spacing:.5px}
+.av-b{background:#E8EEFF;color:#3B5BDB}
+.av-t{background:#E6FAF0;color:#087443}
+.av-c{background:#FEE9E9;color:#C0392B}
+.av-p{background:#F0EBFF;color:#6741D9}
+.av-a{background:#FFF4E0;color:#C47A00}
+.av-k{background:#FFE8F5;color:#C2255C}
+
+/* Info block */
+.acc-info{flex:1;min-width:0}
+.acc-name{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.acc-id{font-size:12px;color:var(--text3);margin-top:2px;font-family:monospace;letter-spacing:.3px}
+.acc-locs{font-size:11px;color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:4px}
+.loc-tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--text2)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:.2px}
+.role-admin{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.role-consultant{background:#F0EBFF;color:#6741D9;border:1px solid #D8CAFF}
+.role-manager{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.role-employee{background:#E8EEFF;color:#3B5BDB;border:1px solid #BAC8FF}
+.status-ok{background:#F4F4F4;color:#5A6175;border:1px solid #E4E7ED}
+.status-off{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+
+/* Actions */
+.acc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.btn{font-size:12px;padding:6px 13px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.btn-primary:hover{background:#2F4AC8}
+.btn-warn{background:transparent;border:1px solid #FFBDBD;color:#C0392B}
+.btn-warn:hover{background:#FEE9E9}
+.btn-del{background:transparent;border:1px solid var(--border);color:var(--text3)}
+.btn-del:hover{background:#FEE9E9;border-color:#FFBDBD;color:#C0392B}
+
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
-.modal{background:#fff;border-radius:14px;width:500px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,.2)}
-.modal h2{font-size:15px;font-weight:600;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid #E2E8F0}
-.fr{margin-bottom:14px}
-.fr label{display:block;font-size:12px;color:#64748B;margin-bottom:5px;font-weight:500}
-.fr select,.fr input{width:100%;font-size:13px;padding:8px 11px;border:1px solid #E2E8F0;border-radius:8px;background:#fff;color:#0F172A;font-family:inherit}
-.fr select:focus,.fr input:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid #E2E8F0}
-.loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;max-height:160px;overflow-y:auto;padding:2px}
-.loc-item{display:flex;align-items:center;gap:6px;font-size:13px;padding:5px 8px;border-radius:6px;border:1px solid #E2E8F0;cursor:pointer;transition:background .1s}
-.loc-item:hover{background:#F0F7FF}
-.loc-item input{width:16px;height:16px;cursor:pointer;accent-color:#2563EB}
-.toast{position:fixed;bottom:24px;right:24px;background:#0F172A;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
+.overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:16px;width:480px;max-width:100%;padding:28px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border)}
+.modal-header{display:flex;align-items:center;gap:12px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.modal-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.modal-title{font-size:15px;font-weight:600;color:var(--text)}
+.modal-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.fr{margin-bottom:16px}
+.fr label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;letter-spacing:.2px}
+.fr select{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer;transition:border-color .15s}
+.fr select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.12)}
+.loc-section-label{font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.2px;margin-bottom:8px}
+.loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:150px;overflow-y:auto}
+.loc-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .1s;user-select:none}
+.loc-item:hover{background:var(--accent-light);border-color:#BAC8FF}
+.loc-item input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px}
 .toast.show{opacity:1;transform:translateY(0)}
-#loading{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:999;font-size:14px;color:#64748B}
-.empty{text-align:center;padding:40px;color:#94A3B8;font-size:13px}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:48px;color:var(--text3);font-size:13px}
+
+@media(max-width:640px){
+  .topbar{padding:0 16px}
+  .main{padding:16px}
+  .account-card{flex-wrap:wrap;gap:12px}
+  .acc-actions{width:100%;justify-content:flex-end}
+  .loc-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
-<div id="loading">載入中...</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中...</div>
+</div>
+
 <div id="app" style="display:none">
   <div class="topbar">
-    <h1>🔑 帳號管理</h1>
-    <button class="btn-back" onclick="window.location.href='/hr-system/dashboard.html'">⬅ 主選單</button>
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='/hr-system/dashboard.html'">← 主選單</button>
+      <div class="divider-v"></div>
+      <span class="page-name">帳號管理</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat-pill">共 <strong id="totalCount">0</strong> 個帳號</div>
+      <div class="stat-pill">停用 <strong id="disabledCount">0</strong></div>
+    </div>
   </div>
+
   <div class="main">
-    <div class="page-title">帳號管理</div>
-    <div class="page-sub">設定每位使用者的角色與店面權限</div>
-    <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:200px">姓名</th>
-            <th style="width:100px">身分證號</th>
-            <th style="width:90px">角色</th>
-            <th>負責店面</th>
-            <th style="width:80px">狀態</th>
-            <th style="width:100px">操作</th>
-          </tr>
-        </thead>
-        <tbody id="accountList"><tr><td colspan="6"><div class="empty">載入中...</div></td></tr></tbody>
-      </table>
+    <div class="section-header">
+      <span class="section-title">所有帳號</span>
+    </div>
+    <div class="accounts-grid" id="accountList">
+      <div class="empty">載入中...</div>
     </div>
   </div>
 </div>
+
 <div id="modalArea"></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, collection, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, collection, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
@@ -105,59 +169,73 @@ const db   = getFirestore(app);
 
 const roleNames      = { admin:'管理員', consultant:'顧問', manager:'店長', employee:'員工' };
 const roleBadgeClass = { admin:'role-admin', consultant:'role-consultant', manager:'role-manager', employee:'role-employee' };
-const avCls = n => ['av-b','av-t','av-c','av-p','av-a','av-k'][n.charCodeAt(0)%6];
+const avCls = n => ['av-b','av-t','av-c','av-p','av-a','av-k'][(n||'?').charCodeAt(0)%6];
 
-let allUsers = [];
-let workLocations = [];
-let currentUserUid = '';
+let allUsers = [], workLocations = [], currentUserUid = '';
 
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2200);
+function showToast(msg, icon='✓'){
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
 }
 
 async function loadData(){
-  // 載入 workLocations
   try{
     const s = await getDoc(doc(db,'hr','settings'));
     workLocations = s.exists() ? (s.data().workLocations||[]) : [];
   }catch(e){ workLocations=[]; }
-
-  // 載入所有 users
   try{
     const snap = await getDocs(collection(db,'users'));
-    allUsers = snap.docs.map(d=>({uid:d.id, ...d.data()}));
+    allUsers = snap.docs.map(d=>({uid:d.id,...d.data()}));
+    // 排序：admin 優先，再依名字
+    const order = {admin:0,consultant:1,manager:2,employee:3};
+    allUsers.sort((a,b)=>(order[a.role]??4)-(order[b.role]??4)||(a.name||'').localeCompare(b.name||'','zh-TW'));
   }catch(e){ allUsers=[]; }
 }
 
+function updateStats(){
+  document.getElementById('totalCount').textContent = allUsers.length;
+  document.getElementById('disabledCount').textContent = allUsers.filter(u=>u.disabled).length;
+}
+
 function renderList(){
-  const tbody = document.getElementById('accountList');
+  updateStats();
+  const container = document.getElementById('accountList');
   if(!allUsers.length){
-    tbody.innerHTML='<tr><td colspan="6"><div class="empty">尚無帳號資料</div></td></tr>';
+    container.innerHTML = '<div class="empty">尚無帳號資料</div>';
     return;
   }
-  tbody.innerHTML = allUsers.map(u=>{
+  container.innerHTML = allUsers.map(u => {
     const role = u.role||'employee';
-    const locs = (u.locations||[]).join('、') || '—';
-    const showLocs = (role==='consultant'||role==='manager');
-    const statusBadge = u.disabled
-      ? `<span class="badge status-disabled">已停用</span>`
-      : `<span class="badge status-active">正常</span>`;
     const isSelf = u.uid === currentUserUid;
-    return `<tr>
-      <td><div class="nc"><div class="av ${avCls(u.name||'?')}">${(u.name||'?').slice(0,2)}</div><span>${u.name||'—'}</span></div></td>
-      <td style="font-size:12px;color:#475569">${u.idNo||'—'}</td>
-      <td><span class="badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span></td>
-      <td style="font-size:12px;color:#475569">${showLocs ? locs : '<span style="color:#CBD5E1">—</span>'}</td>
-      <td>${statusBadge}</td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn" onclick="openEdit('${u.uid}')" title="編輯">✎ 編輯</button>
-          ${!isSelf ? `<button class="btn btn-danger" onclick="toggleDisable('${u.uid}')" title="${u.disabled?'啟用':'停用'}">${u.disabled?'啟用':'停用'}</button>` : ''}
+    const showLocs = role==='consultant'||role==='manager';
+    const locsHtml = showLocs && (u.locations||[]).length
+      ? (u.locations).map(l=>`<span class="loc-tag">${l}</span>`).join('')
+      : (showLocs ? '<span style="color:var(--text3);font-size:11px">未設定店面</span>' : '');
+
+    return `<div class="account-card${u.disabled?' is-disabled':''}">
+      <div class="av ${avCls(u.name||'?')}">${(u.name||'?').slice(0,2)}</div>
+      <div class="acc-info">
+        <div class="acc-name">
+          ${u.name||'未命名'}
+          <span class="badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>
+          ${u.disabled ? '<span class="badge status-off">已停用</span>' : '<span class="badge status-ok">正常</span>'}
+          ${isSelf ? '<span style="font-size:11px;color:var(--text3)">(本人)</span>' : ''}
         </div>
-      </td>
-    </tr>`;
+        <div class="acc-id">${u.idNo||'—'}</div>
+        ${showLocs ? `<div class="acc-locs">${locsHtml}</div>` : ''}
+      </div>
+      <div class="acc-actions">
+        <button class="btn btn-ghost" onclick="openEdit('${u.uid}')">✎ 編輯</button>
+        ${!isSelf ? `
+        <button class="btn ${u.disabled?'btn-ghost':'btn-warn'}" onclick="toggleDisable('${u.uid}')">
+          ${u.disabled ? '啟用' : '停用'}
+        </button>
+        <button class="btn btn-del" onclick="deleteAccount('${u.uid}')" title="刪除帳號">✕</button>
+        ` : ''}
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -165,32 +243,38 @@ window.openEdit = function(uid){
   const u = allUsers.find(x=>x.uid===uid);
   if(!u) return;
   const role = u.role||'employee';
+  const showLocs = role==='consultant'||role==='manager';
   const locChecks = workLocations.map(l=>{
-    const checked = (u.locations||[]).includes(l) ? 'checked' : '';
-    return `<label class="loc-item"><input type="checkbox" value="${l}" ${checked}> ${l}</label>`;
-  }).join('');
-  const showLocs = (role==='consultant'||role==='manager');
+    const checked = (u.locations||[]).includes(l)?'checked':'';
+    return `<label class="loc-item"><input type="checkbox" value="${l}" ${checked}><span>${l}</span></label>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px">尚未設定工作地點</div>';
 
   document.getElementById('modalArea').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
-        <h2>編輯帳號：${u.name||u.idNo}</h2>
+        <div class="modal-header">
+          <div class="modal-av av ${avCls(u.name||'?')}">${(u.name||'?').slice(0,2)}</div>
+          <div>
+            <div class="modal-title">${u.name||'未命名'}</div>
+            <div class="modal-sub">${u.idNo||'—'}</div>
+          </div>
+        </div>
         <div class="fr">
-          <label>角色</label>
+          <label>角色設定</label>
           <select id="edit-role" onchange="toggleLocSection()">
-            <option value="admin"      ${role==='admin'?'selected':''}>管理員</option>
-            <option value="consultant" ${role==='consultant'?'selected':''}>顧問</option>
-            <option value="manager"    ${role==='manager'?'selected':''}>店長</option>
-            <option value="employee"   ${role==='employee'?'selected':''}>員工</option>
+            <option value="admin"      ${role==='admin'?'selected':''}>管理員　— 完整權限</option>
+            <option value="consultant" ${role==='consultant'?'selected':''}>顧問　— 指定多店面</option>
+            <option value="manager"    ${role==='manager'?'selected':''}>店長　— 指定店面</option>
+            <option value="employee"   ${role==='employee'?'selected':''}>員工　— 個人資料</option>
           </select>
         </div>
-        <div class="fr" id="loc-section" style="display:${showLocs?'block':'none'}">
-          <label>負責店面（可多選）</label>
+        <div id="loc-section" style="display:${showLocs?'block':'none'}">
+          <div class="loc-section-label">負責店面（可多選）</div>
           <div class="loc-grid" id="loc-checks">${locChecks}</div>
         </div>
         <div class="mf">
-          <button class="btn" onclick="closeModal()">取消</button>
-          <button class="btn btn-primary" onclick="saveEdit('${uid}')">儲存</button>
+          <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveEdit('${uid}')">儲存變更</button>
         </div>
       </div>
     </div>`;
@@ -207,55 +291,51 @@ window.saveEdit = async function(uid){
   const checks = document.querySelectorAll('#loc-checks input:checked');
   const locations = Array.from(checks).map(c=>c.value);
   try{
-    await setDoc(doc(db,'users',uid), { role, locations }, { merge:true });
+    await setDoc(doc(db,'users',uid),{role,locations},{merge:true});
     const u = allUsers.find(x=>x.uid===uid);
-    if(u){ u.role=role; u.locations=locations; }
-    closeModal();
-    renderList();
-    showToast('已更新 ✓');
-  }catch(e){
-    showToast('儲存失敗：'+e.message);
-  }
+    if(u){u.role=role;u.locations=locations;}
+    closeModal(); renderList();
+    showToast('角色已更新');
+  }catch(e){ showToast('儲存失敗：'+e.message,'✕'); }
 };
 
 window.toggleDisable = async function(uid){
   const u = allUsers.find(x=>x.uid===uid);
   if(!u) return;
   const newVal = !u.disabled;
-  const msg = newVal ? `確定要停用「${u.name}」的帳號嗎？` : `確定要啟用「${u.name}」的帳號嗎？`;
-  if(!confirm(msg)) return;
+  if(!confirm(newVal?`確定要停用「${u.name}」的帳號嗎？`:`確定要啟用「${u.name}」的帳號嗎？`)) return;
   try{
-    await setDoc(doc(db,'users',uid), { disabled:newVal }, { merge:true });
-    u.disabled = newVal;
+    await setDoc(doc(db,'users',uid),{disabled:newVal},{merge:true});
+    u.disabled=newVal; renderList();
+    showToast(newVal?'帳號已停用':'帳號已啟用');
+  }catch(e){ showToast('操作失敗','✕'); }
+};
+
+window.deleteAccount = async function(uid){
+  const u = allUsers.find(x=>x.uid===uid);
+  if(!u) return;
+  if(!confirm(`確定要刪除「${u.name||u.idNo}」的帳號資料嗎？\n\n此操作將移除 Firestore 帳號記錄，無法復原。`)) return;
+  try{
+    await deleteDoc(doc(db,'users',uid));
+    allUsers = allUsers.filter(x=>x.uid!==uid);
     renderList();
-    showToast(newVal ? '帳號已停用 ✓' : '帳號已啟用 ✓');
-  }catch(e){
-    showToast('操作失敗：'+e.message);
-  }
+    showToast('帳號記錄已刪除');
+  }catch(e){ showToast('刪除失敗：'+e.message,'✕'); }
 };
 
 window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
 
 onAuthStateChanged(auth, async user => {
-  if(!user){
-    window.location.href = '/hr-system/index.html';
-    return;
+  if(!user){ window.location.href='/hr-system/index.html'; return; }
+  const snap = await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists()||snap.data().disabled){
+    await signOut(auth); window.location.href='/hr-system/index.html?disabled=1'; return;
   }
-  const snap = await getDoc(doc(db,'users', user.uid));
-  if(!snap.exists() || snap.data().disabled){
-    await signOut(auth);
-    window.location.href = '/hr-system/index.html?disabled=1';
-    return;
-  }
-  if(snap.data().role !== 'admin'){
-    window.location.href = '/hr-system/dashboard.html';
-    return;
-  }
+  if(snap.data().role!=='admin'){ window.location.href='/hr-system/dashboard.html'; return; }
   currentUserUid = user.uid;
-  await loadData();
-  renderList();
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  await loadData(); renderList();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
 });
 </script>
 </body>

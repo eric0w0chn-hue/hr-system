@@ -6,22 +6,22 @@
 <title>人員資訊管理系統</title>
 <style>
 :root{
-  --primary:#2563EB;--primary-dark:#1D4ED8;--primary-light:#EFF6FF;--primary-border:#BFDBFE;
-  --accent:#0891B2;--accent-light:#ECFEFF;
-  --gray-bg:#F8FAFC;--card-bg:#fff;--border:#E2E8F0;
-  --text:#0F172A;--text-2:#64748B;--text-3:#94A3B8
+  --primary:#2D3142;--primary-dark:#1A1D23;--primary-light:#F0F2F5;--primary-border:#C8CDD8;
+  --accent:#2D3142;--accent-light:#F4F5F8;
+  --gray-bg:#ECEEF2;--card-bg:#fff;--border:#DDE1E9;
+  --text:#1A1D23;--text-2:#5A6175;--text-3:#9AA0B4
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;font-size:14px;padding:16px 16px 32px}
 .app{max-width:1140px;margin:0 auto;padding:0}
 /* 頂部 bar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 60%,#0891B2 100%);height:62px;margin-bottom:0}
-.topbar h1{font-size:20px;font-weight:800;color:#fff;letter-spacing:1px;text-shadow:0 1px 4px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px}
-.topbar h1::before{content:'';display:inline-block;width:4px;height:22px;background:linear-gradient(180deg,#60A5FA,#38BDF8);border-radius:2px}
-.topbar-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
-.topbar small{font-size:11px;color:rgba(255,255,255,.7)}
-#clockLabel{font-size:14px;font-weight:600;color:#fff;letter-spacing:.5px}
-.card{background:var(--card-bg);border-radius:0 0 14px 14px;border:1px solid var(--border);border-top:none;overflow:visible;margin-bottom:16px;box-shadow:0 4px 16px rgba(15,23,42,.07)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--primary);height:62px;margin-bottom:0}
+.topbar h1{font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+.topbar h1::before{content:'';display:inline-block;width:4px;height:20px;background:rgba(255,255,255,.4);border-radius:2px}
+.topbar-right{display:flex;flex-direction:row;align-items:center;gap:12px}
+.topbar small{font-size:11px;color:rgba(255,255,255,.6)}
+#clockLabel{font-size:13px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.5px}
+.card{background:var(--card-bg);border-radius:0 0 14px 14px;border:1px solid var(--border);border-top:none;overflow:visible;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
 /* 分頁列 */
 .tabs{display:flex;padding:0 20px;border-bottom:2px solid var(--border);background:#fff}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
@@ -30,7 +30,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .main{padding:18px 20px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit}
-.toolbar input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.toolbar input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
 .toolbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;cursor:pointer;font-family:inherit}
 /* 按鈕 */
 .btn{font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;height:36px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s}
@@ -51,7 +51,7 @@ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
 th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);background:#F8FAFC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px;text-transform:uppercase}
 td{padding:10px 14px;border-bottom:1px solid #F1F5F9;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 tr:last-child td{border-bottom:none}
-tr.data-row:hover td{background:#F0F7FF;cursor:pointer}
+tr.data-row:hover td{background:#F4F5F8;cursor:pointer}
 tr.data-row.selected td{background:var(--primary-light)}
 /* 頭像 */
 .av{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
@@ -65,7 +65,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 .ibt:hover{background:#F1F5F9;color:var(--text)}
 /* 詳細資料 */
 .detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:visible;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
-.detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#EFF6FF 0%,#fff 100%)}
+.detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#F0F2F5 0%,#fff 100%)}
 .detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .detail-tabs::-webkit-scrollbar{display:none}
 .dtab{padding:9px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
@@ -93,7 +93,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
 .fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
-.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
 .fr textarea{resize:vertical;min-height:60px}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
@@ -102,7 +102,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 .toast.show{opacity:1;transform:translateY(0)}
 /* 可排序欄位標題 */
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
-th.sortable:hover{background:#EFF6FF;color:var(--primary)}
+th.sortable:hover{background:#F0F2F5;color:var(--primary)}
 th.sort-asc::after{content:' ↑';color:var(--primary)}
 th.sort-desc::after{content:' ↓';color:var(--primary)}
 /* 頭像上傳 */
@@ -112,7 +112,7 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .av-photo{border-radius:50%;object-fit:cover;display:block}
 .pagination{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px}
 .pg-btn{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--text-2);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
-.pg-btn:hover:not([disabled]){background:#F0F7FF;border-color:var(--primary);color:var(--primary)}
+.pg-btn:hover:not([disabled]){background:#F0F2F5;border-color:var(--primary);color:var(--primary)}
 .pg-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600}
 .pg-btn[disabled]{opacity:.4;cursor:not-allowed}
 .pg-info{font-size:12px;color:var(--text-2);margin:0 6px}

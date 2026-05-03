@@ -5,97 +5,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>鑫系統 LIANGPING</title>
 <style>
+:root{--bg:#ECEEF2;--surface:#FFFFFF;--border:#DDE1E9;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 60%,#0891B2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-.card{background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
-.logo{text-align:center;margin-bottom:28px}
-.logo h1{font-size:22px;font-weight:800;color:#0F172A;letter-spacing:1px}
-.logo p{font-size:13px;color:#64748B;margin-top:4px}
-.fr{margin-bottom:14px}
-.fr label{display:block;font-size:12px;color:#64748B;margin-bottom:5px;font-weight:500}
-.fr input{width:100%;font-size:14px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;color:#0F172A;transition:border-color .15s;font-family:inherit}
-.fr input:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.btn-login{width:100%;background:linear-gradient(135deg,#1E3A8A,#2563EB);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;letter-spacing:.5px;transition:opacity .15s;font-family:inherit}
-.btn-login:hover{opacity:.9}
-.btn-login:disabled{opacity:.6;cursor:not-allowed}
-.err{font-size:12px;color:#DC2626;margin-top:8px;text-align:center;min-height:18px}
-.divider{border:none;border-top:1px solid #F1F5F9;margin:20px 0}
-.hint{font-size:11px;color:#94A3B8;text-align:center;line-height:1.6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:linear-gradient(160deg,#C8CDD8 0%,#ECEEF2 40%,#D8DBE4 100%);z-index:0}
+body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(45,49,66,.06) 0%,transparent 70%);z-index:0}
+.wrap{position:relative;z-index:1;width:100%;max-width:400px}
+.brand{text-align:center;margin-bottom:28px}
+.brand-icon{width:56px;height:56px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(45,49,66,.25)}
+.brand h1{font-size:20px;font-weight:700;color:var(--text);letter-spacing:.5px}
+.brand p{font-size:13px;color:var(--text3);margin-top:4px}
+.card{background:var(--surface);border-radius:18px;padding:32px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.08)}
+.fr{margin-bottom:16px}
+.fr label{display:block;font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.fr input{width:100%;font-size:14px;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;color:var(--text);background:#FAFBFC;transition:all .15s;font-family:inherit}
+.fr input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.fr input::placeholder{color:var(--text3)}
+.btn-login{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;letter-spacing:.5px;transition:all .15s;font-family:inherit;position:relative;overflow:hidden}
+.btn-login:hover{background:#3D4158;transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,49,66,.3)}
+.btn-login:active{transform:translateY(0)}
+.btn-login:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+.err{font-size:12px;color:#C0392B;margin-top:10px;text-align:center;min-height:18px;font-weight:500}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+.hint{font-size:11px;color:var(--text3);text-align:center;line-height:1.8}
+.hint strong{color:var(--text2)}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">
-    <h1>🍗 鑫系統 LIANGPING</h1>
-    <p>請輸入帳號密碼登入</p>
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-icon">🍗</div>
+    <h1>鑫系統 LIANGPING</h1>
+    <p>人資管理平台</p>
   </div>
-  <div class="fr">
-    <label>身分證號</label>
-    <input id="idNo" type="text" placeholder="A123456789" autocomplete="off" maxlength="10">
+  <div class="card">
+    <div class="fr">
+      <label>身分證號</label>
+      <input id="idNo" type="text" placeholder="A123456789" autocomplete="off" maxlength="10">
+    </div>
+    <div class="fr">
+      <label>密碼</label>
+      <input id="pwd" type="password" placeholder="••••••">
+    </div>
+    <div class="err" id="errMsg"></div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">登入</button>
+    <hr class="divider">
+    <p class="hint">首次登入密碼為民國生日<br><strong>例：民國83年1月1日 → 830101</strong></p>
   </div>
-  <div class="fr">
-    <label>密碼</label>
-    <input id="pwd" type="password" placeholder="民國生日，例：830101">
-  </div>
-  <div class="err" id="errMsg"></div>
-  <button class="btn-login" id="loginBtn" onclick="doLogin()">登入</button>
-  <hr class="divider">
-  <p class="hint">首次登入密碼為民國生日<br>例：民國83年1月1日 → 830101</p>
 </div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
-  authDomain: "liangpinghri.firebaseapp.com",
-  projectId: "liangpinghri",
-  storageBucket: "liangpinghri.firebasestorage.app",
-  messagingSenderId: "410255807470",
-  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// Enter 鍵登入
-document.getElementById('pwd').addEventListener('keydown', e => {
-  if(e.key === 'Enter') doLogin();
-});
-document.getElementById('idNo').addEventListener('keydown', e => {
-  if(e.key === 'Enter') document.getElementById('pwd').focus();
-});
-
-// 檢查是否因帳號停用被導回
+const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('idNo').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwd').focus();});
 if(new URLSearchParams(window.location.search).get('disabled')==='1'){
-  document.getElementById('errMsg').textContent = '此帳號已停用，請聯繫管理人員';
+  document.getElementById('errMsg').textContent='此帳號已停用，請聯繫管理人員';
 }
-
-window.doLogin = async function(){
-  const idNo = document.getElementById('idNo').value.trim().toUpperCase();
-  const pwd  = document.getElementById('pwd').value.trim();
-  const err  = document.getElementById('errMsg');
-  const btn  = document.getElementById('loginBtn');
-
-  if(!idNo){ err.textContent = '請輸入身分證號'; return; }
-  if(!pwd){  err.textContent = '請輸入密碼'; return; }
-
-  err.textContent = '';
-  btn.disabled = true;
-  btn.textContent = '登入中...';
-
-  try {
-    const email = `${idNo.toLowerCase()}@liangpinghri.com`;
-    await signInWithEmailAndPassword(auth, email, pwd);
-    window.location.href = 'dashboard.html';
-  } catch(e) {
-    btn.disabled = false;
-    btn.textContent = '登入';
-    if(e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'){
-      err.textContent = '身分證號或密碼錯誤，請確認後重試';
-    } else {
-      err.textContent = '登入失敗，請稍後再試';
-    }
+window.doLogin=async function(){
+  const idNo=document.getElementById('idNo').value.trim().toUpperCase();
+  const pwd=document.getElementById('pwd').value.trim();
+  const err=document.getElementById('errMsg');
+  const btn=document.getElementById('loginBtn');
+  if(!idNo){err.textContent='請輸入身分證號';return;}
+  if(!pwd){err.textContent='請輸入密碼';return;}
+  err.textContent='';btn.disabled=true;btn.textContent='登入中...';
+  try{
+    const email=`${idNo.toLowerCase()}@liangpinghri.com`;
+    await signInWithEmailAndPassword(auth,email,pwd);
+    window.location.href='dashboard.html';
+  }catch(e){
+    btn.disabled=false;btn.textContent='登入';
+    if(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'){
+      err.textContent='身分證號或密碼錯誤，請確認後重試';
+    }else{err.textContent='登入失敗，請稍後再試';}
   }
 };
 </script>
