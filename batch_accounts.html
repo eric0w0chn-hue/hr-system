@@ -259,8 +259,8 @@ window.startBatch = async function(){
       }
     }
 
-    // 每建立 5 筆暫停一下，避免 Firebase 限流
-    if((done+errors) % 5 === 0) await new Promise(r=>setTimeout(r,500));
+    // 每建立 3 筆暫停，避免 Firebase 限流
+    if((done+errors) % 3 === 0) await new Promise(r=>setTimeout(r,1500));
   }
 
   // 最後把 uid 更新回 Firestore employees
