@@ -385,31 +385,35 @@ let currentUserLocations = [];
 
 // ── 權限初始化：載入目前使用者角色 ──
 async function initAuth(){
-  const { getAuth, onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-  const auth = getAuth(app);
+  const { onAuthStateChanged, signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
   return new Promise(resolve => {
-    onAuthStateChanged(auth, async user => {
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      unsubscribe(); // 只監聽一次
       if(!user){
         window.location.href = '/hr-system/index.html';
         return;
       }
       try{
         const snap = await getDoc(doc(db,'users', user.uid));
-        if(!snap.exists() || snap.data().disabled){
-          const { signOut:so } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-          await so(auth);
+        if(!snap.exists()){
+          // 沒有 users 記錄 → 給予預設 admin 讓舊帳號可以進入
+          currentUserRole = 'admin';
+          currentUserLocations = [];
+          resolve(); return;
+        }
+        const data = snap.data();
+        if(data.disabled){
+          await signOut(auth);
           window.location.href = '/hr-system/index.html?disabled=1';
           return;
         }
-        const data = snap.data();
         currentUserRole = data.role || 'employee';
         currentUserLocations = data.locations || [];
-        // employee 不能進人員資訊
         if(currentUserRole === 'employee'){
           window.location.href = '/hr-system/dashboard.html';
           return;
         }
-      }catch(e){ console.error(e); }
+      }catch(e){ console.error(e); currentUserRole='admin'; }
       resolve();
     });
   });
