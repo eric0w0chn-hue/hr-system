@@ -1369,11 +1369,10 @@ async function saveModal(){
       const r=employees.find(x=>x.id===tid);
       Object.assign(r,empFields);
     } else {
-      // ── 新增同仁：同步建立 Firebase Auth 帳號 ──
+      // ── 新增同仁：用次要 Firebase 實例建立帳號，避免切換登入狀態 ──
       const idNo = empFields.idNo ? empFields.idNo.trim().toUpperCase() : '';
-      const birthday = empFields.birthday; // 格式 YYYY-MM-DD（西元）
+      const birthday = empFields.birthday;
       if(!idNo){ alert('請填寫身分證號，系統將用此建立登入帳號'); return; }
-      // 密碼：民國生日 YYMMDD，例如 1994-05-20 → 830520
       let password = '';
       if(birthday){
         const parts = birthday.split('-');
@@ -1383,17 +1382,20 @@ async function saveModal(){
         }
       }
       if(!password){ alert('請填寫生日，系統將用生日（民國年月日）作為預設密碼'); return; }
-
-      // Firebase Auth 需要 email 格式，用身分證@liangpinghri.com
       const fakeEmail = `${idNo.toLowerCase()}@liangpinghri.com`;
-
       try {
         showToast('建立帳號中...');
-        const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
+        // 用次要 app 實例建立帳號，不影響目前登入狀態
+        const { initializeApp: initApp2, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+        const { getAuth: getAuth2, createUserWithEmailAndPassword: createUser2, signOut: signOut2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+        const appName = 'secondary-' + Date.now();
+        const app2 = initApp2(firebaseConfig, appName);
+        const auth2 = getAuth2(app2);
+        const userCredential = await createUser2(auth2, fakeEmail, password);
         const uid = userCredential.user.uid;
+        await signOut2(auth2); // 立刻登出次要實例
         const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]};
         employees.unshift(newEmp);
-        // 在 Firestore 的 users collection 記錄帳號對應
         await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', createdAt: new Date().toISOString() });
         showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);
       } catch(err) {

@@ -112,20 +112,30 @@ onAuthStateChanged(auth,async user=>{
   if(!user){window.location.href='/hr-system/index.html';return;}
   try{
     const snap=await getDoc(doc(db,'users',user.uid));
-    if(!snap.exists()){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
-    const data=snap.data();
-    if(data.disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
-    const role=data.role||'employee';
-    const name=data.name||'使用者';
     const idNo=user.email.split('@')[0].toUpperCase();
-    document.getElementById('userAv').textContent=(name||'?').slice(0,1);
-    document.getElementById('userName').textContent=name;
-    document.getElementById('userId').textContent=idNo;
-    document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
-    const h=new Date().getHours();
-    const gr=h<12?'早安':h<18?'午安':'晚安';
-    document.getElementById('greetText').textContent=`${gr}，${name} 👋`;
-    renderModules(role);
+    if(!snap.exists()){
+      // 沒有 users 記錄 → 舊帳號，給予員工權限
+      document.getElementById('userAv').textContent=idNo.slice(0,1);
+      document.getElementById('userName').textContent=idNo;
+      document.getElementById('userId').textContent=idNo;
+      document.getElementById('roleLabel').innerHTML='<span class="role-badge role-employee">員工</span>';
+      const h=new Date().getHours();
+      document.getElementById('greetText').textContent=`${h<12?'早安':h<18?'午安':'晚安'} 👋`;
+      renderModules('employee');
+    } else {
+      const data=snap.data();
+      if(data.disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
+      const role=data.role||'employee';
+      const name=data.name||'使用者';
+      document.getElementById('userAv').textContent=(name||'?').slice(0,1);
+      document.getElementById('userName').textContent=name;
+      document.getElementById('userId').textContent=idNo;
+      document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
+      const h=new Date().getHours();
+      const gr=h<12?'早安':h<18?'午安':'晚安';
+      document.getElementById('greetText').textContent=`${gr}，${name} 👋`;
+      renderModules(role);
+    }
   }catch(e){console.error(e);renderModules('employee');}
   const now=new Date();
   document.getElementById('todayText').textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
