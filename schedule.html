@@ -43,16 +43,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .cal-head{display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface2);border-bottom:1px solid var(--border)}
 .cal-head-cell{padding:10px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.3px}
-.cal-head-cell:first-child{color:#E05252}
-.cal-head-cell:last-child{color:#5B8EDB}
+.cal-head-cell.sun{color:#E05252}
+.cal-head-cell.sat{color:#5B8EDB}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
 .cal-cell{min-height:110px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;transition:background .1s;vertical-align:top}
 .cal-cell:nth-child(7n){border-right:none}
 .cal-cell.other-month{background:#FAFBFC;opacity:.5}
 .cal-cell.today{background:#F0F2FF}
 .cal-cell.today .day-num{color:var(--accent);font-weight:700}
-.cal-cell:nth-child(7n+1) .day-num{color:#E05252}
-.cal-cell:nth-child(7n) .day-num{color:#5B8EDB}
+.cal-cell.is-sun .day-num{color:#E05252}
+.cal-cell.is-sat .day-num{color:#5B8EDB}
+.cal-cell.is-holiday{background:#FFF5F5}
+.cal-cell.is-holiday .day-num{color:#E05252}
+.holiday-name{font-size:9px;color:#E05252;display:block;margin-bottom:2px;font-weight:500}
 .day-num{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px;display:block}
 .shift-tag{font-size:11px;padding:3px 7px;border-radius:6px;margin-bottom:3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:4px;transition:opacity .1s;line-height:1.4}
 .shift-tag:hover{opacity:.8}
@@ -121,16 +124,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="">選擇店面</option>
       </select>
       <div class="legend" id="empLegend"></div>
-      <div class="ml-auto">
+      <div class="ml-auto" style="display:flex;gap:8px">
+        <button class="btn" onclick="openShiftTypesModal()">⚙ 班別設定</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
       </div>
     </div>
     <div class="cal-wrap">
       <div class="cal-head">
-        <div class="cal-head-cell">日</div><div class="cal-head-cell">一</div>
-        <div class="cal-head-cell">二</div><div class="cal-head-cell">三</div>
-        <div class="cal-head-cell">四</div><div class="cal-head-cell">五</div>
-        <div class="cal-head-cell">六</div>
+        <div class="cal-head-cell">一</div><div class="cal-head-cell">二</div>
+        <div class="cal-head-cell">三</div><div class="cal-head-cell">四</div>
+        <div class="cal-head-cell">五</div><div class="cal-head-cell sat">六</div>
+        <div class="cal-head-cell sun">日</div>
       </div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
@@ -143,7 +147,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=initializeApp(firebaseConfig);
@@ -151,10 +155,12 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'員工'};
-let currentUser=null, currentRole='', currentLocations=[];
-let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
-let allEmployees=[], workLocations=[], shifts={};
+let currentUser=null,currentRole='',currentLocations=[];
+let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
+let allEmployees=[],workLocations=[],shifts={};
 let selectedLocation='';
+let shiftTypes=[]; // 自訂班別
+let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
 
 // ── Toast ──
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
@@ -165,39 +171,48 @@ window.closeModal=closeModal;
 const EMP_COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
 const empColorMap={};
 function getEmpColor(empId){
-  if(!empColorMap[empId]){
-    const keys=Object.keys(empColorMap);
-    empColorMap[empId]=EMP_COLORS[keys.length%EMP_COLORS.length];
-  }
+  if(!empColorMap[empId]){const keys=Object.keys(empColorMap);empColorMap[empId]=EMP_COLORS[keys.length%EMP_COLORS.length];}
   return empColorMap[empId];
 }
 
+// ── 載入台灣國定假日（人事行政局 API）──
+async function loadHolidays(year){
+  try{
+    const res=await fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`);
+    const data=await res.json();
+    twHolidays={};
+    data.forEach(d=>{
+      if(d.isHoliday){
+        const ds=`${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
+        twHolidays[ds]=d.description||'假日';
+      }
+    });
+  }catch(e){twHolidays={};}
+}
+
 // ── 月份導航 ──
-window.changeMonth=function(dir){
+window.changeMonth=async function(dir){
   viewMonth+=dir;
   if(viewMonth>12){viewMonth=1;viewYear++;}
   if(viewMonth<1){viewMonth=12;viewYear--;}
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
+  await loadHolidays(viewYear);
   loadShifts();
 };
 
 // ── 店面選擇 ──
 window.onLocationChange=function(){
   selectedLocation=document.getElementById('locationFilter').value;
-  renderCalendar();
-  renderLegend();
+  renderCalendar();renderLegend();
 };
 
-// ── 載入班表資料 ──
+// ── 載入班表 ──
 async function loadShifts(){
   if(!selectedLocation){renderCalendar();return;}
   const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
-  try{
-    const snap=await getDoc(doc(db,'schedules',key));
-    shifts=snap.exists()?(snap.data().shifts||{}):{};
+  try{const snap=await getDoc(doc(db,'schedules',key));shifts=snap.exists()?(snap.data().shifts||{}):{};
   }catch(e){shifts={};}
-  renderCalendar();
-  renderLegend();
+  renderCalendar();renderLegend();
 }
 
 // ── 儲存班表 ──
@@ -207,50 +222,67 @@ async function saveShifts(){
   await setDoc(doc(db,'schedules',key),{shifts,location:selectedLocation,yearMonth:`${viewYear}-${String(viewMonth).padStart(2,'0')}`,updatedAt:new Date().toISOString()});
 }
 
-// ── 渲染月曆 ──
+// ── 載入 & 儲存班別設定 ──
+async function loadShiftTypes(){
+  try{const s=await getDoc(doc(db,'hr','shiftTypes'));shiftTypes=s.exists()?(s.data().list||[]):[];}
+  catch(e){shiftTypes=[];}
+}
+async function saveShiftTypes(){
+  await setDoc(doc(db,'hr','shiftTypes'),{list:shiftTypes,updatedAt:new Date().toISOString()});
+}
+
+// ── 渲染月曆（週一起始）──
 function renderCalendar(){
   const grid=document.getElementById('calGrid');
+  if(!selectedLocation){grid.innerHTML='<div class="empty-cal">請先選擇店面以查看班表</div>';return;}
   const today=new Date();
-  const firstDay=new Date(viewYear,viewMonth-1,1).getDay();
   const daysInMonth=new Date(viewYear,viewMonth,0).getDate();
   const prevDays=new Date(viewYear,viewMonth-1,0).getDate();
+  // 週一為 0，週日為 6
+  let firstDow=new Date(viewYear,viewMonth-1,1).getDay(); // 0=日,1=一,...,6=六
+  firstDow=(firstDow+6)%7; // 轉成週一起始：一=0,...,六=5,日=6
   let html='';
 
   // 上個月補位
-  for(let i=firstDay-1;i>=0;i--){
+  for(let i=firstDow-1;i>=0;i--){
     html+=`<div class="cal-cell other-month"><span class="day-num">${prevDays-i}</span></div>`;
   }
   // 本月
   for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(viewYear,viewMonth-1,d);
+    const dow=date.getDay(); // 0=日,6=六
     const isToday=today.getFullYear()===viewYear&&today.getMonth()+1===viewMonth&&today.getDate()===d;
     const dateStr=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayShifts=selectedLocation?(shifts[dateStr]||[]):[];
+    const holiday=twHolidays[dateStr];
+    const isSun=dow===0,isSat=dow===6;
+    let cls='cal-cell';
+    if(isToday)cls+=' today';
+    if(isSun)cls+=' is-sun';
+    if(isSat)cls+=' is-sat';
+    if(holiday)cls+=' is-holiday';
 
+    const dayShifts=shifts[dateStr]||[];
     const shiftsHtml=dayShifts.map((s,idx)=>{
-      const cls=getEmpColor(s.empId);
-      return `<div class="shift-tag ${cls}" onclick="openEditModal('${dateStr}',${idx})">
+      const c=getEmpColor(s.empId);
+      return `<div class="shift-tag ${c}" onclick="openEditModal('${dateStr}',${idx})">
         <span class="emp-name">${s.empName}</span>
         <span class="time">${s.startTime}-${s.endTime}</span>
         <span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>
       </div>`;
     }).join('');
 
-    const canAdd=selectedLocation?'':'disabled';
-    html+=`<div class="cal-cell${isToday?' today':''}">
+    html+=`<div class="${cls}">
       <span class="day-num">${d}</span>
+      ${holiday?`<span class="holiday-name">${holiday}</span>`:''}
       ${shiftsHtml}
-      ${selectedLocation?`<span class="add-btn" onclick="openAddModal('${dateStr}')">＋ 新增</span>`:''}
+      <span class="add-btn" onclick="openAddModal('${dateStr}')">＋</span>
     </div>`;
   }
-  // 補足6行
-  const totalCells=firstDay+daysInMonth;
+  // 補足
+  const totalCells=firstDow+daysInMonth;
   const remain=totalCells%7===0?0:7-(totalCells%7);
   for(let i=1;i<=remain;i++){
     html+=`<div class="cal-cell other-month"><span class="day-num">${i}</span></div>`;
-  }
-  if(!selectedLocation){
-    grid.innerHTML='<div class="empty-cal">請先選擇店面以查看班表</div>';
-    return;
   }
   grid.innerHTML=html;
 }
@@ -261,30 +293,31 @@ function renderLegend(){
   const usedEmps={};
   Object.values(shifts).forEach(arr=>arr.forEach(s=>{usedEmps[s.empId]=s.empName;}));
   legend.innerHTML=Object.entries(usedEmps).map(([id,name])=>{
-    const cls=getEmpColor(id);
-    const el=document.createElement('div');el.className=cls;
-    const bg=getComputedStyle(document.createElement('div')).backgroundColor;
-    return `<div class="legend-item"><div class="legend-dot ${cls}" style="border-radius:50%;width:10px;height:10px;display:inline-block"></div>${name}</div>`;
+    return `<div class="legend-item"><div class="legend-dot ${getEmpColor(id)}"></div>${name}</div>`;
   }).join('');
+}
+
+// ── 班別快選 HTML ──
+function shiftTypeButtons(onSelect){
+  if(!shiftTypes.length)return '<div style="font-size:12px;color:var(--text3)">尚未設定班別，可至「班別設定」新增</div>';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">${
+    shiftTypes.map(t=>`<button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="${onSelect}('${t.start}','${t.end}')">${t.name}<span style="color:var(--text3);margin-left:4px;font-size:11px">${t.start}-${t.end}</span></button>`).join('')
+  }</div>`;
 }
 
 // ── 新增排班 Modal ──
 window.openAddModal=function(dateStr=''){
   const empOptions=getEmpOptions();
-  const dateVal=dateStr||`${viewYear}-${String(viewMonth).padStart(2,'0')}-01`;
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-title">📅 新增排班</div>
-        <div class="fr"><label>員工</label>
-          <select id="m-emp">${empOptions}</select>
-        </div>
-        <div class="fr"><label>日期</label>
-          <input type="date" id="m-date" value="${dateStr}">
-        </div>
+        <div class="fr"><label>員工</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
+        <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
         <div class="time-row">
-          <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="08:00"></div>
-          <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="17:00"></div>
+          <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
+          <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="18:00"></div>
         </div>
         <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" placeholder="例：支援、代班"></div>
         <div class="mf">
@@ -295,6 +328,11 @@ window.openAddModal=function(dateStr=''){
     </div>`;
 };
 
+window.applyShiftType=function(start,end){
+  document.getElementById('m-start').value=start;
+  document.getElementById('m-end').value=end;
+};
+
 // ── 編輯排班 Modal ──
 window.openEditModal=function(dateStr,idx){
   const s=shifts[dateStr][idx];
@@ -303,19 +341,16 @@ window.openEditModal=function(dateStr,idx){
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-title">✎ 編輯排班</div>
-        <div class="fr"><label>員工</label>
-          <select id="m-emp">${empOptions}</select>
-        </div>
-        <div class="fr"><label>日期</label>
-          <input type="date" id="m-date" value="${dateStr}">
-        </div>
+        <div class="fr"><label>員工</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
+        <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
         <div class="time-row">
           <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="${s.startTime}"></div>
           <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="${s.endTime}"></div>
         </div>
         <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" value="${s.note||''}" placeholder="例：支援、代班"></div>
         <div class="mf">
-          <button class="btn btn-danger" style="margin-right:auto;color:#C0392B;border-color:#FECACA" onclick="deleteShift('${dateStr}',${idx});closeModal()">刪除</button>
+          <button class="btn" style="margin-right:auto;color:#C0392B;border-color:#FECACA" onclick="deleteShift('${dateStr}',${idx});closeModal()">刪除</button>
           <button class="btn" onclick="closeModal()">取消</button>
           <button class="btn btn-primary" onclick="saveEdit('${dateStr}',${idx})">儲存</button>
         </div>
@@ -323,17 +358,67 @@ window.openEditModal=function(dateStr,idx){
     </div>`;
 };
 
+// ── 班別設定 Modal ──
+window.openShiftTypesModal=function(){
+  renderShiftTypesModal();
+};
+function renderShiftTypesModal(){
+  const listHtml=shiftTypes.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:13px;font-weight:500">${t.name}</span>
+      <span style="font-size:12px;color:var(--text2)">${t.start} - ${t.end}</span>
+      <button class="btn" style="padding:3px 8px;font-size:11px;color:#C0392B;border-color:#FECACA" onclick="removeShiftType(${i})">✕</button>
+    </div>`).join('')||'<div style="font-size:13px;color:var(--text3);padding:12px 0">尚未設定任何班別</div>';
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">⚙ 班別設定</div>
+        <div id="st-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px">${listHtml}</div>
+        <div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;letter-spacing:.3px;text-transform:uppercase">新增班別</div>
+          <div class="fr"><label>班別名稱</label><input type="text" id="st-name" placeholder="例：早班、晚班、大夜"></div>
+          <div class="time-row">
+            <div class="fr"><label>上班時間</label><input type="time" id="st-start" value="09:00"></div>
+            <div class="fr"><label>下班時間</label><input type="time" id="st-end" value="18:00"></div>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="addShiftType()">＋ 新增</button>
+        </div>
+        <div class="mf">
+          <button class="btn btn-primary" onclick="closeModal()">完成</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.addShiftType=async function(){
+  const name=document.getElementById('st-name').value.trim();
+  const start=document.getElementById('st-start').value;
+  const end=document.getElementById('st-end').value;
+  if(!name||!start||!end){showToast('請填寫完整');return;}
+  if(shiftTypes.find(t=>t.name===name)){showToast('班別名稱已存在');return;}
+  shiftTypes.push({name,start,end});
+  await saveShiftTypes();
+  showToast('班別已新增 ✓');
+  renderShiftTypesModal();
+};
+
+window.removeShiftType=async function(idx){
+  if(!confirm(`確定要刪除「${shiftTypes[idx].name}」班別？`))return;
+  shiftTypes.splice(idx,1);
+  await saveShiftTypes();
+  showToast('已刪除');
+  renderShiftTypesModal();
+};
+
 function getEmpOptions(selectedId=''){
-  const locEmps = currentRole==='admin'
-    ? allEmployees
-    : allEmployees.filter(e=>e.workLocation===selectedLocation);
+  const locEmps=currentRole==='admin'?allEmployees:allEmployees.filter(e=>e.workLocation===selectedLocation);
   return locEmps.map(e=>`<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${e.name}　${e.workLocation||''}</option>`).join('');
 }
 
 window.saveAdd=async function(){
   const sel=document.getElementById('m-emp');
-  const empId=sel.value;
-  const empName=sel.options[sel.selectedIndex].dataset.name;
+  const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
   const date=document.getElementById('m-date').value;
   const startTime=document.getElementById('m-start').value;
   const endTime=document.getElementById('m-end').value;
@@ -341,49 +426,34 @@ window.saveAdd=async function(){
   if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
   if(!shifts[date])shifts[date]=[];
   shifts[date].push({empId,empName,startTime,endTime,note});
-  closeModal();
-  renderCalendar();
-  renderLegend();
-  showToast('儲存中...');
-  await saveShifts();
-  showToast('已儲存 ✓');
+  closeModal();renderCalendar();renderLegend();
+  showToast('儲存中...');await saveShifts();showToast('已儲存 ✓');
 };
 
 window.saveEdit=async function(dateStr,idx){
   const sel=document.getElementById('m-emp');
-  const empId=sel.value;
-  const empName=sel.options[sel.selectedIndex].dataset.name;
+  const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
   const date=document.getElementById('m-date').value;
   const startTime=document.getElementById('m-start').value;
   const endTime=document.getElementById('m-end').value;
   const note=document.getElementById('m-note').value.trim();
   if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
-  // 若日期改變
   if(date!==dateStr){
     if(!shifts[date])shifts[date]=[];
     shifts[date].push({empId,empName,startTime,endTime,note});
     shifts[dateStr].splice(idx,1);
     if(!shifts[dateStr].length)delete shifts[dateStr];
-  }else{
-    shifts[dateStr][idx]={empId,empName,startTime,endTime,note};
-  }
-  closeModal();
-  renderCalendar();
-  renderLegend();
-  showToast('儲存中...');
-  await saveShifts();
-  showToast('已更新 ✓');
+  }else{shifts[dateStr][idx]={empId,empName,startTime,endTime,note};}
+  closeModal();renderCalendar();renderLegend();
+  showToast('儲存中...');await saveShifts();showToast('已更新 ✓');
 };
 
 window.deleteShift=async function(dateStr,idx){
   if(!confirm('確定要刪除這筆排班？'))return;
   shifts[dateStr].splice(idx,1);
   if(!shifts[dateStr].length)delete shifts[dateStr];
-  renderCalendar();
-  renderLegend();
-  showToast('儲存中...');
-  await saveShifts();
-  showToast('已刪除 ✓');
+  renderCalendar();renderLegend();
+  showToast('儲存中...');await saveShifts();showToast('已刪除 ✓');
 };
 
 // ── 初始化 ──
@@ -395,44 +465,28 @@ onAuthStateChanged(auth,async user=>{
   currentRole=data.role||'employee';
   currentLocations=data.locations||[];
   currentUser=user;
-
-  // employee 不能進排班管理
   if(currentRole==='employee'){window.location.href='/hr-system/dashboard.html';return;}
-
   document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
 
-  // 載入設定（店面清單）
-  try{
-    const s=await getDoc(doc(db,'hr','settings'));
-    workLocations=s.exists()?(s.data().workLocations||[]):[];
-  }catch(e){workLocations=[];}
+  // 並行載入所有資料
+  await Promise.all([
+    getDoc(doc(db,'hr','settings')).then(s=>{workLocations=s.exists()?(s.data().workLocations||[]):[];}),
+    getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
+    loadShiftTypes(),
+    loadHolidays(viewYear),
+  ]);
 
-  // 載入員工清單
-  try{
-    const s=await getDoc(doc(db,'hr','employees'));
-    allEmployees=s.exists()?(s.data().list||[]):[];
-  }catch(e){allEmployees=[];}
-
-  // 店面選單：admin 全部，manager/consultant 只看自己的
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:currentLocations.filter(l=>workLocations.includes(l));
-  availLocs.forEach(l=>{
-    const o=document.createElement('option');o.value=l;o.textContent=l;
-    locSelect.appendChild(o);
-  });
-
-  // 若只有一間店，自動選取
-  if(availLocs.length===1){
-    locSelect.value=availLocs[0];
-    selectedLocation=availLocs[0];
-  }
+  availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
+  if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];}
 
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
   await loadShifts();
-
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
+
 </script>
 </body>
 </html>
