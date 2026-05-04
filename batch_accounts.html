@@ -230,7 +230,24 @@ window.startBatch = async function(){
       const appName = 'batch-' + Date.now() + '-' + Math.random();
       const app2 = initApp2(firebaseConfig, appName);
       const auth2 = getAuth2(app2);
-      const cred = await createUser2(auth2, fakeEmail, pwd);
+
+      // 若遇到限流，等待後重試最多 3 次
+      let cred, retries = 0;
+      while(retries < 3){
+        try{
+          cred = await createUser2(auth2, fakeEmail, pwd);
+          break;
+        }catch(retryErr){
+          if(retryErr.code === 'auth/too-many-requests' && retries < 2){
+            retries++;
+            log(`⏳ ${emp.name} 遇到限流，等待 ${retries*5} 秒後重試...`, 'info');
+            await new Promise(r=>setTimeout(r, retries * 5000));
+          } else {
+            throw retryErr;
+          }
+        }
+      }
+
       const uid = cred.user.uid;
       await signOut2(auth2);
 
@@ -259,8 +276,8 @@ window.startBatch = async function(){
       }
     }
 
-    // 每建立 3 筆暫停，避免 Firebase 限流
-    if((done+errors) % 3 === 0) await new Promise(r=>setTimeout(r,1500));
+    // 每建立 1 筆暫停，避免 Firebase 限流
+    await new Promise(r=>setTimeout(r,1200));
   }
 
   // 最後把 uid 更新回 Firestore employees
