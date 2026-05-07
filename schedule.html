@@ -96,6 +96,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
 .legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)}
 .legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* 主內容 + 右側統計欄 */
+.content-wrap{display:flex;gap:16px;align-items:flex-start}
+.cal-section{flex:1;min-width:0}
+.sidebar{width:200px;flex-shrink:0;position:sticky;top:76px}
+.sidebar-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sidebar-list{max-height:calc(100vh - 200px);overflow-y:auto}
+.sidebar-item{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #F4F5F8;font-size:13px;transition:background .1s}
+.sidebar-item:last-child{border-bottom:none}
+.sidebar-item:hover{background:var(--surface2)}
+.sidebar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-right:6px}
+.sidebar-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
+.sidebar-days{font-size:13px;font-weight:700;color:var(--accent);min-width:24px;text-align:right}
+.sidebar-empty{padding:20px 14px;font-size:12px;color:var(--text3);text-align:center}
+
+/* 員工唯讀模式 */
+.readonly-notice{background:#EEF2FF;border:1px solid #BAC8FF;border-radius:10px;padding:8px 14px;font-size:12px;color:#3B5BDB;margin-bottom:12px;display:none}
+.readonly-notice.show{display:block}
 </style>
 </head>
 <body>
@@ -124,19 +143,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="">選擇店面</option>
       </select>
       <div class="legend" id="empLegend"></div>
-      <div class="ml-auto" style="display:flex;gap:8px">
+      <div class="ml-auto" style="display:flex;gap:8px" id="toolbarBtns">
         <button class="btn" onclick="openShiftTypesModal()">⚙ 班別設定</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
       </div>
     </div>
-    <div class="cal-wrap">
-      <div class="cal-head">
-        <div class="cal-head-cell">一</div><div class="cal-head-cell">二</div>
-        <div class="cal-head-cell">三</div><div class="cal-head-cell">四</div>
-        <div class="cal-head-cell">五</div><div class="cal-head-cell sat">六</div>
-        <div class="cal-head-cell sun">日</div>
+    <div class="readonly-notice" id="readonlyNotice">👁 您目前為查看模式，無法編輯班表</div>
+    <div class="content-wrap">
+      <div class="cal-section">
+        <div class="cal-wrap">
+          <div class="cal-head">
+            <div class="cal-head-cell">一</div><div class="cal-head-cell">二</div>
+            <div class="cal-head-cell">三</div><div class="cal-head-cell">四</div>
+            <div class="cal-head-cell">五</div><div class="cal-head-cell sat">六</div>
+            <div class="cal-head-cell sun">日</div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
       </div>
-      <div class="cal-grid" id="calGrid"></div>
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-card">
+          <div class="sidebar-title">本月出班天數</div>
+          <div class="sidebar-list" id="sidebarList">
+            <div class="sidebar-empty">請選擇店面</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -161,6 +193,7 @@ let allEmployees=[],workLocations=[],shifts={};
 let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
+let isReadOnly=false; // 員工唯讀模式
 
 // ── Toast ──
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
@@ -203,7 +236,7 @@ window.changeMonth=async function(dir){
 // ── 店面選擇 ──
 window.onLocationChange=function(){
   selectedLocation=document.getElementById('locationFilter').value;
-  renderCalendar();renderLegend();
+  renderCalendar();renderLegend();renderSidebar();
 };
 
 // ── 載入班表 ──
@@ -212,7 +245,7 @@ async function loadShifts(){
   const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
   try{const snap=await getDoc(doc(db,'schedules',key));shifts=snap.exists()?(snap.data().shifts||{}):{};
   }catch(e){shifts={};}
-  renderCalendar();renderLegend();
+  renderCalendar();renderLegend();renderSidebar();
 }
 
 // ── 儲存班表 ──
@@ -264,10 +297,12 @@ function renderCalendar(){
     const dayShifts=shifts[dateStr]||[];
     const shiftsHtml=dayShifts.map((s,idx)=>{
       const c=getEmpColor(s.empId);
-      return `<div class="shift-tag ${c}" onclick="openEditModal('${dateStr}',${idx})">
+      const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
+      const clickFn = isReadOnly ? '' : `onclick="openEditModal('${dateStr}',${idx})"`;
+      return `<div class="shift-tag ${c}" ${clickFn} style="${isReadOnly?'cursor:default':''}">
         <span class="emp-name">${s.empName}</span>
         <span class="time">${s.startTime}-${s.endTime}</span>
-        <span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>
+        ${delBtn}
       </div>`;
     }).join('');
 
@@ -275,7 +310,7 @@ function renderCalendar(){
       <span class="day-num">${d}</span>
       ${holiday?`<span class="holiday-name">${holiday}</span>`:''}
       ${shiftsHtml}
-      <span class="add-btn" onclick="openAddModal('${dateStr}')">＋</span>
+      ${!isReadOnly&&selectedLocation?`<span class="add-btn" onclick="openAddModal('${dateStr}')">＋</span>`:''}
     </div>`;
   }
   // 補足
@@ -295,6 +330,29 @@ function renderLegend(){
   legend.innerHTML=Object.entries(usedEmps).map(([id,name])=>{
     return `<div class="legend-item"><div class="legend-dot ${getEmpColor(id)}"></div>${name}</div>`;
   }).join('');
+}
+
+// ── 右側統計欄 ──
+function renderSidebar(){
+  const list=document.getElementById('sidebarList');
+  if(!selectedLocation){list.innerHTML='<div class="sidebar-empty">請選擇店面</div>';return;}
+  const dayCounts={};
+  const nameMap={};
+  Object.values(shifts).forEach(arr=>arr.forEach(s=>{
+    if(!dayCounts[s.empId]) dayCounts[s.empId]=0;
+    dayCounts[s.empId]++;
+    nameMap[s.empId]=s.empName;
+  }));
+  if(!Object.keys(dayCounts).length){
+    list.innerHTML='<div class="sidebar-empty">本月尚無排班</div>';return;
+  }
+  const sorted=Object.entries(dayCounts).sort((a,b)=>b[1]-a[1]);
+  list.innerHTML=sorted.map(([id,days])=>`
+    <div class="sidebar-item">
+      <div class="sidebar-dot ${getEmpColor(id)}"></div>
+      <span class="sidebar-name" title="${nameMap[id]}">${nameMap[id]}</span>
+      <span class="sidebar-days">${days}</span>
+    </div>`).join('');
 }
 
 // ── 班別快選 HTML ──
@@ -426,7 +484,7 @@ window.saveAdd=async function(){
   if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
   if(!shifts[date])shifts[date]=[];
   shifts[date].push({empId,empName,startTime,endTime,note});
-  closeModal();renderCalendar();renderLegend();
+  closeModal();renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');await saveShifts();showToast('已儲存 ✓');
 };
 
@@ -444,7 +502,7 @@ window.saveEdit=async function(dateStr,idx){
     shifts[dateStr].splice(idx,1);
     if(!shifts[dateStr].length)delete shifts[dateStr];
   }else{shifts[dateStr][idx]={empId,empName,startTime,endTime,note};}
-  closeModal();renderCalendar();renderLegend();
+  closeModal();renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');await saveShifts();showToast('已更新 ✓');
 };
 
@@ -452,7 +510,7 @@ window.deleteShift=async function(dateStr,idx){
   if(!confirm('確定要刪除這筆排班？'))return;
   shifts[dateStr].splice(idx,1);
   if(!shifts[dateStr].length)delete shifts[dateStr];
-  renderCalendar();renderLegend();
+  renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');await saveShifts();showToast('已刪除 ✓');
 };
 
@@ -465,7 +523,13 @@ onAuthStateChanged(auth,async user=>{
   currentRole=data.role||'employee';
   currentLocations=data.locations||[];
   currentUser=user;
-  if(currentRole==='employee'){window.location.href='/hr-system/dashboard.html';return;}
+
+  // employee 設為唯讀
+  if(currentRole==='employee'){
+    isReadOnly=true;
+    document.getElementById('readonlyNotice').classList.add('show');
+    document.getElementById('toolbarBtns').style.display='none';
+  }
   document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
 
   // 並行載入所有資料
@@ -477,7 +541,10 @@ onAuthStateChanged(auth,async user=>{
   ]);
 
   const locSelect=document.getElementById('locationFilter');
-  const availLocs=currentRole==='admin'?workLocations:currentLocations.filter(l=>workLocations.includes(l));
+  const availLocs=currentRole==='admin'?workLocations:
+    currentRole==='employee'
+      ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&e.workLocation===l) || currentLocations.includes(l))
+      : currentLocations.filter(l=>workLocations.includes(l));
   availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
   if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];}
 
