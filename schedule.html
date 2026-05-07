@@ -393,12 +393,58 @@ function shiftTypeButtons(onSelect){
 // ── 新增排班 Modal ──
 window.openAddModal=function(dateStr=''){
   const empOptions=getEmpOptions();
+  // 產生本月日期格子
+  const daysInMonth=new Date(viewYear,viewMonth,0).getDate();
+  const today=new Date();
+  let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px">';
+  // 週標題
+  ['一','二','三','四','五','六','日'].forEach(d=>{
+    calHtml+=`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3);padding:2px 0">${d}</div>`;
+  });
+  // 空格補位（週一起始）
+  let firstDow=new Date(viewYear,viewMonth-1,1).getDay();
+  firstDow=(firstDow+6)%7;
+  for(let i=0;i<firstDow;i++) calHtml+='<div></div>';
+  // 日期格
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow=new Date(viewYear,viewMonth-1,d).getDay();
+    const isSun=dow===0,isSat=dow===6;
+    const isHol=!!twHolidays[ds];
+    const color=isHol||isSun?'#E05252':isSat?'#5B8EDB':'var(--text)';
+    const preselect=ds===dateStr?'batch-day-sel':'';
+    calHtml+=`<div class="batch-day ${preselect}" data-date="${ds}" onclick="toggleBatchDay(this)"
+      style="text-align:center;padding:5px 2px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:${color};transition:all .1s">${d}</div>`;
+  }
+  calHtml+='</div>';
+
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-title">📅 新增排班</div>
+      <div class="modal" style="width:520px">
+        <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>📅 新增排班</span>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--text2)">
+            <span>批次模式</span>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer">
+              <input type="checkbox" id="batchToggle" onchange="toggleBatchMode()" style="opacity:0;width:0;height:0">
+              <span id="batchSlider" style="position:absolute;inset:0;background:#C8CDD8;border-radius:20px;transition:.2s"></span>
+              <span id="batchKnob" style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+            </label>
+          </div>
+        </div>
         <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
-        <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
+        <!-- 單日模式 -->
+        <div id="single-mode">
+          <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
+        </div>
+        <!-- 批次模式 -->
+        <div id="batch-mode" style="display:none">
+          <div class="fr">
+            <label>選擇日期（可多選）</label>
+            ${calHtml}
+            <div style="font-size:11px;color:var(--text3);margin-top:6px" id="batchSelectedCount">已選 0 天</div>
+          </div>
+        </div>
         <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
         <div class="time-row">
           <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
@@ -411,6 +457,42 @@ window.openAddModal=function(dateStr=''){
         </div>
       </div>
     </div>`;
+
+  // 若有預選日期，更新計數
+  if(dateStr) updateBatchCount();
+};
+
+window.toggleBatchMode=function(){
+  const on=document.getElementById('batchToggle').checked;
+  document.getElementById('single-mode').style.display=on?'none':'block';
+  document.getElementById('batch-mode').style.display=on?'block':'none';
+  const slider=document.getElementById('batchSlider');
+  const knob=document.getElementById('batchKnob');
+  if(slider) slider.style.background=on?'var(--accent)':'#C8CDD8';
+  if(knob) knob.style.left=on?'18px':'2px';
+};
+
+window.toggleBatchDay=function(el){
+  el.classList.toggle('batch-day-sel');
+  if(el.classList.contains('batch-day-sel')){
+    el.style.background='var(--accent)';el.style.color='#fff';el.style.borderColor='var(--accent)';
+  } else {
+    el.style.background='';el.style.color='';el.style.borderColor='var(--border)';
+    // 恢復週末/假日顏色
+    const ds=el.dataset.date;
+    const dow=new Date(ds).getDay();
+    const isHol=!!twHolidays[ds];
+    if(isHol||dow===0) el.style.color='#E05252';
+    else if(dow===6) el.style.color='#5B8EDB';
+    else el.style.color='var(--text)';
+  }
+  updateBatchCount();
+};
+
+window.updateBatchCount=function(){
+  const sel=document.querySelectorAll('.batch-day-sel');
+  const cnt=document.getElementById('batchSelectedCount');
+  if(cnt) cnt.textContent=`已選 ${sel.length} 天`;
 };
 
 window.applyShiftType=function(start,end){
@@ -506,17 +588,33 @@ window.saveAdd=async function(){
   if(_lm){showToast('🔒 '+_lm);return;}
   const sel=document.getElementById('m-emp');
   const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
-  const date=document.getElementById('m-date').value;
   const startTime=document.getElementById('m-start').value;
   const endTime=document.getElementById('m-end').value;
   const note=document.getElementById('m-note').value.trim();
-  if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
-  if(!shifts[date])shifts[date]=[];
-  shifts[date].push({empId,empName,startTime,endTime,note});
+  if(!empId||!startTime||!endTime){showToast('請填寫完整資料');return;}
+
+  const isBatch=document.getElementById('batchToggle')?.checked;
+
+  let dates=[];
+  if(isBatch){
+    dates=[...document.querySelectorAll('.batch-day-sel')].map(el=>el.dataset.date);
+    if(!dates.length){showToast('請至少選擇一個日期');return;}
+  } else {
+    const date=document.getElementById('m-date').value;
+    if(!date){showToast('請選擇日期');return;}
+    dates=[date];
+  }
+
+  dates.forEach(date=>{
+    if(!shifts[date])shifts[date]=[];
+    shifts[date].push({empId,empName,startTime,endTime,note});
+  });
+
   closeModal();renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');
   await saveShifts();
-  showToast('已儲存 ✓');
+  showToast(`已儲存 ${dates.length} 筆排班 ✓`);
+};
 };
 
 window.saveEdit=async function(dateStr,idx){
