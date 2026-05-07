@@ -615,7 +615,6 @@ window.saveAdd=async function(){
   await saveShifts();
   showToast(`已儲存 ${dates.length} 筆排班 ✓`);
 };
-};
 
 window.saveEdit=async function(dateStr,idx){
   if(window._checkScheduleLock&&window._checkScheduleLock()){
