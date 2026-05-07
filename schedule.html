@@ -163,7 +163,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
       <div class="sidebar" id="sidebar">
         <div class="sidebar-card">
-          <div class="sidebar-title">本月出班天數</div>
+          <div class="sidebar-title">本月出勤天數</div>
           <div class="sidebar-list" id="sidebarList">
             <div class="sidebar-empty">請選擇店面</div>
           </div>
@@ -230,6 +230,17 @@ window.changeMonth=async function(dir){
   if(viewMonth<1){viewMonth=12;viewYear--;}
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
   await loadHolidays(viewYear);
+  if(!isReadOnly && window._checkScheduleLock){
+    const lockMsg=window._checkScheduleLock();
+    if(lockMsg){
+      document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
+      document.getElementById('readonlyNotice').classList.add('show');
+      document.getElementById('toolbarBtns').style.display='none';
+    } else {
+      document.getElementById('readonlyNotice').classList.remove('show');
+      document.getElementById('toolbarBtns').style.display='flex';
+    }
+  }
   loadShifts();
 };
 
@@ -336,22 +347,23 @@ function renderLegend(){
 function renderSidebar(){
   const list=document.getElementById('sidebarList');
   if(!selectedLocation){list.innerHTML='<div class="sidebar-empty">請選擇店面</div>';return;}
-  const dayCounts={};
+  // 同一人同一天只計算一次（用 Set 記錄 empId+date）
+  const daySet={}; // empId -> Set of dates
   const nameMap={};
-  Object.values(shifts).forEach(arr=>arr.forEach(s=>{
-    if(!dayCounts[s.empId]) dayCounts[s.empId]=0;
-    dayCounts[s.empId]++;
+  Object.entries(shifts).forEach(([dateStr,arr])=>arr.forEach(s=>{
+    if(!daySet[s.empId]) daySet[s.empId]=new Set();
+    daySet[s.empId].add(dateStr);
     nameMap[s.empId]=s.empName;
   }));
-  if(!Object.keys(dayCounts).length){
+  if(!Object.keys(daySet).length){
     list.innerHTML='<div class="sidebar-empty">本月尚無排班</div>';return;
   }
-  const sorted=Object.entries(dayCounts).sort((a,b)=>b[1]-a[1]);
-  list.innerHTML=sorted.map(([id,days])=>`
+  const sorted=Object.entries(daySet).sort((a,b)=>b[1].size-a[1].size);
+  list.innerHTML=sorted.map(([id,dates])=>`
     <div class="sidebar-item">
       <div class="sidebar-dot ${getEmpColor(id)}"></div>
       <span class="sidebar-name" title="${nameMap[id]}">${nameMap[id]}</span>
-      <span class="sidebar-days">${days}</span>
+      <span class="sidebar-days">${dates.size}</span>
     </div>`).join('');
 }
 
@@ -475,6 +487,8 @@ function getEmpOptions(selectedId=''){
 }
 
 window.saveAdd=async function(){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);return;}
   const sel=document.getElementById('m-emp');
   const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
   const date=document.getElementById('m-date').value;
@@ -489,6 +503,9 @@ window.saveAdd=async function(){
 };
 
 window.saveEdit=async function(dateStr,idx){
+  if(window._checkScheduleLock&&window._checkScheduleLock()){
+    showToast('⚠ 已超過25號，無法修改次月班表');closeModal();return;
+  }
   const sel=document.getElementById('m-emp');
   const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
   const date=document.getElementById('m-date').value;
@@ -507,6 +524,8 @@ window.saveEdit=async function(dateStr,idx){
 };
 
 window.deleteShift=async function(dateStr,idx){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);return;}
   if(!confirm('確定要刪除這筆排班？'))return;
   shifts[dateStr].splice(idx,1);
   if(!shifts[dateStr].length)delete shifts[dateStr];
@@ -530,6 +549,35 @@ onAuthStateChanged(auth,async user=>{
     document.getElementById('readonlyNotice').classList.add('show');
     document.getElementById('toolbarBtns').style.display='none';
   }
+
+  // 非 admin：鎖定邏輯
+  if(currentRole!=='admin'){
+    const today=new Date();
+    const todayDay=today.getDate();
+    const todayMonth=today.getMonth()+1;
+    const todayYear=today.getFullYear();
+    const nextMonth=todayMonth===12?1:todayMonth+1;
+    const nextYear=todayMonth===12?todayYear+1:todayYear;
+
+    window._checkScheduleLock=function(){
+      if(currentRole==='admin') return false;
+
+      const viewDate=viewYear*100+viewMonth;
+      const currentDate=todayYear*100+todayMonth;
+      const nextDate=nextYear*100+nextMonth;
+
+      // 當月及過去 → 永遠鎖定
+      if(viewDate <= currentDate) return '當月及過去的班表已鎖定，無法修改';
+
+      // 次月 → 25號後鎖定
+      if(viewDate===nextDate && todayDay>25) return '已超過25號，次月班表已鎖定，無法修改';
+
+      // 第三個月以後 → 可預排
+      return false;
+    };
+  } else {
+    window._checkScheduleLock=function(){ return false; };
+  }
   document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
 
   // 並行載入所有資料
@@ -549,6 +597,17 @@ onAuthStateChanged(auth,async user=>{
   if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];}
 
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
+
+  // 初始載入時也檢查鎖定狀態
+  if(!isReadOnly && window._checkScheduleLock){
+    const lockMsg=window._checkScheduleLock();
+    if(lockMsg){
+      document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
+      document.getElementById('readonlyNotice').classList.add('show');
+      document.getElementById('toolbarBtns').style.display='none';
+    }
+  }
+
   await loadShifts();
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
