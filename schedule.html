@@ -188,7 +188,7 @@ const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
-const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'員工'};
+const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[];
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
 let allEmployees=[],workLocations=[],shifts={};
@@ -397,7 +397,7 @@ window.openAddModal=function(dateStr=''){
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-title">📅 新增排班</div>
-        <div class="fr"><label>員工</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
         <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
         <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
         <div class="time-row">
@@ -426,7 +426,7 @@ window.openEditModal=function(dateStr,idx){
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <div class="modal-title">✎ 編輯排班</div>
-        <div class="fr"><label>員工</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
         <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
         <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
         <div class="time-row">

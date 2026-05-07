@@ -70,7 +70,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <button class="preview-btn p-admin"      onclick="setPreview('admin')">管理員</button>
         <button class="preview-btn p-consultant" onclick="setPreview('consultant')">顧問</button>
         <button class="preview-btn p-manager"    onclick="setPreview('manager')">店長</button>
-        <button class="preview-btn p-employee"   onclick="setPreview('employee')">員工</button>
+        <button class="preview-btn p-employee"   onclick="setPreview('employee')">同仁</button>
       </div>
       <div class="user-chip">
         <div class="user-av" id="userAv">—</div>
@@ -106,7 +106,7 @@ const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomai
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
-const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'員工'};
+const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 const roleBadgeClass={admin:'role-admin',consultant:'role-consultant',manager:'role-manager',employee:'role-employee'};
 let realRole = 'employee'; // 實際角色
 
@@ -127,7 +127,7 @@ window.setPreview = function(role){
   }
 };
 const ALL_MODULES=[
-  {key:'hr',icon:'👥',name:'人員資訊',desc:'員工基本資料、薪資歷程、特休假管理、投保資料',page:'hr.html',active:true},
+  {key:'hr',icon:'👥',name:'人員資訊',desc:'同仁基本資料、薪資歷程、特休假管理、投保資料',page:'hr.html',active:true},
   {key:'clock',icon:'⏱',name:'打卡系統',desc:'上下班打卡、異常補打申請、月份出勤記錄',page:'clock.html',active:false},
   {key:'schedule',icon:'📅',name:'排班管理',desc:'班表設定、輪班規則、換班申請',page:'schedule.html',active:true},
   {key:'salary',icon:'💰',name:'薪資計算',desc:'月薪結算、固定獎金、勞健保自負額試算',page:'salary.html',active:false},
@@ -157,7 +157,7 @@ onAuthStateChanged(auth,async user=>{
       document.getElementById('userAv').textContent=idNo.slice(0,1);
       document.getElementById('userName').textContent=idNo;
       document.getElementById('userId').textContent=idNo;
-      document.getElementById('roleLabel').innerHTML='<span class="role-badge role-employee">員工</span>';
+      document.getElementById('roleLabel').innerHTML='<span class="role-badge role-employee">同仁</span>';
       const h=new Date().getHours();
       document.getElementById('greetText').textContent=`${h<12?'早安':h<18?'午安':'晚安'} 👋`;
       renderModules('employee');

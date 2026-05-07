@@ -687,7 +687,7 @@ function render() {
     const total=all.length, active=all.filter(r=>r.status==='在職').length,
           stores=new Set(all.map(r=>r.workLocation).filter(Boolean)).size;
     stats=`<div class="stats">
-      <div class="sc"><div class="sl">員工總數</div><div class="sn">${total}</div></div>
+      <div class="sc"><div class="sl">同仁總數</div><div class="sn">${total}</div></div>
       <div class="sc"><div class="sl">正式在職</div><div class="sn">${active}</div></div>
       <div class="sc"><div class="sl">留職停薪</div><div class="sn">${all.filter(r=>r.status==='留職停薪').length}</div></div>
       <div class="sc"><div class="sl">現有店面數</div><div class="sn">${stores}</div></div>
