@@ -112,9 +112,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sidebar-days{font-size:13px;font-weight:700;color:var(--accent);min-width:24px;text-align:right}
 .sidebar-empty{padding:20px 14px;font-size:12px;color:var(--text3);text-align:center}
 
-/* 員工唯讀模式 */
-.readonly-notice{background:#EEF2FF;border:1px solid #BAC8FF;border-radius:10px;padding:8px 14px;font-size:12px;color:#3B5BDB;margin-bottom:12px;display:none}
+/* 員工唯讀模式 / 鎖定提示 */
+.readonly-notice{border-radius:10px;padding:8px 14px;font-size:12px;margin-bottom:12px;display:none}
 .readonly-notice.show{display:block}
+.readonly-notice.type-readonly{background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB}
+.readonly-notice.type-lock{background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00}
 </style>
 </head>
 <body>
@@ -234,7 +236,8 @@ window.changeMonth=async function(dir){
     const lockMsg=window._checkScheduleLock();
     if(lockMsg){
       document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
-      document.getElementById('readonlyNotice').classList.add('show');
+      document.getElementById('readonlyNotice').classList.remove('type-readonly');
+      document.getElementById('readonlyNotice').classList.add('show','type-lock');
       document.getElementById('toolbarBtns').style.display='none';
     } else {
       document.getElementById('readonlyNotice').classList.remove('show');
@@ -261,9 +264,21 @@ async function loadShifts(){
 
 // ── 儲存班表 ──
 async function saveShifts(){
-  if(!selectedLocation)return;
+  if(!selectedLocation) return;
   const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
-  await setDoc(doc(db,'schedules',key),{shifts,location:selectedLocation,yearMonth:`${viewYear}-${String(viewMonth).padStart(2,'0')}`,updatedAt:new Date().toISOString()});
+  try{
+    // 將 shifts 轉成純 JSON 再存，避免 Firestore 物件問題
+    const shiftsJson = JSON.parse(JSON.stringify(shifts));
+    await setDoc(doc(db,'schedules',key),{
+      shifts: shiftsJson,
+      location: selectedLocation,
+      yearMonth: `${viewYear}-${String(viewMonth).padStart(2,'0')}`,
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e){
+    console.error('儲存失敗：', e);
+    showToast('❌ 儲存失敗：' + e.message);
+  }
 }
 
 // ── 載入 & 儲存班別設定 ──
@@ -499,7 +514,9 @@ window.saveAdd=async function(){
   if(!shifts[date])shifts[date]=[];
   shifts[date].push({empId,empName,startTime,endTime,note});
   closeModal();renderCalendar();renderLegend();renderSidebar();
-  showToast('儲存中...');await saveShifts();showToast('已儲存 ✓');
+  showToast('儲存中...');
+  await saveShifts();
+  showToast('已儲存 ✓');
 };
 
 window.saveEdit=async function(dateStr,idx){
@@ -546,7 +563,7 @@ onAuthStateChanged(auth,async user=>{
   // employee 設為唯讀
   if(currentRole==='employee'){
     isReadOnly=true;
-    document.getElementById('readonlyNotice').classList.add('show');
+    document.getElementById('readonlyNotice').classList.add('show','type-readonly');
     document.getElementById('toolbarBtns').style.display='none';
   }
 
@@ -570,7 +587,7 @@ onAuthStateChanged(auth,async user=>{
       if(viewDate <= currentDate) return '當月及過去的班表已鎖定，無法修改';
 
       // 次月 → 25號後鎖定
-      if(viewDate===nextDate && todayDay>25) return '已超過25號，次月班表已鎖定，無法修改';
+      if(viewDate===nextDate && todayDay>25) return '已超過25號，次月班表已鎖定，無法修改，如需異動請聯繫總公司';
 
       // 第三個月以後 → 可預排
       return false;
@@ -603,7 +620,8 @@ onAuthStateChanged(auth,async user=>{
     const lockMsg=window._checkScheduleLock();
     if(lockMsg){
       document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
-      document.getElementById('readonlyNotice').classList.add('show');
+      document.getElementById('readonlyNotice').classList.remove('type-readonly');
+      document.getElementById('readonlyNotice').classList.add('show','type-lock');
       document.getElementById('toolbarBtns').style.display='none';
     }
   }
