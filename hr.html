@@ -146,6 +146,9 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .cdd-item.selected{background:var(--primary-light);color:var(--primary);font-weight:500}
 .cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
 .cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
+.cdd-drag{color:#C0C0C0;cursor:grab;font-size:12px;margin-right:6px;padding:0 2px;flex-shrink:0;user-select:none}
+.cdd-drag:active{cursor:grabbing}
+.cdd-item.drag-over{border-top:2px solid var(--primary);background:#FFF8F0}
 .cdd-placeholder{color:var(--text-3)}
 .cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text-2);position:sticky;bottom:0;background:#fff;z-index:1}
 .cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
@@ -258,8 +261,15 @@ function cddHtml(id, options, value, listName, placeholder='請選擇或新增')
     </button>
     <input type="hidden" id="${id}" value="${value||''}">
     <div class="cdd-menu" id="cdd-menu-${safeId}">
-      ${options.map(o=>`<div class="cdd-item${o===value?' selected':''}" onclick="cddSelect('${safeId}','${id}','${o.replace(/'/g,'\\\'')}')">
-        <span>${o}</span>
+      ${options.map(o=>`<div class="cdd-item${o===value?' selected':''}" draggable="true"
+        data-val="${o.replace(/"/g,'&quot;')}" data-list="${listName}"
+        ondragstart="cddDragStart(event,'${safeId}')"
+        ondragover="cddDragOver(event)"
+        ondragleave="cddDragLeave(event)"
+        ondrop="cddDrop(event,'${listName}','${safeId}','${id}')"
+        onclick="cddSelect('${safeId}','${id}','${o.replace(/'/g,'\\\'')}')">
+        <span class="cdd-drag" onclick="event.stopPropagation()">⠿</span>
+        <span style="flex:1">${o}</span>
         <button class="cdd-del" onclick="event.stopPropagation();cddDel('${listName}','${o.replace(/'/g,'\\\'')}','${safeId}','${id}')" title="刪除">×</button>
       </div>`).join('')}
       <div class="cdd-add" onclick="event.stopPropagation()">
@@ -320,12 +330,62 @@ window.cddAdd=function(listName,safeId,inputId){
   if(menu){
     const addRow=menu.querySelector('.cdd-add');
     const div=document.createElement('div');div.className='cdd-item selected';
-    div.innerHTML=`<span>${n}</span><button class="cdd-del" onclick="event.stopPropagation();cddDel('${listName}','${n}','${safeId}','${inputId}')">×</button>`;
+    div.setAttribute('draggable','true');
+    div.setAttribute('data-val',n);
+    div.setAttribute('data-list',listName);
+    div.setAttribute('ondragstart',`cddDragStart(event,'${safeId}')`);
+    div.setAttribute('ondragover','cddDragOver(event)');
+    div.setAttribute('ondragleave','cddDragLeave(event)');
+    div.setAttribute('ondrop',`cddDrop(event,'${listName}','${safeId}','${inputId}')`);
+    div.innerHTML=`<span class="cdd-drag" onclick="event.stopPropagation()">⠿</span><span style="flex:1">${n}</span><button class="cdd-del" onclick="event.stopPropagation();cddDel('${listName}','${n}','${safeId}','${inputId}')">×</button>`;
     div.onclick=()=>cddSelect(safeId,inputId,n);
     menu.insertBefore(div,addRow);
   }
   cddSelect(safeId,inputId,n);
 };
+
+// ── 拖曳排序 ──
+let _dragSrcEl=null;
+window.cddDragStart=function(e,safeId){
+  _dragSrcEl=e.currentTarget;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',e.currentTarget.dataset.val);
+  setTimeout(()=>{if(_dragSrcEl)_dragSrcEl.style.opacity='0.4';},0);
+};
+window.cddDragOver=function(e){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('drag-over');
+};
+window.cddDragLeave=function(e){
+  e.currentTarget.classList.remove('drag-over');
+};
+window.cddDrop=function(e,listName,safeId,inputId){
+  e.preventDefault();e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  if(!_dragSrcEl||_dragSrcEl===e.currentTarget) return;
+  const menu=document.getElementById('cdd-menu-'+safeId);
+  if(!menu) return;
+  // 重新排序 DOM
+  const items=[...menu.querySelectorAll('.cdd-item[draggable]')];
+  const srcIdx=items.indexOf(_dragSrcEl);
+  const tgtIdx=items.indexOf(e.currentTarget);
+  if(srcIdx<0||tgtIdx<0) return;
+  if(srcIdx<tgtIdx) e.currentTarget.after(_dragSrcEl);
+  else e.currentTarget.before(_dragSrcEl);
+  _dragSrcEl.style.opacity='1';
+  // 同步更新陣列順序
+  const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
+  const arr=maps[listName];if(!arr) return;
+  const newItems=[...menu.querySelectorAll('.cdd-item[draggable]')];
+  const newOrder=newItems.map(el=>el.dataset.val).filter(Boolean);
+  arr.length=0;newOrder.forEach(v=>arr.push(v));
+  saveData();
+  _dragSrcEl=null;
+};
+document.addEventListener('dragend',()=>{
+  document.querySelectorAll('.cdd-item[draggable]').forEach(el=>{el.style.opacity='1';el.classList.remove('drag-over');});
+  _dragSrcEl=null;
+});
 document.addEventListener('click',e=>{
   if(!e.target.closest('.cdd'))
     document.querySelectorAll('.cdd-menu.open').forEach(m=>{
