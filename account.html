@@ -262,7 +262,7 @@ function renderPage(users, page){
     container.innerHTML = '<div class="empty">沒有符合的帳號</div>';
     return;
   }
-  container.innerHTML = users.map(u => {
+  container.innerHTML = pageUsers.map(u => {
     const role = u.role||'employee';
     const isSelf = u.uid === currentUserUid;
     const showLocs = role==='consultant'||role==='manager';
