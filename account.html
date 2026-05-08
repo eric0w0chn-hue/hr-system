@@ -107,6 +107,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:48px;color:var(--text3);font-size:13px}
+.pg-btn{font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;transition:all .15s;min-width:32px}
+.pg-btn:hover:not([disabled]){background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+.pg-active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;font-weight:600}
 
 @media(max-width:640px){
   .topbar{padding:0 16px}
@@ -218,7 +222,11 @@ function renderList(){
   filterList();
 }
 
+let currentPage = 1;
+const PAGE_SIZE = 15;
+
 window.filterList = function(){
+  currentPage = 1; // 搜尋時重設到第一頁
   const q = (document.getElementById('searchInput').value||'').toLowerCase();
   const roleF = document.getElementById('roleFilter').value;
   const filtered = allUsers.filter(u=>{
@@ -233,9 +241,24 @@ window.filterList = function(){
   renderListItems(filtered);
 };
 
+window._lastFiltered = [];
+
 function renderListItems(users){
+  window._lastFiltered = users;
+  renderPage(users, currentPage);
+}
+
+function renderPage(users, page){
   const container = document.getElementById('accountList');
-  if(!users.length){
+  const total = users.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  page = Math.min(Math.max(1, page), totalPages);
+  currentPage = page;
+
+  const start = (page-1)*PAGE_SIZE;
+  const pageUsers = users.slice(start, start+PAGE_SIZE);
+
+  if(!pageUsers.length){
     container.innerHTML = '<div class="empty">沒有符合的帳號</div>';
     return;
   }
@@ -270,7 +293,27 @@ function renderListItems(users){
       </div>
     </div>`;
   }).join('');
+
+  // 分頁 UI
+  if(totalPages > 1){
+    const pgBtns = [];
+    pgBtns.push(`<button class="pg-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>`);
+    for(let i=1;i<=totalPages;i++){
+      if(i===1||i===totalPages||Math.abs(i-page)<=1){
+        pgBtns.push(`<button class="pg-btn${i===page?' pg-active':''}" onclick="goPage(${i})">${i}</button>`);
+      } else if(Math.abs(i-page)===2){
+        pgBtns.push(`<span style="color:var(--text3);padding:0 4px">…</span>`);
+      }
+    }
+    pgBtns.push(`<button class="pg-btn" onclick="goPage(${page+1})" ${page===totalPages?'disabled':''}>›</button>`);
+    container.innerHTML += `<div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:16px 0;border-top:1px solid var(--border);margin-top:8px">${pgBtns.join('')}<span style="font-size:12px;color:var(--text3);margin-left:8px">第 ${page} / ${totalPages} 頁，共 ${total} 筆</span></div>`;
+  }
 }
+
+window.goPage = function(p){
+  renderPage(window._lastFiltered, p);
+  document.getElementById('accountList').scrollIntoView({behavior:'smooth',block:'start'});
+};
 
 window.openEdit = function(uid){
   const u = allUsers.find(x=>x.uid===uid);
@@ -340,6 +383,8 @@ window.toggleDisable = async function(uid){
   try{
     await setDoc(doc(db,'users',uid),{disabled:newVal},{merge:true});
     u.disabled=newVal; filterList();
+    // 回到同一頁
+    renderPage(window._lastFiltered, currentPage);
     showToast(newVal?'帳號已停用':'帳號已啟用');
   }catch(e){ showToast('操作失敗','✕'); }
 };
