@@ -382,12 +382,19 @@ function renderLegend(){
   const btns=document.getElementById('empFilterBtns');
   if(!Object.keys(usedEmps).length){bar.style.display='none';return;}
   bar.style.display='flex';
+
+  // 批次刪除按鈕（只在篩選單人且非唯讀時顯示）
+  const batchDelBtn = (!isReadOnly && filterEmpId && !window._checkScheduleLock?.())
+    ? `<button class="btn" onclick="openBatchDeleteModal('${filterEmpId}','${usedEmps[filterEmpId]||''}')"
+        style="margin-left:8px;color:#C0392B;border-color:#FECACA;font-size:12px">🗑 批次刪除</button>`
+    : '';
+
   btns.innerHTML=`<button class="emp-filter-btn${filterEmpId===''?' active':''}" onclick="setEmpFilter('')">全部</button>`+
     Object.entries(usedEmps).map(([id,name])=>
-      `<button class="emp-filter-btn${filterEmpId===id?' active':''}" onclick="setEmpFilter('${id}')" style="border-color:${filterEmpId===id?'':''}">
+      `<button class="emp-filter-btn${filterEmpId===id?' active':''}" onclick="setEmpFilter('${id}')">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:4px;opacity:.6"></span>${name}
       </button>`
-    ).join('');
+    ).join('')+batchDelBtn;
 }
 
 window.setEmpFilter=function(empId){
@@ -395,6 +402,85 @@ window.setEmpFilter=function(empId){
   renderLegend();
   renderCalendar();
   renderSidebar();
+};
+
+// ── 批次刪除 Modal ──
+window.openBatchDeleteModal=function(empId, empName){
+  // 收集該人所有排班日期
+  const empShifts=[];
+  Object.entries(shifts).forEach(([dateStr,arr])=>{
+    arr.forEach((s,idx)=>{
+      if(s.empId==empId) empShifts.push({dateStr,idx,s});
+    });
+  });
+  if(!empShifts.length){showToast('此人本月無排班記錄');return;}
+
+  // 按日期排序
+  empShifts.sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+
+  // 產生日期列表（同一天可能多筆）
+  const dateGroups={};
+  empShifts.forEach(({dateStr,s})=>{
+    if(!dateGroups[dateStr]) dateGroups[dateStr]=[];
+    dateGroups[dateStr].push(`${s.startTime}-${s.endTime}`);
+  });
+
+  const listHtml=Object.entries(dateGroups).map(([date,times])=>{
+    const d=new Date(date);
+    const weekDay=['日','一','二','三','四','五','六'][d.getDay()];
+    const month=date.slice(5,7);
+    const day=date.slice(8,10);
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:6px;transition:background .1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="batch-del-check" value="${date}" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+      <span style="font-size:13px;font-weight:500;color:var(--text);min-width:80px">${month}/${day}（${weekDay}）</span>
+      <span style="font-size:12px;color:var(--text2)">${times.join('、')}</span>
+    </label>`;
+  }).join('');
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
+        <div class="modal-title">🗑 批次刪除班表 — ${empName}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:12px;color:var(--text2)">共 ${Object.keys(dateGroups).length} 天排班</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="font-size:12px;padding:4px 10px" onclick="toggleAllBatchDel(true)">全選</button>
+            <button class="btn" style="font-size:12px;padding:4px 10px" onclick="toggleAllBatchDel(false)">取消全選</button>
+          </div>
+        </div>
+        <div>${listHtml}</div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn" style="background:#C0392B;color:#fff;border-color:#C0392B" onclick="confirmBatchDelete('${empId}')">確認刪除</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.toggleAllBatchDel=function(checked){
+  document.querySelectorAll('.batch-del-check').forEach(el=>el.checked=checked);
+};
+
+window.confirmBatchDelete=async function(empId){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);closeModal();return;}
+
+  const selected=[...document.querySelectorAll('.batch-del-check:checked')].map(el=>el.value);
+  if(!selected.length){showToast('請至少選擇一個日期');return;}
+  if(!confirm(`確定要刪除 ${selected.length} 天的排班記錄嗎？`)) return;
+
+  selected.forEach(dateStr=>{
+    if(shifts[dateStr]){
+      shifts[dateStr]=shifts[dateStr].filter(s=>s.empId!=empId);
+      if(!shifts[dateStr].length) delete shifts[dateStr];
+    }
+  });
+
+  closeModal();
+  renderCalendar();renderLegend();renderSidebar();
+  showToast('儲存中...');
+  await saveShifts();
+  showToast(`已刪除 ${selected.length} 天排班 ✓`);
 };
 function renderSidebar(){
   const list=document.getElementById('sidebarList');
