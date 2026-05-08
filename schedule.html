@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)}
 
 /* Main */
-.main{max-width:1100px;margin:0 auto;padding:24px 20px}
+.main{max-width:1300px;margin:0 auto;padding:24px 20px}
 
 /* Toolbar */
 .toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -57,16 +57,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cal-cell.is-holiday .day-num{color:#E05252}
 .holiday-name{font-size:9px;color:#E05252;display:block;margin-bottom:2px;font-weight:500}
 .day-num{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px;display:block}
-.shift-tag{font-size:11px;padding:3px 7px;border-radius:6px;margin-bottom:3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:4px;transition:opacity .1s;line-height:1.4}
+.shift-tag{font-size:11px;padding:3px 6px;border-radius:6px;margin-bottom:3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:3px;transition:opacity .1s;line-height:1.4;min-width:0}
 .shift-tag:hover{opacity:.8}
-.shift-tag .emp-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px}
-.shift-tag .time{font-size:10px;opacity:.8;white-space:nowrap}
+.shift-tag .emp-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.shift-tag .time{font-size:10px;opacity:.8;white-space:nowrap;flex-shrink:0}
 .shift-tag .del-btn{font-size:10px;opacity:0;transition:opacity .1s;cursor:pointer;flex-shrink:0;line-height:1}
 .shift-tag:hover .del-btn{opacity:1}
+
+/* 主內容 + 右側統計欄 */
+.content-wrap{display:flex;gap:14px;align-items:flex-start}
+.cal-section{flex:1;min-width:0;overflow:hidden}
+.sidebar{width:180px;flex-shrink:0;position:sticky;top:76px}
+
 .add-btn{font-size:11px;color:var(--text3);cursor:pointer;padding:2px 4px;border-radius:4px;transition:all .1s;display:inline-flex;align-items:center;gap:2px;margin-top:2px}
 .add-btn:hover{background:var(--accent-light);color:var(--accent)}
 
-/* Color palette for employees */
+/* 人員篩選 */
+.emp-filter-wrap{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.emp-filter-btn{font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;transition:all .15s;white-space:nowrap}
+.emp-filter-btn:hover{border-color:var(--border2);background:var(--surface2)}
+.emp-filter-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+.emp-filter-label{font-size:11px;color:var(--text3);white-space:nowrap}
 .c0{background:#E8F4FD;color:#1A6B9A} .c1{background:#E6F9F0;color:#0A6E45}
 .c2{background:#FEF3E2;color:#9A5B0A} .c3{background:#F3E8FD;color:#6B1A9A}
 .c4{background:#FDE8E8;color:#9A1A1A} .c5{background:#E8FDE8;color:#1A6B1A}
@@ -151,6 +162,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
     </div>
     <div class="readonly-notice" id="readonlyNotice">👁 您目前為查看模式，無法編輯班表</div>
+    <!-- 人員篩選列 -->
+    <div id="empFilterBar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="emp-filter-label">篩選同仁：</span>
+      <div class="emp-filter-wrap" id="empFilterBtns"></div>
+    </div>
     <div class="content-wrap">
       <div class="cal-section">
         <div class="cal-wrap">
@@ -195,7 +211,8 @@ let allEmployees=[],workLocations=[],shifts={};
 let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
-let isReadOnly=false; // 員工唯讀模式
+let isReadOnly=false; // 同仁唯讀模式
+let filterEmpId=''; // 人員篩選
 
 // ── Toast ──
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
@@ -250,6 +267,7 @@ window.changeMonth=async function(dir){
 // ── 店面選擇 ──
 window.onLocationChange=function(){
   selectedLocation=document.getElementById('locationFilter').value;
+  filterEmpId=''; // 重設篩選
   renderCalendar();renderLegend();renderSidebar();
 };
 
@@ -320,7 +338,7 @@ function renderCalendar(){
     if(isSat)cls+=' is-sat';
     if(holiday)cls+=' is-holiday';
 
-    const dayShifts=shifts[dateStr]||[];
+    const dayShifts=(shifts[dateStr]||[]).filter(s=>!filterEmpId||s.empId==filterEmpId);
     const shiftsHtml=dayShifts.map((s,idx)=>{
       const c=getEmpColor(s.empId);
       const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
@@ -348,17 +366,36 @@ function renderCalendar(){
   grid.innerHTML=html;
 }
 
-// ── 員工圖例 ──
+// ── 同仁圖例 + 篩選按鈕 ──
 function renderLegend(){
-  const legend=document.getElementById('empLegend');
   const usedEmps={};
   Object.values(shifts).forEach(arr=>arr.forEach(s=>{usedEmps[s.empId]=s.empName;}));
-  legend.innerHTML=Object.entries(usedEmps).map(([id,name])=>{
-    return `<div class="legend-item"><div class="legend-dot ${getEmpColor(id)}"></div>${name}</div>`;
-  }).join('');
+
+  // 圖例
+  const legend=document.getElementById('empLegend');
+  legend.innerHTML=Object.entries(usedEmps).map(([id,name])=>
+    `<div class="legend-item"><div class="legend-dot ${getEmpColor(id)}"></div>${name}</div>`
+  ).join('');
+
+  // 篩選按鈕列
+  const bar=document.getElementById('empFilterBar');
+  const btns=document.getElementById('empFilterBtns');
+  if(!Object.keys(usedEmps).length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  btns.innerHTML=`<button class="emp-filter-btn${filterEmpId===''?' active':''}" onclick="setEmpFilter('')">全部</button>`+
+    Object.entries(usedEmps).map(([id,name])=>
+      `<button class="emp-filter-btn${filterEmpId===id?' active':''}" onclick="setEmpFilter('${id}')" style="border-color:${filterEmpId===id?'':''}">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:4px;opacity:.6"></span>${name}
+      </button>`
+    ).join('');
 }
 
-// ── 右側統計欄 ──
+window.setEmpFilter=function(empId){
+  filterEmpId=empId;
+  renderLegend();
+  renderCalendar();
+  renderSidebar();
+};
 function renderSidebar(){
   const list=document.getElementById('sidebarList');
   if(!selectedLocation){list.innerHTML='<div class="sidebar-empty">請選擇店面</div>';return;}
