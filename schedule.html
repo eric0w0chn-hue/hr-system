@@ -212,7 +212,7 @@ let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
 let isReadOnly=false; // 同仁唯讀模式
-let filterEmpId=''; // 人員篩選
+let filterEmpIds=new Set(); // 人員複選篩選
 
 // ── Toast ──
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
@@ -267,7 +267,7 @@ window.changeMonth=async function(dir){
 // ── 店面選擇 ──
 window.onLocationChange=function(){
   selectedLocation=document.getElementById('locationFilter').value;
-  filterEmpId=''; // 重設篩選
+  filterEmpIds.clear(); // 重設篩選
   renderCalendar();renderLegend();renderSidebar();
 };
 
@@ -338,7 +338,7 @@ function renderCalendar(){
     if(isSat)cls+=' is-sat';
     if(holiday)cls+=' is-holiday';
 
-    const dayShifts=(shifts[dateStr]||[]).filter(s=>!filterEmpId||s.empId==filterEmpId);
+    const dayShifts=(shifts[dateStr]||[]).filter(s=>filterEmpIds.size===0||filterEmpIds.has(String(s.empId)));
     const shiftsHtml=dayShifts.map((s,idx)=>{
       const c=getEmpColor(s.empId);
       const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
@@ -366,7 +366,7 @@ function renderCalendar(){
   grid.innerHTML=html;
 }
 
-// ── 同仁圖例 + 篩選按鈕 ──
+// ── 同仁圖例 + 篩選按鈕（複選）──
 function renderLegend(){
   const usedEmps={};
   Object.values(shifts).forEach(arr=>arr.forEach(s=>{usedEmps[s.empId]=s.empName;}));
@@ -383,25 +383,36 @@ function renderLegend(){
   if(!Object.keys(usedEmps).length){bar.style.display='none';return;}
   bar.style.display='flex';
 
-  // 批次刪除按鈕（只在篩選單人且非唯讀時顯示）
-  const batchDelBtn = (!isReadOnly && filterEmpId && !window._checkScheduleLock?.())
-    ? `<button class="btn" onclick="openBatchDeleteModal('${filterEmpId}','${usedEmps[filterEmpId]||''}')"
-        style="margin-left:8px;color:#C0392B;border-color:#FECACA;font-size:12px">🗑 批次刪除</button>`
-    : '';
+  // 批次刪除（只在篩選單人且非唯讀時顯示）
+  const singleFilter=filterEmpIds.size===1;
+  const singleId=singleFilter?[...filterEmpIds][0]:'';
+  const batchDelBtn=(!isReadOnly&&singleFilter&&!window._checkScheduleLock?.())
+    ?`<button class="btn" onclick="openBatchDeleteModal('${singleId}','${usedEmps[singleId]||''}')"
+        style="margin-left:8px;color:#C0392B;border-color:#FECACA;font-size:12px">🗑 批次刪除</button>`:'';
 
-  btns.innerHTML=`<button class="emp-filter-btn${filterEmpId===''?' active':''}" onclick="setEmpFilter('')">全部</button>`+
-    Object.entries(usedEmps).map(([id,name])=>
-      `<button class="emp-filter-btn${filterEmpId===id?' active':''}" onclick="setEmpFilter('${id}')">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:4px;opacity:.6"></span>${name}
-      </button>`
-    ).join('')+batchDelBtn;
+  btns.innerHTML=
+    `<button class="emp-filter-btn${filterEmpIds.size===0?' active':''}" onclick="setEmpFilter('')">全部</button>`+
+    Object.entries(usedEmps).map(([id,name])=>{
+      const active=filterEmpIds.has(id);
+      const cls=getEmpColor(id);
+      return `<button class="emp-filter-btn${active?' active':''}" onclick="toggleEmpFilter('${id}')"
+        style="${active?`background:var(--accent);border-color:var(--accent);color:#fff`:''}">
+        <span class="${cls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${name}
+      </button>`;
+    }).join('')+batchDelBtn;
 }
 
 window.setEmpFilter=function(empId){
-  filterEmpId=empId;
-  renderLegend();
-  renderCalendar();
-  renderSidebar();
+  // 空字串 = 清除所有篩選
+  if(!empId){ filterEmpIds.clear(); }
+  else { filterEmpIds.clear(); filterEmpIds.add(empId); }
+  renderLegend(); renderCalendar(); renderSidebar();
+};
+
+window.toggleEmpFilter=function(empId){
+  if(filterEmpIds.has(empId)) filterEmpIds.delete(empId);
+  else filterEmpIds.add(empId);
+  renderLegend(); renderCalendar(); renderSidebar();
 };
 
 // ── 批次刪除 Modal ──
