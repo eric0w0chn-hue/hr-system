@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>裝置審核 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.back-btn{font-size:12px;padding:5px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.dv{width:1px;height:20px;background:rgba(255,255,255,.2)}
+.topbar h1{font-size:16px;font-weight:700;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.live-dot{width:8px;height:8px;background:#4ADE80;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.topbar-right span{font-size:12px;color:rgba(255,255,255,.7)}
+
+.main{max-width:1100px;margin:0 auto;padding:28px 20px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;flex-direction:column;gap:4px}
+.stat-num{font-size:26px;font-weight:700}
+.stat-num.orange{color:#C47A00}
+.stat-num.green{color:#087443}
+.stat-num.red{color:#C0392B}
+.stat-num.blue{color:#2563EB}
+.stat-label{font-size:12px;color:var(--text3)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content}
+.tab-btn{font-size:13px;padding:6px 18px;border-radius:7px;cursor:pointer;border:none;background:transparent;color:var(--text2);font-family:inherit;font-weight:500;transition:all .15s;white-space:nowrap}
+.tab-btn.active{background:var(--accent);color:#fff}
+.tab-btn:not(.active):hover{background:var(--surface2)}
+
+/* Toolbar */
+.toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.toolbar input,.toolbar select{font-size:13px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit}
+.toolbar input{flex:1;min-width:200px}
+
+/* Table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:600;color:var(--text2)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+td{padding:11px 14px;border-bottom:1px solid #F4F5F8;font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#FAFBFC}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap}
+.b-pending{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.b-approved{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.b-rejected{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+.b-revoked{background:#F4F5F8;color:#5A6175;border:1px solid var(--border)}
+.b-android{background:#E8F4FF;color:#1D6FA4;border:1px solid #B8DDF8}
+.b-ios{background:#F3E8FF;color:#7C3AED;border:1px solid #DDD5FE}
+
+/* Action buttons */
+.btn{font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.btn:hover{background:var(--surface2)}
+.btn-approve{background:#E6FAF0;color:#087443;border-color:#ADE8C4}
+.btn-approve:hover{background:#D0F5E6}
+.btn-reject{background:#FEE9E9;color:#C0392B;border-color:#FFBDBD}
+.btn-reject:hover{background:#FFD5D5}
+.btn-revoke{background:#FFF4E0;color:#C47A00;border-color:#FDDFA0}
+.btn-revoke:hover{background:#FFEBC5}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#3D4158}
+
+.actions{display:flex;gap:6px;flex-wrap:nowrap}
+
+/* MAC address display */
+.mac-code{font-family:monospace;font-size:12px;background:var(--surface2);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--text)}
+
+/* Device info cell */
+.device-info{display:flex;flex-direction:column;gap:2px}
+.device-name{font-weight:500}
+.device-meta{font-size:11px;color:var(--text3)}
+
+/* User cell */
+.user-cell{display:flex;align-items:center;gap:10px}
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:#E8EEFF;color:#3B5BDB}
+
+/* Empty state */
+.empty-state{text-align:center;padding:56px;color:var(--text3)}
+.empty-state .icon{font-size:36px;margin-bottom:12px}
+.empty-state .msg{font-size:14px;font-weight:500;color:var(--text2);margin-bottom:4px}
+.empty-state .sub{font-size:12px}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:16px;width:480px;max-width:100%;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border)}
+.modal h2{font-size:15px;font-weight:600;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.detail-row{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid #F4F5F8;font-size:13px}
+.detail-row:last-of-type{border-bottom:none}
+.detail-label{color:var(--text2);font-size:12px;font-weight:500}
+.detail-val{text-align:right;word-break:break-all;max-width:65%}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.fr{margin-bottom:14px}
+.fr label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.fr textarea{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;resize:vertical;min-height:72px}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入中...</div></div>
+<div id="app" style="display:none">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
+    <div class="dv"></div>
+    <h1>📱 裝置審核</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="live-dot"></div>
+    <span id="lastUpdate">—</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num orange" id="cntPending">0</div><div class="stat-label">待審核</div></div>
+    <div class="stat-card"><div class="stat-num green"  id="cntApproved">0</div><div class="stat-label">已核准</div></div>
+    <div class="stat-card"><div class="stat-num red"    id="cntRejected">0</div><div class="stat-label">已拒絕</div></div>
+    <div class="stat-card"><div class="stat-num blue"   id="cntTotal">0</div><div class="stat-label">總申請數</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="setTab('pending')"   id="tab-pending">⏳ 待審核</button>
+    <button class="tab-btn"        onclick="setTab('approved')"  id="tab-approved">✅ 已核准</button>
+    <button class="tab-btn"        onclick="setTab('rejected')"  id="tab-rejected">❌ 已拒絕</button>
+    <button class="tab-btn"        onclick="setTab('all')"       id="tab-all">📋 全部</button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="搜尋姓名、身分證、MAC 位址..." oninput="filterList()">
+    <select id="osFilter" onchange="filterList()">
+      <option value="">所有裝置</option>
+      <option value="android">Android</option>
+      <option value="ios">iOS</option>
+    </select>
+    <button class="btn btn-primary" onclick="loadData()">🔄 重新整理</button>
+    <div id="batchBar" style="display:none;margin-left:auto;display:flex;align-items:center;gap:8px">
+      <span id="selectedCount" style="font-size:12px;color:var(--text2)">已選 0 筆</span>
+      <button class="btn btn-approve" onclick="batchApprove()">✅ 批次核准</button>
+      <button class="btn btn-reject"  onclick="batchReject()">❌ 批次拒絕</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" id="tableTitle">待審核裝置</span>
+      <span id="resultCount" style="font-size:12px;color:var(--text3)">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+            <th>申請人</th>
+            <th>裝置資訊</th>
+            <th>MAC 位址</th>
+            <th>申請時間</th>
+            <th>狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="deviceList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modalArea"></div>
+<div class="toast" id="toast"></div>
+
+</div><!-- #app -->
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, collection, getDocs, doc, getDoc,
+  updateDoc, query, orderBy, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain:"liangpinghri.firebaseapp.com",
+  projectId:"liangpinghri",
+  storageBucket:"liangpinghri.firebasestorage.app",
+  messagingSenderId:"410255807470",
+  appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+let allDevices = [];   // 所有裝置申請記錄
+let allUsers   = {};   // uid → user data cache
+let currentTab = 'pending';
+let currentUserUid = '';
+
+// ─── 資料載入 ─────────────────────────────────────────────
+window.loadData = async function() {
+  try {
+    // 1. 載入所有 users（快取）
+    const usersSnap = await getDocs(collection(db, 'users'));
+    usersSnap.forEach(d => { allUsers[d.id] = d.data(); });
+
+    // 2. 載入所有 devices
+    const devSnap = await getDocs(query(collection(db, 'devices'), orderBy('createdAt', 'desc')));
+    allDevices = devSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    updateStats();
+    filterList();
+    document.getElementById('lastUpdate').textContent = '最後更新：' + new Date().toLocaleTimeString('zh-TW');
+  } catch(e) {
+    showToast('載入失敗：' + e.message, '✕');
+  }
+};
+
+function updateStats() {
+  const pending  = allDevices.filter(d => d.status === 'pending').length;
+  const approved = allDevices.filter(d => d.status === 'approved').length;
+  const rejected = allDevices.filter(d => d.status === 'rejected' || d.status === 'revoked').length;
+  document.getElementById('cntPending').textContent  = pending;
+  document.getElementById('cntApproved').textContent = approved;
+  document.getElementById('cntRejected').textContent = rejected;
+  document.getElementById('cntTotal').textContent    = allDevices.length;
+  // Tab badge
+  document.getElementById('tab-pending').textContent = `⏳ 待審核${pending ? ' ('+pending+')' : ''}`;
+}
+
+// ─── Tab ─────────────────────────────────────────────────
+window.setTab = function(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  const titles = { pending:'待審核裝置', approved:'已核准裝置', rejected:'已拒絕 / 已撤銷', all:'所有裝置' };
+  document.getElementById('tableTitle').textContent = titles[tab];
+  document.getElementById('selectAll').checked = false;
+  filterList();
+};
+
+// ─── Filter & Render ─────────────────────────────────────
+window.filterList = function() {
+  const q   = (document.getElementById('searchInput').value || '').toLowerCase();
+  const osF = document.getElementById('osFilter').value;
+
+  let list = allDevices;
+  if (currentTab === 'pending')  list = list.filter(d => d.status === 'pending');
+  if (currentTab === 'approved') list = list.filter(d => d.status === 'approved');
+  if (currentTab === 'rejected') list = list.filter(d => d.status === 'rejected' || d.status === 'revoked');
+
+  if (q) list = list.filter(d => {
+    const u = allUsers[d.uid] || {};
+    return (u.name||'').toLowerCase().includes(q) ||
+           (u.idNo||'').toLowerCase().includes(q) ||
+           (d.mac||'').toLowerCase().includes(q) ||
+           (d.deviceName||'').toLowerCase().includes(q);
+  });
+  if (osF) list = list.filter(d => (d.platform||'').toLowerCase() === osF);
+
+  document.getElementById('resultCount').textContent = list.length + ' 筆';
+  renderTable(list);
+};
+
+function renderTable(list) {
+  const tbody = document.getElementById('deviceList');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7">
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        <div class="msg">目前沒有${currentTab==='pending'?'待審核':currentTab==='approved'?'已核准':currentTab==='rejected'?'已拒絕':''}的裝置申請</div>
+        <div class="sub">當員工透過 APP 送出裝置綁定申請後，記錄會出現在這裡</div>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(d => {
+    const u   = allUsers[d.uid] || {};
+    const initials = (u.name||'?').slice(0,2);
+    const ts  = d.createdAt ? tsToStr(d.createdAt) : '—';
+    const platform = (d.platform||'').toLowerCase();
+    const osBadge = platform === 'ios'
+      ? `<span class="badge b-ios">iOS</span>`
+      : `<span class="badge b-android">Android</span>`;
+    const statusBadge = {
+      pending:  `<span class="badge b-pending">待審核</span>`,
+      approved: `<span class="badge b-approved">已核准</span>`,
+      rejected: `<span class="badge b-rejected">已拒絕</span>`,
+      revoked:  `<span class="badge b-revoked">已撤銷</span>`,
+    }[d.status] || `<span class="badge">${d.status||'—'}</span>`;
+
+    const actions = [];
+    if (d.status === 'pending') {
+      actions.push(`<button class="btn btn-approve" onclick="openApprove('${d.id}')">✅ 核准</button>`);
+      actions.push(`<button class="btn btn-reject"  onclick="openReject('${d.id}')">❌ 拒絕</button>`);
+    } else if (d.status === 'approved') {
+      actions.push(`<button class="btn btn-revoke"  onclick="doRevoke('${d.id}')">↩ 撤銷</button>`);
+    }
+    actions.push(`<button class="btn" onclick="openDetail('${d.id}')">📋 詳情</button>`);
+
+    return `<tr>
+      <td><input type="checkbox" class="row-check" value="${d.id}" onchange="updateBatchBar()" ${d.status!=='pending'?'disabled':''}></td>
+      <td>
+        <div class="user-cell">
+          <div class="av">${initials}</div>
+          <div>
+            <div style="font-weight:500">${u.name||'未知用戶'}</div>
+            <div style="font-size:11px;color:var(--text3)">${u.idNo||d.uid.slice(0,8)}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="device-info">
+          <div class="device-name">${d.deviceName||'未知裝置'}</div>
+          <div class="device-meta">${osBadge} ${d.osVersion||''}</div>
+        </div>
+      </td>
+      <td><span class="mac-code">${formatMac(d.mac||'')}</span></td>
+      <td style="color:var(--text2);font-size:12px">${ts}</td>
+      <td>${statusBadge}</td>
+      <td><div class="actions">${actions.join('')}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── 格式化 ──────────────────────────────────────────────
+function formatMac(mac) {
+  // 確保大寫並以 : 分隔
+  return mac.replace(/[^0-9A-Fa-f]/g,'').toUpperCase().match(/.{1,2}/g)?.join(':') || mac;
+}
+
+function tsToStr(ts) {
+  const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
+  return d.toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// ─── 核准 ─────────────────────────────────────────────────
+window.openApprove = function(id) {
+  const d = allDevices.find(x => x.id === id);
+  if (!d) return;
+  const u = allUsers[d.uid] || {};
+  document.getElementById('modalArea').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h2>✅ 確認核准裝置</h2>
+        <div class="detail-row"><div class="detail-label">申請人</div><div class="detail-val">${u.name||'未知'} (${u.idNo||'—'})</div></div>
+        <div class="detail-row"><div class="detail-label">裝置名稱</div><div class="detail-val">${d.deviceName||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">MAC 位址</div><div class="detail-val"><span class="mac-code">${formatMac(d.mac||'')}</span></div></div>
+        <div class="detail-row"><div class="detail-label">作業系統</div><div class="detail-val">${d.platform||'—'} ${d.osVersion||''}</div></div>
+        <div style="margin-top:14px;padding:12px 14px;background:#E6FAF0;border:1px solid #ADE8C4;border-radius:9px;font-size:12px;color:#087443">
+          ✅ 核准後，此 MAC 位址將加入 Omada 白名單，員工即可使用此裝置打卡。
+        </div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-approve" onclick="doApprove('${id}')">確認核准</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.doApprove = async function(id) {
+  try {
+    await updateDoc(doc(db,'devices',id), {
+      status: 'approved',
+      approvedAt: serverTimestamp(),
+      approvedBy: currentUserUid,
+    });
+    // 同步呼叫 Firebase Function 加入 Omada 白名單
+    const d = allDevices.find(x => x.id === id);
+    if (d?.mac) {
+      try {
+        const fn = await fetch('https://us-central1-liangpinghri.cloudfunctions.net/addToOmadaWhitelist', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ mac: d.mac, deviceId: id, uid: d.uid })
+        });
+        const result = await fn.json();
+        if (!result.success) console.warn('Omada 白名單同步失敗', result);
+      } catch(e) {
+        console.warn('無法呼叫 Omada Function（可忽略，稍後自動重試）', e);
+      }
+    }
+    const idx = allDevices.findIndex(x => x.id === id);
+    if (idx !== -1) allDevices[idx].status = 'approved';
+    closeModal(); updateStats(); filterList();
+    showToast('裝置已核准，員工可開始打卡');
+  } catch(e) { showToast('核准失敗：' + e.message, '✕'); }
+};
+
+// ─── 拒絕 ─────────────────────────────────────────────────
+window.openReject = function(id) {
+  const d = allDevices.find(x => x.id === id);
+  if (!d) return;
+  const u = allUsers[d.uid] || {};
+  document.getElementById('modalArea').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h2>❌ 拒絕裝置申請</h2>
+        <div class="detail-row"><div class="detail-label">申請人</div><div class="detail-val">${u.name||'未知'} (${u.idNo||'—'})</div></div>
+        <div class="detail-row"><div class="detail-label">裝置名稱</div><div class="detail-val">${d.deviceName||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">MAC 位址</div><div class="detail-val"><span class="mac-code">${formatMac(d.mac||'')}</span></div></div>
+        <div class="fr" style="margin-top:16px">
+          <label>拒絕原因（選填，將顯示給員工）</label>
+          <textarea id="rejectReason" placeholder="例：請確認裝置資訊正確後重新申請..."></textarea>
+        </div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-reject" onclick="doReject('${id}')">確認拒絕</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.doReject = async function(id) {
+  const reason = document.getElementById('rejectReason')?.value || '';
+  try {
+    await updateDoc(doc(db,'devices',id), {
+      status: 'rejected',
+      rejectedAt: serverTimestamp(),
+      rejectedBy: currentUserUid,
+      rejectReason: reason,
+    });
+    const idx = allDevices.findIndex(x => x.id === id);
+    if (idx !== -1) { allDevices[idx].status = 'rejected'; allDevices[idx].rejectReason = reason; }
+    closeModal(); updateStats(); filterList();
+    showToast('裝置申請已拒絕');
+  } catch(e) { showToast('操作失敗：' + e.message, '✕'); }
+};
+
+// ─── 撤銷 ─────────────────────────────────────────────────
+window.doRevoke = async function(id) {
+  if (!confirm('確定要撤銷此裝置的打卡權限嗎？員工將無法再使用此裝置打卡。')) return;
+  try {
+    await updateDoc(doc(db,'devices',id), {
+      status: 'revoked',
+      revokedAt: serverTimestamp(),
+      revokedBy: currentUserUid,
+    });
+    const idx = allDevices.findIndex(x => x.id === id);
+    if (idx !== -1) allDevices[idx].status = 'revoked';
+    updateStats(); filterList();
+    showToast('裝置權限已撤銷');
+  } catch(e) { showToast('撤銷失敗：' + e.message, '✕'); }
+};
+
+// ─── 詳情 ─────────────────────────────────────────────────
+window.openDetail = function(id) {
+  const d = allDevices.find(x => x.id === id);
+  if (!d) return;
+  const u = allUsers[d.uid] || {};
+  const rows = [
+    ['申請人',   u.name || '未知'],
+    ['身分證號', u.idNo || d.uid],
+    ['裝置名稱', d.deviceName || '—'],
+    ['MAC 位址', `<span class="mac-code">${formatMac(d.mac||'')}</span>`],
+    ['作業系統', `${d.platform||'—'} ${d.osVersion||''}`],
+    ['APP 版本', d.appVersion || '—'],
+    ['申請時間', d.createdAt ? tsToStr(d.createdAt) : '—'],
+    ['狀態',     d.status || '—'],
+    ['核准時間', d.approvedAt ? tsToStr(d.approvedAt) : '—'],
+    ['拒絕原因', d.rejectReason || '—'],
+  ].map(([k,v]) => `<div class="detail-row"><div class="detail-label">${k}</div><div class="detail-val">${v}</div></div>`).join('');
+
+  document.getElementById('modalArea').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h2>📋 裝置詳情</h2>
+        ${rows}
+        <div class="mf"><button class="btn btn-primary" onclick="closeModal()">關閉</button></div>
+      </div>
+    </div>`;
+};
+
+// ─── 批次操作 ─────────────────────────────────────────────
+window.updateBatchBar = function() {
+  const checks = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batchBar');
+  const cnt = document.getElementById('selectedCount');
+  bar.style.display = checks.length ? 'flex' : 'none';
+  cnt.textContent = `已選 ${checks.length} 筆`;
+};
+
+window.toggleSelectAll = function() {
+  const all = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.row-check:not(:disabled)').forEach(c => c.checked = all);
+  updateBatchBar();
+};
+
+window.batchApprove = async function() {
+  const ids = Array.from(document.querySelectorAll('.row-check:checked')).map(c => c.value);
+  if (!ids.length) return;
+  if (!confirm(`確定要核准選取的 ${ids.length} 個裝置申請嗎？`)) return;
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      await updateDoc(doc(db,'devices',id), { status:'approved', approvedAt: serverTimestamp(), approvedBy: currentUserUid });
+      const idx = allDevices.findIndex(x => x.id === id);
+      if (idx !== -1) allDevices[idx].status = 'approved';
+      ok++;
+    } catch(e) { console.error(e); }
+  }
+  updateStats(); filterList();
+  showToast(`已批次核准 ${ok} 個裝置`);
+};
+
+window.batchReject = async function() {
+  const ids = Array.from(document.querySelectorAll('.row-check:checked')).map(c => c.value);
+  if (!ids.length) return;
+  if (!confirm(`確定要拒絕選取的 ${ids.length} 個裝置申請嗎？`)) return;
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      await updateDoc(doc(db,'devices',id), { status:'rejected', rejectedAt: serverTimestamp(), rejectedBy: currentUserUid });
+      const idx = allDevices.findIndex(x => x.id === id);
+      if (idx !== -1) allDevices[idx].status = 'rejected';
+      ok++;
+    } catch(e) { console.error(e); }
+  }
+  updateStats(); filterList();
+  showToast(`已批次拒絕 ${ok} 個裝置`);
+};
+
+// ─── Utilities ───────────────────────────────────────────
+window.closeModal = function() { document.getElementById('modalArea').innerHTML = ''; };
+
+function showToast(msg, icon = '✓') {
+  const t = document.getElementById('toast');
+  t.textContent = icon + ' ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── Auth Guard ──────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = '/hr-system/index.html'; return; }
+  const snap = await getDoc(doc(db,'users',user.uid));
+  if (!snap.exists() || snap.data().disabled) {
+    await signOut(auth); window.location.href = '/hr-system/index.html?disabled=1'; return;
+  }
+  const role = snap.data().role || 'employee';
+  if (role !== 'admin' && role !== 'consultant') {
+    window.location.href = '/hr-system/dashboard.html'; return;
+  }
+  currentUserUid = user.uid;
+  await loadData();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // 每 60 秒自動刷新
+  setInterval(loadData, 60000);
+});
+</script>
+</body>
+</html>
