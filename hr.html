@@ -154,8 +154,19 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
 .cdd-add input:focus{outline:none;border-color:var(--orange)}
 
+/* ⚠️ 警示 tooltip（手機觸控支援）*/
+.alert-tip{position:relative;display:inline-flex;align-items:center;cursor:pointer}
+.alert-tip .tip-box{
+  display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#1A1D23;color:#fff;font-size:12px;line-height:1.5;
+  padding:7px 11px;border-radius:8px;white-space:nowrap;z-index:500;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;
+  max-width:220px;white-space:normal;text-align:center;
+}
+.alert-tip .tip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1A1D23}
+.alert-tip:hover .tip-box,.alert-tip.tip-open .tip-box{display:block}
+
 </style>
-</head>
 <body>
 <div class="app">
   <div class="card">
@@ -684,12 +695,19 @@ function render() {
       </div></div>`;}
 
   } else {
-    const total=all.length, active=all.filter(r=>r.status==='在職').length,
-          stores=new Set(all.map(r=>r.workLocation).filter(Boolean)).size;
+    // 依權限過濾：manager/consultant 只計算自己管理的店面
+    const visibleAll = (currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
+      ? all.filter(r=>currentUserLocations.includes(r.workLocation))
+      : all;
+    const total=visibleAll.length,
+          active=visibleAll.filter(r=>r.status==='在職').length,
+          stores=(currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
+            ? currentUserLocations.length
+            : new Set(all.map(r=>r.workLocation).filter(Boolean)).size;
     stats=`<div class="stats">
       <div class="sc"><div class="sl">同仁總數</div><div class="sn">${total}</div></div>
       <div class="sc"><div class="sl">正式在職</div><div class="sn">${active}</div></div>
-      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${all.filter(r=>r.status==='留職停薪').length}</div></div>
+      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${visibleAll.filter(r=>r.status==='留職停薪').length}</div></div>
       <div class="sc"><div class="sl">現有店面數</div><div class="sn">${stores}</div></div>
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
@@ -753,9 +771,9 @@ function render() {
           else if(mo3>=12){const y3=Math.floor((pStart-sdObj-365.25*24*3600*1000*(Math.round(mo3/12)-1))/0||0);const yr3=Math.floor(mo3/12);if(yr3===1)lastAnn=7;else if(yr3===2)lastAnn=10;else if(yr3<5)lastAnn=14;else if(yr3<10)lastAnn=15;else lastAnn=Math.min(15+yr3-10,30);}
           return(lastAnn-lastUsedN)>0;
         })();
-        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
+        const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span title="${[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、')}" style="color:#f59e0b;font-size:12px">⚠️</span>`:''}</div></td>
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span class="alert-tip" onclick="event.stopPropagation();this.classList.toggle('tip-open')" ontouchstart="event.stopPropagation();this.classList.toggle('tip-open')"><span style="color:#f59e0b;font-size:12px">⚠️</span><span class="tip-box">${alertMsg}</span></span>`:''}</div></td>
         <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
@@ -1930,6 +1948,13 @@ window.delResigned=async function(id){
   await saveData();
   showToast('已刪除 ✓');
 };
+// ── ⚠️ tooltip 點擊其他地方關閉 ──
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+});
+document.addEventListener('touchstart', ()=>{
+  document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+}, {passive:true});
 </script>
 </body>
 </html>
