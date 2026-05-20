@@ -77,7 +77,12 @@ window.doLogin=async function(){
   try{
     const email=`${idNo.toLowerCase()}@liangpinghri.com`;
     const cred=await signInWithEmailAndPassword(auth,email,pwd);
-    try{ await setDoc(doc(db,'users',cred.user.uid),{lastLoginAt:new Date().toISOString()},{merge:true}); }catch(_){}
+    // 寫入最後登入時間，確保 Firestore 已就緒才執行
+    try{
+      const _db=getFirestore(app);
+      const _doc=doc(_db,'users',cred.user.uid);
+      await setDoc(_doc,{lastLoginAt:new Date().toISOString()},{merge:true});
+    }catch(e2){ console.warn('lastLoginAt write failed:',e2); }
     window.location.href='dashboard.html';
   }catch(e){
     btn.disabled=false;btn.textContent='登入';
