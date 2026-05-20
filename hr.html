@@ -771,6 +771,7 @@ function render() {
           else if(mo3>=12){const y3=Math.floor((pStart-sdObj-365.25*24*3600*1000*(Math.round(mo3/12)-1))/0||0);const yr3=Math.floor(mo3/12);if(yr3===1)lastAnn=7;else if(yr3===2)lastAnn=10;else if(yr3<5)lastAnn=14;else if(yr3<10)lastAnn=15;else lastAnn=Math.min(15+yr3-10,30);}
           return(lastAnn-lastUsedN)>0;
         })();
+        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span class="alert-tip" onclick="event.stopPropagation();this.classList.toggle('tip-open')" ontouchstart="event.stopPropagation();this.classList.toggle('tip-open')"><span style="color:#f59e0b;font-size:12px">⚠️</span><span class="tip-box">${alertMsg}</span></span>`:''}</div></td>
