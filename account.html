@@ -243,6 +243,22 @@ window.filterList = function(){
 
 window._lastFiltered = [];
 
+function fmtLoginTime(iso){
+  if(!iso) return '從未登入';
+  const d=new Date(iso);
+  const now=new Date();
+  const diff=now-d;
+  const mins=Math.floor(diff/60000);
+  if(mins<1) return '剛剛';
+  if(mins<60) return mins+'分鐘前';
+  const hrs=Math.floor(mins/60);
+  if(hrs<24) return hrs+'小時前';
+  const days=Math.floor(hrs/24);
+  if(days<7) return days+'天前';
+  const tw=d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',timeZone:'Asia/Taipei'})+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});
+  return tw;
+}
+
 function renderListItems(users){
   window._lastFiltered = users;
   renderPage(users, currentPage);
@@ -281,6 +297,7 @@ function renderPage(users, page){
         </div>
         <div class="acc-id">${u.idNo||'—'}</div>
         ${showLocs ? `<div class="acc-locs">${locsHtml}</div>` : ''}
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">🕐 最後登入：${fmtLoginTime(u.lastLoginAt)}</div>
       </div>
       <div class="acc-actions">
         <button class="btn btn-ghost" onclick="openEdit('${u.uid}')">✎ 編輯</button>

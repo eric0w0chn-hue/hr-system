@@ -56,9 +56,11 @@ body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
+const db=getFirestore(app);
 document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('idNo').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwd').focus();});
 if(new URLSearchParams(window.location.search).get('disabled')==='1'){
@@ -74,7 +76,8 @@ window.doLogin=async function(){
   err.textContent='';btn.disabled=true;btn.textContent='登入中...';
   try{
     const email=`${idNo.toLowerCase()}@liangpinghri.com`;
-    await signInWithEmailAndPassword(auth,email,pwd);
+    const cred=await signInWithEmailAndPassword(auth,email,pwd);
+    try{ await setDoc(doc(db,'users',cred.user.uid),{lastLoginAt:new Date().toISOString()},{merge:true}); }catch(_){}
     window.location.href='dashboard.html';
   }catch(e){
     btn.disabled=false;btn.textContent='登入';
