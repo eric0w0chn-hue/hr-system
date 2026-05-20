@@ -157,11 +157,12 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 /* ⚠️ 警示 tooltip（手機觸控支援）*/
 .alert-tip{position:relative;display:inline-flex;align-items:center;cursor:pointer}
 .alert-tip .tip-box{
-  display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  display:none;position:fixed;
   background:#1A1D23;color:#fff;font-size:12px;line-height:1.5;
-  padding:7px 11px;border-radius:8px;z-index:500;
-  box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;
+  padding:7px 11px;border-radius:8px;z-index:9999;
+  box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:none;
   max-width:220px;white-space:normal;text-align:center;
+  transform:translateX(-50%) translateY(-100%) translateY(-8px);
 }
 .alert-tip .tip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1A1D23}
 @media(hover:hover){.alert-tip:hover .tip-box{display:block}}
@@ -1951,12 +1952,37 @@ window.delResigned=async function(id){
   showToast('已刪除 ✓');
 };
 // ── ⚠️ tooltip 點擊其他地方關閉 ──
-// ── ⚠️ tooltip：手機點擊切換，電腦純 CSS hover ──
+// ── ⚠️ tooltip：電腦 hover 定位 + 手機點擊切換，兩者都阻止冒泡 ──
 (function(){
   let isTouchDevice = false;
   document.addEventListener('touchstart', ()=>{ isTouchDevice=true; }, {once:true, passive:true});
 
-  // 手機：點 ⚠️ 切換；點其他地方關閉
+  // 動態定位 tip-box（因為 td 有 overflow:hidden，需要 fixed 定位後用 JS 設座標）
+  function positionTip(tip){
+    const box = tip.querySelector('.tip-box');
+    if(!box) return;
+    const rect = tip.getBoundingClientRect();
+    box.style.left = (rect.left + rect.width/2) + 'px';
+    box.style.top  = (rect.top - 8) + 'px';
+  }
+
+  // 電腦：mouseover 定位
+  document.addEventListener('mouseover', (e)=>{
+    const tip = e.target.closest('.alert-tip');
+    if(tip) positionTip(tip);
+  });
+
+  // 電腦：click 阻止冒泡（不讓 tr 的 onclick 觸發）
+  document.addEventListener('click', (e)=>{
+    const tip = e.target.closest('[data-alert-tip]');
+    if(tip){
+      e.stopPropagation();
+      return;
+    }
+    document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+  }, true); // capture phase 確保優先攔截
+
+  // 手機：touchend 切換，阻止冒泡
   document.addEventListener('touchend', (e)=>{
     if(!isTouchDevice) return;
     const tip = e.target.closest('[data-alert-tip]');
@@ -1964,19 +1990,11 @@ window.delResigned=async function(id){
       e.stopPropagation();
       const wasOpen = tip.classList.contains('tip-open');
       document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
-      if(!wasOpen) tip.classList.add('tip-open');
+      if(!wasOpen){ positionTip(tip); tip.classList.add('tip-open'); }
     } else {
       document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
     }
   }, {passive:true});
-
-  // 電腦：點其他地方關閉（以防萬一）
-  document.addEventListener('click', (e)=>{
-    if(isTouchDevice) return;
-    if(!e.target.closest('.alert-tip')){
-      document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
-    }
-  });
 })();
 </script>
 </body>
