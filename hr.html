@@ -159,12 +159,13 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .alert-tip .tip-box{
   display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
   background:#1A1D23;color:#fff;font-size:12px;line-height:1.5;
-  padding:7px 11px;border-radius:8px;white-space:nowrap;z-index:500;
+  padding:7px 11px;border-radius:8px;z-index:500;
   box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;
   max-width:220px;white-space:normal;text-align:center;
 }
 .alert-tip .tip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1A1D23}
-.alert-tip:hover .tip-box,.alert-tip.tip-open .tip-box{display:block}
+@media(hover:hover){.alert-tip:hover .tip-box{display:block}}
+.alert-tip.tip-open .tip-box{display:block}
 
 </style>
 <body>
@@ -774,7 +775,7 @@ function render() {
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span class="alert-tip" onclick="event.stopPropagation();this.classList.toggle('tip-open')" ontouchend="event.stopPropagation();event.preventDefault();this.classList.toggle('tip-open')"><span style="color:#f59e0b;font-size:12px">⚠️</span><span class="tip-box">${alertMsg}</span></span>`:''}</div></td>
+        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span class="alert-tip" data-alert-tip="1"><span style="color:#f59e0b;font-size:12px">⚠️</span><span class="tip-box">${alertMsg}</span></span>`:''}</div></td>
         <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
@@ -1950,16 +1951,33 @@ window.delResigned=async function(id){
   showToast('已刪除 ✓');
 };
 // ── ⚠️ tooltip 點擊其他地方關閉 ──
-document.addEventListener('click', (e)=>{
-  if(!e.target.closest('.alert-tip')){
-    document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
-  }
-});
-document.addEventListener('touchend', (e)=>{
-  if(!e.target.closest('.alert-tip')){
-    document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
-  }
-}, {passive:true});
+// ── ⚠️ tooltip：手機點擊切換，電腦純 CSS hover ──
+(function(){
+  let isTouchDevice = false;
+  document.addEventListener('touchstart', ()=>{ isTouchDevice=true; }, {once:true, passive:true});
+
+  // 手機：點 ⚠️ 切換；點其他地方關閉
+  document.addEventListener('touchend', (e)=>{
+    if(!isTouchDevice) return;
+    const tip = e.target.closest('[data-alert-tip]');
+    if(tip){
+      e.stopPropagation();
+      const wasOpen = tip.classList.contains('tip-open');
+      document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+      if(!wasOpen) tip.classList.add('tip-open');
+    } else {
+      document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+    }
+  }, {passive:true});
+
+  // 電腦：點其他地方關閉（以防萬一）
+  document.addEventListener('click', (e)=>{
+    if(isTouchDevice) return;
+    if(!e.target.closest('.alert-tip')){
+      document.querySelectorAll('.alert-tip.tip-open').forEach(el=>el.classList.remove('tip-open'));
+    }
+  });
+})();
 </script>
 </body>
 </html>
