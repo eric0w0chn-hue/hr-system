@@ -647,8 +647,8 @@ function render() {
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
         ${sth('職稱','title','120px')}
-        ${sth('到職日','startDate','90px')}
-        ${sth('離職日','resignDate','90px')}
+        ${sth('到職日','startDate','130px')}
+        ${sth('離職日','resignDate','130px')}
         ${sth('狀態','status','80px')}
         <th style="width:60px">操作</th>
       </tr></thead>
@@ -705,8 +705,8 @@ function render() {
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
         ${sth('職稱','title','120px')}
-        ${sth('到職日','startDate','90px')}
-        ${sth('年資','calcYears','90px')}
+        ${sth('到職日','startDate','130px')}
+        ${sth('年資','calcYears','80px')}
         ${sth('狀態','status','80px')}
         <th style="width:70px">操作</th>
       </tr></thead>
@@ -817,7 +817,7 @@ function render() {
             <td>${e.name||'—'}</td>
             <td>${e.relation||'—'}</td>
             <td>${e.phone||'—'}</td>
-            <td><button class="ibt" onclick="removeEmergencyContact(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+            <td><div style="display:flex;gap:2px"><button class="ibt" onclick="openModal('editEmergency',${sel.id},${i})" title="編輯">✎</button><button class="ibt" onclick="removeEmergencyContact(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></div></td>
           </tr>`).join('')}</tbody>
         </table></div>`:'<div class="empty-state" style="padding:24px">尚無緊急聯絡人，點上方按鈕新增</div>'}`;
       } else if(detailTab==='salary'){
@@ -1343,6 +1343,17 @@ function openModal(mode, targetId, extraIdx) {
       <div class="fr"><label>關係</label><input id="m-erel" placeholder="例：配偶、父親、母親"></div>
       <div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" placeholder="0912-345-678"></div>
     </div>`;
+  } else if(mode==='editEmergency'){
+    const r=employees.find(x=>x.id===targetId)||{};
+    const contacts=Array.isArray(r.emergencyContacts)&&r.emergencyContacts.length?r.emergencyContacts:(r.emergency&&r.emergency.name?[r.emergency]:[]);
+    const ec=contacts[extraIdx]||{};
+    title='編輯緊急聯絡人';
+    editTarget={empId:targetId,idx:extraIdx};
+    html=`<div class="fg">
+      <div class="fr"><label>聯絡人姓名 *</label><input id="m-ename" value="${ec.name||''}" placeholder="姓名"></div>
+      <div class="fr"><label>關係</label><input id="m-erel" value="${ec.relation||''}" placeholder="例：配偶、父親、母親"></div>
+      <div class="fr" style="grid-column:span 2"><label>電話</label><input id="m-ephone" value="${ec.phone||''}" placeholder="0912-345-678"></div>
+    </div>`;
   } else if(mode==='editInsurance'){
     const r=employees.find(x=>x.id===targetId)||{};
     const ins=r.insurance||{grade:'',dependents:[]};
@@ -1485,6 +1496,12 @@ async function saveModal(){
     const r=employees.find(x=>x.id===tid);if(!r)return;
     if(!r.emergencyContacts)r.emergencyContacts=[];
     r.emergencyContacts.push({name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')});
+  } else if(m==='editEmergency'){
+    if(!g('m-ename')){alert('請填寫聯絡人姓名');return;}
+    const et=editTarget&&typeof editTarget==='object'?editTarget:{empId:tid,idx:0};
+    const r=employees.find(x=>x.id===et.empId);if(!r)return;
+    if(!r.emergencyContacts)r.emergencyContacts=[];
+    r.emergencyContacts[et.idx]={name:g('m-ename'),relation:g('m-erel'),phone:g('m-ephone')};
   } else if(m==='addSalary'||m==='editSalary'){
     if(m==='editSalary'&&editTarget&&typeof editTarget==='object'){
       const r=employees.find(x=>x.id===editTarget.empId);
@@ -1565,7 +1582,17 @@ window.triggerSearch=function(){
 
 function bindSearchInput(){}
 window.setSf=function(v){sf=v;selId=null;currentPage=1;render();};
-window.setSelId=(id)=>{selId=(selId===id?null:id);render();};
+window.setSelId=(id)=>{
+  const opening = selId !== id;
+  selId=(selId===id?null:id);
+  render();
+  if(opening && selId !== null){
+    setTimeout(()=>{
+      const det=document.querySelector('.detail');
+      if(det) det.scrollIntoView({behavior:'smooth',block:'start'});
+    },50);
+  }
+};
 window.setDetailTab=function(t){
   detailTab=t;
   render();
