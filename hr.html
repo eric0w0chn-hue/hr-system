@@ -500,7 +500,7 @@ const calcYears = d => {
   const y=Math.floor(ms/31536000000),m=Math.floor((ms%31536000000)/2592000000);
   return y>0?`${y}年${m}個月`:`${m}個月`;
 };
-const isBadge = s => { const m={錄取:'bg',待通知:'ba',已婉拒:'bgr'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
+const isBadge = s => { const m={錄取:'bg',待通知:'ba',已婉拒:'bgr',未前來面試:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
 const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s}</span>` };
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
@@ -573,15 +573,15 @@ function render() {
 
   if(tab==='interview'){
     const total=all.length,
-          fit=all.filter(r=>r.fit==='合適').length,
+          noShow=all.filter(r=>r.status==='未前來面試').length,
           pending=all.filter(r=>r.status==='待通知').length;
     stats=`<div class="stats">
       <div class="sc"><div class="sl">求職者總數</div><div class="sn">${total}</div></div>
       <div class="sc"><div class="sl">已錄取</div><div class="sn">${all.filter(r=>r.status==='錄取').length}</div></div>
       <div class="sc"><div class="sl">待回覆</div><div class="sn">${pending}</div></div>
-      <div class="sc"><div class="sl">評為合適</div><div class="sn">${fit}</div></div>
+      <div class="sc" style="cursor:pointer;${sf==='未前來面試'?'border-left-color:#e24b4a;background:#fff5f5':''}" onclick="setSf(sf==='未前來面試'?'':'未前來面試')" title="點擊篩選未前來面試"><div class="sl">未前來面試</div><div class="sn" style="${sf==='未前來面試'?'color:#e24b4a':''}">${noShow}</div>${sf==='未前來面試'?'<div style="font-size:10px;color:#e24b4a;margin-top:2px">▼ 篩選中</div>':''}</div>
     </div>`;
-    const sopts=['','錄取','待通知','已婉拒'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
+    const sopts=['','錄取','待通知','已婉拒','未前來面試'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSf(this.value)">${sopts}</select>
@@ -1284,7 +1284,7 @@ function openModal(mode, targetId, extraIdx) {
       </div>
       <div class="fr"><label>來源管道</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div>
       <div class="fr"><label>適合度評估</label><select id="m-fit"><option value="">未評估</option><option>合適</option><option>尚可</option><option>不佳</option></select></div>
-      <div class="fr"><label>狀態</label><select id="m-status"><option>待通知</option><option>錄取</option><option>已婉拒</option></select></div>
+      <div class="fr"><label>狀態</label><select id="m-status"><option>待通知</option><option>錄取</option><option>已婉拒</option><option>未前來面試</option></select></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
