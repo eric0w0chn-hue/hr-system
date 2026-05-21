@@ -1492,7 +1492,7 @@ async function saveModal(){
         await signOut2(auth2); // 立刻登出次要實例
         const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]};
         employees.unshift(newEmp);
-        await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', createdAt: new Date().toISOString() });
+        await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', disabled: false, createdAt: new Date().toISOString() });
         showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);
       } catch(err) {
         console.error(err);
