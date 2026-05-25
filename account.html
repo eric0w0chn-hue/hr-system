@@ -158,7 +158,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="employee">同仁</option>
       </select>
       <span id="searchCount" style="font-size:12px;color:var(--text3);white-space:nowrap"></span>
-      <button class="btn btn-outline" onclick="showOpLog()" style="margin-left:8px;white-space:nowrap">📋 操作日誌</button>
+      <button class="btn btn-outline" onclick="window.location.href='/hr-system/oplog.html'" style="margin-left:8px;white-space:nowrap">📋 操作日誌</button>
     </div>
     <div class="accounts-grid" id="accountList">
       <div class="empty">載入中...</div>
@@ -172,7 +172,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, collection, setDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, collection, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
@@ -420,40 +420,6 @@ window.deleteAccount = async function(uid){
 };
 
 window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
-
-window.showOpLog = async function(){
-  const modalArea = document.getElementById('modalArea');
-  modalArea.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal-box" style="max-width:680px">
-      <div class="modal-header"><span>📋 操作日誌</span><button class="modal-close" onclick="closeModal()">✕</button></div>
-      <div id="oplog-body" style="padding:16px;min-height:80px;text-align:center;color:var(--text3)">載入中...</div>
-    </div>
-  </div>`;
-  try{
-    const q = query(collection(db,'hr_oplogs'), orderBy('ts','desc'), limit(100));
-    const snaps = await getDocs(q);
-    const logs = snaps.docs.map(d=>d.data());
-    if(!logs.length){
-      document.getElementById('oplog-body').innerHTML='<div style="padding:24px;text-align:center;color:var(--text3)">尚無操作紀錄</div>';
-      return;
-    }
-    const html = logs.map(l=>{
-      const ts = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
-      const timeStr = ts.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',timeZone:'Asia/Taipei'})+' '+ts.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});
-      const actionColor = l.action?.includes('刪除')?'#e24b4a':l.action?.includes('新增')?'#16a34a':'#2563eb';
-      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
-        <span style="color:var(--text3);white-space:nowrap;min-width:80px">${timeStr}</span>
-        <span style="font-weight:600;min-width:60px">${l.editor||'—'}</span>
-        <span style="color:#6b6b68;min-width:50px">${l.role||''}</span>
-        <span style="color:${actionColor};font-weight:500;min-width:70px">${l.action||'—'}</span>
-        <span style="color:var(--text2)">${l.detail||''}</span>
-      </div>`;
-    }).join('');
-    document.getElementById('oplog-body').innerHTML = `<div style="max-height:480px;overflow-y:auto">${html}</div>`;
-  }catch(e){
-    document.getElementById('oplog-body').innerHTML='<div style="color:#e24b4a">載入失敗：'+e.message+'</div>';
-  }
-};
 
 onAuthStateChanged(auth, async user => {
   if(!user){ window.location.href='/hr-system/index.html'; return; }

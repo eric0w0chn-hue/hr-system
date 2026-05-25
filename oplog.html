@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作日誌 — 鑫系統</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#FFFFFF;--surface2:#F7F8FA;
+  --border:#E4E7ED;--border2:#D0D5DD;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
+  --accent:#3B5BDB;--accent-light:#EEF2FF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* Topbar */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.divider-v{width:1px;height:20px;background:var(--border)}
+.page-name{font-size:15px;font-weight:600;color:var(--text)}
+
+/* Main */
+.main{max-width:1100px;margin:0 auto;padding:28px 24px}
+
+/* Filter bar */
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filter-bar input,.filter-bar select{font-size:13px;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s;outline:none}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
+.filter-bar input{flex:1;min-width:160px}
+.btn{font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;border:1px solid var(--border)}
+.btn-outline{background:var(--surface);color:var(--text2)}
+.btn-outline:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#2F4AC8}
+
+/* Stats row */
+.stats-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;flex:1;min-width:120px}
+.stat-card .sl{font-size:11px;color:var(--text3);margin-bottom:4px}
+.stat-card .sn{font-size:20px;font-weight:700;color:var(--text)}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.table-wrap table{width:100%;border-collapse:collapse}
+.table-wrap th{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:11px 16px;background:var(--surface2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.table-wrap td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+.table-wrap tr:last-child td{border-bottom:none}
+.table-wrap tr:hover td{background:var(--surface2)}
+
+/* Action badges */
+.act{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.act-add{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.act-edit{background:#EEF2FF;color:#3B5BDB;border:1px solid #BAC8FF}
+.act-del{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+.act-import{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.act-other{background:#F4F4F4;color:#5A6175;border:1px solid #E4E7ED}
+
+/* Role badge */
+.role{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.role-admin{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.role-consultant{background:#F0EBFF;color:#6741D9;border:1px solid #D8CAFF}
+.role-manager{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.role-employee{background:#E8EEFF;color:#3B5BDB;border:1px solid #BAC8FF}
+
+/* Empty / Loading */
+.empty-state{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Loading screen */
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+.spinner-lg{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2)}
+.pg-info{font-size:12px;color:var(--text3)}
+.pg-btns{display:flex;gap:6px}
+.pg-btn{font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;transition:all .15s;min-width:32px;text-align:center}
+.pg-btn:hover:not([disabled]){background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+.pg-active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;font-weight:600}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:640px){
+  .topbar{padding:0 16px}
+  .main{padding:16px}
+  .filter-bar{flex-direction:column}
+  .filter-bar input{width:100%}
+  th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5){display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner-lg"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='/hr-system/account.html'">← 帳號管理</button>
+      <div class="divider-v"></div>
+      <span class="page-name">📋 操作日誌</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-outline" onclick="exportCSV()">⬇ 匯出 CSV</button>
+      <button class="btn btn-primary" onclick="loadLogs()">↺ 重新整理</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- 統計卡片 -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="sl">總筆數</div><div class="sn" id="statTotal">—</div></div>
+      <div class="stat-card"><div class="sl">新增</div><div class="sn" id="statAdd" style="color:#087443">—</div></div>
+      <div class="stat-card"><div class="sl">編輯</div><div class="sn" id="statEdit" style="color:#3B5BDB">—</div></div>
+      <div class="stat-card"><div class="sl">刪除</div><div class="sn" id="statDel" style="color:#C0392B">—</div></div>
+      <div class="stat-card"><div class="sl">今日操作</div><div class="sn" id="statToday">—</div></div>
+    </div>
+
+    <!-- 篩選列 -->
+    <div class="filter-bar">
+      <input type="text" id="fEditor" placeholder="搜尋操作者..." oninput="applyFilter()">
+      <select id="fAction" onchange="applyFilter()">
+        <option value="">全部動作</option>
+        <option value="新增">新增</option>
+        <option value="編輯">編輯</option>
+        <option value="刪除">刪除</option>
+        <option value="匯入">匯入/還原</option>
+      </select>
+      <select id="fRole" onchange="applyFilter()">
+        <option value="">全部角色</option>
+        <option value="admin">管理員</option>
+        <option value="consultant">顧問</option>
+        <option value="manager">店長</option>
+        <option value="employee">同仁</option>
+      </select>
+      <input type="date" id="fDateFrom" onchange="applyFilter()" title="起始日期">
+      <input type="date" id="fDateTo" onchange="applyFilter()" title="結束日期">
+      <button class="btn btn-outline" onclick="clearFilter()">✕ 清除篩選</button>
+    </div>
+
+    <!-- 日誌表格 -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">時間</th>
+            <th style="width:90px">操作者</th>
+            <th style="width:80px">角色</th>
+            <th style="width:100px">動作</th>
+            <th>對象／內容</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody">
+          <tr><td colspan="5"><div class="empty-state"><div class="spinner"></div>載入中...</div></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination" style="display:none">
+        <span class="pg-info" id="pgInfo"></span>
+        <div class="pg-btns" id="pgBtns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain: "liangpinghri.firebaseapp.com",
+  projectId: "liangpinghri",
+  storageBucket: "liangpinghri.firebasestorage.app",
+  messagingSenderId: "410255807470",
+  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let allLogs = [];
+let filtered = [];
+const PAGE_SIZE = 50;
+let currentPage = 1;
+
+// ── Toast ──
+function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200); }
+
+// ── Action badge ──
+function actBadge(action){
+  if(!action) return '<span class="act act-other">—</span>';
+  if(action.includes('新增')) return `<span class="act act-add">${action}</span>`;
+  if(action.includes('編輯')) return `<span class="act act-edit">${action}</span>`;
+  if(action.includes('刪除')) return `<span class="act act-del">${action}</span>`;
+  if(action.includes('匯入')||action.includes('還原')) return `<span class="act act-import">${action}</span>`;
+  return `<span class="act act-other">${action}</span>`;
+}
+
+function roleBadge(role){
+  const map={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
+  const cls={admin:'role-admin',consultant:'role-consultant',manager:'role-manager',employee:'role-employee'};
+  return `<span class="role ${cls[role]||'role-employee'}">${map[role]||role||'—'}</span>`;
+}
+
+function fmtTime(ts){
+  const d = ts?.toDate ? ts.toDate() : new Date(ts||0);
+  const date = d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',timeZone:'Asia/Taipei'});
+  const time = d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});
+  return `<div style="font-weight:500">${date}</div><div style="font-size:11px;color:var(--text3)">${time}</div>`;
+}
+
+// ── 載入日誌 ──
+window.loadLogs = async function(){
+  try{
+    const q = query(collection(db,'hr_oplogs'), orderBy('ts','desc'), limit(500));
+    const snaps = await getDocs(q);
+    allLogs = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    updateStats();
+    applyFilter();
+    showToast('已載入最新資料');
+  }catch(e){
+    console.error(e);
+    document.getElementById('logTableBody').innerHTML=`<tr><td colspan="5"><div class="empty-state" style="color:#e24b4a">載入失敗：${e.message}</div></td></tr>`;
+  }
+};
+
+// ── 統計卡片 ──
+function updateStats(){
+  const today = new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'});
+  document.getElementById('statTotal').textContent = allLogs.length;
+  document.getElementById('statAdd').textContent = allLogs.filter(l=>l.action?.includes('新增')).length;
+  document.getElementById('statEdit').textContent = allLogs.filter(l=>l.action?.includes('編輯')).length;
+  document.getElementById('statDel').textContent = allLogs.filter(l=>l.action?.includes('刪除')).length;
+  document.getElementById('statToday').textContent = allLogs.filter(l=>{
+    const d = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
+    return d.toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'})===today;
+  }).length;
+}
+
+// ── 篩選 ──
+window.applyFilter = function(){
+  const editor = document.getElementById('fEditor').value.toLowerCase();
+  const action = document.getElementById('fAction').value;
+  const role   = document.getElementById('fRole').value;
+  const from   = document.getElementById('fDateFrom').value;
+  const to     = document.getElementById('fDateTo').value;
+
+  filtered = allLogs.filter(l=>{
+    if(editor && !(l.editor||'').toLowerCase().includes(editor)) return false;
+    if(action && !(l.action||'').includes(action)) return false;
+    if(role && l.role !== role) return false;
+    if(from || to){
+      const d = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
+      const ds = d.toISOString().slice(0,10);
+      if(from && ds < from) return false;
+      if(to && ds > to) return false;
+    }
+    return true;
+  });
+  currentPage = 1;
+  renderTable();
+};
+
+window.clearFilter = function(){
+  document.getElementById('fEditor').value='';
+  document.getElementById('fAction').value='';
+  document.getElementById('fRole').value='';
+  document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';
+  applyFilter();
+};
+
+// ── 渲染表格 ──
+function renderTable(){
+  const tbody = document.getElementById('logTableBody');
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page = filtered.slice(start, start+PAGE_SIZE);
+
+  if(!page.length){
+    tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state">沒有符合的紀錄</div></td></tr>`;
+    document.getElementById('pagination').style.display='none';
+    return;
+  }
+
+  tbody.innerHTML = page.map(l=>`
+    <tr>
+      <td>${fmtTime(l.ts)}</td>
+      <td style="font-weight:500">${l.editor||'—'}</td>
+      <td>${roleBadge(l.role)}</td>
+      <td>${actBadge(l.action)}</td>
+      <td style="color:var(--text2);font-size:12px">${l.detail||'—'}</td>
+    </tr>`).join('');
+
+  // Pagination
+  const pg = document.getElementById('pagination');
+  const pgInfo = document.getElementById('pgInfo');
+  const pgBtns = document.getElementById('pgBtns');
+  pg.style.display = totalPages>1 ? 'flex' : 'none';
+  pgInfo.textContent = `第 ${start+1}–${Math.min(start+PAGE_SIZE,total)} 筆，共 ${total} 筆`;
+
+  let btns='';
+  btns+=`<button class="pg-btn" ${currentPage===1?'disabled':''} onclick="goPage(${currentPage-1})">‹</button>`;
+  for(let i=1;i<=totalPages;i++){
+    if(i===1||i===totalPages||Math.abs(i-currentPage)<=1)
+      btns+=`<button class="pg-btn${i===currentPage?' pg-active':''}" onclick="goPage(${i})">${i}</button>`;
+    else if(Math.abs(i-currentPage)===2)
+      btns+=`<span style="padding:5px 4px;color:var(--text3);font-size:12px">…</span>`;
+  }
+  btns+=`<button class="pg-btn" ${currentPage===totalPages?'disabled':''} onclick="goPage(${currentPage+1})">›</button>`;
+  pgBtns.innerHTML=btns;
+}
+
+window.goPage = function(p){ currentPage=p; renderTable(); window.scrollTo(0,0); };
+
+// ── 匯出 CSV ──
+window.exportCSV = function(){
+  if(!filtered.length){showToast('沒有資料可匯出');return;}
+  const rows=[['時間','操作者','角色','動作','對象/內容']];
+  filtered.forEach(l=>{
+    const d = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
+    rows.push([
+      d.toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}),
+      l.editor||'',l.role||'',l.action||'',l.detail||''
+    ]);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`oplog-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('CSV 已下載');
+};
+
+// ── Auth Guard ──
+onAuthStateChanged(auth, async user=>{
+  if(!user){ window.location.href='/hr-system/index.html'; return; }
+  try{
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()||snap.data().disabled||snap.data().role!=='admin'){
+      window.location.href='/hr-system/dashboard.html'; return;
+    }
+  }catch(e){ window.location.href='/hr-system/dashboard.html'; return; }
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+  await loadLogs();
+});
+</script>
+</body>
+</html>
