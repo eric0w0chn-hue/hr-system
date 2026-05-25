@@ -455,6 +455,7 @@ async function saveData() {
 let interviews=[], employees=[], resigned=[];
 let currentUserRole = 'admin';
 let currentUserLocations = [];
+let currentUserName = 'Admin';
 
 // ── 權限初始化：載入目前使用者角色 ──
 async function initAuth(){
@@ -482,6 +483,7 @@ async function initAuth(){
         }
         currentUserRole = data.role || 'employee';
         currentUserLocations = data.locations || [];
+        currentUserName = data.name || data.idNo || 'Unknown';
         if(currentUserRole === 'employee'){
           window.location.href = '/hr-system/dashboard.html';
           return;
@@ -559,6 +561,8 @@ function exportJSON() {
 
 // ── 匯入 JSON ──
 function importJSON() {
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅限 Admin 使用還原功能');return;}
+  if(!confirm('⚠️ 警告：還原將覆蓋目前所有資料，此操作無法復原！\n\n確定要繼續嗎？')){return;}
   const input=document.createElement('input');input.type='file';input.accept='.json';
   input.onchange=e=>{
     const f=e.target.files[0];if(!f)return;
@@ -619,7 +623,7 @@ function render() {
         <td>${isBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editInterview',${r.id})" title="編輯">✎</button>
-          <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
+          ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>`:''}
         </div></td>
       </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
       </tbody></table></div>`;
@@ -644,6 +648,18 @@ function render() {
           <div class="di"><div class="dl">兵役狀況</div><div class="dv">${sel.military||'—'}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">面試備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
+        ${(()=>{
+          const logs=sel.editLog||[];
+          const createdStr=sel.createdAt?`<div style="font-size:11px;color:#6b6b68;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+            📋 建立者：${sel.createdBy||'—'} · ${new Date(sel.createdAt).toLocaleDateString('zh-TW',{year:'numeric',month:'numeric',day:'numeric',timeZone:'Asia/Taipei'})} ${new Date(sel.createdAt).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'})}</div>`:'';
+          const logHtml=logs.length?`<div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:6px">📝 編輯紀錄（共${logs.length}筆）</div>
+            <div style="max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+            ${[...logs].reverse().map(l=>`<div style="font-size:11px;background:var(--bg2);padding:6px 10px;border-radius:6px;line-height:1.6">
+              <span style="font-weight:600">${l.editor}</span><span style="color:#6b6b68"> (${l.role})</span> · ${new Date(l.time).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',timeZone:'Asia/Taipei'})} ${new Date(l.time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'})}
+              <div style="color:#444;margin-top:2px">${l.changed}</div></div>`).join('')}
+            </div></div>`:'';
+          return createdStr+logHtml;
+        })()}
       </div></div>`;}
 
   } else if(tab==='resigned') {
@@ -1455,8 +1471,20 @@ async function saveModal(){
   if(m==='addInterview'||m==='editInterview'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
-    if(m==='editInterview'){const i=interviews.findIndex(r=>r.id===tid);interviews[i]=obj;}
-    else interviews.unshift(obj);
+    if(m==='editInterview'){
+      const i=interviews.findIndex(r=>r.id===tid);
+      const prev=interviews[i]||{};
+      // 計算異動欄位
+      const fieldMap={name:'姓名',location:'面試地點',date:'面試日期',source:'來源管道',fit:'適合度',status:'狀態',phone:'電話',email:'Email',education:'學歷',military:'兵役',experience:'工作年資',note:'備註'};
+      const changed=Object.keys(fieldMap).filter(k=>String(prev[k]||'')!==String(obj[k]||'')).map(k=>`${fieldMap[k]}：${prev[k]||'—'}→${obj[k]||'—'}`);
+      if(!obj.editLog) obj.editLog=prev.editLog||[];
+      obj.editLog.push({time:new Date().toISOString(),editor:currentUserName,role:currentUserRole,changed:changed.length?changed.join('、'):'（無異動）'});
+      interviews[i]=obj;
+    } else {
+      obj.createdAt=new Date().toISOString();
+      obj.createdBy=currentUserName;
+      interviews.unshift(obj);
+    }
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const newStatus=g('m-status');
@@ -1492,7 +1520,7 @@ async function saveModal(){
         await signOut2(auth2); // 立刻登出次要實例
         const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]};
         employees.unshift(newEmp);
-        await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', disabled: false, createdAt: new Date().toISOString() });
+        await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', createdAt: new Date().toISOString() });
         showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);
       } catch(err) {
         console.error(err);
