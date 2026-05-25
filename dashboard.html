@@ -101,7 +101,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -132,9 +132,8 @@ const ALL_MODULES=[
   {key:'schedule',icon:'📅',name:'排班管理',desc:'班表設定、輪班規則、換班申請',page:'schedule.html',active:true},
   {key:'salary',icon:'💰',name:'薪資計算',desc:'月薪結算、固定獎金、勞健保自負額試算',page:'salary.html',active:false},
   {key:'account',icon:'🔑',name:'帳號管理',desc:'帳號角色設定、店面權限管理、帳號停用',page:'account.html',active:true,adminOnly:true},
-  {key:'device_approval',icon:'📱',name:'裝置審核',desc:'審核員工 APP 裝置綁定申請，管理打卡白名單',page:'device_approval.html',active:true,adminOnly:true},
 ];
-const VISIBLE_KEYS={admin:['hr','clock','schedule','salary','account','device_approval'],consultant:['hr','clock','schedule','salary'],manager:['hr','clock','schedule','salary'],employee:['clock','schedule']};
+const VISIBLE_KEYS={admin:['hr','clock','schedule','salary','account'],consultant:['hr','clock','schedule','salary'],manager:['hr','clock','schedule','salary'],employee:['clock','schedule']};
 function renderModules(role){
   const keys=VISIBLE_KEYS[role]||VISIBLE_KEYS['employee'];
   const modules=ALL_MODULES.filter(m=>keys.includes(m.key));
@@ -150,6 +149,8 @@ function renderModules(role){
 }
 onAuthStateChanged(auth,async user=>{
   if(!user){window.location.href='/hr-system/index.html';return;}
+  // 記錄最後造訪時間（不管是否重新登入都更新）
+  try{ await setDoc(doc(db,'users',user.uid),{lastLoginAt:new Date().toISOString()},{merge:true}); }catch(_){}
   try{
     const snap=await getDoc(doc(db,'users',user.uid));
     const idNo=user.email.split('@')[0].toUpperCase();

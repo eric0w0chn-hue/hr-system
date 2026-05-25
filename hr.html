@@ -195,7 +195,7 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -415,15 +415,17 @@ function showLoading(show) {
 async function loadData() {
   try {
     showLoading(true);
-    const [ivSnap,evSnap,rsSnap,locSnap] = await Promise.all([
+    const [ivSnap,evSnap,rsSnap,locSnap,verSnap] = await Promise.all([
       getDoc(doc(db,'hr','interviews')),
       getDoc(doc(db,'hr','employees')),
       getDoc(doc(db,'hr','resigned')),
       getDoc(doc(db,'hr','settings')),
+      getDoc(doc(db,'hr','_version')),
     ]);
     interviews       = ivSnap.exists() ? ivSnap.data().list : [];
     employees        = evSnap.exists() ? evSnap.data().list : [];
     resigned         = rsSnap.exists() ? rsSnap.data().list : [];
+    _dataVersion     = verSnap.exists() ? verSnap.data().v : 0;
     interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
     workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
     titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
@@ -438,17 +440,54 @@ async function loadData() {
   }
 }
 
-async function saveData() {
+// ── 操作日誌寫入 ──
+async function writeOpLog(action, detail=''){
+  try{
+    await addDoc(collection(db,'hr_oplogs'),{
+      ts: serverTimestamp(),
+      editor: currentUserName,
+      role: currentUserRole,
+      action,
+      detail,
+    });
+  }catch(e){ console.warn('oplog write failed',e); }
+}
+
+// ── 版本鎖：避免多人同時覆蓋 ──
+let _dataVersion = null;
+
+async function saveData(action='', detail='') {
   try {
-    await Promise.all([
-      setDoc(doc(db,'hr','interviews'),{list:interviews}),
-      setDoc(doc(db,'hr','employees'), {list:employees}),
-      setDoc(doc(db,'hr','resigned'),  {list:resigned}),
-      setDoc(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades}),
-    ]);
+    await runTransaction(db, async tx => {
+      const vRef = doc(db,'hr','_version');
+      const vSnap = await tx.get(vRef);
+      const remoteVer = vSnap.exists() ? vSnap.data().v : 0;
+
+      // 有人在我們之後修改過 → 先重新載入資料再存
+      if(_dataVersion !== null && remoteVer !== _dataVersion){
+        // 重新拉取最新資料後合併（以 Firestore 版本為準，本地的最新操作會在上面重試）
+        throw Object.assign(new Error('VERSION_CONFLICT'), {isConflict:true});
+      }
+
+      const nextVer = (remoteVer||0) + 1;
+      tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
+      tx.set(doc(db,'hr','interviews'),{list:interviews});
+      tx.set(doc(db,'hr','employees'), {list:employees});
+      tx.set(doc(db,'hr','resigned'),  {list:resigned});
+      tx.set(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
+      _dataVersion = nextVer;
+    });
+    if(action) writeOpLog(action, detail);
   } catch(e) {
-    console.error(e);
-    showToast('儲存失敗，請檢查網路連線');
+    if(e.isConflict){
+      showToast('⚠️ 資料已被其他人更新，正在重新載入...', 3000);
+      await loadData();
+      render();
+      showToast('已重新載入最新資料，請再操作一次');
+    } else {
+      console.error(e);
+      showToast('儲存失敗，請檢查網路連線');
+    }
   }
 }
 
@@ -1572,7 +1611,9 @@ async function saveModal(){
   closeModal();
   render();
   showToast('儲存中...');
-  await saveData();
+  const _action = (m==='addInterview')?'新增求職者':(m==='editInterview')?'編輯求職者':(m==='addEmployee')?'新增同仁':(m==='editEmployee')?'編輯同仁':m;
+  const _detail = g('m-name')||'';
+  await saveData(_action, _detail);
   showToast('已儲存 ✓');
 }
 
@@ -1588,14 +1629,20 @@ async function delRow(id){
         console.error('users 文件刪除失敗', e);
       }
     }
+    const _delName = (employees.find(x=>x.id===id)||{}).name||String(id);
     employees=employees.filter(r=>r.id!==id);
   } else if(tab==='interview'){
+    const _delName2 = (interviews.find(x=>x.id===id)||{}).name||String(id);
     interviews=interviews.filter(r=>r.id!==id);
+    if(selId===id) selId=null;
+    render(); showToast('刪除中...');
+    await saveData('刪除求職者', _delName2);
+    showToast('已刪除 ✓'); return;
   }
   if(selId===id) selId=null;
   render();
   showToast('刪除中...');
-  await saveData();
+  await saveData('刪除同仁', (employees.find(x=>x.id===id)||{}).name||String(id));
   showToast('已刪除 ✓');
 }
 
