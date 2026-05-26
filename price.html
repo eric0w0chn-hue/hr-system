@@ -22,7 +22,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .back-btn:hover{background:var(--surface2);color:var(--text)}
 .dv{width:1px;height:20px;background:var(--border)}
 .page-title{font-size:15px;font-weight:700}
-.main{max-width:1100px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.main{max-width:900px;margin:0 auto;padding:24px 20px;display:block}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
 .card-header{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
 .card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
@@ -133,7 +133,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spin-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
-@media(max-width:800px){.main{grid-template-columns:1fr;padding:14px}.topbar{padding:0 14px}}
+@media(max-width:800px){.main{padding:14px}.topbar{padding:0 14px}}
+/* 廠商區塊 */
+.vendor-block{border:1px solid var(--border);border-radius:12px;overflow:visible;margin-bottom:12px;background:var(--surface2)}
+.vb-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);border-radius:12px 12px 0 0}
+.vb-header .vendor-wrap{flex:1;position:relative}
+.vb-header .vendor-wrap input{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none}
+.vb-header .vendor-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
+.vb-body{padding:12px 14px}
 @media(max-width:480px){.item-row{grid-template-columns:1fr 1fr 80px 32px}.col-header{grid-template-columns:1fr 1fr 80px 32px}}
 </style>
 </head>
@@ -163,38 +170,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
           <div id="formBanner"></div>
 
           <!-- 店面選擇 -->
-          <div class="fr">
+          <div id="storeRow" class="fr">
             <label>店面</label>
             <select id="f-store" class="inp"></select>
           </div>
 
-          <!-- 廠商（可管理） -->
-          <div class="fr">
-            <label>廠商</label>
-            <div class="vendor-wrap" id="vendorWrap">
-              <div class="vendor-input-row">
-                <input type="text" id="f-vendor" class="inp" placeholder="點擊選擇或輸入廠商" autocomplete="off"
-                  onfocus="openVendorDD()" oninput="filterVendorDD()" style="flex:1">
-                <button class="btn btn-outline" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="openVendorDD()">▾</button>
-              </div>
-              <div class="vendor-dropdown" id="vendorDD">
-                <div id="vendorDDList"></div>
-                <div class="vd-add-row">
-                  <input type="text" id="vendorNewInput" placeholder="新增廠商名稱" onkeydown="if(event.key==='Enter')addVendorOption()">
-                  <button onclick="addVendorOption()">＋ 新增</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 廠商區塊列表（可多個） -->
+          <div id="vendorBlocks"></div>
+          <button class="add-item-btn" style="margin-bottom:14px" onclick="addVendorBlock()">＋ 新增廠商</button>
 
-          <!-- 品項表格 -->
-          <div class="col-header">
-            <span>品項名稱</span><span>數量 / 單位</span><span style="text-align:right">單價(元)</span><span></span>
-          </div>
-          <div id="itemRows" class="item-rows"></div>
-          <button class="add-item-btn" onclick="addItemRow()">＋ 新增品項</button>
-
-          <div class="fr" style="margin-top:12px">
+          <div class="fr" style="margin-top:4px">
             <label>備註</label>
             <input type="text" id="f-note" class="inp" placeholder="選填">
           </div>
@@ -219,22 +204,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
     </div>
 
-    <!-- 右側 -->
-    <div>
-      <div class="summary-card">
-        <div class="summary-title">今日品項摘要</div>
-        <div id="priceSummary"><div class="summary-empty">尚無今日資料</div></div>
-      </div>
-      <div id="adminSection" style="display:none">
-        <div class="summary-card">
-          <div class="summary-title">
-            <span>可見店面設定</span>
-            <button class="btn btn-outline" style="font-size:11px;padding:3px 10px" onclick="saveVisibility()">儲存</button>
+      <!-- Admin 可見性設定（移至查看區下方）-->
+      <div id="adminSection" style="display:none;margin-top:0">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">可見店面設定</span>
+            <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="saveVisibility()">儲存</button>
           </div>
-          <div id="visibilityList"><div class="summary-empty">載入中...</div></div>
+          <div id="visibilityList" style="padding:0 18px 12px"></div>
         </div>
       </div>
-    </div>
   </div>
 </div>
 
@@ -260,111 +239,141 @@ function twToday(){return new Date(Date.now()+8*3600000).toISOString().slice(0,1
 function fmtDate(ds){if(!ds)return'—';const[y,m,d]=ds.split('-');return`${+y-1911}年${+m}月${+d}日`;}
 function fmtTime(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});}
 
-// ══ 廠商下拉管理 ══
-window.openVendorDD=function(){
-  const dd=document.getElementById('vendorDD');
-  dd.classList.toggle('open');
-  if(dd.classList.contains('open')) renderVendorDD();
+// ══ 廠商區塊管理 ══
+let vbCount=0;
+
+window.addVendorBlock=function(vendor='',items=[]){
+  const container=document.getElementById('vendorBlocks');
+  const bid=vbCount++;
+  const div=document.createElement('div');
+  div.className='vendor-block';
+  div.dataset.bid=bid;
+  div.innerHTML=`
+    <div class="vb-header">
+      <div style="flex:1;position:relative">
+        <input type="text" placeholder="點擊選擇或輸入廠商名稱" value="${vendor}" autocomplete="off"
+          onfocus="openVDD(${bid},this)" oninput="filterVDD(${bid},this.value)"
+          style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
+        <div style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;max-height:200px;overflow-y:auto;display:none" id="vDD-${bid}">
+          <div id="vDDList-${bid}"></div>
+          <div class="vd-add-row">
+            <input type="text" id="vNewInp-${bid}" placeholder="新增廠商" onkeydown="if(event.key==='Enter')addVendorOpt(${bid})">
+            <button onclick="addVendorOpt(${bid})">＋ 新增</button>
+          </div>
+        </div>
+      </div>
+      <button class="del-row-btn" onclick="this.closest('.vendor-block').remove()" title="移除此廠商" style="flex-shrink:0;margin-left:6px">×</button>
+    </div>
+    <div class="vb-body">
+      <div class="col-header"><span>品項名稱</span><span>數量 / 單位</span><span style="text-align:right">單價(元)</span><span></span></div>
+      <div class="item-rows" id="iRows-${bid}"></div>
+      <button class="add-item-btn" onclick="addItemRow(${bid})">＋ 新增品項</button>
+    </div>`;
+  container.appendChild(div);
+  if(items.length) items.forEach(i=>addItemRow(bid,i.item,i.qty,i.unit,i.price));
+  else addItemRow(bid);
+  renderVDD(bid);
 };
-function renderVendorDD(filter=''){
-  const kw=(filter||document.getElementById('f-vendor').value||'').toLowerCase();
-  const list=document.getElementById('vendorDDList');
+
+function renderVDD(bid,filter=''){
+  const list=document.getElementById(`vDDList-${bid}`);
+  if(!list) return;
+  const kw=filter.toLowerCase();
   const filtered=vendorOptions.filter(v=>!kw||v.toLowerCase().includes(kw));
   list.innerHTML=filtered.length
-    ? filtered.map(v=>`<div class="vd-item" onclick="selectVendor('${v}')">
-        <span>${v}</span>
-        <button class="vd-del" onclick="event.stopPropagation();delVendor('${v}')">✕ 刪除</button>
+    ? filtered.map(v=>`<div class="vd-item" onclick="selectVendor(${bid},'${v.replace(/'/g,"\\'")}')">
+        <span>${v}</span><button class="vd-del" onclick="event.stopPropagation();delVendorOpt('${v.replace(/'/g,"\\'")}',${bid})">✕</button>
       </div>`).join('')
-    : `<div style="padding:12px;font-size:12px;color:var(--text3);text-align:center">無符合選項</div>`;
+    : `<div style="padding:10px;text-align:center;font-size:12px;color:var(--text3)">無符合選項</div>`;
 }
-window.filterVendorDD=function(){
-  const dd=document.getElementById('vendorDD');
-  if(!dd.classList.contains('open')) dd.classList.add('open');
-  renderVendorDD();
+window.openVDD=function(bid,inp){
+  document.querySelectorAll('[id^="vDD-"]').forEach(d=>d.style.display='none');
+  const dd=document.getElementById(`vDD-${bid}`);
+  if(dd){dd.style.display='block';renderVDD(bid,inp.value);}
 };
-window.selectVendor=function(v){
-  document.getElementById('f-vendor').value=v;
-  document.getElementById('vendorDD').classList.remove('open');
+window.filterVDD=function(bid,val){
+  const dd=document.getElementById(`vDD-${bid}`);
+  if(dd) dd.style.display='block';
+  renderVDD(bid,val);
 };
-window.addVendorOption=async function(){
-  const inp=document.getElementById('vendorNewInput');
-  const v=inp.value.trim();
+window.selectVendor=function(bid,v){
+  const block=document.querySelector(`.vendor-block[data-bid="${bid}"]`);
+  if(block) block.querySelector('.vb-header input').value=v;
+  const dd=document.getElementById(`vDD-${bid}`);
+  if(dd) dd.style.display='none';
+};
+window.addVendorOpt=async function(bid){
+  const inp=document.getElementById(`vNewInp-${bid}`);
+  const v=inp?.value.trim();
   if(!v||vendorOptions.includes(v)){toast('廠商名稱重複或空白');return;}
   vendorOptions.push(v);
   await saveOptions();
   inp.value='';
-  renderVendorDD();
+  renderVDD(bid);
   toast('✅ 已新增廠商');
 };
-window.delVendor=async function(v){
+window.delVendorOpt=async function(v,bid){
   if(!confirm(`確定刪除常用廠商「${v}」？`))return;
   vendorOptions=vendorOptions.filter(x=>x!==v);
   await saveOptions();
-  renderVendorDD();
+  renderVDD(bid);
   toast('已刪除');
 };
 
 // ══ 品項下拉管理 ══
-function renderItemDD(idx, filter=''){
-  const dd=document.getElementById(`itemDD-${idx}`);
+function renderIDD(bid,idx,filter=''){
+  const dd=document.getElementById(`iDD-${bid}-${idx}`);
   if(!dd) return;
-  const kw=(filter||'').toLowerCase();
+  const kw=filter.toLowerCase();
   const filtered=itemOptions.filter(i=>!kw||i.toLowerCase().includes(kw));
   const listEl=dd.querySelector('.id-list');
   if(listEl) listEl.innerHTML=filtered.length
-    ? filtered.map(i=>`<div class="id-item" onclick="selectItem(${idx},'${i.replace(/'/g,"\\'")}')">
-        <span>${i}</span>
-        <button class="id-del" onclick="event.stopPropagation();delItem('${i.replace(/'/g,"\\'")}',${idx})">✕</button>
+    ? filtered.map(i=>`<div class="id-item" onclick="selectItem(${bid},${idx},'${i.replace(/'/g,"\\'")}')">
+        <span>${i}</span><button class="id-del" onclick="event.stopPropagation();delItemOpt('${i.replace(/'/g,"\\'")}',${bid},${idx})">✕</button>
       </div>`).join('')
-    : `<div style="padding:10px;font-size:12px;color:var(--text3);text-align:center">無符合選項</div>`;
+    : `<div style="padding:8px;text-align:center;font-size:12px;color:var(--text3)">無符合選項</div>`;
 }
-window.selectItem=function(idx,v){
-  const inp=document.querySelector(`#itemRows .item-row:nth-child(${idx+1}) .item-name-wrap input`);
-  if(inp) inp.value=v;
-  const dd=document.getElementById(`itemDD-${idx}`);
-  if(dd) dd.classList.remove('open');
+window.selectItem=function(bid,idx,v){
+  const rows=document.getElementById(`iRows-${bid}`);
+  if(!rows) return;
+  rows.children[idx]?.querySelector('.item-name-wrap input')?.setAttribute('value',v);
+  if(rows.children[idx]) rows.children[idx].querySelector('.item-name-wrap input').value=v;
+  document.getElementById(`iDD-${bid}-${idx}`)?.classList.remove('open');
 };
-window.addItemOption=async function(idx){
-  const inp=document.getElementById(`itemNewInp-${idx}`);
-  const v=inp.value.trim();
-  if(!v||itemOptions.includes(v)){toast('品項名稱重複或空白');return;}
+window.addItemOpt=async function(bid,idx){
+  const inp=document.getElementById(`iNewInp-${bid}-${idx}`);
+  const v=inp?.value.trim();
+  if(!v||itemOptions.includes(v)){toast('品項重複或空白');return;}
   itemOptions.push(v);
   await saveOptions();
   inp.value='';
-  renderItemDD(idx);
-  toast('✅ 已新增常用品項');
+  renderIDD(bid,idx);
+  toast('✅ 已新增品項');
 };
-window.delItem=async function(v,idx){
-  if(!confirm(`確定刪除常用品項「${v}」？`))return;
+window.delItemOpt=async function(v,bid,idx){
+  if(!confirm(`確定刪除「${v}」？`))return;
   itemOptions=itemOptions.filter(x=>x!==v);
   await saveOptions();
-  renderItemDD(idx);
+  renderIDD(bid,idx);
   toast('已刪除');
 };
 
-async function saveOptions(){
-  await setDoc(doc(db,'price_settings','options'),{vendors:vendorOptions,items:itemOptions});
-}
-async function loadOptions(){
-  const s=await getDoc(doc(db,'price_settings','options'));
-  if(s.exists()){vendorOptions=s.data().vendors||[];itemOptions=s.data().items||[];}
-}
-
-// ══ 品項列 ══
-window.addItemRow=function(item='',qty='',unit='公斤',price=''){
-  const rows=document.getElementById('itemRows');
+window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
+  const rows=document.getElementById(`iRows-${bid}`);
+  if(!rows) return;
   const idx=rows.children.length;
   const div=document.createElement('div');
   div.className='item-row';
   div.innerHTML=`
-    <div class="item-name-wrap">
+    <div class="item-name-wrap" style="position:relative">
       <input type="text" placeholder="品項名稱" value="${item}" autocomplete="off"
-        onfocus="openItemDD(${idx})" oninput="filterItemDD(${idx},this.value)">
-      <div class="item-dropdown" id="itemDD-${idx}">
+        onfocus="openIDD(${bid},${idx})" oninput="filterIDD(${bid},${idx},this.value)"
+        style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
+      <div class="item-dropdown" id="iDD-${bid}-${idx}">
         <div class="id-list"></div>
         <div class="id-add-row">
-          <input type="text" id="itemNewInp-${idx}" placeholder="新增品項" onkeydown="if(event.key==='Enter')addItemOption(${idx})">
-          <button onclick="addItemOption(${idx})">＋新增</button>
+          <input type="text" id="iNewInp-${bid}-${idx}" placeholder="新增品項" onkeydown="if(event.key==='Enter')addItemOpt(${bid},${idx})">
+          <button onclick="addItemOpt(${bid},${idx})">＋新增</button>
         </div>
       </div>
     </div>
@@ -379,42 +388,47 @@ window.addItemRow=function(item='',qty='',unit='公斤',price=''){
     <input type="number" class="price-inp" value="${price}" placeholder="0" min="0" step="0.5">
     <button class="del-row-btn" onclick="this.closest('.item-row').remove()">×</button>`;
   rows.appendChild(div);
-  renderItemDD(idx);
+  renderIDD(bid,idx);
 };
-
-window.openItemDD=function(idx){
-  // 關閉其他
+window.openIDD=function(bid,idx){
   document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
-  const dd=document.getElementById(`itemDD-${idx}`);
-  if(dd){dd.classList.add('open');renderItemDD(idx);}
+  const dd=document.getElementById(`iDD-${bid}-${idx}`);
+  if(dd){dd.classList.add('open');renderIDD(bid,idx);}
 };
-window.filterItemDD=function(idx,val){
-  const dd=document.getElementById(`itemDD-${idx}`);
+window.filterIDD=function(bid,idx,val){
+  const dd=document.getElementById(`iDD-${bid}-${idx}`);
   if(dd&&!dd.classList.contains('open')) dd.classList.add('open');
-  renderItemDD(idx,val);
+  renderIDD(bid,idx,val);
 };
 
-// 點外面關閉下拉
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#vendorWrap')) document.getElementById('vendorDD').classList.remove('open');
-  if(!e.target.closest('.item-name-wrap')) document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
+  if(!e.target.closest('.vendor-block .vb-header'))
+    document.querySelectorAll('[id^="vDD-"]').forEach(d=>d.style.display='none');
+  if(!e.target.closest('.item-name-wrap'))
+    document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
 });
 
 window.clearForm=function(){
-  document.getElementById('f-vendor').value='';
+  document.getElementById('vendorBlocks').innerHTML='';
   document.getElementById('f-note').value='';
-  document.getElementById('itemRows').innerHTML='';
-  addItemRow();
+  vbCount=0;
+  addVendorBlock();
 };
 
-function getFormItems(){
-  return [...document.querySelectorAll('#itemRows .item-row')].map(r=>{
-    const nameInp=r.querySelector('.item-name-wrap input');
-    const unitInps=r.querySelectorAll('.unit-row input,.unit-row select');
-    const priceInp=r.querySelector('.price-inp');
-    return{item:(nameInp?.value||'').trim(),qty:parseFloat(unitInps[0]?.value)||0,unit:unitInps[1]?.value||'件',price:parseFloat(priceInp?.value)||0};
-  }).filter(r=>r.item);
+function getVendorBlocks(){
+  return [...document.querySelectorAll('#vendorBlocks .vendor-block')].map(block=>{
+    const bid=block.dataset.bid;
+    const vendor=(block.querySelector('.vb-header input')?.value||'').trim();
+    const items=[...block.querySelectorAll('.item-rows .item-row')].map(r=>{
+      const nameInp=r.querySelector('.item-name-wrap input');
+      const unitInps=r.querySelectorAll('.unit-row input,.unit-row select');
+      const priceInp=r.querySelector('.price-inp');
+      return{item:(nameInp?.value||'').trim(),qty:parseFloat(unitInps[0]?.value)||0,unit:unitInps[1]?.value||'件',price:parseFloat(priceInp?.value)||0};
+    }).filter(r=>r.item);
+    return{vendor,items};
+  }).filter(b=>b.vendor);
 }
+
 
 // ══ 今日是否已回報（同店同日） ══
 async function checkTodayReport(store){
@@ -422,32 +436,31 @@ async function checkTodayReport(store){
   return s.empty?null:s.docs[0];
 }
 
-// ══ 送出回報 ══
+// ══ 送出回報（支援多廠商） ══
 window.submitReport=async function(){
-  const vendor=document.getElementById('f-vendor').value.trim();
   const note=document.getElementById('f-note').value.trim();
   const store=document.getElementById('f-store').value;
-  const items=getFormItems();
+  const blocks=getVendorBlocks();
   if(!store){toast('請選擇店面');return;}
-  if(!vendor){toast('請填寫廠商名稱');return;}
-  if(!items.length){toast('請至少新增一個品項');return;}
+  if(!blocks.length){toast('請至少填寫一個廠商');return;}
+  if(blocks.some(b=>!b.items.length)){toast('每個廠商至少需要一個品項');return;}
   const btn=document.getElementById('submitBtn');
   btn.disabled=true;btn.textContent='送出中...';
   try{
-    // 同店同日同廠商允許多次回報（不同廠商），以 uid+store+date+vendor 為唯一 key
-    const snap=await getDocs(query(collection(db,'price_reports'),
-      where('date','==',todayStr),where('uid','==',cu.uid),
-      where('store','==',store),where('vendor','==',vendor)));
-    const data={uid:cu.uid,editorName:cName,store,date:todayStr,vendor,items,note,updatedAt:serverTimestamp()};
-    if(!snap.empty){
-      await setDoc(snap.docs[0].ref,{...data},{merge:true});
-      toast('✅ 已更新回報');
-    } else {
-      await addDoc(collection(db,'price_reports'),{...data,createdAt:serverTimestamp()});
-      toast('✅ 回報成功');
+    for(const block of blocks){
+      const{vendor,items}=block;
+      const snap=await getDocs(query(collection(db,'price_reports'),
+        where('date','==',todayStr),where('uid','==',cu.uid),
+        where('store','==',store),where('vendor','==',vendor)));
+      const data={uid:cu.uid,editorName:cName,store,date:todayStr,vendor,items,note,updatedAt:serverTimestamp()};
+      if(!snap.empty){
+        await setDoc(snap.docs[0].ref,{...data},{merge:true});
+      } else {
+        await addDoc(collection(db,'price_reports'),{...data,createdAt:serverTimestamp()});
+      }
     }
+    toast(`✅ 已送出 ${blocks.length} 筆廠商回報`);
     await loadReports();
-    await loadSummary();
   }catch(e){toast('❌ 送出失敗：'+e.message);}
   finally{btn.disabled=false;btn.textContent='📤 送出回報';}
 };
@@ -491,7 +504,7 @@ function renderReports(){
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:11px;color:var(--text3)">${fmtTime(r.createdAt)}</div>
-          ${r.uid===cu?.uid&&r.date===todayStr?`<button class="btn btn-danger" style="font-size:10px;padding:2px 8px;margin-top:4px" onclick="deleteReport('${r.id}')">刪除</button>`:''}
+          ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'?`<button class="btn btn-danger" style="font-size:10px;padding:2px 8px;margin-top:4px" onclick="deleteReport('${r.id}')">刪除</button>`:''}
         </div>
       </div>
       <table class="report-table">
@@ -590,9 +603,19 @@ onAuthStateChanged(auth,async user=>{
     const hrSnap=await getDoc(doc(db,'hr','settings'));
     allStores=(hrSnap.exists()?hrSnap.data().workLocations||[]:[] ).filter(Boolean);
 
-    // 店面選擇器
+    // 問題3：店面選擇器 — 店長/副店長不需選，admin/consultant 顯示全部
     const fStore=document.getElementById('f-store');
-    fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
+    const storeRow=document.getElementById('storeRow');
+    if(cRole==='manager'){
+      // 店長：固定自己的店，不顯示選擇器
+      fStore.innerHTML=`<option value="${cStore}">${cStore}</option>`;
+      storeRow.style.display='none';
+      document.getElementById('myStoreLabel').textContent=cStore;
+    } else {
+      // admin/consultant：可選所有店面
+      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
+      storeRow.style.display='flex';
+    }
 
     // 載入可見設定
     const visSnap=await getDoc(doc(db,'price_settings','visibility'));
@@ -607,9 +630,8 @@ onAuthStateChanged(auth,async user=>{
     }
 
     await loadOptions();
-    addItemRow();
+    addVendorBlock();
     await loadReports();
-    await loadSummary();
 
   }catch(e){console.error(e);}
   document.getElementById('loading').style.display='none';
