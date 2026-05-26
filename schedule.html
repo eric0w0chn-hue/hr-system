@@ -128,6 +128,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .readonly-notice.show{display:block}
 .readonly-notice.type-readonly{background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB}
 .readonly-notice.type-lock{background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00}
+
+/* 假單卡片 */
+.leave-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;transition:box-shadow .15s}
+.leave-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.07)}
+.leave-card.draggable{cursor:grab}
+.leave-card.dragging{opacity:.4;border:2px dashed var(--border2)}
+.leave-card.drag-over{border:2px dashed var(--accent)}
+.leave-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.lb-pending{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.lb-approved{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.lb-rejected{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+.leave-priority{width:22px;height:22px;background:var(--accent);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
 </style>
 </head>
 <body>
@@ -161,6 +173,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
       </div>
     </div>
+    <!-- Tab 切換 -->
+    <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:12px;width:fit-content">
+      <button id="tabShift" onclick="switchTab('shift')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit">📅 排班</button>
+      <button id="tabLeave" onclick="switchTab('leave')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit">🏖 假單申請</button>
+    </div>
     <div class="readonly-notice" id="readonlyNotice">👁 您目前為查看模式，無法編輯班表</div>
     <!-- 人員篩選列 -->
     <div id="empFilterBar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
@@ -189,6 +206,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
     </div>
   </div>
+
+  <!-- 假單申請區塊 -->
+  <div id="leaveSection" style="display:none">
+    <div class="main">
+      <!-- 同仁：提交假單 -->
+      <div id="leaveSubmitBar" style="display:none;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openLeaveModal()" style="font-size:13px;padding:9px 18px">＋ 申請休假</button>
+      </div>
+
+      <!-- 管理員：審核 tabs -->
+      <div id="leaveAdminTabs" style="display:none;margin-bottom:16px;display:none;gap:8px;flex-wrap:wrap;align-items:center">
+        <button onclick="setLeaveFilter('pending')" id="lf-pending" class="btn" style="font-size:12px">⏳ 待審核 <span id="lf-pending-cnt" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
+        <button onclick="setLeaveFilter('approved')" id="lf-approved" class="btn" style="font-size:12px">✅ 已核准</button>
+        <button onclick="setLeaveFilter('rejected')" id="lf-rejected" class="btn" style="font-size:12px">❌ 已拒絕</button>
+        <button onclick="setLeaveFilter('all')" id="lf-all" class="btn" style="font-size:12px">全部</button>
+        <span style="font-size:12px;color:var(--text3);margin-left:8px">優先順序可拖拉調整</span>
+      </div>
+
+      <div id="leaveList" style="display:flex;flex-direction:column;gap:10px">
+        <div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">載入中...</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="modalArea"></div>
@@ -197,7 +237,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=initializeApp(firebaseConfig);
@@ -555,24 +595,11 @@ window.openAddModal=function(dateStr=''){
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="width:520px">
-        <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>📅 新增排班</span>
-          <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--text2)">
-            <span>批次模式</span>
-            <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer">
-              <input type="checkbox" id="batchToggle" onchange="toggleBatchMode()" style="opacity:0;width:0;height:0">
-              <span id="batchSlider" style="position:absolute;inset:0;background:#C8CDD8;border-radius:20px;transition:.2s"></span>
-              <span id="batchKnob" style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
-            </label>
-          </div>
-        </div>
+        <div class="modal-title">📅 新增排班（批次）</div>
         <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
-        <!-- 單日模式 -->
-        <div id="single-mode">
-          <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
-        </div>
-        <!-- 批次模式 -->
-        <div id="batch-mode" style="display:none">
+        <!-- 批次模式（預設開啟）-->
+        <input type="checkbox" id="batchToggle" checked style="display:none">
+        <div id="batch-mode">
           <div class="fr">
             <label>選擇日期（可多選）</label>
             ${calHtml}
@@ -861,6 +888,257 @@ onAuthStateChanged(auth,async user=>{
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
+
+// ══════════════════════════════════════════════════════
+//  假單申請功能
+// ══════════════════════════════════════════════════════
+let leaveRequests = [];
+let leaveFilter = 'all';
+let currentTab = 'shift';
+
+// ── Tab 切換 ──
+window.switchTab = function(tab) {
+  currentTab = tab;
+  const shiftSec = document.querySelector('.content-wrap')?.closest('.main')?.parentElement;
+  // 找到 content-wrap 的父層 main
+  const mainDivs = document.querySelectorAll('#app > .main, #app > div > .main');
+  document.getElementById('leaveSection').style.display = tab==='leave' ? 'block' : 'none';
+
+  // 排班區塊 toggle
+  const empFilterBar = document.getElementById('empFilterBar');
+  const calWrap = document.querySelector('.content-wrap');
+  const readonlyNotice = document.getElementById('readonlyNotice');
+  const toolbarBtns = document.getElementById('toolbarBtns');
+  const toolbar = document.querySelector('.toolbar');
+
+  if(tab==='shift'){
+    if(calWrap) calWrap.style.display='flex';
+    if(toolbar) toolbar.style.display='flex';
+    // tab 樣式
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+  } else {
+    if(calWrap) calWrap.style.display='none';
+    if(toolbar) toolbar.style.display='none';
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    loadLeaveRequests();
+  }
+};
+
+// ── 假單篩選 ──
+window.setLeaveFilter = function(f) {
+  leaveFilter = f;
+  ['pending','approved','rejected','all'].forEach(k=>{
+    const btn = document.getElementById('lf-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  renderLeaveList();
+};
+
+// ── 載入假單 ──
+async function loadLeaveRequests() {
+  try {
+    let q;
+    if(currentRole==='employee') {
+      q = query(collection(db,'leave_requests'), where('uid','==',currentUser.uid), orderBy('createdAt','desc'));
+    } else {
+      q = query(collection(db,'leave_requests'), orderBy('priority','asc'), orderBy('createdAt','desc'));
+    }
+    const snaps = await getDocs(q);
+    leaveRequests = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    renderLeaveList();
+  } catch(e) {
+    document.getElementById('leaveList').innerHTML=`<div style="text-align:center;padding:40px;color:#e24b4a">載入失敗：${e.message}</div>`;
+  }
+}
+
+// ── 渲染假單列表 ──
+function renderLeaveList() {
+  const list = document.getElementById('leaveList');
+  const isAdmin = currentRole==='admin'||currentRole==='consultant'||currentRole==='manager';
+
+  // 顯示/隱藏 UI 元素
+  document.getElementById('leaveSubmitBar').style.display = currentRole==='employee' ? 'block' : 'none';
+  const adminTabs = document.getElementById('leaveAdminTabs');
+  adminTabs.style.display = isAdmin ? 'flex' : 'none';
+
+  // 更新待審核數量
+  const pendingCnt = leaveRequests.filter(r=>r.status==='pending').length;
+  const cntEl = document.getElementById('lf-pending-cnt');
+  if(cntEl) cntEl.textContent = pendingCnt;
+
+  // 篩選
+  let filtered = leaveRequests;
+  if(isAdmin && leaveFilter!=='all') {
+    filtered = leaveRequests.filter(r=>r.status===leaveFilter);
+  }
+
+  if(!filtered.length) {
+    list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:12px">暫無假單記錄</div>';
+    return;
+  }
+
+  const statusLabel = {pending:'⏳ 待審核', approved:'✅ 已核准', rejected:'❌ 已拒絕'};
+  const statusClass = {pending:'lb-pending', approved:'lb-approved', rejected:'lb-rejected'};
+
+  list.innerHTML = filtered.map((r,i)=>{
+    const isPending = r.status==='pending';
+    const canDrag = isAdmin && leaveFilter==='pending';
+    const adminBtns = isAdmin && isPending ? `
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn" style="font-size:12px;background:#E6FAF0;color:#087443;border-color:#ADE8C4" onclick="reviewLeave('${r.id}','approved')">✅ 核准</button>
+        <button class="btn" style="font-size:12px;background:#FEE9E9;color:#C0392B;border-color:#FFBDBD" onclick="reviewLeave('${r.id}','rejected')">❌ 拒絕</button>
+        <button class="btn" style="font-size:12px;color:#C0392B" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : (isAdmin && !isPending ? `
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn" style="font-size:12px" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : '');
+
+    const empBtns = currentRole==='employee' && isPending ? `
+      <button class="btn" style="font-size:12px;color:#C0392B;margin-top:8px" onclick="cancelLeave('${r.id}')">撤回申請</button>` : '';
+
+    const priorityBadge = isAdmin && isPending ? `<div class="leave-priority">${i+1}</div>` : '';
+
+    return `<div class="leave-card${canDrag?' draggable':''}" data-id="${r.id}" ${canDrag?'draggable="true"':''}>
+      ${priorityBadge}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-weight:600;font-size:14px">${r.empName||'—'}</span>
+          <span class="leave-badge ${statusClass[r.status]||'lb-pending'}">${statusLabel[r.status]||r.status}</span>
+          <span style="font-size:11px;color:var(--text3)">${r.workLocation||''}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px">
+          📅 ${r.startDate} ${r.endDate&&r.endDate!==r.startDate?'～ '+r.endDate:''} &nbsp;|&nbsp; 🏷 ${r.leaveType||'休假'}
+          ${r.days ? `&nbsp;|&nbsp; ${r.days} 天` : ''}
+        </div>
+        ${r.reason?`<div style="font-size:12px;color:var(--text3)">備註：${r.reason}</div>`:''}
+        ${r.reviewNote?`<div style="font-size:12px;color:#3B5BDB;margin-top:4px">審核備注：${r.reviewNote}</div>`:''}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">申請時間：${r.createdAt?.toDate?r.createdAt.toDate().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):r.createdAt||'—'}</div>
+        ${adminBtns}${empBtns}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 拖拉排序（僅待審核、管理員）
+  if(isAdmin && leaveFilter==='pending') initLeaveDrag();
+}
+
+// ── 拖拉優先順序 ──
+function initLeaveDrag() {
+  const list = document.getElementById('leaveList');
+  let dragSrc = null;
+  list.querySelectorAll('.leave-card.draggable').forEach(card=>{
+    card.addEventListener('dragstart', e=>{ dragSrc=card; setTimeout(()=>card.classList.add('dragging'),0); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); savePriority(); });
+    card.addEventListener('dragover', e=>{ e.preventDefault(); if(card!==dragSrc){ list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); card.classList.add('drag-over'); } });
+    card.addEventListener('drop', e=>{ e.preventDefault(); if(dragSrc&&card!==dragSrc){ const cards=[...list.querySelectorAll('.leave-card')]; const si=cards.indexOf(dragSrc),ti=cards.indexOf(card); if(si<ti) list.insertBefore(dragSrc,card.nextSibling); else list.insertBefore(dragSrc,card); card.classList.remove('drag-over'); } });
+  });
+}
+
+async function savePriority() {
+  const cards = [...document.getElementById('leaveList').querySelectorAll('.leave-card')];
+  for(let i=0;i<cards.length;i++){
+    const id = cards[i].dataset.id;
+    if(id) await updateDoc(doc(db,'leave_requests',id),{priority:i+1}).catch(()=>{});
+  }
+  // 重新排序本地資料
+  const newOrder = cards.map(c=>c.dataset.id);
+  leaveRequests.sort((a,b)=>newOrder.indexOf(a.id)-newOrder.indexOf(b.id));
+}
+
+// ── 申請假單 Modal（同仁）──
+window.openLeaveModal = function() {
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:480px">
+        <div class="modal-title">🏖 申請休假</div>
+        <div class="fr"><label>假別</label>
+          <select id="l-type">
+            <option>特休</option><option>病假</option><option>事假</option>
+            <option>生理假</option><option>婚假</option><option>喪假</option><option>其他</option>
+          </select>
+        </div>
+        <div class="time-row">
+          <div class="fr"><label>開始日期</label><input type="date" id="l-start"></div>
+          <div class="fr"><label>結束日期</label><input type="date" id="l-end"></div>
+        </div>
+        <div class="fr"><label>備註（選填）</label><input type="text" id="l-reason" placeholder="假單事由"></div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="submitLeave()">送出申請</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.submitLeave = async function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value || start;
+  const type  = document.getElementById('l-type').value;
+  const reason= document.getElementById('l-reason').value.trim();
+  if(!start){ showToast('請選擇日期'); return; }
+  if(end < start){ showToast('結束日期不能早於開始日期'); return; }
+
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  // 計算天數
+  const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+
+  // 取得最大 priority
+  const maxPri = leaveRequests.filter(r=>r.status==='pending').length + 1;
+
+  await addDoc(collection(db,'leave_requests'),{
+    uid: currentUser.uid,
+    empName: emp.name||'—',
+    workLocation: emp.workLocation||'—',
+    leaveType: type,
+    startDate: start,
+    endDate: end,
+    days,
+    reason,
+    status: 'pending',
+    priority: maxPri,
+    createdAt: serverTimestamp(),
+  });
+  closeModal();
+  showToast('假單已送出，等待審核 ✓');
+  await loadLeaveRequests();
+};
+
+// ── 審核假單 ──
+window.reviewLeave = async function(id, status) {
+  const note = status==='rejected' ? prompt('拒絕原因（選填）：')||'' : '';
+  await updateDoc(doc(db,'leave_requests',id),{
+    status,
+    reviewNote: note,
+    reviewedBy: currentUser.uid,
+    reviewedAt: serverTimestamp(),
+  });
+  showToast(status==='approved'?'已核准 ✓':'已拒絕');
+  await loadLeaveRequests();
+};
+
+// ── 同仁撤回 ──
+window.cancelLeave = async function(id) {
+  if(!confirm('確定要撤回這筆假單申請？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已撤回');
+  await loadLeaveRequests();
+};
+
+// ── 管理員刪除 ──
+window.deleteLeave = async function(id) {
+  if(!confirm('確定要刪除這筆假單記錄？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已刪除');
+  await loadLeaveRequests();
+};
+
+// 初始設定待審核篩選
+window.addEventListener('DOMContentLoaded', ()=>setLeaveFilter('pending'));
 
 </script>
 </body>
