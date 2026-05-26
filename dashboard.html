@@ -159,10 +159,10 @@ function saveOrder(role, uid, keys) {
   } catch {}
 }
 
-function renderModules(role){
+function renderModules(role, hiddenKeys=[]){
   _currentRole = role;
   const keys = VISIBLE_KEYS[role]||VISIBLE_KEYS['employee'];
-  let modules = ALL_MODULES.filter(m=>keys.includes(m.key));
+  let modules = ALL_MODULES.filter(m=>keys.includes(m.key)&&!hiddenKeys.includes(m.key));
 
   // 套用自訂排列
   const savedOrder = getSavedOrder(role, _currentUid);
@@ -279,7 +279,20 @@ onAuthStateChanged(auth,async user=>{
         document.getElementById('previewBar').style.display='flex';
         document.querySelector('.preview-btn.p-admin').classList.add('active');
       }
-      renderModules(role);
+      // 非 admin 檢查菜價回報可見性
+      if(role!=='admin'){
+        try{
+          const visSnap=await getDoc(doc(db,'price_settings','visibility'));
+          const visData=visSnap.exists()?visSnap.data():{};
+          const locs=data.locations||[];
+          const myStore=locs.length?locs[0]:(data.workLocation||'');
+          // 如果自己的店被關閉，就隱藏菜價回報卡片
+          const priceHidden = myStore && visData[myStore]===false;
+          renderModules(role, priceHidden?['price']:[]);
+        }catch(_){ renderModules(role); }
+      } else {
+        renderModules(role);
+      }
     }
   }catch(e){console.error(e);renderModules('employee');}
   const now=new Date();
