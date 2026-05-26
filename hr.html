@@ -773,6 +773,7 @@ function render() {
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
       <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
+      \${currentUserRole==='admin'?'<button class="btn btn-outline" onclick="window.location.href=\'backup.html\'" title="備份管理">🗄 備份管理</button>':''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table>

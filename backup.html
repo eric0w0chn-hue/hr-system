@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>備份管理 — 鑫系統</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#FFFFFF;--surface2:#F7F8FA;
+  --border:#E4E7ED;--border2:#D0D5DD;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
+  --accent:#3B5BDB;--accent-light:#EEF2FF;
+  --green:#087443;--green-bg:#E6FAF0;--green-border:#ADE8C4;
+  --red:#C0392B;--red-bg:#FEE9E9;--red-border:#FFBDBD;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.divider-v{width:1px;height:20px;background:var(--border)}
+.page-name{font-size:15px;font-weight:600}
+
+.main{max-width:1000px;margin:0 auto;padding:28px 24px}
+
+/* 統計卡 */
+.stats-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;flex:1;min-width:130px}
+.stat-card .sl{font-size:11px;color:var(--text3);margin-bottom:4px}
+.stat-card .sn{font-size:22px;font-weight:700;color:var(--text)}
+
+/* 備份列表 */
+.backup-list{display:flex;flex-direction:column;gap:10px}
+.backup-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;transition:box-shadow .15s}
+.backup-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07)}
+.backup-card.today{border-left:3px solid var(--accent)}
+.backup-date{font-size:15px;font-weight:700;min-width:100px}
+.backup-counts{display:flex;gap:16px;flex:1;flex-wrap:wrap}
+.bc{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.bc span{font-weight:600;color:var(--text)}
+.backup-time{font-size:11px;color:var(--text3);white-space:nowrap}
+.backup-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* 按鈕 */
+.btn{font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;border:1px solid var(--border);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-outline{background:var(--surface);color:var(--text2)}
+.btn-outline:hover{background:var(--surface2);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#2F4AC8}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.btn-danger:hover{background:#ffd0d0}
+.btn-green{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.btn-green:hover{background:#c5f0d8}
+
+/* 空狀態 */
+.empty-state{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px}
+.modal-box{background:var(--surface);border-radius:16px;padding:28px;max-width:500px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:8px}
+.modal-desc{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.modal-counts{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.mc-label{font-size:11px;color:var(--text3);margin-bottom:2px}
+.mc-val{font-size:18px;font-weight:700}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
+.spinner-lg{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* 手動備份區 */
+.action-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.action-bar-info{font-size:13px;color:var(--text2)}
+.action-bar-info strong{color:var(--text)}
+
+.badge-auto{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-manual{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--accent-light);color:var(--accent);border:1px solid #BAC8FF}
+
+.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:640px){
+  .topbar{padding:0 16px}
+  .main{padding:16px}
+  .backup-card{flex-direction:column;align-items:flex-start}
+  .backup-actions{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner-lg"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='/hr-system/hr.html'">← 人員資訊</button>
+      <div class="divider-v"></div>
+      <span class="page-name">🗄 備份管理</span>
+    </div>
+    <button class="btn btn-primary" onclick="doManualBackup()" id="manualBtn">＋ 立即備份</button>
+  </div>
+
+  <div class="main">
+    <!-- 說明列 -->
+    <div class="action-bar">
+      <div class="action-bar-info">
+        <strong>自動備份</strong>每天凌晨 12:00 自動執行，保留最近 <strong>30 天</strong>。也可以點右側按鈕手動建立備份。
+      </div>
+      <div style="font-size:12px;color:var(--text3)" id="lastBackupInfo">—</div>
+    </div>
+
+    <!-- 統計 -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="sl">備份總數</div><div class="sn" id="statCount">—</div></div>
+      <div class="stat-card"><div class="sl">最新備份</div><div class="sn" style="font-size:15px;padding-top:4px" id="statLatest">—</div></div>
+      <div class="stat-card"><div class="sl">最舊備份</div><div class="sn" style="font-size:15px;padding-top:4px" id="statOldest">—</div></div>
+    </div>
+
+    <!-- 備份列表 -->
+    <div id="backupList">
+      <div class="empty-state"><div class="spinner"></div>載入備份列表...</div>
+    </div>
+  </div>
+</div>
+
+<div id="modalArea"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain: "liangpinghri.firebaseapp.com",
+  projectId: "liangpinghri",
+  storageBucket: "liangpinghri.firebasestorage.app",
+  messagingSenderId: "410255807470",
+  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+let backups = [];
+const todayStr = new Date(Date.now() + 8*3600000).toISOString().slice(0,10);
+
+// ── Toast ──
+function showToast(msg, dur=2200){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+// ── 格式化時間 ──
+function fmtTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// ── 載入備份列表 ──
+async function loadBackups(){
+  try{
+    const q = query(collection(db,'hr_backups'), orderBy('date','desc'));
+    const snaps = await getDocs(q);
+    backups = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    renderList();
+  }catch(e){
+    document.getElementById('backupList').innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗：${e.message}</div>`;
+  }
+}
+
+// ── 渲染列表 ──
+function renderList(){
+  // 統計
+  document.getElementById('statCount').textContent = backups.length;
+  document.getElementById('statLatest').textContent = backups[0]?.date || '—';
+  document.getElementById('statOldest').textContent = backups[backups.length-1]?.date || '—';
+  if(backups[0]) document.getElementById('lastBackupInfo').textContent = `最後備份：${fmtTime(backups[0].createdAt)}`;
+
+  if(!backups.length){
+    document.getElementById('backupList').innerHTML='<div class="empty-state">尚無備份記錄<br>點右上角「立即備份」建立第一筆</div>';
+    return;
+  }
+
+  document.getElementById('backupList').innerHTML = `<div class="backup-list">${backups.map(b=>{
+    const isToday = b.date === todayStr;
+    const isAuto  = !b.manual;
+    return `<div class="backup-card${isToday?' today':''}">
+      <div>
+        <div class="backup-date">${b.date}</div>
+        <div style="margin-top:3px">${isAuto?'<span class="badge-auto">⏰ 自動</span>':'<span class="badge-manual">👆 手動</span>'}</div>
+      </div>
+      <div class="backup-counts">
+        <div class="bc">👥 在職同仁 <span>${b.counts?.employees??b.employees?.length??'—'}</span></div>
+        <div class="bc">🚪 離職同仁 <span>${b.counts?.resigned??b.resigned?.length??'—'}</span></div>
+        <div class="bc">📋 求職者 <span>${b.counts?.interviews??b.interviews?.length??'—'}</span></div>
+      </div>
+      <div class="backup-time">${fmtTime(b.createdAt)}</div>
+      <div class="backup-actions">
+        <button class="btn btn-green" onclick="confirmRestore('${b.date}')">↩ 還原</button>
+        <button class="btn btn-outline" onclick="downloadBackup('${b.date}')">⬇ 下載</button>
+        <button class="btn btn-danger" onclick="confirmDelete('${b.date}')">✕</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── 手動備份 ──
+window.doManualBackup = async function(){
+  const btn = document.getElementById('manualBtn');
+  btn.disabled = true; btn.textContent = '備份中...';
+  try{
+    const [ivSnap, evSnap, rsSnap] = await Promise.all([
+      getDoc(doc(db,'hr','interviews')),
+      getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','resigned')),
+    ]);
+    const interviews = ivSnap.exists() ? ivSnap.data().list??[] : [];
+    const employees  = evSnap.exists() ? evSnap.data().list??[] : [];
+    const resigned   = rsSnap.exists() ? rsSnap.data().list??[] : [];
+
+    // 手動備份以時間戳為 key，避免覆蓋當日自動備份
+    const now    = new Date();
+    const twNow  = new Date(now.getTime() + 8*3600000);
+    const tsLabel= twNow.toISOString().slice(0,16).replace('T','_').replace(':','-'); // "2026-05-26_00-00"
+
+    await setDoc(doc(db,'hr_backups', tsLabel),{
+      date:       twNow.toISOString().slice(0,10),
+      createdAt:  now.toISOString(),
+      manual:     true,
+      employees, resigned, interviews,
+      counts:{ employees:employees.length, resigned:resigned.length, interviews:interviews.length },
+    });
+    showToast('✅ 備份成功');
+    await loadBackups();
+  }catch(e){
+    showToast('❌ 備份失敗：'+e.message);
+  }finally{
+    btn.disabled=false; btn.textContent='＋ 立即備份';
+  }
+};
+
+// ── 確認還原 ──
+window.confirmRestore = function(id){
+  const b = backups.find(x=>x.id===id); if(!b) return;
+  document.getElementById('modalArea').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal-box">
+        <div class="modal-title">⚠️ 確認還原備份</div>
+        <div class="modal-desc">即將還原 <strong>${b.date}</strong> 的備份資料。<br>此操作會<strong>覆蓋目前所有在職同仁、離職同仁、求職者資料</strong>，無法復原。</div>
+        <div class="modal-counts">
+          <div><div class="mc-label">在職同仁</div><div class="mc-val">${b.counts?.employees??b.employees?.length}</div></div>
+          <div><div class="mc-label">離職同仁</div><div class="mc-val">${b.counts?.resigned??b.resigned?.length}</div></div>
+          <div><div class="mc-label">求職者</div><div class="mc-val">${b.counts?.interviews??b.interviews?.length}</div></div>
+        </div>
+        <div class="modal-btns">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-danger" onclick="doRestore('${id}')">確定還原</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.doRestore = async function(id){
+  const b = backups.find(x=>x.id===id); if(!b) return;
+  closeModal();
+  showToast('還原中...', 5000);
+  try{
+    await Promise.all([
+      setDoc(doc(db,'hr','interviews'),{list: b.interviews??[]}),
+      setDoc(doc(db,'hr','employees'), {list: b.employees??[]}),
+      setDoc(doc(db,'hr','resigned'),  {list: b.resigned??[]}),
+    ]);
+    showToast('✅ 還原完成！請前往人員資訊確認');
+  }catch(e){
+    showToast('❌ 還原失敗：'+e.message);
+  }
+};
+
+// ── 下載備份 ──
+window.downloadBackup = function(id){
+  const b = backups.find(x=>x.id===id); if(!b) return;
+  const blob = new Blob([JSON.stringify(b, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hr-backup-${b.date}.json`;
+  a.click();
+  showToast('備份檔案已下載');
+};
+
+// ── 確認刪除 ──
+window.confirmDelete = function(id){
+  const b = backups.find(x=>x.id===id); if(!b) return;
+  document.getElementById('modalArea').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal-box">
+        <div class="modal-title">確認刪除備份</div>
+        <div class="modal-desc">確定要刪除 <strong>${b.date}</strong> 的備份？此操作無法復原。</div>
+        <div class="modal-btns">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-danger" onclick="doDelete('${id}')">確定刪除</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.doDelete = async function(id){
+  closeModal();
+  try{
+    await deleteDoc(doc(db,'hr_backups',id));
+    showToast('已刪除');
+    await loadBackups();
+  }catch(e){ showToast('刪除失敗：'+e.message); }
+};
+
+window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
+
+// ── Auth Guard ──
+onAuthStateChanged(auth, async user=>{
+  if(!user){ window.location.href='/hr-system/index.html'; return; }
+  try{
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()||snap.data().disabled||snap.data().role!=='admin'){
+      window.location.href='/hr-system/dashboard.html'; return;
+    }
+  }catch(e){ window.location.href='/hr-system/dashboard.html'; return; }
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+  await loadBackups();
+});
+</script>
+</body>
+</html>
