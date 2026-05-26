@@ -653,7 +653,9 @@ onAuthStateChanged(auth,async user=>{
     const data=snap.data();
     cRole=data.role||'employee';
     cName=data.name||'—';
-    cStore=data.workLocation||'';
+    // 帳號管理存的是 locations 陣列，取第一個作為主要店面
+    const locs=data.locations||[];
+    cStore=locs.length?locs[0]:(data.workLocation||'');
     if(cRole==='employee'){window.location.href='/hr-system/dashboard.html';return;}
     cu=user;
     todayStr=twToday();
@@ -669,16 +671,13 @@ onAuthStateChanged(auth,async user=>{
     const fStore=document.getElementById('f-store');
     const storeRow=document.getElementById('storeRow');
     if(cRole==='manager'){
-      // 店長：如果 workLocation 是陣列就取第一個，否則直接用字串
-      const mgStore=Array.isArray(cStore)?cStore[0]:(cStore||'');
-      fStore.innerHTML=`<option value="${mgStore}">${mgStore||'未設定店面'}</option>`;
+      // 店長：直接用 cStore（已從 locations[0] 取得）
+      fStore.innerHTML=`<option value="${cStore}">${cStore||'未設定店面'}</option>`;
       storeRow.style.display='none';
-      document.getElementById('myStoreLabel').textContent=mgStore||'';
-      cStore=mgStore; // 更新 cStore 確保送出時正確
+      document.getElementById('myStoreLabel').textContent=cStore||'';
     } else {
-      // admin/consultant：可選所有店面
-      const defStore=Array.isArray(cStore)?cStore[0]:(cStore||'');
-      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===defStore?' selected':''}>${s}</option>`).join('');
+      // admin/consultant：顯示全部店面，預設自己的店
+      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
       storeRow.style.display='flex';
     }
 
