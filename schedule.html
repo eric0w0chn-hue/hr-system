@@ -237,7 +237,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=initializeApp(firebaseConfig);
@@ -942,13 +942,22 @@ window.setLeaveFilter = function(f) {
 async function loadLeaveRequests() {
   try {
     let q;
-    if(currentRole==='employee') {
-      q = query(collection(db,'leave_requests'), where('uid','==',currentUser.uid), orderBy('createdAt','desc'));
-    } else {
-      q = query(collection(db,'leave_requests'), orderBy('priority','asc'), orderBy('createdAt','desc'));
-    }
+    // 全部撈回後 client 端篩選，避免複合索引需求
+    q = query(collection(db,'leave_requests'), orderBy('createdAt','desc'));
     const snaps = await getDocs(q);
-    leaveRequests = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    let allReqs = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    if(currentRole==='employee') {
+      allReqs = allReqs.filter(r=>r.uid===currentUser.uid);
+    } else {
+      // 管理員：待審核依 priority 排，其餘依時間排
+      allReqs.sort((a,b)=>{
+        if(a.status==='pending'&&b.status==='pending') return (a.priority||999)-(b.priority||999);
+        if(a.status==='pending') return -1;
+        if(b.status==='pending') return 1;
+        return 0;
+      });
+    }
+    leaveRequests = allReqs;
     renderLeaveList();
   } catch(e) {
     document.getElementById('leaveList').innerHTML=`<div style="text-align:center;padding:40px;color:#e24b4a">載入失敗：${e.message}</div>`;
