@@ -902,8 +902,6 @@ onAuthStateChanged(auth,async user=>{
 });
 
 // ══════════════════════════════════════════════════════
-//  假單申請功能
-// ══════════════════════════════════════════════════════
 let leaveRequests = [];
 let leaveFilter = 'all';
 let currentTab = 'shift';
@@ -1150,7 +1148,7 @@ window.openLeaveModal = function() {
       </div>
     </div>`;
   setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
-  setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
+};
 // ── 假別切換 ──
 window.onLeaveTypeChange = function() {
   const type = document.getElementById('l-type').value;
