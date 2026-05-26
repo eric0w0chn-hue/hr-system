@@ -216,12 +216,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
 
       <!-- 管理員：審核 tabs -->
-      <div id="leaveAdminTabs" style="display:none;margin-bottom:16px;display:none;gap:8px;flex-wrap:wrap;align-items:center">
-        <button onclick="setLeaveFilter('pending')" id="lf-pending" class="btn" style="font-size:12px">⏳ 待審核 <span id="lf-pending-cnt" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
-        <button onclick="setLeaveFilter('approved')" id="lf-approved" class="btn" style="font-size:12px">✅ 已核准</button>
-        <button onclick="setLeaveFilter('rejected')" id="lf-rejected" class="btn" style="font-size:12px">❌ 已拒絕</button>
-        <button onclick="setLeaveFilter('all')" id="lf-all" class="btn" style="font-size:12px">全部</button>
-        <span style="font-size:12px;color:var(--text3);margin-left:8px">優先順序可拖拉調整</span>
+      <div id="leaveAdminTabs" style="display:none;margin-bottom:12px;flex-direction:column;gap:10px">
+        <!-- 狀態篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">狀態：</span>
+          <button onclick="setLeaveFilter('pending')" id="lf-pending" class="btn" style="font-size:12px">⏳ 待審核 <span id="lf-pending-cnt" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
+          <button onclick="setLeaveFilter('approved')" id="lf-approved" class="btn" style="font-size:12px">✅ 已核准</button>
+          <button onclick="setLeaveFilter('rejected')" id="lf-rejected" class="btn" style="font-size:12px">❌ 已拒絕</button>
+          <button onclick="setLeaveFilter('all')" id="lf-all" class="btn" style="font-size:12px">全部</button>
+        </div>
+        <!-- 假別篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">假別：</span>
+          <button onclick="setLeaveTypeFilter('all')" id="lt-all" class="btn" style="font-size:12px">全部</button>
+          <button onclick="setLeaveTypeFilter('vacation')" id="lt-vacation" class="btn" style="font-size:12px">🏖 次月休假</button>
+          <button onclick="setLeaveTypeFilter('special')" id="lt-special" class="btn" style="font-size:12px">📋 特殊假</button>
+          <span id="vacation-lock-info" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div id="drag-hint-leave" style="display:none;font-size:11px;color:var(--text3)">⠿ 拖拉可調整優先順序</div>
       </div>
 
       <div id="leaveList" style="display:flex;flex-direction:column;gap:10px">
@@ -926,7 +938,9 @@ window.switchTab = function(tab) {
   }
 };
 
-// ── 假單篩選 ──
+let leaveTypeFilter = 'all'; // 'all' | 'vacation' | 'special'
+
+// ── 假單狀態篩選 ──
 window.setLeaveFilter = function(f) {
   leaveFilter = f;
   ['pending','approved','rejected','all'].forEach(k=>{
@@ -935,6 +949,21 @@ window.setLeaveFilter = function(f) {
       ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
       : 'font-size:12px';
   });
+  renderLeaveList();
+};
+
+// ── 假別篩選 ──
+window.setLeaveTypeFilter = function(f) {
+  leaveTypeFilter = f;
+  ['all','vacation','special'].forEach(k=>{
+    const btn = document.getElementById('lt-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  // 拖拉提示只在待審核+休假篩選時顯示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display = (leaveFilter==='pending'&&f==='vacation')?'block':'none';
   renderLeaveList();
 };
 
@@ -979,11 +1008,27 @@ function renderLeaveList() {
   const cntEl = document.getElementById('lf-pending-cnt');
   if(cntEl) cntEl.textContent = pendingCnt;
 
+  // 鎖定狀態提示
+  const today = new Date();
+  const lockInfo = document.getElementById('vacation-lock-info');
+  if(lockInfo) {
+    const todayDay = today.getDate();
+    const nextMonth = today.getMonth()===11?1:today.getMonth()+2;
+    const nextYear = today.getMonth()===11?today.getFullYear()+1:today.getFullYear();
+    lockInfo.textContent = todayDay > 20
+      ? `（${nextYear}年${nextMonth}月休假申請已截止）`
+      : `（${nextYear}年${nextMonth}月申請截止：本月20號）`;
+  }
+
   // 篩選
   let filtered = leaveRequests;
-  if(isAdmin && leaveFilter!=='all') {
-    filtered = leaveRequests.filter(r=>r.status===leaveFilter);
-  }
+  if(isAdmin && leaveFilter!=='all') filtered = filtered.filter(r=>r.status===leaveFilter);
+  if(isAdmin && leaveTypeFilter==='vacation') filtered = filtered.filter(r=>r.leaveType==='休假');
+  if(isAdmin && leaveTypeFilter==='special')  filtered = filtered.filter(r=>r.leaveType!=='休假');
+
+  // 拖拉提示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display=(leaveFilter==='pending'&&leaveTypeFilter==='vacation'&&isAdmin)?'block':'none';
 
   if(!filtered.length) {
     list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:12px">暫無假單記錄</div>';
@@ -1061,20 +1106,42 @@ async function savePriority() {
 // ── 申請假單 Modal（同仁）──
 window.openLeaveModal = function() {
   const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const today2 = new Date();
+  const todayDay2 = today2.getDate();
+  const nextMonth2 = today2.getMonth()===11?1:today2.getMonth()+2;
+  const nextYear2  = today2.getMonth()===11?today2.getFullYear()+1:today2.getFullYear();
+  const nextMonthName = `${nextYear2} 年 ${nextMonth2} 月`;
+
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="width:480px">
-        <div class="modal-title">🏖 申請休假</div>
+        <div class="modal-title">🏖 申請假單</div>
         <div class="fr"><label>假別</label>
-          <select id="l-type">
-            <option>特休</option><option>病假</option><option>事假</option>
-            <option>生理假</option><option>婚假</option><option>喪假</option><option>其他</option>
+          <select id="l-type" onchange="onLeaveTypeChange()">
+            <optgroup label="── 次月休假（20號前申請）">
+              <option value="休假">休假</option>
+            </optgroup>
+            <optgroup label="── 特殊假（隨時可申請）">
+              <option value="病假">病假</option>
+              <option value="事假">事假</option>
+              <option value="生理假">生理假</option>
+              <option value="婚假">婚假</option>
+              <option value="喪假">喪假</option>
+              <option value="其他">其他</option>
+            </optgroup>
           </select>
         </div>
-        <div class="time-row">
-          <div class="fr"><label>開始日期</label><input type="date" id="l-start"></div>
-          <div class="fr"><label>結束日期</label><input type="date" id="l-end"></div>
+        <div id="leave-lock-notice" style="display:none;font-size:12px;background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          🔒 次月休假申請截止日為每月 20 號，目前已超過截止日，如需申請請聯繫主管
         </div>
+        <div id="leave-month-notice" style="display:none;font-size:12px;background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          📅 次月休假：請選擇 <strong id="nextMonthLabel"></strong> 的休假日期
+        </div>
+        <div class="time-row">
+          <div class="fr"><label>開始日期</label><input type="date" id="l-start" onchange="onDateChange()"></div>
+          <div class="fr"><label>結束日期</label><input type="date" id="l-end" onchange="onDateChange()"></div>
+        </div>
+        <div id="leave-days-preview" style="display:none;font-size:12px;color:var(--text2);margin-top:-8px;margin-bottom:4px"></div>
         <div class="fr"><label>備註（選填）</label><input type="text" id="l-reason" placeholder="假單事由"></div>
         <div class="mf">
           <button class="btn" onclick="closeModal()">取消</button>
@@ -1082,6 +1149,66 @@ window.openLeaveModal = function() {
         </div>
       </div>
     </div>`;
+  setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
+  setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
+// ── 假別切換 ──
+window.onLeaveTypeChange = function() {
+  const type = document.getElementById('l-type').value;
+  const isVacation = type === '休假';
+  const lockNotice = document.getElementById('leave-lock-notice');
+  const monthNotice = document.getElementById('leave-month-notice');
+  const startInput = document.getElementById('l-start');
+  const endInput = document.getElementById('l-end');
+
+  const today = new Date();
+  const todayDay = today.getDate();
+  const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+  const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2,'0')}`;
+  const nextMonthLabel = `${nextYear} 年 ${nextMonth} 月`;
+
+  if(isVacation) {
+    if(todayDay > 20) {
+      lockNotice.style.display = 'block';
+      monthNotice.style.display = 'none';
+      startInput.disabled = true;
+      endInput.disabled = true;
+    } else {
+      lockNotice.style.display = 'none';
+      monthNotice.style.display = 'block';
+      document.getElementById('nextMonthLabel').textContent = nextMonthLabel;
+      // 限定只能選次月日期
+      startInput.min = nextMonthStr + '-01';
+      startInput.max = nextMonthStr + '-' + new Date(nextYear, nextMonth, 0).getDate();
+      endInput.min = startInput.min;
+      endInput.max = startInput.max;
+      startInput.disabled = false;
+      endInput.disabled = false;
+    }
+  } else {
+    lockNotice.style.display = 'none';
+    monthNotice.style.display = 'none';
+    startInput.min = '';
+    startInput.max = '';
+    endInput.min = '';
+    endInput.max = '';
+    startInput.disabled = false;
+    endInput.disabled = false;
+  }
+  onDateChange();
+};
+
+window.onDateChange = function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value;
+  const preview = document.getElementById('leave-days-preview');
+  if(start && end && end >= start) {
+    const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+    preview.textContent = `共 ${days} 天`;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
 };
 
 window.submitLeave = async function() {
@@ -1092,24 +1219,40 @@ window.submitLeave = async function() {
   if(!start){ showToast('請選擇日期'); return; }
   if(end < start){ showToast('結束日期不能早於開始日期'); return; }
 
-  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
-  // 計算天數
-  const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+  // 次月休假：再次確認是否超過 20 號
+  if(type === '休假') {
+    const todayDay = new Date().getDate();
+    if(todayDay > 20) { showToast('🔒 已超過申請截止日（20號）'); return; }
 
-  // 取得最大 priority
-  const maxPri = leaveRequests.filter(r=>r.status==='pending').length + 1;
+    // 確認選的是次月
+    const today = new Date();
+    const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+    const nextYear  = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const startMonth = parseInt(start.slice(5,7));
+    const startYear  = parseInt(start.slice(0,4));
+    if(startYear !== nextYear || startMonth !== nextMonth) {
+      showToast('次月休假只能選擇次月的日期');
+      return;
+    }
+  }
+
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+  const isVacation = type === '休假';
+  const maxPri = leaveRequests.filter(r=>r.status==='pending'&&r.leaveType==='休假').length + 1;
 
   await addDoc(collection(db,'leave_requests'),{
     uid: currentUser.uid,
     empName: emp.name||'—',
     workLocation: emp.workLocation||'—',
     leaveType: type,
+    isVacation,
     startDate: start,
     endDate: end,
     days,
     reason,
     status: 'pending',
-    priority: maxPri,
+    priority: isVacation ? maxPri : 999,
     createdAt: serverTimestamp(),
   });
   closeModal();
