@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>菜價回報 — 鑫系統</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#FFFFFF;--surface2:#F7F8FA;
+  --border:#E4E7ED;--border2:#D0D5DD;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
+  --accent:#3B5BDB;--accent-light:#EEF2FF;
+  --green:#087443;--green-bg:#E6FAF0;--green-border:#ADE8C4;
+  --red:#C0392B;--red-bg:#FEE9E9;--red-border:#FFBDBD;
+  --yellow:#C47A00;--yellow-bg:#FFF4E0;--yellow-border:#FDDFA0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);color:var(--text)}
+.dv{width:1px;height:20px;background:var(--border)}
+.page-title{font-size:15px;font-weight:700}
+
+/* ── Layout ── */
+.main{max-width:1100px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+
+/* ── 卡片 ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.card-body{padding:16px 18px}
+
+/* ── 回報表單 ── */
+.today-banner{background:var(--accent-light);border:1px solid #BAC8FF;border-radius:10px;padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.already-done{background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.form-row label{font-size:12px;color:var(--text2);min-width:44px;flex-shrink:0}
+.form-row input,.form-row select{flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
+.form-row input:focus,.form-row select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
+.price-unit{font-size:13px;color:var(--text2);flex-shrink:0}
+
+/* 品項列 */
+.item-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.item-row{display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:6px;align-items:center}
+.item-row input{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;width:100%;transition:border-color .15s}
+.item-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
+.item-row input.price-input{text-align:right}
+.del-row-btn{width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text3);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.del-row-btn:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+
+.col-header{display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:6px;margin-bottom:4px}
+.col-header span{font-size:11px;color:var(--text3);font-weight:600;padding:0 4px}
+
+.add-item-btn{width:100%;padding:8px;border:1px dashed var(--border2);border-radius:8px;background:transparent;color:var(--text3);cursor:pointer;font-size:13px;transition:all .15s;font-family:inherit}
+.add-item-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+
+/* ── 按鈕 ── */
+.btn{font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s;border:1px solid var(--border);display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#2F4AC8}
+.btn-outline{background:var(--surface);color:var(--text2)}
+.btn-outline:hover{background:var(--surface2);color:var(--text)}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.btn-danger:hover{background:#ffd0d0}
+.submit-row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ── 查看區 ── */
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.date-nav input{flex:1;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none}
+.date-nav input:focus{border-color:var(--accent)}
+
+.store-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
+.store-tab{font-size:12px;padding:4px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;font-family:inherit}
+.store-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.report-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.report-card-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface)}
+.report-store{font-size:13px;font-weight:600}
+.report-vendor{font-size:12px;color:var(--text3)}
+.report-time{font-size:11px;color:var(--text3)}
+.report-table{width:100%;border-collapse:collapse}
+.report-table th{font-size:11px;color:var(--text3);font-weight:600;padding:7px 12px;text-align:left;background:var(--surface2)}
+.report-table td{font-size:13px;padding:8px 12px;border-top:1px solid var(--border)}
+.report-table tr:hover td{background:#F7F8FF}
+.price-val{font-weight:600;color:var(--accent)}
+.price-change{font-size:11px;margin-left:4px}
+.price-up{color:var(--red)}
+.price-down{color:var(--green)}
+
+/* ── 右側欄 ── */
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.summary-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.summary-item{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #F4F5F8;font-size:13px}
+.summary-item:last-child{border-bottom:none}
+.summary-label{color:var(--text2);font-size:12px}
+.summary-val{font-weight:600;color:var(--text)}
+.summary-empty{padding:20px;text-align:center;font-size:12px;color:var(--text3)}
+
+/* ── Admin 設定 ── */
+.visibility-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.vis-store-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.vis-store-row:last-child{border-bottom:none}
+.vis-store-name{color:var(--text);font-weight:500}
+
+/* Toggle */
+.toggle{position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#C8CDD8;border-radius:22px;transition:.2s}
+.toggle-knob{position:absolute;left:2px;top:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input:checked ~ .toggle-slider{background:var(--accent)}
+.toggle input:checked ~ .toggle-knob{left:20px}
+
+/* ── Empty / Loading ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.spinner{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.spinner-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── 手機 ── */
+@media(max-width:800px){
+  .main{grid-template-columns:1fr;padding:14px}
+  .topbar{padding:0 14px}
+}
+@media(max-width:480px){
+  .item-row{grid-template-columns:1fr 1fr 70px 28px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner-lg"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='/hr-system/dashboard.html'">← 主選單</button>
+      <div class="dv"></div>
+      <span class="page-title">🥬 菜價回報</span>
+    </div>
+    <div style="font-size:12px;color:var(--text3)" id="todayLabel"></div>
+  </div>
+
+  <div class="main">
+    <!-- 左側：回報 + 查看 -->
+    <div>
+      <!-- 回報區 -->
+      <div class="card" id="reportFormCard" style="margin-bottom:18px">
+        <div class="card-header">
+          <span class="card-title">今日回報</span>
+          <span id="myStoreLabel" style="font-size:12px;color:var(--text2)"></span>
+        </div>
+        <div class="card-body">
+          <div id="formBanner"></div>
+
+          <div class="form-row">
+            <label>廠商</label>
+            <input type="text" id="f-vendor" placeholder="例：東興、永豐…" list="vendorSuggestions">
+            <datalist id="vendorSuggestions"></datalist>
+          </div>
+
+          <div class="col-header">
+            <span style="padding-left:0">品項</span>
+            <span></span>
+            <span style="text-align:right">單價 (元)</span>
+            <span></span>
+          </div>
+          <div id="itemRows" class="item-rows"></div>
+          <button class="add-item-btn" onclick="addItemRow()">＋ 新增品項</button>
+
+          <div class="form-row" style="margin-top:12px">
+            <label>備註</label>
+            <input type="text" id="f-note" placeholder="選填">
+          </div>
+
+          <div class="submit-row">
+            <button class="btn btn-outline" onclick="clearForm()">清除</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="submitReport()">📤 送出回報</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 查看區 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">歷史回報</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="date" id="viewDate" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-family:inherit;outline:none;background:var(--surface)" onchange="loadReports()">
+          </div>
+        </div>
+        <div class="card-body" style="padding:14px">
+          <div class="store-tabs" id="storeTabs"></div>
+          <div id="reportList"><div class="empty-state"><div class="spinner"></div>載入中...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側 -->
+    <div>
+      <!-- 品項摘要 -->
+      <div class="summary-card">
+        <div class="summary-title">今日品項摘要（可見店面）</div>
+        <div id="priceSummary"><div class="summary-empty">尚無今日資料</div></div>
+      </div>
+
+      <!-- Admin：可見性設定 -->
+      <div id="adminSection" style="display:none">
+        <div class="visibility-section">
+          <div class="summary-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>回報可見店面設定</span>
+            <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="saveVisibility()">儲存</button>
+          </div>
+          <div id="visibilityList"><div class="summary-empty">載入中...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection, query, where, orderBy, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+let currentUser=null, currentRole='', currentUserName='', currentStore='';
+let allStores=[], visibleStores=[], allReports=[], todayStr='';
+let selectedStoreFilter='all';
+
+// ── Toast ──
+function showToast(msg,dur=2200){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+
+// ── 取得台灣今日日期 ──
+function getTaiwanToday(){
+  return new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+}
+function fmtDate(ds){
+  if(!ds) return '—';
+  const [y,m,d]=ds.split('-');
+  return `${parseInt(y)-1911} 年 ${parseInt(m)} 月 ${parseInt(d)} 日`;
+}
+function fmtTime(ts){
+  if(!ts) return '';
+  const d=ts.toDate?ts.toDate():new Date(ts);
+  return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});
+}
+
+// ── 初始化品項列 ──
+function addItemRow(item='',price=''){
+  const rows=document.getElementById('itemRows');
+  const idx=rows.children.length;
+  const div=document.createElement('div');
+  div.className='item-row';
+  div.innerHTML=`
+    <input type="text" placeholder="品項名稱" value="${item}" list="itemSuggestions">
+    <datalist id="itemSuggestions"></datalist>
+    <input type="text" placeholder="規格/單位" style="font-size:12px">
+    <input type="number" class="price-input" placeholder="0" value="${price}" min="0" step="0.5">
+    <button class="del-row-btn" onclick="this.closest('.item-row').remove()">×</button>`;
+  rows.appendChild(div);
+}
+window.addItemRow=addItemRow;
+
+function clearForm(){
+  document.getElementById('f-vendor').value='';
+  document.getElementById('f-note').value='';
+  document.getElementById('itemRows').innerHTML='';
+  addItemRow();
+}
+window.clearForm=clearForm;
+
+// ── 取得品項資料 ──
+function getFormItems(){
+  const rows=document.querySelectorAll('#itemRows .item-row');
+  return [...rows].map(r=>{
+    const inputs=r.querySelectorAll('input');
+    return {item:inputs[0].value.trim(), unit:inputs[1].value.trim(), price:parseFloat(inputs[2].value)||0};
+  }).filter(r=>r.item);
+}
+
+// ── 今日是否已回報 ──
+async function checkTodayReport(){
+  const snap=await getDocs(query(collection(db,'price_reports'),
+    where('date','==',todayStr),
+    where('uid','==',currentUser.uid)
+  ));
+  return snap.empty?null:snap.docs[0];
+}
+
+// ── 送出回報 ──
+window.submitReport=async function(){
+  const vendor=document.getElementById('f-vendor').value.trim();
+  const note=document.getElementById('f-note').value.trim();
+  const items=getFormItems();
+  if(!vendor){showToast('請填寫廠商名稱');return;}
+  if(!items.length){showToast('請至少新增一個品項');return;}
+
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;btn.textContent='送出中...';
+
+  try{
+    // 檢查今日是否已有回報
+    const existing=await checkTodayReport();
+    const data={
+      uid:currentUser.uid,
+      editorName:currentUserName,
+      store:currentStore,
+      date:todayStr,
+      vendor,items,note,
+      createdAt:serverTimestamp(),
+    };
+    if(existing){
+      await setDoc(existing.ref,{...data,updatedAt:serverTimestamp()});
+      showToast('✅ 今日回報已更新');
+    } else {
+      await addDoc(collection(db,'price_reports'),data);
+      showToast('✅ 回報成功');
+    }
+    await initFormBanner();
+    await loadReports();
+    await loadSummary();
+  }catch(e){
+    showToast('❌ 送出失敗：'+e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='📤 送出回報';
+  }
+};
+
+// ── 回報表單頂部提示 ──
+async function initFormBanner(){
+  const banner=document.getElementById('formBanner');
+  const existing=await checkTodayReport();
+  if(existing){
+    const d=existing.data();
+    banner.innerHTML=`<div class="already-done">✅ 今日已回報（${fmtTime(d.createdAt)}）${d.updatedAt?'，已更新':''} — 可重新填寫覆蓋</div>`;
+    // 預填
+    document.getElementById('f-vendor').value=d.vendor||'';
+    document.getElementById('f-note').value=d.note||'';
+    document.getElementById('itemRows').innerHTML='';
+    (d.items||[]).forEach(i=>addItemRow(i.item,i.price));
+    if(!d.items?.length) addItemRow();
+  } else {
+    const today=new Date(Date.now()+8*3600000);
+    const todayDay=today.getDate();
+    banner.innerHTML=`<div class="today-banner">📅 今日（${fmtDate(todayStr)}）尚未回報</div>`;
+  }
+}
+
+// ── 載入歷史回報 ──
+window.loadReports=async function(){
+  const dateVal=document.getElementById('viewDate').value||todayStr;
+  const list=document.getElementById('reportList');
+  list.innerHTML='<div class="empty-state"><div class="spinner"></div>載入中...</div>';
+
+  try{
+    const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',dateVal)));
+    allReports=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(r=>visibleStores.includes(r.store)||currentRole==='admin');
+
+    // 更新 store tabs
+    const stores=[...new Set(allReports.map(r=>r.store))].filter(Boolean);
+    const tabsEl=document.getElementById('storeTabs');
+    tabsEl.innerHTML=`<button class="store-tab${selectedStoreFilter==='all'?' active':''}" onclick="setStoreFilter('all')">全部 (${allReports.length})</button>`
+      +stores.map(s=>`<button class="store-tab${selectedStoreFilter===s?' active':''}" onclick="setStoreFilter('${s}')">${s}</button>`).join('');
+
+    renderReports();
+  }catch(e){
+    list.innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗：${e.message}</div>`;
+  }
+};
+
+window.setStoreFilter=function(s){
+  selectedStoreFilter=s;
+  document.querySelectorAll('.store-tab').forEach(b=>b.classList.toggle('active',b.textContent.startsWith(s==='all'?'全部':s)));
+  renderReports();
+};
+
+function renderReports(){
+  const list=document.getElementById('reportList');
+  const filtered=selectedStoreFilter==='all'?allReports:allReports.filter(r=>r.store===selectedStoreFilter);
+  if(!filtered.length){list.innerHTML='<div class="empty-state">此日期無回報記錄</div>';return;}
+  list.innerHTML=filtered.map(r=>`
+    <div class="report-card">
+      <div class="report-card-header">
+        <div>
+          <div class="report-store">${r.store||'—'}</div>
+          <div class="report-vendor" style="margin-top:2px">廠商：${r.vendor||'—'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="report-time">${fmtTime(r.createdAt)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${r.editorName||'—'}</div>
+          ${r.uid===currentUser?.uid&&r.date===todayStr?`<button class="btn btn-danger" style="font-size:10px;padding:3px 8px;margin-top:4px" onclick="deleteReport('${r.id}')">刪除</button>`:''}
+        </div>
+      </div>
+      <table class="report-table">
+        <thead><tr><th>品項</th><th>規格</th><th style="text-align:right">單價</th></tr></thead>
+        <tbody>${(r.items||[]).map(i=>`
+          <tr><td>${i.item||'—'}</td><td style="color:var(--text3)">${i.unit||'—'}</td><td style="text-align:right" class="price-val">$${i.price||0}</td></tr>
+        `).join('')}</tbody>
+      </table>
+      ${r.note?`<div style="padding:8px 12px;font-size:12px;color:var(--text3);border-top:1px solid var(--border)">備註：${r.note}</div>`:''}
+    </div>`).join('');
+}
+
+window.deleteReport=async function(id){
+  if(!confirm('確定刪除今日回報？'))return;
+  await deleteDoc(doc(db,'price_reports',id));
+  showToast('已刪除');
+  await loadReports();
+  await loadSummary();
+  await initFormBanner();
+};
+
+// ── 今日品項摘要（彙整各店同品項比較） ──
+async function loadSummary(){
+  const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',todayStr)));
+  const reports=snap.docs.map(d=>d.data())
+    .filter(r=>visibleStores.includes(r.store)||currentRole==='admin');
+
+  // 彙整品項
+  const itemMap={};
+  reports.forEach(r=>{
+    (r.items||[]).forEach(i=>{
+      const key=i.item;
+      if(!itemMap[key]) itemMap[key]={stores:{}};
+      itemMap[key].stores[r.store]=i.price;
+    });
+  });
+
+  const el=document.getElementById('priceSummary');
+  const items=Object.entries(itemMap);
+  if(!items.length){el.innerHTML='<div class="summary-empty">尚無今日資料</div>';return;}
+
+  el.innerHTML=items.map(([name,data])=>{
+    const prices=Object.values(data.stores).filter(p=>p>0);
+    const min=Math.min(...prices),max=Math.max(...prices);
+    const storeList=Object.entries(data.stores).map(([s,p])=>`<span style="font-size:11px;color:var(--text3)">${s}：<b style="color:var(--text)">$${p}</b></span>`).join('　');
+    return `<div class="summary-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+      <div style="display:flex;justify-content:space-between;width:100%">
+        <span style="font-weight:600">${name}</span>
+        <span style="font-size:12px;color:var(--text3)">$${min}${min!==max?` ~ $${max}`:''}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${storeList}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Admin：可見性設定 ──
+async function loadVisibilitySettings(){
+  const snap=await getDoc(doc(db,'price_settings','visibility'));
+  const data=snap.exists()?snap.data():{};
+  const el=document.getElementById('visibilityList');
+
+  if(!allStores.length){el.innerHTML='<div class="summary-empty">無店面資料</div>';return;}
+
+  el.innerHTML=allStores.map(s=>{
+    const checked=data[s]!==false; // 預設可見
+    return `<div class="vis-store-row">
+      <span class="vis-store-name">${s}</span>
+      <label class="toggle">
+        <input type="checkbox" id="vis-${s}" ${checked?'checked':''}>
+        <span class="toggle-slider"></span>
+        <span class="toggle-knob"></span>
+      </label>
+    </div>`;
+  }).join('');
+}
+
+window.saveVisibility=async function(){
+  const data={};
+  allStores.forEach(s=>{
+    data[s]=document.getElementById('vis-'+s)?.checked??true;
+  });
+  await setDoc(doc(db,'price_settings','visibility'),data);
+  showToast('✅ 可見性設定已儲存');
+  // 更新 visibleStores
+  visibleStores=allStores.filter(s=>data[s]!==false);
+  await loadReports();
+};
+
+// ── 廠商/品項建議 ──
+async function loadSuggestions(){
+  try{
+    const snap=await getDocs(collection(db,'price_reports'));
+    const vendors=new Set(),items=new Set();
+    snap.docs.forEach(d=>{
+      const data=d.data();
+      if(data.vendor) vendors.add(data.vendor);
+      (data.items||[]).forEach(i=>{if(i.item) items.add(i.item);});
+    });
+    const vdl=document.getElementById('vendorSuggestions');
+    vdl.innerHTML=[...vendors].map(v=>`<option value="${v}">`).join('');
+    // 全域 item suggestions
+    window._itemSuggestions=[...items];
+  }catch(e){}
+}
+
+// ── Auth ──
+onAuthStateChanged(auth,async user=>{
+  if(!user){window.location.href='/hr-system/index.html';return;}
+  try{
+    const snap=await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()||snap.data().disabled){
+      window.location.href='/hr-system/index.html';return;
+    }
+    const data=snap.data();
+    currentRole=data.role||'employee';
+    currentUserName=data.name||'—';
+    currentStore=data.workLocation||'';
+
+    // 只有管理職以上可進入
+    if(currentRole==='employee'){
+      window.location.href='/hr-system/dashboard.html';return;
+    }
+
+    currentUser=user;
+    todayStr=getTaiwanToday();
+
+    // 設定今日標籤
+    document.getElementById('todayLabel').textContent=fmtDate(todayStr);
+    document.getElementById('viewDate').value=todayStr;
+    document.getElementById('myStoreLabel').textContent=currentStore;
+
+    // 載入所有店面
+    const hrSnap=await getDoc(doc(db,'hr','settings'));
+    allStores=(hrSnap.exists()?hrSnap.data().workLocations:[]).filter(Boolean);
+
+    // 載入可見設定
+    const visSnap=await getDoc(doc(db,'price_settings','visibility'));
+    const visData=visSnap.exists()?visSnap.data():{};
+    visibleStores=allStores.filter(s=>visData[s]!==false);
+
+    // 如果 visibleStores 是空的（從未設定），預設全部可見
+    if(!visibleStores.length) visibleStores=[...allStores];
+
+    // Admin 顯示設定區
+    if(currentRole==='admin'){
+      document.getElementById('adminSection').style.display='block';
+      await loadVisibilitySettings();
+    }
+
+    // 初始化
+    addItemRow();
+    await initFormBanner();
+    await loadReports();
+    await loadSummary();
+    await loadSuggestions();
+
+  }catch(e){
+    console.error(e);
+  }
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+});
+</script>
+</body>
+</html>
