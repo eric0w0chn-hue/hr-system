@@ -134,6 +134,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 @media(max-width:800px){.main{padding:14px}.topbar{padding:0 14px}}
+/* cdd 下拉元件（比照人員管理）*/
+.cdd{position:relative;display:inline-block;width:100%}
+.cdd-trigger{width:100%;font-size:13px;padding:8px 32px 8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none;transition:border-color .15s;position:relative}
+.cdd-trigger:hover{border-color:#9CA3AF}
+.cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:2000;max-height:220px;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:thin}
+.cdd-menu.open{display:block}
+.cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
+.cdd-item:hover{background:#F7F8FF}
+.cdd-item.selected{background:var(--accent-light);color:var(--accent);font-weight:500}
+.cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
+.cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
+.cdd-drag{color:#C0C0C0;cursor:grab;font-size:12px;margin-right:6px;padding:0 2px;flex-shrink:0;user-select:none}
+.cdd-drag:active{cursor:grabbing}
+.cdd-item.drag-over{border-top:2px solid var(--accent);background:#EEF2FF}
+.cdd-placeholder{color:var(--text3)}
+.cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text2);position:sticky;bottom:0;background:#fff;z-index:1}
+.cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
+.cdd-add input:focus{outline:none;border-color:var(--accent)}
 /* 廠商區塊 */
 .vendor-block{border:1px solid var(--border);border-radius:12px;overflow:visible;margin-bottom:12px;background:var(--surface2)}
 .vb-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);border-radius:12px 12px 0 0}
@@ -199,7 +217,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         </div>
         <div class="card-body" style="padding:14px">
           <div class="store-tabs" id="storeTabs"></div>
-          <div id="reportList"><div class="empty-state"><div class="spinner"></div>載入中...</div></div>
+          <div id="reportList"><div class="empty-state">請稍候...</div></div>
         </div>
       </div>
     </div>
@@ -239,30 +257,138 @@ function twToday(){return new Date(Date.now()+8*3600000).toISOString().slice(0,1
 function fmtDate(ds){if(!ds)return'—';const[y,m,d]=ds.split('-');return`${+y-1911}年${+m}月${+d}日`;}
 function fmtTime(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});}
 
+// ══ cdd 下拉元件（廠商＆品項共用）══
+let _priceDragSrc=null;
+
+function priceCddHtml(id, options, value, onSelectFn, placeholder='請選擇或新增'){
+  const safeId=id.replace(/[^a-zA-Z0-9_]/g,'_');
+  return `<div class="cdd" id="pcdd-wrap-${safeId}">
+    <button type="button" class="cdd-trigger" onclick="pcddToggle('${safeId}')">
+      <span id="pcdd-label-${safeId}" class="${value?'':'cdd-placeholder'}">${value||placeholder}</span>▾
+    </button>
+    <input type="hidden" id="pcdd-val-${safeId}" value="${value||''}">
+    <div class="cdd-menu" id="pcdd-menu-${safeId}">
+      ${options.map(o=>`<div class="cdd-item${o===value?' selected':''}" draggable="true" data-val="${o.replace(/"/g,'&quot;')}"
+        ondragstart="priceDragStart(event,'${safeId}')"
+        ondragover="priceDragOver(event)"
+        ondragleave="e=>e.currentTarget.classList.remove('drag-over')"
+        ondrop="priceDrop(event,'${safeId}','${onSelectFn}')"
+        onclick="pcddSelect('${safeId}','${onSelectFn}','${o.replace(/'/g,"\\'")}')">
+        <span class="cdd-drag" onclick="event.stopPropagation()">⠿</span>
+        <span style="flex:1">${o}</span>
+        <button class="cdd-del" onclick="event.stopPropagation();pcddDel('${safeId}','${o.replace(/'/g,"\\'")}','${onSelectFn}')">×</button>
+      </div>`).join('')}
+      <div class="cdd-add" onclick="event.stopPropagation()">
+        <input id="pcdd-inp-${safeId}" placeholder="輸入後按 ＋ 新增" onkeydown="if(event.key==='Enter'){event.preventDefault();pcddAdd('${safeId}','${onSelectFn}')}">
+        <button type="button" onclick="pcddAdd('${safeId}','${onSelectFn}')" style="background:#1a1a19;color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap">＋</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.pcddToggle=function(safeId){
+  const menu=document.getElementById('pcdd-menu-'+safeId);
+  if(!menu)return;
+  const open=menu.classList.contains('open');
+  document.querySelectorAll('.cdd-menu.open').forEach(m=>{m.classList.remove('open');m.style.cssText='';});
+  if(!open){menu.style.position='absolute';menu.style.top='calc(100% + 4px)';menu.style.left='0';menu.style.width='100%';menu.style.zIndex='9999';menu.classList.add('open');}
+};
+
+window.pcddSelect=function(safeId,cbFn,val){
+  const lbl=document.getElementById('pcdd-label-'+safeId);
+  const hid=document.getElementById('pcdd-val-'+safeId);
+  const menu=document.getElementById('pcdd-menu-'+safeId);
+  if(lbl){lbl.textContent=val;lbl.classList.remove('cdd-placeholder');}
+  if(hid) hid.value=val;
+  if(menu){menu.querySelectorAll('.cdd-item').forEach(i=>i.classList.toggle('selected',i.querySelector('span:nth-child(2)')?.textContent===val));menu.classList.remove('open');menu.style.cssText='';}
+  // 呼叫 callback（如果有的話）
+  if(cbFn&&window[cbFn]) window[cbFn](safeId,val);
+};
+
+window.pcddDel=async function(safeId,val,cbFn){
+  if(!confirm(`確定刪除「${val}」？`))return;
+  // 判斷是廠商還是品項
+  if(safeId.startsWith('vendor_')){
+    vendorOptions=vendorOptions.filter(x=>x!==val);
+  } else {
+    itemOptions=itemOptions.filter(x=>x!==val);
+  }
+  await saveOptions();
+  toast('已刪除');
+  const menu=document.getElementById('pcdd-menu-'+safeId);
+  if(menu){const item=Array.from(menu.querySelectorAll('.cdd-item')).find(el=>el.dataset.val===val);if(item)item.remove();}
+  const hid=document.getElementById('pcdd-val-'+safeId);
+  if(hid&&hid.value===val){hid.value='';const lbl=document.getElementById('pcdd-label-'+safeId);if(lbl){lbl.textContent='請選擇或新增';lbl.classList.add('cdd-placeholder');}}
+};
+
+window.pcddAdd=async function(safeId,cbFn){
+  const cinp=document.getElementById('pcdd-inp-'+safeId);
+  if(!cinp||!cinp.value.trim()) return;
+  const n=cinp.value.trim();
+  const isVendor=safeId.startsWith('vendor_');
+  const arr=isVendor?vendorOptions:itemOptions;
+  if(arr.includes(n)){toast('此項目已存在');return;}
+  arr.push(n);
+  await saveOptions();
+  toast(`✅ 已新增「${n}」`);
+  cinp.value='';
+  const menu=document.getElementById('pcdd-menu-'+safeId);
+  if(menu){
+    const addRow=menu.querySelector('.cdd-add');
+    const div=document.createElement('div');
+    div.className='cdd-item selected';div.setAttribute('draggable','true');div.dataset.val=n;
+    div.setAttribute('ondragstart',`priceDragStart(event,'${safeId}')`);
+    div.setAttribute('ondragover','priceDragOver(event)');
+    div.innerHTML=`<span class="cdd-drag" onclick="event.stopPropagation()">⠿</span><span style="flex:1">${n}</span><button class="cdd-del" onclick="event.stopPropagation();pcddDel('${safeId}','${n}','${cbFn}')">×</button>`;
+    div.onclick=()=>pcddSelect(safeId,cbFn,n);
+    menu.insertBefore(div,addRow);
+  }
+  pcddSelect(safeId,cbFn,n);
+};
+
+window.priceDragStart=function(e,safeId){
+  _priceDragSrc=e.currentTarget;e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>{if(_priceDragSrc)_priceDragSrc.style.opacity='0.4';},0);
+};
+window.priceDragOver=function(e){e.preventDefault();e.currentTarget.classList.add('drag-over');};
+window.priceDrop=async function(e,safeId,cbFn){
+  e.preventDefault();e.stopPropagation();e.currentTarget.classList.remove('drag-over');
+  if(!_priceDragSrc||_priceDragSrc===e.currentTarget)return;
+  const menu=document.getElementById('pcdd-menu-'+safeId);if(!menu)return;
+  const items=[...menu.querySelectorAll('.cdd-item[draggable]')];
+  const si=items.indexOf(_priceDragSrc),ti=items.indexOf(e.currentTarget);
+  if(si<ti) e.currentTarget.after(_priceDragSrc); else e.currentTarget.before(_priceDragSrc);
+  _priceDragSrc.style.opacity='1';
+  // 同步陣列
+  const isVendor=safeId.startsWith('vendor_');
+  const arr=isVendor?vendorOptions:itemOptions;
+  const newOrder=[...menu.querySelectorAll('.cdd-item[draggable]')].map(el=>el.dataset.val).filter(Boolean);
+  arr.length=0;newOrder.forEach(v=>arr.push(v));
+  await saveOptions();
+  _priceDragSrc=null;
+};
+document.addEventListener('dragend',()=>{
+  document.querySelectorAll('.cdd-item[draggable]').forEach(el=>{el.style.opacity='1';el.classList.remove('drag-over');});
+  _priceDragSrc=null;
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.cdd')) document.querySelectorAll('.cdd-menu.open').forEach(m=>{m.classList.remove('open');m.style.cssText='';});
+  if(!e.target.closest('.item-name-wrap')) document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
+});
+
 // ══ 廠商區塊管理 ══
 let vbCount=0;
 
 window.addVendorBlock=function(vendor='',items=[]){
   const container=document.getElementById('vendorBlocks');
   const bid=vbCount++;
+  const safeId=`vendor_${bid}`;
   const div=document.createElement('div');
-  div.className='vendor-block';
-  div.dataset.bid=bid;
+  div.className='vendor-block';div.dataset.bid=bid;
   div.innerHTML=`
-    <div class="vb-header">
-      <div style="flex:1;position:relative">
-        <input type="text" placeholder="點擊選擇或輸入廠商名稱" value="${vendor}" autocomplete="off"
-          onfocus="openVDD(${bid},this)" oninput="filterVDD(${bid},this.value)"
-          style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
-        <div style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;max-height:200px;overflow-y:auto;display:none" id="vDD-${bid}">
-          <div id="vDDList-${bid}"></div>
-          <div class="vd-add-row">
-            <input type="text" id="vNewInp-${bid}" placeholder="新增廠商" onkeydown="if(event.key==='Enter')addVendorOpt(${bid})">
-            <button onclick="addVendorOpt(${bid})">＋ 新增</button>
-          </div>
-        </div>
-      </div>
-      <button class="del-row-btn" onclick="this.closest('.vendor-block').remove()" title="移除此廠商" style="flex-shrink:0;margin-left:6px">×</button>
+    <div class="vb-header" style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1">${priceCddHtml(safeId,vendorOptions,vendor,'',`請選擇或新增廠商`)}</div>
+      <button class="del-row-btn" onclick="this.closest('.vendor-block').remove()" title="移除" style="flex-shrink:0">×</button>
     </div>
     <div class="vb-body">
       <div class="col-header"><span>品項名稱</span><span>數量 / 單位</span><span style="text-align:right">單價(元)</span><span></span></div>
@@ -272,111 +398,18 @@ window.addVendorBlock=function(vendor='',items=[]){
   container.appendChild(div);
   if(items.length) items.forEach(i=>addItemRow(bid,i.item,i.qty,i.unit,i.price));
   else addItemRow(bid);
-  renderVDD(bid);
 };
 
-function renderVDD(bid,filter=''){
-  const list=document.getElementById(`vDDList-${bid}`);
-  if(!list) return;
-  const kw=filter.toLowerCase();
-  const filtered=vendorOptions.filter(v=>!kw||v.toLowerCase().includes(kw));
-  list.innerHTML=filtered.length
-    ? filtered.map(v=>`<div class="vd-item" onclick="selectVendor(${bid},'${v.replace(/'/g,"\\'")}')">
-        <span>${v}</span><button class="vd-del" onclick="event.stopPropagation();delVendorOpt('${v.replace(/'/g,"\\'")}',${bid})">✕</button>
-      </div>`).join('')
-    : `<div style="padding:10px;text-align:center;font-size:12px;color:var(--text3)">無符合選項</div>`;
-}
-window.openVDD=function(bid,inp){
-  document.querySelectorAll('[id^="vDD-"]').forEach(d=>d.style.display='none');
-  const dd=document.getElementById(`vDD-${bid}`);
-  if(dd){dd.style.display='block';renderVDD(bid,inp.value);}
-};
-window.filterVDD=function(bid,val){
-  const dd=document.getElementById(`vDD-${bid}`);
-  if(dd) dd.style.display='block';
-  renderVDD(bid,val);
-};
-window.selectVendor=function(bid,v){
-  const block=document.querySelector(`.vendor-block[data-bid="${bid}"]`);
-  if(block) block.querySelector('.vb-header input').value=v;
-  const dd=document.getElementById(`vDD-${bid}`);
-  if(dd) dd.style.display='none';
-};
-window.addVendorOpt=async function(bid){
-  const inp=document.getElementById(`vNewInp-${bid}`);
-  const v=inp?.value.trim();
-  if(!v||vendorOptions.includes(v)){toast('廠商名稱重複或空白');return;}
-  vendorOptions.push(v);
-  await saveOptions();
-  inp.value='';
-  renderVDD(bid);
-  toast('✅ 已新增廠商');
-};
-window.delVendorOpt=async function(v,bid){
-  if(!confirm(`確定刪除常用廠商「${v}」？`))return;
-  vendorOptions=vendorOptions.filter(x=>x!==v);
-  await saveOptions();
-  renderVDD(bid);
-  toast('已刪除');
-};
-
-// ══ 品項下拉管理 ══
-function renderIDD(bid,idx,filter=''){
-  const dd=document.getElementById(`iDD-${bid}-${idx}`);
-  if(!dd) return;
-  const kw=filter.toLowerCase();
-  const filtered=itemOptions.filter(i=>!kw||i.toLowerCase().includes(kw));
-  const listEl=dd.querySelector('.id-list');
-  if(listEl) listEl.innerHTML=filtered.length
-    ? filtered.map(i=>`<div class="id-item" onclick="selectItem(${bid},${idx},'${i.replace(/'/g,"\\'")}')">
-        <span>${i}</span><button class="id-del" onclick="event.stopPropagation();delItemOpt('${i.replace(/'/g,"\\'")}',${bid},${idx})">✕</button>
-      </div>`).join('')
-    : `<div style="padding:8px;text-align:center;font-size:12px;color:var(--text3)">無符合選項</div>`;
-}
-window.selectItem=function(bid,idx,v){
-  const rows=document.getElementById(`iRows-${bid}`);
-  if(!rows) return;
-  rows.children[idx]?.querySelector('.item-name-wrap input')?.setAttribute('value',v);
-  if(rows.children[idx]) rows.children[idx].querySelector('.item-name-wrap input').value=v;
-  document.getElementById(`iDD-${bid}-${idx}`)?.classList.remove('open');
-};
-window.addItemOpt=async function(bid,idx){
-  const inp=document.getElementById(`iNewInp-${bid}-${idx}`);
-  const v=inp?.value.trim();
-  if(!v||itemOptions.includes(v)){toast('品項重複或空白');return;}
-  itemOptions.push(v);
-  await saveOptions();
-  inp.value='';
-  renderIDD(bid,idx);
-  toast('✅ 已新增品項');
-};
-window.delItemOpt=async function(v,bid,idx){
-  if(!confirm(`確定刪除「${v}」？`))return;
-  itemOptions=itemOptions.filter(x=>x!==v);
-  await saveOptions();
-  renderIDD(bid,idx);
-  toast('已刪除');
-};
-
+// ══ 品項列（品項名稱改用 cdd）══
 window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
   const rows=document.getElementById(`iRows-${bid}`);
   if(!rows) return;
   const idx=rows.children.length;
+  const safeId=`item_${bid}_${idx}`;
   const div=document.createElement('div');
   div.className='item-row';
   div.innerHTML=`
-    <div class="item-name-wrap" style="position:relative">
-      <input type="text" placeholder="品項名稱" value="${item}" autocomplete="off"
-        onfocus="openIDD(${bid},${idx})" oninput="filterIDD(${bid},${idx},this.value)"
-        style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
-      <div class="item-dropdown" id="iDD-${bid}-${idx}">
-        <div class="id-list"></div>
-        <div class="id-add-row">
-          <input type="text" id="iNewInp-${bid}-${idx}" placeholder="新增品項" onkeydown="if(event.key==='Enter')addItemOpt(${bid},${idx})">
-          <button onclick="addItemOpt(${bid},${idx})">＋新增</button>
-        </div>
-      </div>
-    </div>
+    <div style="position:relative">${priceCddHtml(safeId,itemOptions,item,'','請選擇或新增品項')}</div>
     <div class="unit-row">
       <input type="number" value="${qty}" placeholder="數量" min="0" step="0.5">
       <select>
@@ -388,25 +421,7 @@ window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
     <input type="number" class="price-inp" value="${price}" placeholder="0" min="0" step="0.5">
     <button class="del-row-btn" onclick="this.closest('.item-row').remove()">×</button>`;
   rows.appendChild(div);
-  renderIDD(bid,idx);
 };
-window.openIDD=function(bid,idx){
-  document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
-  const dd=document.getElementById(`iDD-${bid}-${idx}`);
-  if(dd){dd.classList.add('open');renderIDD(bid,idx);}
-};
-window.filterIDD=function(bid,idx,val){
-  const dd=document.getElementById(`iDD-${bid}-${idx}`);
-  if(dd&&!dd.classList.contains('open')) dd.classList.add('open');
-  renderIDD(bid,idx,val);
-};
-
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.vendor-block .vb-header'))
-    document.querySelectorAll('[id^="vDD-"]').forEach(d=>d.style.display='none');
-  if(!e.target.closest('.item-name-wrap'))
-    document.querySelectorAll('.item-dropdown.open').forEach(d=>d.classList.remove('open'));
-});
 
 window.clearForm=function(){
   document.getElementById('vendorBlocks').innerHTML='';
@@ -418,12 +433,15 @@ window.clearForm=function(){
 function getVendorBlocks(){
   return [...document.querySelectorAll('#vendorBlocks .vendor-block')].map(block=>{
     const bid=block.dataset.bid;
-    const vendor=(block.querySelector('.vb-header input')?.value||'').trim();
-    const items=[...block.querySelectorAll('.item-rows .item-row')].map(r=>{
-      const nameInp=r.querySelector('.item-name-wrap input');
+    const safeId=`vendor_${bid}`;
+    // 從 cdd 的 hidden input 取值
+    const vendor=(document.getElementById(`pcdd-val-${safeId}`)?.value||'').trim();
+    const items=[...block.querySelectorAll('.item-rows .item-row')].map((r,idx)=>{
+      const itemSafeId=`item_${bid}_${idx}`;
+      const item=(document.getElementById(`pcdd-val-${itemSafeId}`)?.value||'').trim();
       const unitInps=r.querySelectorAll('.unit-row input,.unit-row select');
       const priceInp=r.querySelector('.price-inp');
-      return{item:(nameInp?.value||'').trim(),qty:parseFloat(unitInps[0]?.value)||0,unit:unitInps[1]?.value||'件',price:parseFloat(priceInp?.value)||0};
+      return{item,qty:parseFloat(unitInps[0]?.value)||0,unit:unitInps[1]?.value||'件',price:parseFloat(priceInp?.value)||0};
     }).filter(r=>r.item);
     return{vendor,items};
   }).filter(b=>b.vendor);
@@ -481,7 +499,8 @@ window.loadReports=async function(){
     tabsEl.innerHTML=`<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setStoreFilter('all')">全部(${allReports.length})</button>`
       +stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setStoreFilter('${s}')">${s}</button>`).join('');
     renderReports();
-  }catch(e){list.innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗：${e.message}</div>`;}
+  }catch(e){list.innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗，請重新整理</div>`;
+    console.error(e);}
 };
 
 window.setStoreFilter=function(s){
@@ -495,29 +514,41 @@ function renderReports(){
   const list=document.getElementById('reportList');
   const filtered=storeFilter==='all'?allReports:allReports.filter(r=>r.store===storeFilter);
   if(!filtered.length){list.innerHTML='<div class="empty-state">此日期無回報記錄</div>';return;}
-  list.innerHTML=filtered.map(r=>`
+
+  // 問題4：同店面合併為一個窗格，廠商分行顯示
+  const storeMap={};
+  filtered.forEach(r=>{
+    if(!storeMap[r.store]) storeMap[r.store]=[];
+    storeMap[r.store].push(r);
+  });
+
+  list.innerHTML=Object.entries(storeMap).map(([store,reports])=>`
     <div class="report-card">
       <div class="report-card-header">
         <div>
-          <div class="report-store">${r.store||'—'}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px">廠商：${r.vendor||'—'} &nbsp;·&nbsp; ${r.editorName||'—'}</div>
+          <div class="report-store">${store}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${reports[0]?.editorName||'—'}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:11px;color:var(--text3)">${fmtTime(r.createdAt)}</div>
-          ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'?`<button class="btn btn-danger" style="font-size:10px;padding:2px 8px;margin-top:4px" onclick="deleteReport('${r.id}')">刪除</button>`:''}
-        </div>
+        <div style="font-size:11px;color:var(--text3)">${fmtTime(reports[0]?.createdAt)}</div>
       </div>
-      <table class="report-table">
-        <thead><tr><th>品項</th><th>數量/單位</th><th style="text-align:right">單價</th></tr></thead>
-        <tbody>${(r.items||[]).map(i=>`
-          <tr>
-            <td>${i.item||'—'}</td>
-            <td style="color:var(--text3)">${i.qty?i.qty+' ':''} ${i.unit||''}</td>
-            <td style="text-align:right" class="price-val">$${i.price||0}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      ${r.note?`<div style="padding:8px 12px;font-size:12px;color:var(--text3);border-top:1px solid var(--border)">備註：${r.note}</div>`:''}
+      ${reports.map(r=>`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">廠商：${r.vendor||'—'}
+            ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'
+              ?`<button class="btn btn-danger" style="font-size:10px;padding:1px 7px;margin-left:8px;vertical-align:middle" onclick="deleteReport('${r.id}')">刪除</button>`:''}
+          </div>
+          <table class="report-table" style="width:100%">
+            <thead><tr><th>品項</th><th>數量/單位</th><th style="text-align:right">單價</th></tr></thead>
+            <tbody>${(r.items||[]).map(i=>`
+              <tr>
+                <td>${i.item||'—'}</td>
+                <td style="color:var(--text3)">${i.qty?i.qty+' ':''} ${i.unit||''}</td>
+                <td style="text-align:right" class="price-val">$${i.price||0}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`).join('')}
+      ${reports.some(r=>r.note)?`<div style="padding:8px 12px;font-size:12px;color:var(--text3)">${reports.filter(r=>r.note).map(r=>`備註(${r.vendor})：${r.note}`).join('　')}</div>`:''}
     </div>`).join('');
 }
 
@@ -607,13 +638,16 @@ onAuthStateChanged(auth,async user=>{
     const fStore=document.getElementById('f-store');
     const storeRow=document.getElementById('storeRow');
     if(cRole==='manager'){
-      // 店長：固定自己的店，不顯示選擇器
-      fStore.innerHTML=`<option value="${cStore}">${cStore}</option>`;
+      // 店長：如果 workLocation 是陣列就取第一個，否則直接用字串
+      const mgStore=Array.isArray(cStore)?cStore[0]:(cStore||'');
+      fStore.innerHTML=`<option value="${mgStore}">${mgStore||'未設定店面'}</option>`;
       storeRow.style.display='none';
-      document.getElementById('myStoreLabel').textContent=cStore;
+      document.getElementById('myStoreLabel').textContent=mgStore||'';
+      cStore=mgStore; // 更新 cStore 確保送出時正確
     } else {
       // admin/consultant：可選所有店面
-      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
+      const defStore=Array.isArray(cStore)?cStore[0]:(cStore||'');
+      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===defStore?' selected':''}>${s}</option>`).join('');
       storeRow.style.display='flex';
     }
 
