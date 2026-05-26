@@ -209,9 +209,9 @@ function renderList(){
       </div>
       <div class="backup-time">${fmtTime(b.createdAt)}</div>
       <div class="backup-actions">
-        <button class="btn btn-green" onclick="confirmRestore('${b.date}')">↩ 還原</button>
-        <button class="btn btn-outline" onclick="downloadBackup('${b.date}')">⬇ 下載</button>
-        <button class="btn btn-danger" onclick="confirmDelete('${b.date}')">✕</button>
+        <button class="btn btn-green" onclick="confirmRestore('${b.id}')">↩ 還原</button>
+        <button class="btn btn-outline" onclick="downloadBackup('${b.id}')">⬇ 下載</button>
+        <button class="btn btn-danger" onclick="confirmDelete('${b.id}')">✕</button>
       </div>
     </div>`;
   }).join('')}</div>`;
