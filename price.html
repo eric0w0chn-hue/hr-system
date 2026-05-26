@@ -461,7 +461,8 @@ async function checkTodayReport(store){
 // ══ 送出回報（支援多廠商） ══
 window.submitReport=async function(){
   const note=document.getElementById('f-note').value.trim();
-  const store=document.getElementById('f-store').value;
+  // 店長 storeRow 隱藏，直接用 cStore；admin/consultant 用 select
+  const store = (cRole==='manager') ? cStore : document.getElementById('f-store').value;
   const blocks=getVendorBlocks();
   if(!store){toast('請選擇店面');return;}
   if(!blocks.length){toast('請至少填寫一個廠商');return;}
@@ -541,8 +542,8 @@ function renderReports(){
             ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'
               ?`<button class="btn btn-danger" style="font-size:10px;padding:1px 7px;margin-left:8px;vertical-align:middle" onclick="deleteReport('${r.id}')">刪除</button>`:''}
           </div>
-          <table class="report-table" style="width:100%">
-            <thead><tr><th>品項</th><th>數量/單位</th><th style="text-align:right">單價</th></tr></thead>
+          <table class="report-table" style="width:100%;table-layout:fixed">
+            <thead><tr><th style="width:45%">品項</th><th style="width:35%">數量/單位</th><th style="width:20%;text-align:right">單價</th></tr></thead>
             <tbody>${(r.items||[]).map(i=>`
               <tr>
                 <td>${i.item||'—'}</td>
