@@ -222,14 +222,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
     </div>
 
-      <!-- Admin 可見性設定（移至查看區下方）-->
+      <!-- Admin 可見性設定（預設收起）-->
       <div id="adminSection" style="display:none;margin-top:0">
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="cursor:pointer" onclick="toggleVisSection()">
             <span class="card-title">可見店面設定</span>
-            <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="saveVisibility()">儲存</button>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" id="saveVisBtn"
+                onclick="event.stopPropagation();saveVisibility()" hidden>儲存</button>
+              <span id="visSectionArrow" style="font-size:12px;color:var(--text3)">▸ 展開</span>
+            </div>
           </div>
-          <div id="visibilityList" style="padding:0 18px 12px"></div>
+          <div id="visibilityList" style="display:none;padding:0 18px 12px"></div>
         </div>
       </div>
   </div>
@@ -586,6 +590,22 @@ async function loadSummary(){
   }).join('');
 }
 
+// ══ 廠商/品項選項 儲存與載入 ══
+async function saveOptions(){
+  try{
+    await setDoc(doc(db,'price_settings','options'),{vendors:vendorOptions,items:itemOptions});
+  }catch(e){ toast('選項儲存失敗：'+e.message); }
+}
+async function loadOptions(){
+  try{
+    const s=await getDoc(doc(db,'price_settings','options'));
+    if(s.exists()){
+      vendorOptions=s.data().vendors||[];
+      itemOptions=s.data().items||[];
+    }
+  }catch(e){ console.warn('loadOptions failed',e); }
+}
+
 // ══ Admin 可見性設定 ══
 async function loadVisibility(){
   const s=await getDoc(doc(db,'price_settings','visibility'));
@@ -603,6 +623,16 @@ async function loadVisibility(){
     </div>`;
   }).join('');
 }
+
+window.toggleVisSection=function(){
+  const list=document.getElementById('visibilityList');
+  const arrow=document.getElementById('visSectionArrow');
+  const btn=document.getElementById('saveVisBtn');
+  const open=list.style.display!=='none';
+  list.style.display=open?'none':'block';
+  arrow.textContent=open?'▸ 展開':'▾ 收起';
+  if(btn) btn.hidden=open;
+};
 
 window.saveVisibility=async function(){
   const data={};
