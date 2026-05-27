@@ -245,6 +245,7 @@ const storage = getStorage(app);
 let currentUser = null;
 let currentRole = '';
 let userLocations = [];  // stores this user can access
+let cStore = '';          // manager 主要店家
 let allRecords = [];
 let allStores = [];
 let activeStore = 'all';  // 'all' or store name
@@ -420,8 +421,10 @@ window.openEdit = function(id){
 
 function showEditModal(r){
   const isEdit = !!r;
+  // 比照菜價回報：manager 用 cStore 固定店面，consultant 用 locations，admin 用全部
   const stores = currentRole==='admin' ? allStores : userLocations;
-  const storeOpts = stores.map(s=>`<option value="${s}" ${r&&r.storeName===s?'selected':''}>${s}</option>`).join('');
+  const storeOpts = stores.map(s=>`<option value="${s}" ${r&&r.storeName===s?'selected':''}>` + s + `</option>`).join('');
+  const isManager = currentRole === 'manager';
   const today = new Date().toISOString().split('T')[0];
   const dateVal = r && r.date ? (r.date.toDate ? r.date.toDate().toISOString().split('T')[0] : new Date(r.date).toISOString().split('T')[0]) : today;
 
@@ -440,7 +443,10 @@ function showEditModal(r){
           </div>
           <div class="fr">
             <label>店家</label>
-            <select id="f-store">${storeOpts}</select>
+            ${isManager
+              ? `<div style="font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text)">${cStore||'未設定店面'}</div><input type="hidden" id="f-store" value="${cStore}">`
+              : `<select id="f-store">${storeOpts}</select>`
+            }
           </div>
         </div>
         <div class="fr">
@@ -778,8 +784,13 @@ onAuthStateChanged(auth, async user => {
 
   currentUser = user;
   userLocations = userData.locations || [];
+  // 比照菜價回報：manager 取 locations[0] 作為主要店家
+  const locs = userData.locations || [];
+  cStore = locs.length ? locs[0] : (userData.workLocation || '');
 
-  document.getElementById('roleLabel').textContent = {admin:'管理員',consultant:'顧問',manager:'店長'}[currentRole]||currentRole;
+  document.getElementById('roleLabel').textContent =
+    currentRole==='manager' ? `店長 ／ ${cStore||'未設定店面'}` :
+    {admin:'管理員',consultant:'顧問'}[currentRole] || currentRole;
 
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
