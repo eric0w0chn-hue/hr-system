@@ -387,7 +387,7 @@ async function loadRecords(){
   }).length;
   document.getElementById('statMonthLabel').textContent = nowM+' 月份';
   document.getElementById('statAudio').textContent = allRecords.filter(r=>r.audioUrl).length;
-  document.getElementById('statStores').textContent = allStores.length || (currentRole==='admin' ? '全部' : userLocations.length);
+  document.getElementById('statStores').textContent = currentRole==='admin' ? allStores.length : userLocations.length;
 
   renderStoreTabs();
   filterRecords();
