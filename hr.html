@@ -680,7 +680,7 @@ function render() {
       }
       pages+=`<button class="pg-btn" onclick="setPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
       return`<div class="pagination"><span class="pg-info">${list.length} 筆，第 ${currentPage}/${totalPages} 頁</span>${pages}</div>`;
-    })():''}\`;
+    })():''}`;
 
     const sel=interviews.find(r=>r.id===selId);
     if(sel){det=`<div class="detail">
@@ -759,7 +759,7 @@ function render() {
       }
       pages+=`<button class="pg-btn" onclick="setPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
       return`<div class="pagination"><span class="pg-info">${getList().length} 筆，第 ${currentPage}/${totalPages} 頁</span>${pages}</div>`;
-    })():''}\`;
+    })():''}`;
 
     const sel=resigned.find(r=>r.id===selId);
     if(sel){det=`<div class="detail">
