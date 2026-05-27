@@ -741,6 +741,7 @@ window.openView = async function(id){
 window.confirmDelete = function(id){
   const r = allRecords.find(x=>x.id===id);
   if(!r) return;
+  const hasFiles = r.audioUrl || (r.docUrls&&r.docUrls.length);
   document.getElementById('modalArea').innerHTML = `
   <div class="overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal" style="max-width:440px">
@@ -749,7 +750,13 @@ window.confirmDelete = function(id){
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
       <div class="modal-body">
-        <div class="confirm-box">確定要刪除 <strong>「${r.title||'（未命名）'}」</strong> 嗎？<br>音檔與文件連結將一併從紀錄移除（Storage 中的實際檔案不受影響）。<br><br>此操作無法復原。</div>
+        <div class="confirm-box">
+          確定要刪除 <strong>「${r.title||'（未命名）'}」</strong> 嗎？
+          ${hasFiles
+            ? '<br><br>紀錄及 Storage 中的<strong>音檔、文件檔案</strong>將一併永久刪除。'
+            : ''}
+          <br><br>此操作無法復原。
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal()">取消</button>
@@ -759,14 +766,41 @@ window.confirmDelete = function(id){
   </div>`;
 };
 
-window.doDelete = async function(id){
+// Storage 路徑解析工具
+function storagePathFromUrl(url){
   try{
+    const part = decodeURIComponent(url.split('/o/')[1].split('?')[0]);
+    return part;
+  } catch(e){ return null; }
+}
+
+window.doDelete = async function(id){
+  const r = allRecords.find(x=>x.id===id);
+  if(!r) return;
+
+  const btn = document.querySelector('.btn-danger');
+  if(btn){ btn.disabled=true; btn.textContent='刪除中…'; }
+
+  try{
+    // 1. 刪 Storage 音檔
+    if(r.audioUrl){
+      const p = storagePathFromUrl(r.audioUrl);
+      if(p) try{ await deleteObject(ref(storage, p)); } catch(e){ console.warn('audio del:', e.message); }
+    }
+    // 2. 刪 Storage 附件文件
+    for(const d of (r.docUrls||[])){
+      if(d.url){
+        const p = storagePathFromUrl(d.url);
+        if(p) try{ await deleteObject(ref(storage, p)); } catch(e){ console.warn('doc del:', e.message); }
+      }
+    }
+    // 3. 刪 Firestore 紀錄
     await deleteDoc(doc(db,'meeting_records',id));
-    allRecords = allRecords.filter(r=>r.id!==id);
+    allRecords = allRecords.filter(x=>x.id!==id);
     closeModal();
     filterRecords();
     updateStorageEstimate();
-    toast('已刪除');
+    toast('✓ 紀錄與檔案已刪除');
   } catch(e){ toast('刪除失敗：'+e.message,'err'); }
 };
 
