@@ -169,6 +169,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* Confirm */
 .confirm-box{padding:16px 0;font-size:14px;color:var(--text2);line-height:1.6}
 .confirm-box strong{color:var(--text)}
+
+/* ══ 手機響應式 ══ */
+@media(max-width:640px){
+  .topbar{padding:0 12px;height:52px}
+  .back-btn{font-size:11px;padding:4px 9px}
+  .page-title{font-size:13px}
+  .storage-pill{display:none}
+  .main{padding:14px 12px 32px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px}
+  .sc{padding:10px 12px}
+  .sc .sn{font-size:20px}
+  .toolbar{flex-direction:column;gap:8px}
+  .toolbar input[type=text]{width:100%}
+  .toolbar select{width:100%}
+  .btn.btn-primary{width:100%;justify-content:center}
+  .store-tabs{gap:4px}
+  .store-tab{font-size:11px;padding:4px 10px}
+  .record-card{padding:14px}
+  .record-title{font-size:14px}
+  .record-actions{opacity:1}
+  .overlay{padding:0}
+  .modal{border-radius:16px 16px 0 0;margin-top:auto;margin-bottom:0;max-height:92vh;overflow-y:auto}
+  .modal-header{padding:16px 18px 14px}
+  .modal-body{padding:16px 18px}
+  .modal-footer{padding:12px 18px}
+  .m-tabs{margin:-16px -18px 16px}
+  .m-tab{padding:10px 14px;font-size:12px}
+  .row2{grid-template-columns:1fr}
+  .fr textarea{min-height:120px}
+  .review-layout{flex-direction:column!important}
+  .review-text-col{max-height:200px!important}
+}
 </style>
 </head>
 <body>
@@ -653,89 +685,57 @@ window.openView = async function(id){
   const r = allRecords.find(x=>x.id===id);
   if(!r) return;
 
+  const safeText = r.textContent ? r.textContent.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
   document.getElementById('modalArea').innerHTML = `
   <div class="overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal">
+    <div class="modal" style="max-width:780px">
       <div class="modal-header">
         <div>
           <div class="modal-title">${r.title||'（未命名）'}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:3px">${r.storeName||'—'} &nbsp;·&nbsp; ${fmtDate(r.date)} &nbsp;·&nbsp; ver.${r.version||1}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px">${r.storeName||'—'} &nbsp;·&nbsp; ${fmtDate(r.date)}</div>
         </div>
-        <button class="modal-close" onclick="closeModal()">✕</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-outline" style="height:32px;font-size:12px" onclick="openEdit('${r.id}');closeModal()">✎ 編輯</button>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
       </div>
-      <div class="modal-body">
-        <div class="m-tabs">
-          <button class="m-tab active" id="tab-content" onclick="switchTab('content')">📋 紀錄內容</button>
-          <button class="m-tab" id="tab-files" onclick="switchTab('files')">📎 音檔 / 文件</button>
-          <button class="m-tab" id="tab-history" onclick="switchTab('history')">🕐 備份歷史</button>
-        </div>
-        <!-- Content tab -->
-        <div id="panel-content">
-          ${r.textContent
-            ? `<div style="font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:400px;overflow-y:auto">${r.textContent}</div>`
-            : '<div style="color:var(--text3);font-size:13px;padding:20px 0">此紀錄無文字內容</div>'}
-          <div style="margin-top:16px;display:flex;gap:8px">
-            <button class="btn btn-outline" onclick="openEdit('${r.id}');closeModal()">✎ 編輯此紀錄</button>
-            ${r.textContent ? `<button class="btn btn-outline" onclick="copyText(\`${r.textContent.replace(/`/g,"\\`")}\`)">📋 複製文字</button>` : ''}
+      <div class="modal-body" style="padding-top:16px">
+
+        ${r.audioUrl ? `
+        <!-- 音檔播放器（置頂固定） -->
+        <div class="audio-wrap" style="margin-bottom:16px">
+          <div class="audio-name">🎵 ${r.audioName||'音檔'} ${r.audioSize ? '（'+fmtSize(r.audioSize)+'）' : ''}</div>
+          <audio controls src="${r.audioUrl}" style="width:100%;margin-top:8px" preload="none"></audio>
+        </div>` : ''}
+
+        <!-- 音檔＋文字並排 / 純文字 -->
+        <div class="review-layout" style="display:flex;gap:16px;align-items:flex-start">
+
+          <!-- 文字紀錄 -->
+          <div class="review-text-col" style="flex:1;min-width:0">
+            <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">文字紀錄</div>
+            ${safeText
+              ? `<div style="font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:420px;overflow-y:auto">${safeText}</div>`
+              : '<div style="color:var(--text3);font-size:13px;padding:12px 0">此紀錄無文字內容</div>'
+            }
+            ${r.textContent ? `<button class="btn btn-outline" style="margin-top:10px;height:30px;font-size:12px" onclick="copyText(\`${r.textContent.replace(/\/g,'\\').replace(/`/g,'\`')}\`)">📋 複製文字</button>` : ''}
           </div>
+
+          <!-- 附件文件欄（只在有文件時顯示） -->
+          ${r.docUrls&&r.docUrls.length ? `
+          <div style="width:220px;flex-shrink:0">
+            <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">附件文件</div>
+            ${r.docUrls.map(d=>`<a class="doc-link" href="${d.url}" target="_blank" rel="noopener">📄 ${d.name}<span style="font-size:11px;color:var(--text3);margin-left:auto">${fmtSize(d.size)}</span></a>`).join('')}
+          </div>` : ''}
         </div>
-        <!-- Files tab -->
-        <div id="panel-files" style="display:none">
-          ${r.audioUrl ? `
-          <div style="margin-bottom:16px">
-            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">音檔</div>
-            <div class="audio-wrap">
-              <div class="audio-name">🎵 ${r.audioName||'音檔'} ${r.audioSize ? '（'+fmtSize(r.audioSize)+'）' : ''}</div>
-              <audio controls src="${r.audioUrl}" style="width:100%;margin-top:8px" preload="none"></audio>
-            </div>
-          </div>` : '<div style="color:var(--text3);font-size:13px;margin-bottom:16px">無音檔</div>'}
-          <div>
-            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">附件文件</div>
-            ${r.docUrls&&r.docUrls.length
-              ? r.docUrls.map(d=>`<a class="doc-link" href="${d.url}" target="_blank" rel="noopener">📄 ${d.name} <span style="font-size:11px;color:var(--text3);margin-left:auto">${fmtSize(d.size)}</span></a>`).join('')
-              : '<div style="color:var(--text3);font-size:13px">無附件文件</div>'}
-          </div>
-        </div>
-        <!-- History tab -->
-        <div id="panel-history" style="display:none">
-          <div id="historyList"><div style="color:var(--text3);font-size:13px">載入中…</div></div>
-        </div>
+
       </div>
     </div>
   </div>`;
-
-  // Pre-bind tab functions
-  window.switchTab = function(tab){
-    ['content','files','history'].forEach(t=>{
-      document.getElementById('tab-'+t).classList.toggle('active', t===tab);
-      document.getElementById('panel-'+t).style.display = t===tab ? 'block' : 'none';
-    });
-    if(tab==='history') loadHistory(id);
-  };
 };
 
-async function loadHistory(recordId){
-  const el = document.getElementById('historyList');
-  try{
-    const snap = await getDocs(query(collection(db,'meeting_records',recordId,'versions'), orderBy('savedAt','desc')));
-    if(snap.empty){ el.innerHTML = '<div style="color:var(--text3);font-size:13px">尚無備份歷史（每次儲存會自動備份上一版）</div>'; return; }
-    el.innerHTML = snap.docs.map(d=>{
-      const v = d.data();
-      const dt = v.savedAt ? fmtDate(v.savedAt) : '—';
-      const has = [];
-      if(v.audioUrl) has.push('音檔');
-      if(v.docUrls&&v.docUrls.length) has.push(`文件×${v.docUrls.length}`);
-      if(v.textContent) has.push('文字紀錄');
-      return `<div class="ver-item">
-        <span class="ver-n">v${v.version||'?'}</span>
-        <div class="ver-info">
-          <div>${dt} &nbsp;<span style="font-size:11px;color:var(--text3)">by ${v.savedByName||'—'}</span></div>
-          <div class="ver-by">${has.join('、')||'空內容'}</div>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e){ el.innerHTML = '<div style="color:var(--red);font-size:13px">載入失敗</div>'; }
-}
+// 備份歷史功能已移除
 
 // ─── Delete ───────────────────────────────────
 window.confirmDelete = function(id){
