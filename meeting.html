@@ -201,6 +201,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .review-layout{flex-direction:column!important}
   .review-text-col{max-height:200px!important}
 }
+
+/* 封存管理 */
+.archive-banner{background:#FFF4E0;border:1px solid #FDDFA0;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.archive-banner .ab-text{font-size:13px;color:#8A5500;flex:1}
+.archive-banner .ab-text strong{color:#6B4000}
+.badge-archived{background:#F4F5F8;color:#9AA0B4;border:1px solid var(--border);font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.record-card.is-archived{opacity:.75;border-style:dashed}
 </style>
 </head>
 <body>
@@ -239,6 +246,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="">全部月份</option>
       </select>
       <button class="btn btn-primary" onclick="openCreate()">＋ 新增會議紀錄</button>
+    </div>
+
+    <!-- 封存管理橫幅（admin only） -->
+    <div class="archive-banner" id="archiveBanner" style="display:none">
+      <div class="ab-text">
+        🗂️ <strong>音檔封存設定：</strong>
+        超過 <select id="archiveMonths" style="font-size:13px;padding:2px 6px;border:1px solid #FDDFA0;border-radius:6px;background:#FFFBF0;color:#6B4000;font-family:inherit" onchange="updateArchivePreview()">
+          <option value="3">3 個月</option>
+          <option value="6" selected>6 個月</option>
+          <option value="12">12 個月</option>
+          <option value="24">24 個月</option>
+        </select>
+        的音檔自動標記為封存（文字永久保留）。
+        <span id="archivePreview" style="margin-left:6px;font-weight:600"></span>
+      </div>
+      <button class="btn btn-outline" style="font-size:12px;height:32px;white-space:nowrap;flex-shrink:0" onclick="openArchiveConfirm()">🗂️ 立即清理音檔</button>
     </div>
 
     <!-- Store tabs -->
@@ -371,6 +394,17 @@ async function loadRecords(){
   renderStoreTabs();
   filterRecords();
   updateStorageEstimate();
+
+  // 封存橫幅（admin only）
+  const banner = document.getElementById('archiveBanner');
+  if(banner){
+    if(currentRole === 'admin'){
+      banner.style.display = 'flex';
+      updateArchivePreview();
+    } else {
+      banner.style.display = 'none';
+    }
+  }
 }
 
 function renderStoreTabs(){
@@ -425,6 +459,7 @@ function renderList(list){
 function renderCard(r){
   const badges = [];
   if(r.audioUrl) badges.push('<span class="badge badge-audio">🎵 音檔</span>');
+  if(r.audioArchived && !r.audioUrl) badges.push('<span class="badge-archived">🗂️ 音檔已封存</span>');
   if(r.docUrls && r.docUrls.length) badges.push(`<span class="badge badge-doc">📄 文件×${r.docUrls.length}</span>`);
   if(r.textContent) badges.push('<span class="badge badge-text">📝 文字紀錄</span>');
   if(r.storeName) badges.push(`<span class="badge badge-store">${r.storeName}</span>`);
@@ -802,6 +837,101 @@ window.doDelete = async function(id){
     updateStorageEstimate();
     toast('✓ 紀錄與檔案已刪除');
   } catch(e){ toast('刪除失敗：'+e.message,'err'); }
+};
+
+
+// ─── 封存管理 ──────────────────────────────
+function getArchiveMonths(){
+  const sel = document.getElementById('archiveMonths');
+  return sel ? parseInt(sel.value) : 6;
+}
+
+function getArchivedCandidates(){
+  const months = getArchiveMonths();
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - months);
+  return allRecords.filter(r => {
+    if(!r.audioUrl) return false; // 沒音檔不需要清
+    const d = r.date ? (r.date.toDate ? r.date.toDate() : new Date(r.date)) : null;
+    return d && d < cutoff;
+  });
+}
+
+window.updateArchivePreview = function(){
+  const candidates = getArchivedCandidates();
+  const totalSize = candidates.reduce((s,r) => s + (r.audioSize||0), 0);
+  const el = document.getElementById('archivePreview');
+  if(!el) return;
+  if(candidates.length === 0){
+    el.textContent = '（目前無符合條件的音檔）';
+    el.style.color = 'var(--text3)';
+  } else {
+    el.textContent = `共 ${candidates.length} 筆、約 ${fmtSize(totalSize)} 可清理`;
+    el.style.color = '#C47A00';
+  }
+};
+
+window.openArchiveConfirm = function(){
+  const candidates = getArchivedCandidates();
+  const months = getArchiveMonths();
+  const totalSize = candidates.reduce((s,r) => s + (r.audioSize||0), 0);
+  if(candidates.length === 0){
+    toast('目前沒有需要清理的音檔');
+    return;
+  }
+  document.getElementById('modalArea').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <span class="modal-title">🗂️ 清理封存音檔</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-box">
+          將刪除 <strong>${months} 個月前</strong>的音檔：<br><br>
+          共 <strong>${candidates.length} 筆紀錄</strong>，約 <strong>${fmtSize(totalSize)}</strong><br><br>
+          <div style="max-height:180px;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:8px">
+            ${candidates.map(r=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between"><span>${fmtDate(r.date)} ${r.storeName||''} — ${r.title||'（未命名）'}</span><span style="color:var(--text3);flex-shrink:0;margin-left:8px">${fmtSize(r.audioSize)}</span></div>`).join('')}
+          </div>
+          <div style="margin-top:12px;font-size:13px;color:var(--green);background:var(--green-bg);border-radius:8px;padding:10px 12px">
+            ✅ 文字紀錄和附件文件<strong>不受影響</strong>，只清除音檔
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button class="btn btn-danger" id="archiveExecBtn" onclick="doArchiveCleanup()">確認清理 ${candidates.length} 筆音檔</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+window.doArchiveCleanup = async function(){
+  const candidates = getArchivedCandidates();
+  const btn = document.getElementById('archiveExecBtn');
+  if(btn){ btn.disabled=true; btn.textContent='清理中…'; }
+
+  let ok=0, fail=0;
+  for(const r of candidates){
+    try{
+      // 刪 Storage 音檔
+      const p = storagePathFromUrl(r.audioUrl);
+      if(p) await deleteObject(ref(storage, p));
+      // 更新 Firestore：清空 audioUrl 欄位，標記已封存
+      await updateDoc(doc(db,'meeting_records',r.id),{
+        audioUrl: null, audioName: null, audioSize: null,
+        audioArchived: true, audioArchivedAt: serverTimestamp()
+      });
+      // 更新本地記錄
+      const local = allRecords.find(x=>x.id===r.id);
+      if(local){ local.audioUrl=null; local.audioName=null; local.audioSize=null; local.audioArchived=true; }
+      ok++;
+    } catch(e){ console.error(r.id, e); fail++; }
+  }
+
+  closeModal();
+  await loadRecords();
+  toast(fail===0 ? `✓ 已清理 ${ok} 筆音檔` : `完成 ${ok} 筆，${fail} 筆失敗`, fail>0?'err':'ok');
 };
 
 // ─── Misc ─────────────────────────────────────
