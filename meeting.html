@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會議紀錄 — 鑫系統</title>
+<style>
+:root{
+  --bg:#F0F2F5;
+  --surface:#FFFFFF;
+  --surface2:#F7F8FA;
+  --border:#E4E7ED;
+  --border2:#D0D5DD;
+  --text:#1A1D23;
+  --text2:#5A6175;
+  --text3:#9AA0B4;
+  --accent:#2D3142;
+  --accent-hover:#1A1D2E;
+  --accent-light:#ECEEF5;
+  --green:#087443;
+  --green-bg:#E6FAF0;
+  --orange:#C47A00;
+  --orange-bg:#FFF4E0;
+  --red:#C0392B;
+  --red-bg:#FEE9E9;
+  --blue:#3B5BDB;
+  --blue-bg:#E8EEFF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* Topbar */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.divider-v{width:1px;height:20px;background:var(--border)}
+.page-title{font-size:15px;font-weight:600;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.storage-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text2)}
+.storage-pill strong{color:var(--text);font-weight:600}
+
+/* Main */
+.main{max-width:1080px;margin:0 auto;padding:24px 20px 40px}
+
+/* Toolbar */
+.toolbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.toolbar input[type=text]{flex:1;min-width:200px;font-size:13px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit;transition:border-color .15s}
+.toolbar input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.toolbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;cursor:pointer;font-family:inherit}
+.btn{font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;height:36px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--surface2);border-color:var(--border2)}
+.btn-sm{font-size:12px;padding:4px 11px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;transition:all .15s;border:none}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #FFBDBD}
+.btn-danger:hover{background:#FDD8D8}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.sc{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--accent)}
+.sc .sl{font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.sc .sn{font-size:24px;font-weight:700;color:var(--text)}
+.sc .ss{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Store tabs */
+.store-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.store-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2);transition:all .15s;font-family:inherit}
+.store-tab:hover{background:var(--surface2);color:var(--text)}
+.store-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Record cards */
+.records-list{display:flex;flex-direction:column;gap:10px}
+.record-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:box-shadow .15s,border-color .15s;cursor:pointer}
+.record-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);border-color:var(--border2)}
+.record-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.record-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.record-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.badge-store{background:var(--accent-light);color:var(--accent)}
+.badge-audio{background:var(--green-bg);color:var(--green)}
+.badge-doc{background:var(--blue-bg);color:var(--blue)}
+.badge-text{background:var(--orange-bg);color:var(--orange)}
+.record-preview{font-size:13px;color:var(--text2);margin-top:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.record-date{font-size:12px;color:var(--text3);white-space:nowrap}
+.record-actions{display:flex;gap:6px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.record-card:hover .record-actions{opacity:1}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty .ic{font-size:40px;margin-bottom:12px}
+.empty p{font-size:14px}
+
+/* Loading */
+.loading-wrap{text-align:center;padding:60px;color:var(--text3);font-size:13px}
+
+/* Storage warn */
+.storage-warn{background:var(--orange-bg);border:1px solid #FDDFA0;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#8A5500}
+.storage-warn .iw{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* ========== OVERLAY ========== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:720px;margin:auto;animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{padding:22px 24px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:17px;font-weight:700;color:var(--text)}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--surface2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all .15s}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.modal-body{padding:22px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* Form */
+.fr{margin-bottom:16px}
+.fr label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.fr input[type=text],.fr input[type=date],.fr select,.fr textarea{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.fr textarea{min-height:180px;resize:vertical;line-height:1.6}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* File upload zone */
+.upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface2)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-light)}
+.upload-zone input{display:none}
+.upload-zone .uz-icon{font-size:28px;margin-bottom:8px}
+.upload-zone .uz-text{font-size:13px;color:var(--text2);margin-bottom:4px}
+.upload-zone .uz-hint{font-size:11px;color:var(--text3)}
+.file-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.file-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:13px}
+.file-item .fi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item .fi-size{font-size:11px;color:var(--text3);flex-shrink:0}
+.file-item .fi-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;transition:color .15s}
+.file-item .fi-del:hover{color:var(--red)}
+
+/* Progress */
+.upload-progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.upload-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+
+/* Audio player */
+.audio-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.audio-wrap audio{width:100%;margin-top:8px}
+.audio-name{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+
+/* Doc list */
+.doc-link{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;margin-bottom:6px;transition:all .15s}
+.doc-link:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+
+/* Tabs inside modal */
+.m-tabs{display:flex;border-bottom:1px solid var(--border);margin:-22px -24px 18px}
+.m-tab{padding:12px 18px;font-size:13px;color:var(--text2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-1px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
+.m-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.m-tab:hover:not(.active){color:var(--text);background:#F8FAFC}
+
+/* Version history */
+.ver-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface2);font-size:13px}
+.ver-item .ver-n{font-weight:600;color:var(--accent);min-width:28px}
+.ver-item .ver-info{flex:1}
+.ver-item .ver-by{font-size:11px;color:var(--text3)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.err{background:var(--red)}
+
+/* Skeleton */
+.skel{background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:6px}
+@keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Confirm */
+.confirm-box{padding:16px 0;font-size:14px;color:var(--text2);line-height:1.6}
+.confirm-box strong{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="loading" style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text3);font-size:13px">載入中…</div>
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='dashboard.html'">← 返回</button>
+      <div class="divider-v"></div>
+      <span class="page-title">📋 會議紀錄</span>
+    </div>
+    <div class="topbar-right">
+      <div class="storage-pill" id="storagePill" title="Firebase Storage 使用量估算">📦 估計 <strong id="storageUsed">—</strong></div>
+      <span id="roleLabel" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="storageWarn" class="storage-warn" style="display:none">
+      <span class="iw">⚠️</span>
+      <div><strong>Storage 用量提醒：</strong>音檔建議使用 64kbps 單聲道錄製（語音會議用途完全足夠），60 分鐘約 28MB，可大幅延長免費額度。Firebase Storage 免費上限 5GB。</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="sc"><div class="sl">總紀錄數</div><div class="sn" id="statTotal">—</div><div class="ss">全部店面合計</div></div>
+      <div class="sc"><div class="sl">本月新增</div><div class="sn" id="statMonth">—</div><div class="ss" id="statMonthLabel">—</div></div>
+      <div class="sc"><div class="sl">含音檔</div><div class="sn" id="statAudio">—</div><div class="ss">有上傳音檔的紀錄</div></div>
+      <div class="sc"><div class="sl">可查看店家</div><div class="sn" id="statStores">—</div><div class="ss">依帳號權限</div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="搜尋標題、內容…" oninput="filterRecords()">
+      <select id="monthFilter" onchange="filterRecords()">
+        <option value="">全部月份</option>
+      </select>
+      <button class="btn btn-primary" onclick="openCreate()">＋ 新增會議紀錄</button>
+    </div>
+
+    <!-- Store tabs -->
+    <div class="store-tabs" id="storeTabs"></div>
+
+    <!-- List -->
+    <div id="recordsList"></div>
+  </div>
+</div>
+
+<!-- Modal area -->
+<div id="modalArea"></div>
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain: "liangpinghri.firebaseapp.com",
+  projectId: "liangpinghri",
+  storageBucket: "liangpinghri.firebasestorage.app",
+  messagingSenderId: "410255807470",
+  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+const storage = getStorage(app);
+
+// ─── State ───────────────────────────────────
+let currentUser = null;
+let currentRole = '';
+let userLocations = [];  // stores this user can access
+let allRecords = [];
+let allStores = [];
+let activeStore = 'all';  // 'all' or store name
+let editingId = null;     // record being edited
+
+// ─── Toast ───────────────────────────────────
+function toast(msg, type='ok', ms=2800){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type==='err'?' err':'');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+// ─── Helpers ─────────────────────────────────
+function fmtDate(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Taipei'});
+}
+function fmtSize(bytes){
+  if(!bytes) return '';
+  if(bytes<1024) return bytes+'B';
+  if(bytes<1024*1024) return (bytes/1024).toFixed(1)+'KB';
+  return (bytes/1024/1024).toFixed(1)+'MB';
+}
+function nowMonthLabel(){
+  const d=new Date();
+  return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0');
+}
+
+// ─── Storage usage estimate ───────────────────
+function updateStorageEstimate(){
+  let total = 0;
+  allRecords.forEach(r=>{
+    if(r.audioSize) total += r.audioSize;
+    if(r.docUrls) r.docUrls.forEach(d=>{ if(d.size) total += d.size; });
+  });
+  const gb = (total/1024/1024/1024);
+  const pct = (gb/5*100).toFixed(1);
+  document.getElementById('storageUsed').textContent = fmtSize(total) + ` (${pct}%)`;
+  if(gb > 3.5) document.getElementById('storageWarn').style.display = 'flex';
+}
+
+// ─── Load data ───────────────────────────────
+async function loadRecords(){
+  document.getElementById('recordsList').innerHTML = '<div class="loading-wrap">載入中…</div>';
+  const q = query(collection(db,'meeting_records'), orderBy('date','desc'));
+  const snap = await getDocs(q);
+  allRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Filter by accessible stores
+  if(currentRole !== 'admin'){
+    allRecords = allRecords.filter(r => userLocations.includes(r.storeName));
+  }
+
+  // Build month options
+  const months = [...new Set(allRecords.map(r=>{
+    if(!r.date) return null;
+    const d = r.date.toDate ? r.date.toDate() : new Date(r.date);
+    return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0');
+  }).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById('monthFilter');
+  sel.innerHTML = '<option value="">全部月份</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  // Get distinct stores
+  const storeSet = new Set(allRecords.map(r=>r.storeName).filter(Boolean));
+  allStores = [...storeSet].sort();
+
+  // Stats
+  const nowM = nowMonthLabel();
+  document.getElementById('statTotal').textContent = allRecords.length;
+  document.getElementById('statMonth').textContent = allRecords.filter(r=>{
+    if(!r.date) return false;
+    const d = r.date.toDate ? r.date.toDate() : new Date(r.date);
+    return (d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')) === nowM;
+  }).length;
+  document.getElementById('statMonthLabel').textContent = nowM+' 月份';
+  document.getElementById('statAudio').textContent = allRecords.filter(r=>r.audioUrl).length;
+  document.getElementById('statStores').textContent = allStores.length || (currentRole==='admin' ? '全部' : userLocations.length);
+
+  renderStoreTabs();
+  filterRecords();
+  updateStorageEstimate();
+}
+
+function renderStoreTabs(){
+  const tabs = document.getElementById('storeTabs');
+  const stores = currentRole==='admin' ? allStores : userLocations;
+  if(stores.length <= 1){ tabs.style.display='none'; return; }
+  tabs.style.display='flex';
+  tabs.innerHTML = `<button class="store-tab${activeStore==='all'?' active':''}" onclick="window._setStore('all')">全部</button>`
+    + stores.map(s=>`<button class="store-tab${activeStore===s?' active':''}" onclick="window._setStore('${s}')">${s}</button>`).join('');
+}
+
+window._setStore = function(s){
+  activeStore = s;
+  renderStoreTabs();
+  filterRecords();
+};
+
+window.filterRecords = function(){
+  const q = (document.getElementById('searchInput').value||'').toLowerCase().trim();
+  const mf = document.getElementById('monthFilter').value;
+
+  let list = allRecords.filter(r=>{
+    // Store filter
+    if(activeStore!=='all' && r.storeName!==activeStore) return false;
+    // Month filter
+    if(mf){
+      if(!r.date) return false;
+      const d = r.date.toDate ? r.date.toDate() : new Date(r.date);
+      const rm = d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0');
+      if(rm!==mf) return false;
+    }
+    // Search
+    if(q){
+      const hay = ((r.title||'')+(r.textContent||'')+(r.storeName||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  renderList(list);
+};
+
+function renderList(list){
+  const el = document.getElementById('recordsList');
+  if(!list.length){
+    el.innerHTML = `<div class="empty"><div class="ic">📋</div><p>尚無會議紀錄${activeStore!=='all'?'（'+activeStore+'）':''}</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="records-list">${list.map(r=>renderCard(r)).join('')}</div>`;
+}
+
+function renderCard(r){
+  const badges = [];
+  if(r.audioUrl) badges.push('<span class="badge badge-audio">🎵 音檔</span>');
+  if(r.docUrls && r.docUrls.length) badges.push(`<span class="badge badge-doc">📄 文件×${r.docUrls.length}</span>`);
+  if(r.textContent) badges.push('<span class="badge badge-text">📝 文字紀錄</span>');
+  if(r.storeName) badges.push(`<span class="badge badge-store">${r.storeName}</span>`);
+
+  const preview = r.textContent ? r.textContent.replace(/\n/g,' ').trim() : '（無文字紀錄）';
+
+  return `<div class="record-card" onclick="openView('${r.id}')">
+    <div class="record-header">
+      <div style="flex:1;min-width:0">
+        <div class="record-title">${r.title||'（未命名）'}</div>
+        <div class="record-meta">${badges.join('')}</div>
+        <div class="record-preview">${preview}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;margin-left:12px">
+        <span class="record-date">${fmtDate(r.date)}</span>
+        <div class="record-actions" onclick="event.stopPropagation()">
+          <button class="btn-sm btn-outline" onclick="openEdit('${r.id}')">✎ 編輯</button>
+          <button class="btn-sm btn-danger" onclick="confirmDelete('${r.id}')">🗑</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── Create / Edit modal ──────────────────────
+window.openCreate = function(){
+  editingId = null;
+  showEditModal(null);
+};
+window.openEdit = function(id){
+  editingId = id;
+  const r = allRecords.find(x=>x.id===id);
+  showEditModal(r);
+};
+
+function showEditModal(r){
+  const isEdit = !!r;
+  const stores = currentRole==='admin' ? allStores : userLocations;
+  const storeOpts = stores.map(s=>`<option value="${s}" ${r&&r.storeName===s?'selected':''}>${s}</option>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+  const dateVal = r && r.date ? (r.date.toDate ? r.date.toDate().toISOString().split('T')[0] : new Date(r.date).toISOString().split('T')[0]) : today;
+
+  document.getElementById('modalArea').innerHTML = `
+  <div class="overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">${isEdit?'編輯會議紀錄':'新增會議紀錄'}</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="editModalBody">
+        <div class="row2">
+          <div class="fr">
+            <label>日期</label>
+            <input type="date" id="f-date" value="${dateVal}">
+          </div>
+          <div class="fr">
+            <label>店家</label>
+            <select id="f-store">${storeOpts}</select>
+          </div>
+        </div>
+        <div class="fr">
+          <label>會議標題</label>
+          <input type="text" id="f-title" placeholder="例：2025年5月份例會" value="${r?r.title:''}">
+        </div>
+        <div class="fr">
+          <label>文字紀錄</label>
+          <textarea id="f-text" placeholder="在此輸入會議紀錄內容、決議事項…">${r?r.textContent:''}</textarea>
+        </div>
+        <div class="fr">
+          <label>音檔 <span style="font-size:11px;color:var(--text3);font-weight:400;text-transform:none">（建議 64kbps 單聲道，60分鐘≈28MB）</span></label>
+          ${r&&r.audioUrl ? `<div class="audio-wrap" style="margin-bottom:10px"><div class="audio-name">📎 ${r.audioName||'音檔'} ${r.audioSize?'('+fmtSize(r.audioSize)+')':''}</div><audio controls src="${r.audioUrl}" style="width:100%;margin-top:6px"></audio><button class="btn-sm btn-danger" style="margin-top:8px" onclick="removeAudio()">移除音檔</button></div>` : ''}
+          <div class="upload-zone" id="audioZone" onclick="document.getElementById('audioInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleAudioDrop(event)">
+            <input type="file" id="audioInput" accept="audio/*" onchange="handleAudioFile(this.files[0])">
+            <div class="uz-icon">🎵</div>
+            <div class="uz-text">點擊或拖曳音檔到此處</div>
+            <div class="uz-hint">支援 MP3、AAC、M4A、WAV 等音訊格式</div>
+          </div>
+          <div id="audioFileInfo" class="file-list"></div>
+          <div class="upload-progress" id="audioProgress" style="display:none"><div class="upload-progress-bar" id="audioProgressBar" style="width:0%"></div></div>
+        </div>
+        <div class="fr">
+          <label>附件文件 <span style="font-size:11px;color:var(--text3);font-weight:400;text-transform:none">（可多個）</span></label>
+          ${r&&r.docUrls&&r.docUrls.length ? `<div id="existingDocs">${r.docUrls.map((d,i)=>`<div class="file-item"><span style="font-size:14px">📄</span><span class="fi-name">${d.name}</span><span class="fi-size">${fmtSize(d.size)}</span><button class="fi-del" onclick="removeExistingDoc(${i})">✕</button></div>`).join('')}</div>` : '<div id="existingDocs"></div>'}
+          <div class="upload-zone" id="docZone" onclick="document.getElementById('docInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDocDrop(event)">
+            <input type="file" id="docInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.txt" multiple onchange="handleDocFiles(this.files)">
+            <div class="uz-icon">📄</div>
+            <div class="uz-text">點擊或拖曳文件到此處</div>
+            <div class="uz-hint">PDF、Word、Excel、圖片等</div>
+          </div>
+          <div id="newDocsList" class="file-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveRecord()">💾 儲存</button>
+      </div>
+    </div>
+  </div>`;
+
+  // Temp state for new uploads
+  window._newAudioFile = null;
+  window._newDocFiles = [];
+  window._removeAudio = false;
+  window._removedDocIdxs = [];
+}
+
+window.handleAudioFile = function(file){
+  if(!file) return;
+  window._newAudioFile = file;
+  const info = document.getElementById('audioFileInfo');
+  info.innerHTML = `<div class="file-item"><span style="font-size:14px">🎵</span><span class="fi-name">${file.name}</span><span class="fi-size">${fmtSize(file.size)}</span><button class="fi-del" onclick="window._newAudioFile=null;document.getElementById('audioFileInfo').innerHTML=''">✕</button></div>`;
+  // Warn if > 100MB
+  if(file.size > 100*1024*1024) toast('⚠️ 音檔超過 100MB，建議使用低位元率重新錄製','err',4000);
+};
+window.handleAudioDrop = function(e){ e.preventDefault(); e.currentTarget.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('audio/')) handleAudioFile(f); };
+
+window.handleDocFiles = function(files){
+  for(const f of files) window._newDocFiles.push(f);
+  const list = document.getElementById('newDocsList');
+  list.innerHTML = window._newDocFiles.map((f,i)=>`<div class="file-item"><span style="font-size:14px">📄</span><span class="fi-name">${f.name}</span><span class="fi-size">${fmtSize(f.size)}</span><button class="fi-del" onclick="removeNewDoc(${i})">✕</button></div>`).join('');
+};
+window.handleDocDrop = function(e){ e.preventDefault(); e.currentTarget.classList.remove('drag'); handleDocFiles(e.dataTransfer.files); };
+window.removeNewDoc = function(i){ window._newDocFiles.splice(i,1); handleDocFiles([]); };
+
+window.removeAudio = function(){
+  window._removeAudio = true;
+  const wrap = document.querySelector('.audio-wrap');
+  if(wrap) wrap.remove();
+  toast('音檔已標記移除，儲存後生效');
+};
+window.removeExistingDoc = function(i){
+  if(!window._removedDocIdxs) window._removedDocIdxs = [];
+  window._removedDocIdxs.push(i);
+  const items = document.querySelectorAll('#existingDocs .file-item');
+  if(items[i]) items[i].style.opacity='0.3';
+  toast('文件已標記移除，儲存後生效');
+};
+
+// ─── Upload helper ────────────────────────────
+async function uploadFile(file, path, progressBarId){
+  return new Promise((resolve, reject)=>{
+    const storageRef = ref(storage, path);
+    const task = uploadBytesResumable(storageRef, file);
+    const bar = document.getElementById(progressBarId);
+    if(bar){ bar.parentElement.style.display='block'; }
+    task.on('state_changed',
+      snap => {
+        const pct = (snap.bytesTransferred/snap.totalBytes*100).toFixed(0);
+        if(bar) bar.style.width = pct+'%';
+      },
+      reject,
+      async ()=>{ resolve(await getDownloadURL(task.snapshot.ref)); }
+    );
+  });
+}
+
+// ─── Save ─────────────────────────────────────
+window.saveRecord = async function(){
+  const title  = document.getElementById('f-title').value.trim();
+  const dateV  = document.getElementById('f-date').value;
+  const store  = document.getElementById('f-store').value;
+  const text   = document.getElementById('f-text').value;
+
+  if(!title){ toast('請輸入會議標題','err'); return; }
+  if(!dateV){ toast('請選擇日期','err'); return; }
+  if(!store){ toast('請選擇店家','err'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '上傳中…';
+
+  try{
+    const rid = editingId || ('new_'+Date.now());
+    const existing = editingId ? allRecords.find(r=>r.id===editingId) : null;
+
+    // Handle audio
+    let audioUrl = existing ? existing.audioUrl : null;
+    let audioName = existing ? existing.audioName : null;
+    let audioSize = existing ? existing.audioSize : null;
+
+    if(window._removeAudio && audioUrl){
+      // try to delete from storage (best effort)
+      try{ await deleteObject(ref(storage, decodeURIComponent(audioUrl.split('/o/')[1].split('?')[0]))); } catch(e){}
+      audioUrl = null; audioName = null; audioSize = null;
+    }
+    if(window._newAudioFile){
+      const path = `meetings/${rid}/audio_${Date.now()}_${window._newAudioFile.name}`;
+      audioUrl = await uploadFile(window._newAudioFile, path, 'audioProgressBar');
+      audioName = window._newAudioFile.name;
+      audioSize = window._newAudioFile.size;
+    }
+
+    // Handle docs
+    let docUrls = existing ? [...(existing.docUrls||[])] : [];
+    // Remove marked
+    if(window._removedDocIdxs && window._removedDocIdxs.length){
+      const toRemove = docUrls.filter((_,i)=>window._removedDocIdxs.includes(i));
+      for(const d of toRemove){
+        try{ await deleteObject(ref(storage, decodeURIComponent(d.url.split('/o/')[1].split('?')[0]))); } catch(e){}
+      }
+      docUrls = docUrls.filter((_,i)=>!window._removedDocIdxs.includes(i));
+    }
+    // Upload new docs
+    for(const f of (window._newDocFiles||[])){
+      const path = `meetings/${rid}/doc_${Date.now()}_${f.name}`;
+      const url = await uploadFile(f, path, 'audioProgressBar');
+      docUrls.push({url, name: f.name, size: f.size});
+    }
+
+    const payload = {
+      title, storeName: store, textContent: text,
+      date: Timestamp.fromDate(new Date(dateV)),
+      audioUrl: audioUrl||null, audioName: audioName||null, audioSize: audioSize||null,
+      docUrls,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser.uid,
+      updatedByName: (await getDoc(doc(db,'users',currentUser.uid))).data()?.name || '—'
+    };
+
+    if(editingId){
+      // Save version snapshot before overwrite
+      const prev = existing;
+      await addDoc(collection(db,'meeting_records',editingId,'versions'),{
+        title: prev.title, textContent: prev.textContent,
+        audioUrl: prev.audioUrl||null, audioName: prev.audioName||null,
+        docUrls: prev.docUrls||[],
+        savedAt: serverTimestamp(), savedBy: currentUser.uid,
+        savedByName: payload.updatedByName,
+        version: prev.version||1
+      });
+      await updateDoc(doc(db,'meeting_records',editingId), {...payload, version: (prev.version||1)+1});
+      toast('✓ 更新成功，舊版本已備份');
+    } else {
+      payload.createdAt = serverTimestamp();
+      payload.createdBy = currentUser.uid;
+      payload.createdByName = payload.updatedByName;
+      payload.version = 1;
+      await addDoc(collection(db,'meeting_records'), payload);
+      toast('✓ 會議紀錄已儲存');
+    }
+
+    closeModal();
+    await loadRecords();
+  } catch(e){
+    console.error(e);
+    toast('儲存失敗：'+e.message,'err');
+    btn.disabled=false; btn.textContent='💾 儲存';
+  }
+};
+
+// ─── View modal ──────────────────────────────
+window.openView = async function(id){
+  const r = allRecords.find(x=>x.id===id);
+  if(!r) return;
+
+  document.getElementById('modalArea').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">${r.title||'（未命名）'}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px">${r.storeName||'—'} &nbsp;·&nbsp; ${fmtDate(r.date)} &nbsp;·&nbsp; ver.${r.version||1}</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="m-tabs">
+          <button class="m-tab active" id="tab-content" onclick="switchTab('content')">📋 紀錄內容</button>
+          <button class="m-tab" id="tab-files" onclick="switchTab('files')">📎 音檔 / 文件</button>
+          <button class="m-tab" id="tab-history" onclick="switchTab('history')">🕐 備份歷史</button>
+        </div>
+        <!-- Content tab -->
+        <div id="panel-content">
+          ${r.textContent
+            ? `<div style="font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:400px;overflow-y:auto">${r.textContent}</div>`
+            : '<div style="color:var(--text3);font-size:13px;padding:20px 0">此紀錄無文字內容</div>'}
+          <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="openEdit('${r.id}');closeModal()">✎ 編輯此紀錄</button>
+            ${r.textContent ? `<button class="btn btn-outline" onclick="copyText(\`${r.textContent.replace(/`/g,"\\`")}\`)">📋 複製文字</button>` : ''}
+          </div>
+        </div>
+        <!-- Files tab -->
+        <div id="panel-files" style="display:none">
+          ${r.audioUrl ? `
+          <div style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">音檔</div>
+            <div class="audio-wrap">
+              <div class="audio-name">🎵 ${r.audioName||'音檔'} ${r.audioSize ? '（'+fmtSize(r.audioSize)+'）' : ''}</div>
+              <audio controls src="${r.audioUrl}" style="width:100%;margin-top:8px" preload="none"></audio>
+            </div>
+          </div>` : '<div style="color:var(--text3);font-size:13px;margin-bottom:16px">無音檔</div>'}
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">附件文件</div>
+            ${r.docUrls&&r.docUrls.length
+              ? r.docUrls.map(d=>`<a class="doc-link" href="${d.url}" target="_blank" rel="noopener">📄 ${d.name} <span style="font-size:11px;color:var(--text3);margin-left:auto">${fmtSize(d.size)}</span></a>`).join('')
+              : '<div style="color:var(--text3);font-size:13px">無附件文件</div>'}
+          </div>
+        </div>
+        <!-- History tab -->
+        <div id="panel-history" style="display:none">
+          <div id="historyList"><div style="color:var(--text3);font-size:13px">載入中…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // Pre-bind tab functions
+  window.switchTab = function(tab){
+    ['content','files','history'].forEach(t=>{
+      document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+      document.getElementById('panel-'+t).style.display = t===tab ? 'block' : 'none';
+    });
+    if(tab==='history') loadHistory(id);
+  };
+};
+
+async function loadHistory(recordId){
+  const el = document.getElementById('historyList');
+  try{
+    const snap = await getDocs(query(collection(db,'meeting_records',recordId,'versions'), orderBy('savedAt','desc')));
+    if(snap.empty){ el.innerHTML = '<div style="color:var(--text3);font-size:13px">尚無備份歷史（每次儲存會自動備份上一版）</div>'; return; }
+    el.innerHTML = snap.docs.map(d=>{
+      const v = d.data();
+      const dt = v.savedAt ? fmtDate(v.savedAt) : '—';
+      const has = [];
+      if(v.audioUrl) has.push('音檔');
+      if(v.docUrls&&v.docUrls.length) has.push(`文件×${v.docUrls.length}`);
+      if(v.textContent) has.push('文字紀錄');
+      return `<div class="ver-item">
+        <span class="ver-n">v${v.version||'?'}</span>
+        <div class="ver-info">
+          <div>${dt} &nbsp;<span style="font-size:11px;color:var(--text3)">by ${v.savedByName||'—'}</span></div>
+          <div class="ver-by">${has.join('、')||'空內容'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){ el.innerHTML = '<div style="color:var(--red);font-size:13px">載入失敗</div>'; }
+}
+
+// ─── Delete ───────────────────────────────────
+window.confirmDelete = function(id){
+  const r = allRecords.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('modalArea').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <span class="modal-title">確認刪除</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-box">確定要刪除 <strong>「${r.title||'（未命名）'}」</strong> 嗎？<br>音檔與文件連結將一併從紀錄移除（Storage 中的實際檔案不受影響）。<br><br>此操作無法復原。</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button class="btn btn-danger" onclick="doDelete('${id}')">確認刪除</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+window.doDelete = async function(id){
+  try{
+    await deleteDoc(doc(db,'meeting_records',id));
+    allRecords = allRecords.filter(r=>r.id!==id);
+    closeModal();
+    filterRecords();
+    updateStorageEstimate();
+    toast('已刪除');
+  } catch(e){ toast('刪除失敗：'+e.message,'err'); }
+};
+
+// ─── Misc ─────────────────────────────────────
+window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
+window.copyText = function(t){ navigator.clipboard.writeText(t).then(()=>toast('已複製')); };
+
+// ─── Auth ─────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if(!user){ window.location.href='index.html'; return; }
+
+  const snap = await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists()||snap.data().disabled){
+    await signOut(auth); window.location.href='index.html?disabled=1'; return;
+  }
+  const userData = snap.data();
+  currentRole = userData.role || 'employee';
+
+  // employee 無權限
+  if(currentRole === 'employee'){
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  currentUser = user;
+  userLocations = userData.locations || [];
+
+  document.getElementById('roleLabel').textContent = {admin:'管理員',consultant:'顧問',manager:'店長'}[currentRole]||currentRole;
+
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+
+  await loadRecords();
+});
+</script>
+</body>
+</html>
