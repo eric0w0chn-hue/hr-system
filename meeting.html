@@ -719,6 +719,7 @@ window.saveRecord = async function(){
 window.openView = async function(id){
   const r = allRecords.find(x=>x.id===id);
   if(!r) return;
+  _viewRecord = r; // 供 copyCurrentText 使用
 
   const safeText = r.textContent ? r.textContent.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 
@@ -754,7 +755,7 @@ window.openView = async function(id){
               ? `<div style="font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:420px;overflow-y:auto">${safeText}</div>`
               : '<div style="color:var(--text3);font-size:13px;padding:12px 0">此紀錄無文字內容</div>'
             }
-            ${r.textContent ? `<button class="btn btn-outline" style="margin-top:10px;height:30px;font-size:12px" onclick="copyText(\`${r.textContent.replace(/\/g,'\\').replace(/`/g,'\`')}\`)">📋 複製文字</button>` : ''}
+            ${r.textContent ? `<button class="btn btn-outline" style="margin-top:10px;height:30px;font-size:12px" onclick="copyCurrentText()">📋 複製文字</button>` : ''}
           </div>
 
           <!-- 附件文件欄（只在有文件時顯示） -->
@@ -935,8 +936,13 @@ window.doArchiveCleanup = async function(){
 };
 
 // ─── Misc ─────────────────────────────────────
-window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
+let _viewRecord = null; // 目前查看的紀錄（供 copyCurrentText 使用）
+window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; _viewRecord=null; };
 window.copyText = function(t){ navigator.clipboard.writeText(t).then(()=>toast('已複製')); };
+window.copyCurrentText = function(){
+  if(_viewRecord && _viewRecord.textContent)
+    navigator.clipboard.writeText(_viewRecord.textContent).then(()=>toast('已複製'));
+};
 
 // ─── Auth ─────────────────────────────────────
 onAuthStateChanged(auth, async user => {
