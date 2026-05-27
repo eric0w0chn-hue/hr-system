@@ -237,6 +237,15 @@ function toROC(dateStr){
   if(!y||!m||!d)return dateStr;
   return `民國 ${parseInt(y)-1911} 年 ${parseInt(m)} 月 ${parseInt(d)} 日`;
 }
+function toROCShort(dateStr){
+  if(!dateStr)return '—';
+  const [y,m,d]=dateStr.split('-');
+  if(!y||!m||!d)return dateStr;
+  const roc=String(parseInt(y)-1911).padStart(3,'0');
+  const mm=String(parseInt(m)).padStart(2,'0');
+  const dd=String(parseInt(d)).padStart(2,'0');
+  return `${roc}/${mm}/${dd}`;
+}
 // 民國輸入框：顯示民國年，底層儲存西元 YYYY-MM-DD
 // 使用自訂輸入：三欄（年/月/日）組合
 function rocInputHtml(id, val){
@@ -655,11 +664,7 @@ function render() {
         ${sth('狀態','status','80px')}
         <th style="width:70px">操作</th>
       </tr></thead>
-      <tbody>${list.length?(()=>{
-        const totalPages=Math.ceil(list.length/PAGE_SIZE);
-        if(currentPage>totalPages)currentPage=1;
-        const pageList=list.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
-        return pageList.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="setSelId(${r.id})">
+      <tbody>${list.length?list.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
         <td>${r.location||'—'}</td><td>${r.date||'—'}</td><td>${r.source||'—'}</td>
         <td>${fitBadge(r.fit)}</td>
@@ -668,23 +673,8 @@ function render() {
           <button class="ibt" onclick="event.stopPropagation();openModal('editInterview',${r.id})" title="編輯">✎</button>
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>`:''}
         </div></td>
-      </tr>`).join('');
-      })():`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
-      </tbody></table></div>
-    ${list.length>PAGE_SIZE?(()=>{
-      const totalPages=Math.ceil(list.length/PAGE_SIZE);
-      let pages='';
-      pages+=`<button class="pg-btn" onclick="setPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
-      for(let p=1;p<=totalPages;p++){
-        if(p===1||p===totalPages||Math.abs(p-currentPage)<=1){
-          pages+=`<button class="pg-btn${p===currentPage?' active':''}" onclick="setPage(${p})">${p}</button>`;
-        } else if(Math.abs(p-currentPage)===2){
-          pages+=`<span class="pg-info">…</span>`;
-        }
-      }
-      pages+=`<button class="pg-btn" onclick="setPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
-      return`<div class="pagination"><span class="pg-info">${list.length} 筆，第 ${currentPage}/${totalPages} 頁</span>${pages}</div>`;
-    })():''}`;
+      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+      </tbody></table></div>`;
 
     const sel=interviews.find(r=>r.id===selId);
     if(sel){det=`<div class="detail">
@@ -739,11 +729,7 @@ function render() {
         ${sth('狀態','status','80px')}
         <th style="width:60px">操作</th>
       </tr></thead>
-      <tbody>${getList().length?(()=>{
-        const totalPages=Math.ceil(getList().length/PAGE_SIZE);
-        if(currentPage>totalPages)currentPage=1;
-        const pageList=getList().slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
-        return pageList.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
+      <tbody>${getList().length?getList().map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
         <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.startDate||'—'}</td><td>${r.resignDate||'—'}</td>
         <td>${eBadge(r.status)}</td>
@@ -751,23 +737,8 @@ function render() {
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();restoreEmployee(${r.id})" title="復職">↩</button>`:''}
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();delResigned(${r.id})" title="刪除" style="color:#e24b4a">✕</button>`:''}
         </div></td>
-      </tr>`).join('');
-      })():`<tr><td colspan="7"><div class="empty-state">沒有離職同仁記錄</div></td></tr>`}
-      </tbody></table></div>
-    ${getList().length>PAGE_SIZE?(()=>{
-      const totalPages=Math.ceil(getList().length/PAGE_SIZE);
-      let pages='';
-      pages+=`<button class="pg-btn" onclick="setPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
-      for(let p=1;p<=totalPages;p++){
-        if(p===1||p===totalPages||Math.abs(p-currentPage)<=1){
-          pages+=`<button class="pg-btn${p===currentPage?' active':''}" onclick="setPage(${p})">${p}</button>`;
-        } else if(Math.abs(p-currentPage)===2){
-          pages+=`<span class="pg-info">…</span>`;
-        }
-      }
-      pages+=`<button class="pg-btn" onclick="setPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
-      return`<div class="pagination"><span class="pg-info">${getList().length} 筆，第 ${currentPage}/${totalPages} 頁</span>${pages}</div>`;
-    })():''}`;
+      </tr>`).join(''):`<tr><td colspan="7"><div class="empty-state">沒有離職同仁記錄</div></td></tr>`}
+      </tbody></table></div>`;
 
     const sel=resigned.find(r=>r.id===selId);
     if(sel){det=`<div class="detail">
@@ -871,7 +842,7 @@ function render() {
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span>${hasAlert?`<span class="alert-tip" data-alert-tip="1"><span style="color:#f59e0b;font-size:12px">⚠️</span><span class="tip-box">${alertMsg}</span></span>`:''}</div></td>
-        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
+        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROCShort(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
         <td>${eBadge(r.status)}</td>
         <td><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
