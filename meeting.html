@@ -293,6 +293,13 @@ function updateStorageEstimate(){
 // ─── Load data ───────────────────────────────
 async function loadRecords(){
   document.getElementById('recordsList').innerHTML = '<div class="loading-wrap">載入中…</div>';
+
+  // 從 hr/settings 讀取全店清單（比照菜價回報）
+  try{
+    const hrSnap = await getDoc(doc(db,'hr','settings'));
+    allStores = (hrSnap.exists() ? hrSnap.data().workLocations||[] : []).filter(Boolean).sort();
+  } catch(e){ allStores = []; }
+
   const q = query(collection(db,'meeting_records'), orderBy('date','desc'));
   const snap = await getDocs(q);
   allRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -311,9 +318,11 @@ async function loadRecords(){
   const sel = document.getElementById('monthFilter');
   sel.innerHTML = '<option value="">全部月份</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
 
-  // Get distinct stores
+  // distinct stores from records (for tabs only)
   const storeSet = new Set(allRecords.map(r=>r.storeName).filter(Boolean));
-  allStores = [...storeSet].sort();
+  // allStores already loaded from hr/settings above; merge any extra from records
+  const combined = new Set([...allStores, ...storeSet]);
+  allStores = [...combined].sort();
 
   // Stats
   const nowM = nowMonthLabel();
