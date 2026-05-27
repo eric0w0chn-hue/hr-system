@@ -133,7 +133,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spin-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
-@media(max-width:800px){.main{padding:14px}.topbar{padding:0 14px}}
+@media(max-width:800px){
+  .main{padding:12px}
+  .topbar{padding:0 14px;height:52px}
+  .page-title{font-size:14px}
+
+  /* 廠商區塊 */
+  .vendor-block{border-radius:10px;margin-bottom:10px}
+  .vb-header{padding:8px 10px}
+  .vb-body{padding:10px}
+
+  /* 品項列：手機改成兩行排列 */
+  .col-header{display:none}
+  .item-row{
+    display:flex;flex-direction:column;gap:6px;
+    padding:8px;background:var(--surface2);border-radius:8px;
+    margin-bottom:6px;position:relative;
+  }
+  .item-row > div:first-child{ width:100% }
+  .item-row .cdd-trigger{width:100%;font-size:13px}
+  .unit-row{display:flex;gap:6px;align-items:center}
+  .unit-row input[type=number]{flex:1;min-width:0}
+  .unit-row select{flex:1;min-width:0}
+  .item-row .price-inp{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;text-align:left}
+  .item-row .del-row-btn{position:absolute;top:8px;right:8px}
+
+  /* 品項欄標籤 */
+  .item-row::before{content:'品項';font-size:11px;color:var(--text3);font-weight:600}
+
+  /* cdd 按鈕文字不換行 */
+  .cdd-trigger{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cdd-trigger span:first-child{overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 16px);display:inline-block;vertical-align:middle}
+
+  /* 表單欄位 */
+  .fr{flex-wrap:wrap}
+  .fr label{min-width:auto}
+  .fr .inp,.fr select{font-size:14px}
+
+  /* 回報表 */
+  .report-card-header{flex-wrap:wrap;gap:4px}
+  .report-table th,.report-table td{padding:6px 8px;font-size:12px}
+  .store-tabs{gap:4px}
+  .store-tab{font-size:11px;padding:3px 10px}
+
+  /* submit 按鈕 */
+  .submit-row{flex-wrap:wrap}
+  .submit-row .btn{flex:1;justify-content:center}
+}
+
+@media(max-width:480px){
+  .item-row{padding:10px 10px 10px 10px}
+  .item-row .del-row-btn{top:10px;right:10px}
+}
 /* cdd 下拉元件（比照人員管理）*/
 .cdd{position:relative;display:inline-block;width:100%}
 .cdd-trigger{width:100%;font-size:13px;padding:8px 32px 8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;appearance:none;-webkit-appearance:none;transition:border-color .15s;position:relative}
@@ -415,14 +466,15 @@ window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
   div.innerHTML=`
     <div style="position:relative">${priceCddHtml(safeId,itemOptions,item,'','請選擇或新增品項')}</div>
     <div class="unit-row">
-      <input type="number" value="${qty}" placeholder="數量" min="0" step="0.5">
-      <select>
+      <input type="number" value="${qty}" placeholder="數量" min="0" step="0.5" style="font-size:13px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
+      <select style="font-size:13px;padding:7px 6px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--surface);outline:none">
         <option value="件"${unit==='件'?' selected':''}>件</option>
         <option value="公斤"${unit==='公斤'?' selected':''}>公斤</option>
         <option value="斤"${unit==='斤'?' selected':''}>斤</option>
       </select>
     </div>
-    <input type="number" class="price-inp" value="${price}" placeholder="0" min="0" step="0.5">
+    <input type="number" class="price-inp" value="${price}" placeholder="單價" min="0" step="0.5"
+      style="font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none;width:100%">
     <button class="del-row-btn" onclick="this.closest('.item-row').remove()">×</button>`;
   rows.appendChild(div);
 };
