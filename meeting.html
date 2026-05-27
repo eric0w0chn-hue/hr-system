@@ -198,8 +198,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .m-tab{padding:10px 14px;font-size:12px}
   .row2{grid-template-columns:1fr}
   .fr textarea{min-height:120px}
-  .review-layout{flex-direction:column!important}
-  .review-text-col{max-height:200px!important}
 }
 
 /* 封存管理 */
@@ -719,52 +717,48 @@ window.saveRecord = async function(){
 window.openView = async function(id){
   const r = allRecords.find(x=>x.id===id);
   if(!r) return;
-  _viewRecord = r; // 供 copyCurrentText 使用
+  _viewRecord = r;
 
-  const safeText = r.textContent ? r.textContent.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+  const safeText = r.textContent
+    ? r.textContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    : '';
 
   document.getElementById('modalArea').innerHTML = `
   <div class="overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal" style="max-width:780px">
+    <div class="modal" style="max-width:680px;width:100%">
       <div class="modal-header">
-        <div>
-          <div class="modal-title">${r.title||'（未命名）'}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:3px">${r.storeName||'—'} &nbsp;·&nbsp; ${fmtDate(r.date)}</div>
+        <div style="min-width:0;flex:1">
+          <div class="modal-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.title||'（未命名）'}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px">${r.storeName||'—'} · ${fmtDate(r.date)}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-outline" style="height:32px;font-size:12px" onclick="openEdit('${r.id}');closeModal()">✎ 編輯</button>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px">
+          <button class="btn btn-outline" style="height:30px;font-size:12px;padding:0 10px" onclick="openEdit('${r.id}');closeModal()">✎ 編輯</button>
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
       </div>
-      <div class="modal-body" style="padding-top:16px">
+      <div class="modal-body" style="padding-top:14px;display:block">
 
-        ${r.audioUrl ? `
-        <!-- 音檔播放器（置頂固定） -->
-        <div class="audio-wrap" style="margin-bottom:16px">
-          <div class="audio-name">🎵 ${r.audioName||'音檔'} ${r.audioSize ? '（'+fmtSize(r.audioSize)+'）' : ''}</div>
-          <audio controls src="${r.audioUrl}" style="width:100%;margin-top:8px" preload="none"></audio>
+        ${r.audioUrl ? `<div class="audio-wrap" style="margin-bottom:16px;display:block">
+          <div class="audio-name">🎵 ${r.audioName||'音檔'} ${r.audioSize?'（'+fmtSize(r.audioSize)+'）':''}</div>
+          <audio controls src="${r.audioUrl}" style="width:100%;margin-top:8px;display:block" preload="none"></audio>
         </div>` : ''}
 
-        <!-- 音檔＋文字並排 / 純文字 -->
-        <div class="review-layout" style="display:flex;gap:16px;align-items:flex-start">
-
-          <!-- 文字紀錄 -->
-          <div class="review-text-col" style="flex:1;min-width:0">
-            <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">文字紀錄</div>
-            ${safeText
-              ? `<div style="font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:420px;overflow-y:auto">${safeText}</div>`
-              : '<div style="color:var(--text3);font-size:13px;padding:12px 0">此紀錄無文字內容</div>'
-            }
-            ${r.textContent ? `<button class="btn btn-outline" style="margin-top:10px;height:30px;font-size:12px" onclick="copyCurrentText()">📋 複製文字</button>` : ''}
-          </div>
-
-          <!-- 附件文件欄（只在有文件時顯示） -->
-          ${r.docUrls&&r.docUrls.length ? `
-          <div style="width:220px;flex-shrink:0">
-            <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">附件文件</div>
-            ${r.docUrls.map(d=>`<a class="doc-link" href="${d.url}" target="_blank" rel="noopener">📄 ${d.name}<span style="font-size:11px;color:var(--text3);margin-left:auto">${fmtSize(d.size)}</span></a>`).join('')}
-          </div>` : ''}
+        <div style="display:block;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">文字紀錄</div>
+          ${safeText
+            ? `<div style="font-size:14px;line-height:1.9;color:var(--text);white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);max-height:360px;overflow-y:auto;display:block">${safeText}</div>`
+            : '<div style="color:var(--text3);font-size:13px;padding:8px 0">此紀錄無文字內容</div>'
+          }
+          ${r.textContent ? `<button class="btn btn-outline" style="margin-top:10px;height:30px;font-size:12px;display:inline-flex" onclick="copyCurrentText()">📋 複製文字</button>` : ''}
         </div>
+
+        ${r.docUrls&&r.docUrls.length ? `
+        <div style="display:block">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">附件文件</div>
+          <div style="display:block">
+            ${r.docUrls.map(d=>`<a class="doc-link" href="${d.url}" target="_blank" rel="noopener" style="display:flex;width:100%;box-sizing:border-box">📄 <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 8px">${d.name}</span><span style="font-size:11px;color:var(--text3);flex-shrink:0">${fmtSize(d.size)}</span></a>`).join('')}
+          </div>
+        </div>` : ''}
 
       </div>
     </div>
