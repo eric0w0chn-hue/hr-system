@@ -8,14 +8,14 @@
 :root{--bg:#ECEEF2;--surface:#FFFFFF;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100}
 .topbar-brand{display:flex;align-items:center;gap:10px}
 .topbar-icon{width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
 .topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px}
-.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;overflow:hidden}
 .user-chip{display:flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;background:rgba(255,255,255,.1);border-radius:24px;border:1px solid rgba(255,255,255,.15)}
 .user-av{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
-.user-info .name{font-size:13px;font-weight:600;color:#fff}
+.user-info .name{font-size:13px;font-weight:600;color:#fff;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .user-info .sub{font-size:10px;color:rgba(255,255,255,.6)}
 .role-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
 .role-admin{background:#FFF4E0;color:#C47A00}
@@ -34,7 +34,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .preview-btn.active.p-employee{background:#E8EEFF;color:#3B5BDB}
 .preview-notice{background:#FFF4E0;border:1px solid #FDDFA0;border-radius:10px;padding:8px 16px;font-size:12px;color:#C47A00;margin-bottom:20px;display:none;align-items:center;gap:8px}
 .preview-notice.show{display:flex}
-.main{max-width:960px;margin:0 auto;padding:36px 24px}
+.main{max-width:960px;margin:0 auto;padding:28px 16px}
 .greeting{margin-bottom:32px}
 .greeting h2{font-size:22px;font-weight:700;color:var(--text)}
 .greeting p{font-size:13px;color:var(--text3);margin-top:5px}
@@ -59,6 +59,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+  .topbar{padding:8px 12px;height:auto;min-height:56px}
+  .topbar h1{font-size:13px}
+  .user-info .name,.user-info .sub{max-width:72px}
+  .preview-bar{display:none!important}
+  .btn-logout{font-size:11px;padding:4px 10px}
+  .main{padding:16px 12px}
+  .greeting h2{font-size:17px}
+  .grid{grid-template-columns:1fr!important}
+  .module-card{padding:16px 14px}
+}
+@media(min-width:601px) and (max-width:720px){
+  .grid{grid-template-columns:repeat(2,1fr)!important}
+}
 </style>
 </head>
 <body>
