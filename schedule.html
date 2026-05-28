@@ -350,51 +350,55 @@ window.closeModal=closeModal;
 // ── 匯出 Excel（格式同薪資系統範本）──
 // ══════════════════════════════════════════════════════
 window.exportToExcel = async function() {
-  if(!selectedLocation){ showToast('請先選擇店面'); return; }
-  if(!Object.keys(shifts).length){ showToast('本月無排班資料可匯出'); return; }
+  // 決定要撈的店面清單
+  const exportLocs = currentRole === 'admin'
+    ? workLocations  // admin → 全部店面
+    : (currentLocations.length ? currentLocations : (selectedLocation ? [selectedLocation] : []));
 
-  // 載入所有店面的班表（同月份，所有 workLocations）
-  showToast('準備匯出中...');
+  if(!exportLocs.length){ showToast('無可匯出的店面，請先選擇店面'); return; }
 
-  // 收集所有排班，轉成平排列表
+  showToast('匯出中，請稍候...');
+
+  const yearMonthKey = `${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+  const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
+
+  // 並行撈所有店面班表
+  const allLocShifts = await Promise.all(
+    exportLocs.map(async loc => {
+      try {
+        const snap = await getDoc(doc(db,'schedules',`${yearMonthKey}_${loc}`));
+        return { loc, shifts: snap.exists() ? (snap.data().shifts||{}) : {} };
+      } catch(e) { return { loc, shifts: {} }; }
+    })
+  );
+
+  // 整合成平排列表，依日期+店面排序
   const rows = [];
-  // 也撈所有店面的班表（若只匯出選定店面，就只用 shifts）
-  // 此處匯出「當前選定店面」的全月班表
-  const sortedDates = Object.keys(shifts).sort();
-  for(const dateStr of sortedDates){
-    const arr = shifts[dateStr];
-    for(const s of arr){
-      // 員工薪資代碼：從 allEmployees 找 empNo
-      const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
-      const empNo = emp.empNo||'';
-      const empName = s.empName||emp.name||'';
-
-      // 員工 D 欄值：empNo-姓名（有代碼才組合）
-      const empCell = empNo ? `${empNo}-${empName}` : empName;
-
-      // 店面代碼：從 locationCodes 查詢
-      const locCode = locationCodes[selectedLocation]||'';
-      // B 欄：代碼 - 店名（有代碼）
-      const locCell = locCode ? `${locCode} - ${selectedLocation}` : selectedLocation;
-
-      // 日期格式：YYYY/MM/DD
-      const dateFormatted = dateStr.replace(/-/g, '/');
-
-      // 時間格式：HH:MM:SS
-      const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
-
-      rows.push({
-        locCell,
-        shiftType: '', // C欄：班別，目前系統無班別代碼
-        empCell,
-        date: dateFormatted,
-        startTime: toHMS(s.startTime),
-        endTime: toHMS(s.endTime),
-      });
+  for(const { loc, shifts: locShifts } of allLocShifts){
+    const locCode = locationCodes[loc]||'';
+    const locCell = locCode ? `${locCode} - ${loc}` : loc;
+    for(const dateStr of Object.keys(locShifts).sort()){
+      for(const s of locShifts[dateStr]){
+        const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
+        const empNo = emp.empNo||'';
+        const empName = s.empName||emp.name||'';
+        const empCell = empNo ? `${empNo}-${empName}` : empName;
+        rows.push({
+          locCell,
+          shiftType: '',
+          empCell,
+          date: dateStr.replace(/-/g, '/'),
+          startTime: toHMS(s.startTime),
+          endTime: toHMS(s.endTime),
+        });
+      }
     }
   }
 
-  if(!rows.length){ showToast('本月無排班資料可匯出'); return; }
+  // 依日期排序
+  rows.sort((a,b) => a.date.localeCompare(b.date));
+
+  if(!rows.length){ showToast('本月所有店面無排班資料可匯出'); return; }
 
   // 建立 Workbook
   const wb = XLSX.utils.book_new();
@@ -455,10 +459,12 @@ window.exportToExcel = async function() {
 
   XLSX.utils.book_append_sheet(wb, ws, '工作表1');
 
-  // 匯出檔名：店名_YYYY年M月.xlsx
-  const fileName = `${selectedLocation}_${viewYear}年${viewMonth}月.xlsx`;
+  // 匯出檔名：YYYY年M月_全店班表.xlsx（admin）或 主店名_YYYY年M月.xlsx
+  const fileName = currentRole==='admin'
+    ? `${viewYear}年${viewMonth}月_全店班表.xlsx`
+    : `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
   XLSX.writeFile(wb, fileName);
-  showToast(`✅ 已匯出 ${fileName}`);
+  showToast(`✅ 已匯出 ${rows.length} 筆排班`);
 };
 
 
