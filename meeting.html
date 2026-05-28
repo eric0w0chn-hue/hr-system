@@ -546,7 +546,7 @@ function showEditModal(r){
           <label>音檔 <span style="font-size:11px;color:var(--text3);font-weight:400;text-transform:none">（建議 64kbps 單聲道，60分鐘≈28MB）</span></label>
           ${r&&r.audioUrl ? `<div class="audio-wrap" style="margin-bottom:10px"><div class="audio-name">📎 ${r.audioName||'音檔'} ${r.audioSize?'('+fmtSize(r.audioSize)+')':''}</div><audio controls src="${r.audioUrl}" style="width:100%;margin-top:6px"></audio><button class="btn-sm btn-danger" style="margin-top:8px" onclick="removeAudio()">移除音檔</button></div>` : ''}
           <div class="upload-zone" id="audioZone" onclick="document.getElementById('audioInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleAudioDrop(event)">
-            <input type="file" id="audioInput" accept=".mp3,.m4a,.aac,.wav,.ogg,.mp4,.mov,.caf,audio/*" onchange="handleAudioFile(this.files[0])">
+            <input type="file" id="audioInput" accept="" onchange="handleAudioFile(this.files[0])">
             <div class="uz-icon">🎵</div>
             <div class="uz-text">點擊或拖曳音檔到此處</div>
             <div class="uz-hint">支援 MP3、AAC、M4A、WAV 等音訊格式</div>
