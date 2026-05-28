@@ -379,6 +379,8 @@ window.exportToExcel = async function() {
     const locCell = locCode ? `${locCode} - ${loc}` : loc;
     for(const dateStr of Object.keys(locShifts).sort()){
       for(const s of locShifts[dateStr]){
+        // 若有人員篩選，只匯出篩選中的人
+        if(filterEmpIds.size > 0 && !filterEmpIds.has(String(s.empId))) continue;
         const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
         const empNo = emp.empNo||'';
         const empName = s.empName||emp.name||'';
@@ -459,10 +461,18 @@ window.exportToExcel = async function() {
 
   XLSX.utils.book_append_sheet(wb, ws, '工作表1');
 
-  // 匯出檔名：YYYY年M月_全店班表.xlsx（admin）或 主店名_YYYY年M月.xlsx
-  const fileName = currentRole==='admin'
-    ? `${viewYear}年${viewMonth}月_全店班表.xlsx`
-    : `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
+  // 匯出檔名
+  let fileName;
+  if(filterEmpIds.size === 1){
+    const filteredEmpId = [...filterEmpIds][0];
+    const filteredEmp = allEmployees.find(e=>String(e.id)===String(filteredEmpId));
+    const empName = filteredEmp ? filteredEmp.name : filteredEmpId;
+    fileName = `${empName}_${viewYear}年${viewMonth}月.xlsx`;
+  } else if(currentRole==='admin'){
+    fileName = `${viewYear}年${viewMonth}月_全店班表.xlsx`;
+  } else {
+    fileName = `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
+  }
   XLSX.writeFile(wb, fileName);
   showToast(`✅ 已匯出 ${rows.length} 筆排班`);
 };
