@@ -214,6 +214,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .sidebar-list { grid-template-columns: repeat(3, 1fr); max-height: 120px; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入中...</div></div>
@@ -243,6 +244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       <div class="legend" id="empLegend"></div>
       <div class="ml-auto" style="display:flex;gap:8px" id="toolbarBtns">
         <button class="btn" onclick="openShiftTypesModal()">⚙ 班別設定</button>
+        <button class="btn" id="exportBtn" onclick="exportToExcel()" style="display:none">📤 匯出 Excel</button>
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
       </div>
     </div>
@@ -332,7 +334,7 @@ const db=getFirestore(app);
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[];
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
-let allEmployees=[],workLocations=[],shifts={};
+let allEmployees=[],workLocations=[],shifts={},locationCodes={};
 let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
@@ -343,6 +345,122 @@ let filterEmpIds=new Set(); // 人員複選篩選
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 function closeModal(){document.getElementById('modalArea').innerHTML='';}
 window.closeModal=closeModal;
+
+// ══════════════════════════════════════════════════════
+// ── 匯出 Excel（格式同薪資系統範本）──
+// ══════════════════════════════════════════════════════
+window.exportToExcel = async function() {
+  if(!selectedLocation){ showToast('請先選擇店面'); return; }
+  if(!Object.keys(shifts).length){ showToast('本月無排班資料可匯出'); return; }
+
+  // 載入所有店面的班表（同月份，所有 workLocations）
+  showToast('準備匯出中...');
+
+  // 收集所有排班，轉成平排列表
+  const rows = [];
+  // 也撈所有店面的班表（若只匯出選定店面，就只用 shifts）
+  // 此處匯出「當前選定店面」的全月班表
+  const sortedDates = Object.keys(shifts).sort();
+  for(const dateStr of sortedDates){
+    const arr = shifts[dateStr];
+    for(const s of arr){
+      // 員工薪資代碼：從 allEmployees 找 empNo
+      const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
+      const empNo = emp.empNo||'';
+      const empName = s.empName||emp.name||'';
+
+      // 員工 D 欄值：empNo-姓名（有代碼才組合）
+      const empCell = empNo ? `${empNo}-${empName}` : empName;
+
+      // 店面代碼：從 locationCodes 查詢
+      const locCode = locationCodes[selectedLocation]||'';
+      // B 欄：代碼 - 店名（有代碼）
+      const locCell = locCode ? `${locCode} - ${selectedLocation}` : selectedLocation;
+
+      // 日期格式：YYYY/MM/DD
+      const dateFormatted = dateStr.replace(/-/g, '/');
+
+      // 時間格式：HH:MM:SS
+      const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
+
+      rows.push({
+        locCell,
+        shiftType: '', // C欄：班別，目前系統無班別代碼
+        empCell,
+        date: dateFormatted,
+        startTime: toHMS(s.startTime),
+        endTime: toHMS(s.endTime),
+      });
+    }
+  }
+
+  if(!rows.length){ showToast('本月無排班資料可匯出'); return; }
+
+  // 建立 Workbook
+  const wb = XLSX.utils.book_new();
+  const wsData = [];
+
+  // 標題列（第一列）
+  wsData.push([
+    '排班編號\n(自動填寫，請勿更動)',
+    '上班地點\n(必填，格式必須正確)',
+    '值班班別\n(非必填，填寫則視為班別排班)',
+    '值班餐飲人員\n(必填，格式必須正確)',
+    '值班日期\n(必填，格式必須正確)',
+    '上班時間\n(若非班別班則必須填寫，格式必須正確)',
+    '下班時間\n(若非班別班則必須填寫，格式必須正確)',
+  ]);
+
+  // 資料列（含 A 欄公式）
+  rows.forEach((r, i) => {
+    const row = i + 2; // Excel 第2列起
+    const formula =
+      `CONCATENATE(` +
+      `IF(ISNUMBER(SEARCH("-",B${row})),TRIM(LEFT(B${row},SEARCH("-",B${row},1)-1)),B${row}),` +
+      `IF(ISNUMBER(SEARCH("-",C${row})),SUBSTITUTE(TRIM(LEFT(C${row},SEARCH("-",C${row},1)-1))," ",""),IF(C${row} = "","NOSHIFT",C${row})),` +
+      `IF(ISNUMBER(SEARCH("-",D${row})),TRIM(LEFT(D${row},SEARCH("-",D${row},1)-1)),D${row}),` +
+      `SUBSTITUTE(E${row},"/",""),` +
+      `IF(OR(F${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(F${row},":",""),(4))),` +
+      `IF(OR(G${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(G${row},":",""),(4))))`;
+
+    wsData.push([
+      { f: formula },
+      r.locCell,
+      r.shiftType,
+      r.empCell,
+      r.date,
+      r.startTime,
+      r.endTime,
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // 設定欄寬
+  ws['!cols'] = [
+    { wch: 35 }, // A
+    { wch: 22 }, // B
+    { wch: 20 }, // C
+    { wch: 20 }, // D
+    { wch: 14 }, // E
+    { wch: 14 }, // F
+    { wch: 14 }, // G
+  ];
+
+  // 設定列高（標題列）
+  ws['!rows'] = [{ hpt: 40 }];
+
+  // 標題列換行
+  ws['A1'].s = { alignment: { wrapText: true } };
+
+  XLSX.utils.book_append_sheet(wb, ws, '工作表1');
+
+  // 匯出檔名：店名_YYYY年M月.xlsx
+  const fileName = `${selectedLocation}_${viewYear}年${viewMonth}月.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  showToast(`✅ 已匯出 ${fileName}`);
+};
+
 
 // ── 顏色 ──
 const EMP_COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
@@ -939,10 +1057,19 @@ onAuthStateChanged(auth,async user=>{
     window._checkScheduleLock=function(){ return false; };
   }
   document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
+  // 只有 admin / manager 顯示匯出按鈕
+  if(currentRole==='admin'||currentRole==='manager'){
+    document.getElementById('exportBtn').style.display='';
+  }
 
   // 並行載入所有資料
   await Promise.all([
-    getDoc(doc(db,'hr','settings')).then(s=>{workLocations=s.exists()?(s.data().workLocations||[]):[];}),
+    getDoc(doc(db,'hr','settings')).then(s=>{
+      if(s.exists()){
+        workLocations=s.data().workLocations||[];
+        locationCodes=s.data().locationCodes||{};
+      }
+    }),
     getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
     loadShiftTypes(),
     loadHolidays(viewYear),
