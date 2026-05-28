@@ -350,9 +350,9 @@ window.closeModal=closeModal;
 // ── 匯出 Excel（格式同薪資系統範本）──
 // ══════════════════════════════════════════════════════
 window.exportToExcel = async function() {
-  // 決定要撈的店面清單
+  // 決定要撈的店面清單：永遠撈所有可管理的店面
   const exportLocs = currentRole === 'admin'
-    ? workLocations  // admin → 全部店面
+    ? workLocations
     : (currentLocations.length ? currentLocations : (selectedLocation ? [selectedLocation] : []));
 
   if(!exportLocs.length){ showToast('無可匯出的店面，請先選擇店面'); return; }
@@ -363,6 +363,12 @@ window.exportToExcel = async function() {
   const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
 
   // 並行撈所有店面班表
+  // 並行撈所有店面班表
+  // 主店（currentUser 的 workLocation）→ 全員；其他跨店 → 只撈自己
+  const currentEmp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const myEmpId = currentEmp.id ? String(currentEmp.id) : null;
+  const myWorkLocation = currentEmp.workLocation||'';
+
   const allLocShifts = await Promise.all(
     exportLocs.map(async loc => {
       try {
@@ -372,15 +378,23 @@ window.exportToExcel = async function() {
     })
   );
 
-  // 整合成平排列表，依日期+店面排序
+  // 整合成平排列表
   const rows = [];
   for(const { loc, shifts: locShifts } of allLocShifts){
     const locCode = locationCodes[loc]||'';
     const locCell = locCode ? `${locCode} - ${loc}` : loc;
+
+    // 決定這間店要匯出哪些人
+    // admin → 全員；非admin → 主店全員，其他店只匯出自己
+    const isMainStore = currentRole==='admin' || loc===myWorkLocation;
+
     for(const dateStr of Object.keys(locShifts).sort()){
       for(const s of locShifts[dateStr]){
-        // 若有人員篩選，只匯出篩選中的人
+        // 人員篩選（UI 篩選器）
         if(filterEmpIds.size > 0 && !filterEmpIds.has(String(s.empId))) continue;
+        // 跨店只匯自己
+        if(!isMainStore && myEmpId && String(s.empId) !== myEmpId) continue;
+
         const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
         const empNo = emp.empNo||'';
         const empName = s.empName||emp.name||'';
@@ -474,7 +488,8 @@ window.exportToExcel = async function() {
     fileName = `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
   }
   XLSX.writeFile(wb, fileName);
-  showToast(`✅ 已匯出 ${rows.length} 筆排班`);
+  const scopeMsg = filterEmpIds.size===1 ? `（跨 ${exportLocs.length} 間店）` : `（${exportLocs.length} 間店 / 全員）`;
+  showToast(`✅ 已匯出 ${rows.length} 筆排班 ${scopeMsg}`);
 };
 
 
@@ -961,8 +976,35 @@ window.removeShiftType=async function(idx){
 };
 
 function getEmpOptions(selectedId=''){
-  const locEmps=currentRole==='admin'?allEmployees:allEmployees.filter(e=>e.workLocation===selectedLocation);
-  return locEmps.map(e=>`<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${e.name}　${e.workLocation||''}</option>`).join('');
+  const locEmps = currentRole==='admin'
+    ? allEmployees
+    : allEmployees.filter(e => {
+        // 可管理店面的員工 + 自己
+        return currentLocations.includes(e.workLocation) || e.uid===currentUser?.uid;
+      });
+
+  // 依 workLocation 分組
+  const groups = {};
+  locEmps.forEach(e => {
+    const loc = e.workLocation || '（未設定）';
+    if(!groups[loc]) groups[loc] = [];
+    groups[loc].push(e);
+  });
+
+  // 依 workLocations 順序排列店面，在職優先
+  const sortedLocs = workLocations.filter(l => groups[l]);
+  if(groups['（未設定）']) sortedLocs.push('（未設定）');
+
+  return sortedLocs.map(loc => {
+    const emps = groups[loc]
+      .filter(e => !e.status || e.status==='在職') // 在職優先顯示
+      .concat(groups[loc].filter(e => e.status && e.status!=='在職')); // 離職排後面
+    const opts = emps.map(e => {
+      const label = e.status && e.status!=='在職' ? `${e.name}（${e.status}）` : e.name;
+      return `<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${label}</option>`;
+    }).join('');
+    return `<optgroup label="${loc}">${opts}</optgroup>`;
+  }).join('');
 }
 
 window.saveAdd=async function(){
