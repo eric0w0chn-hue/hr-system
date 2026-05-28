@@ -514,10 +514,12 @@ window.changeMonth=async function(dir){
 };
 
 // ── 店面選擇 ──
-window.onLocationChange=function(){
+window.onLocationChange=async function(){
   selectedLocation=document.getElementById('locationFilter').value;
   filterEmpIds.clear(); // 重設篩選
+  shifts={}; // 先清空，避免顯示舊店資料
   renderCalendar();renderLegend();renderSidebar();
+  await loadShifts();
 };
 
 // ── 載入班表 ──
