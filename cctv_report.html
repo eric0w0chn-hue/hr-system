@@ -60,11 +60,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
 
 /* ── Date nav ── */
-.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.date-nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text2);transition:all .15s;font-family:inherit}
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.date-nav-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.date-nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text2);transition:all .15s;font-family:inherit;flex-shrink:0}
 .date-nav-btn:hover{background:var(--surface2)}
-.date-label{font-size:14px;font-weight:600;min-width:130px;text-align:center}
-.today-btn{font-size:12px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text2);font-family:inherit;transition:all .15s}
+.date-label{font-size:14px;font-weight:600;text-align:center;white-space:nowrap;flex-shrink:0}
+.today-btn{font-size:12px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .today-btn:hover{background:var(--surface2)}
 
 /* ── Missing banner ── */
@@ -210,11 +211,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
   <!-- 日期導航 -->
   <div class="date-nav">
-    <button class="date-nav-btn" onclick="chDate(-1)">‹</button>
-    <div class="date-label" id="dateLbl"></div>
-    <button class="date-nav-btn" onclick="chDate(1)">›</button>
-    <button class="today-btn" onclick="goToday()">今天</button>
-    <div style="flex:1"></div>
+    <div class="date-nav-left">
+      <button class="date-nav-btn" onclick="chDate(-1)">‹</button>
+      <div class="date-label" id="dateLbl"></div>
+      <button class="date-nav-btn" onclick="chDate(1)">›</button>
+      <button class="today-btn" onclick="goToday()">今天</button>
+    </div>
     <button class="btn btn-primary" id="addBtn" onclick="openModal()" style="display:none">＋ 提交回報</button>
   </div>
 
