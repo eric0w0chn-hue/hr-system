@@ -491,7 +491,7 @@ function renderReports(){
           ${canReview&&r.reviewed?`<button class="btn-sm btn-outline" style="border:1px solid var(--border)" onclick="unmark('${r.id}')">取消確認</button>`:''}
         </div>
         <div>
-          ${canDel?`<button class="btn-sm btn-danger" onclick="delReport('${r.id}',${JSON.stringify(videos)})">刪除</button>`:''}
+          ${canDel?`<button class="btn-sm btn-danger" data-id="${r.id}" data-videos="${encodeURIComponent(JSON.stringify(videos))}" onclick="delReport(this)">刪除</button>`:''}
         </div>
       </div>
     </div>`;
@@ -684,20 +684,23 @@ window.unmark = async function(id){
 };
 
 // ── Delete（同時刪 Storage 影片）──
-window.delReport = async function(id, videos){
+window.delReport = async function(btn){
+  const id = btn.dataset.id;
+  const videos = JSON.parse(decodeURIComponent(btn.dataset.videos||'[]'));
   if(!confirm('確定刪除此回報？Storage 中的影片也會一併刪除。')) return;
+  btn.disabled = true; btn.textContent = '刪除中…';
   try {
     // 刪 Storage 影片
     for(const v of videos){
       if(v.storagePath){
-        try { await deleteObject(ref(storage,v.storagePath)); } catch {}
+        try { await deleteObject(ref(storage,v.storagePath)); } catch(e){ console.warn('Storage刪除失敗:',e.message); }
       }
     }
     // 刪 Firestore
     await deleteDoc(doc(db,'cctv_reports',id));
-    toast('已刪除');
+    toast('✅ 已刪除');
     await loadAndRender();
-  } catch(e){ toast('刪除失敗：'+e.message); }
+  } catch(e){ toast('刪除失敗：'+e.message); btn.disabled=false; btn.textContent='刪除'; }
 };
 </script>
 </body>
