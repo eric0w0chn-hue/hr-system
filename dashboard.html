@@ -247,17 +247,65 @@ function initDrag(grid) {
       }
     });
 
-    // 手機長按支援
-    let pressTimer;
+  });
+
+  // ── 手機 Touch 拖拉 ──
+  let touchDragEl = null;
+  let touchClone  = null;
+  let touchTimer  = null;
+
+  function getTouchCard(x, y) {
+    if(touchClone) touchClone.style.display = 'none';
+    const el = document.elementFromPoint(x, y);
+    if(touchClone) touchClone.style.display = '';
+    return el ? el.closest('.module-card') : null;
+  }
+
+  grid.querySelectorAll('.module-card').forEach(card => {
     card.addEventListener('touchstart', e => {
-      pressTimer = setTimeout(() => {
-        card.setAttribute('draggable', 'true');
-        card.style.opacity = '0.5';
-      }, 500);
+      touchTimer = setTimeout(() => {
+        touchDragEl = card;
+        card.classList.add('dragging');
+        const rect = card.getBoundingClientRect();
+        touchClone = card.cloneNode(true);
+        touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;opacity:0.85;pointer-events:none;z-index:9999;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);transform:scale(1.04);transition:none;`;
+        document.body.appendChild(touchClone);
+        if(navigator.vibrate) navigator.vibrate(40);
+      }, 400);
     }, {passive:true});
-    card.addEventListener('touchend', () => {
-      clearTimeout(pressTimer);
-      card.style.opacity = '';
+
+    card.addEventListener('touchmove', e => {
+      if(!touchDragEl){ clearTimeout(touchTimer); return; }
+      e.preventDefault();
+      const t = e.touches[0];
+      const rect = touchDragEl.getBoundingClientRect();
+      if(touchClone){
+        touchClone.style.left = (t.clientX - rect.width/2) + 'px';
+        touchClone.style.top  = (t.clientY - rect.height/2) + 'px';
+      }
+      const target = getTouchCard(t.clientX, t.clientY);
+      grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
+      if(target && target !== touchDragEl) target.classList.add('drag-over');
+    }, {passive:false});
+
+    card.addEventListener('touchend', e => {
+      clearTimeout(touchTimer);
+      if(!touchDragEl) return;
+      const t = e.changedTouches[0];
+      const target = getTouchCard(t.clientX, t.clientY);
+      grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
+      if(target && target !== touchDragEl){
+        const cards = [...grid.querySelectorAll('.module-card')];
+        const srcIdx = cards.indexOf(touchDragEl);
+        const tgtIdx = cards.indexOf(target);
+        if(srcIdx < tgtIdx) grid.insertBefore(touchDragEl, target.nextSibling);
+        else grid.insertBefore(touchDragEl, target);
+        const newOrder = [...grid.querySelectorAll('.module-card')].map(c => c.dataset.key);
+        saveOrder(_currentRole, _currentUid, newOrder);
+      }
+      touchDragEl.classList.remove('dragging');
+      if(touchClone){ touchClone.remove(); touchClone = null; }
+      touchDragEl = null;
     }, {passive:true});
   });
 }
