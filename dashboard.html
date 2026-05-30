@@ -191,8 +191,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .main-wrap{margin-left:0}
   .main{padding:20px 14px}
   .preview-bar{display:none!important}
-  .user-name{max-width:60px}
   .mod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  /* topbar 手機版：縮短 brand 文字，確保右側不被截 */
+  .topbar{padding:0 10px;gap:6px}
+  .topbar-brand h1{font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-right{gap:5px;flex-shrink:1;min-width:0;overflow:hidden}
+  .user-chip{padding:3px 7px 3px 3px;gap:4px;min-width:0;flex-shrink:1}
+  .user-chip .user-name{max-width:48px;font-size:11px}
+  .role-badge{font-size:9px;padding:1px 5px;flex-shrink:0}
+  .btn-logout{font-size:10px;padding:4px 8px;white-space:nowrap;flex-shrink:0}
 }
 </style>
 </head>
