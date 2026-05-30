@@ -354,16 +354,20 @@ onAuthStateChanged(auth, async user => {
 
 async function loadStores(){
   try {
-    const snap = await getDocs(collection(db,'work_locations'));
-    allStores = snap.docs.map(d=>d.data().name||d.id).filter(Boolean).sort();
-  } catch {
-    try {
-      const snap = await getDocs(collection(db,'users'));
-      const s = new Set();
-      snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
-      allStores = [...s].sort();
-    } catch { allStores = ['梁鑫鵝肉飯']; }
-  }
+    // 讀取 hr/settings 的 workLocations 陣列
+    const snap = await getDoc(doc(db,'hr','settings'));
+    if(snap.exists() && snap.data().workLocations){
+      allStores = [...snap.data().workLocations].filter(Boolean).sort();
+      return;
+    }
+  } catch {}
+  // fallback：從 users 的 locations 欄位收集
+  try {
+    const snap = await getDocs(collection(db,'users'));
+    const s = new Set();
+    snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
+    allStores = [...s].sort();
+  } catch { allStores = ['梁鑫鵝肉飯']; }
 }
 
 function setupUI(){
