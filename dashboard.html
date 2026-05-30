@@ -324,14 +324,31 @@ let _currentRole='';
 let _editingGroupId=null;
 const EMOJI_LIST=['📋','👥','🏪','⏱','📅','🥬','📱','💰','📹','🔑','🏠','📊','🔔','⚙️','📌','🗂','✅','🚀'];
 
-// ── localStorage helpers ──
-function getGroups(uid){ try{return JSON.parse(localStorage.getItem(`sidebarGroups_${uid}`)||'null');}catch{return null;} }
-function saveGroups(uid,groups){ try{localStorage.setItem(`sidebarGroups_${uid}`,JSON.stringify(groups));}catch{} }
+// ── 群組設定存 Firestore（ADMIN 寫，所有人讀）──
+// _sharedGroups 是從 Firestore 載入的快照，renderAll 時使用
+let _sharedGroups = [];
 
-// ── 取得目前群組 ──
+async function loadGroupsFromFirestore(){
+  try{
+    const snap = await getDoc(doc(db,'settings','sidebar_groups'));
+    _sharedGroups = snap.exists() ? (snap.data().groups||[]) : [];
+  }catch(e){ console.warn('loadGroups error:', e); _sharedGroups=[]; }
+}
+
+async function saveGroupsToFirestore(groups){
+  try{
+    await setDoc(doc(db,'settings','sidebar_groups'), {groups, updatedAt: new Date().toISOString()}, {merge:false});
+    _sharedGroups = groups;
+  }catch(e){ console.error('saveGroups error:', e); alert('儲存失敗，請確認網路連線'); }
+}
+
+// 相容舊 API，內部同步用
+function saveGroups(uid, groups){
+  saveGroupsToFirestore(groups);
+}
+
 function getCurrentGroups(){
-  const saved=getGroups(_currentUid);
-  return saved || [];
+  return _sharedGroups;
 }
 
 // ── renderSidebar & renderMain ──
@@ -542,7 +559,9 @@ onAuthStateChanged(auth,async user=>{
       const greetEl=document.getElementById('greetText');
       if(greetEl) greetEl.textContent=`${gr} 👋`;
       document.getElementById('sidebarGreet').textContent=`${gr} 👋`;
-      _currentUid=user.uid; renderAll('employee');
+      _currentUid=user.uid;
+      await loadGroupsFromFirestore();
+      renderAll('employee');
     } else {
       const data=snap.data();
       if(data.disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
@@ -571,6 +590,7 @@ onAuthStateChanged(auth,async user=>{
           }
         }catch(_){}
       }
+      await loadGroupsFromFirestore();
       renderAll(role);
     }
   }catch(e){
@@ -612,13 +632,17 @@ function initItemDrag(){
       saveGroups(_currentUid, groups);
     }
 
+    let lastItemMouseTarget = null;
+    itemsWrap.addEventListener('mousedown', e=>{ lastItemMouseTarget = e.target; });
+
     itemsWrap.querySelectorAll('.sidebar-item[draggable]').forEach(el=>{
       el.addEventListener('dragstart', e=>{
-        if(!e.target.classList.contains('item-drag-handle')&&!e.target.closest('.item-drag-handle')){ e.preventDefault(); return; }
+        const fromHandle = lastItemMouseTarget && (lastItemMouseTarget.classList.contains('item-drag-handle') || lastItemMouseTarget.closest('.item-drag-handle'));
+        if(!fromHandle){ e.preventDefault(); return; }
         dragSrc = el;
         setTimeout(()=>el.classList.add('dragging-item'), 0);
         e.dataTransfer.effectAllowed='move';
-        e.stopPropagation(); // 不觸發群組拖拉
+        e.stopPropagation();
       });
       el.addEventListener('dragend', ()=>{
         el.classList.remove('dragging-item');
@@ -689,10 +713,14 @@ function initGroupDrag(){
 
   function getGroups(){ return [...sb.querySelectorAll('.sidebar-group[data-gid]')]; }
 
+  let lastMouseTarget = null;
+  sb.addEventListener('mousedown', e=>{ lastMouseTarget = e.target; });
+
   sb.querySelectorAll('.sidebar-group[draggable]').forEach(el=>{
     el.addEventListener('dragstart', e=>{
       // 只允許從 drag-handle 啟動
-      if(!e.target.classList.contains('drag-handle')&&!e.target.closest('.drag-handle')){ e.preventDefault(); return; }
+      const fromHandle = lastMouseTarget && (lastMouseTarget.classList.contains('drag-handle') || lastMouseTarget.closest('.drag-handle'));
+      if(!fromHandle){ e.preventDefault(); return; }
       dragSrc = el;
       setTimeout(()=>el.classList.add('dragging-group'), 0);
       e.dataTransfer.effectAllowed='move';
