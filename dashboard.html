@@ -499,6 +499,7 @@ window.resetGroups=function(){
   saveGroups(_currentUid, []);
   renderAll(_currentRole);
 };
+window.openModal=function(id){
   const ov=document.getElementById(id);
   ov.style.display='flex';
   requestAnimationFrame(()=>ov.classList.add('show'));
