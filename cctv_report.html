@@ -30,11 +30,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .main{max-width:960px;margin:0 auto;padding:20px 16px 60px}
 
 /* ── Stats ── */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
-.sc{background:#fff;border-radius:10px;padding:13px 15px;border:1px solid var(--border);border-left:4px solid var(--accent)}
-.sc.green{border-left-color:var(--green)}.sc.red{border-left-color:var(--red)}.sc.orange{border-left-color:var(--orange)}
-.sc .sl{font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
-.sc .sn{font-size:24px;font-weight:700}.sc .ss{font-size:11px;color:var(--text3);margin-top:1px}
+.overview-panel{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden;display:none}
+.overview-header{padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.overview-title{font-size:13px;font-weight:700;color:var(--text)}
+.overview-range{font-size:12px;color:var(--text3)}
+.overview-body{padding:0}
+.ov-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border)}
+.ov-row:last-child{border-bottom:none}
+.ov-date{width:90px;flex-shrink:0;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:2px}
+.ov-date .ov-d{font-size:14px;font-weight:700;color:var(--text)}
+.ov-date .ov-w{font-size:11px;color:var(--text3)}
+.ov-stores{flex:1;padding:8px 12px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.ov-tag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;cursor:pointer;transition:all .15s}
+.ov-tag.done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.ov-tag.done:hover{background:#C9F0DA}
+.ov-tag.miss{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.ov-tag.miss{cursor:default}
+.ov-all-done{font-size:12px;color:var(--green);font-weight:500}
+.ov-load-more{padding:10px;text-align:center;font-size:12px;color:var(--blue);cursor:pointer;border-top:1px solid var(--border);transition:background .15s}
+.ov-load-more:hover{background:var(--surface2)}
 
 /* ── Toolbar ── */
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
@@ -183,12 +197,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <div class="main">
 
-  <!-- 管理員統計 -->
-  <div class="stats" id="statsRow" style="display:none">
-    <div class="sc green"><div class="sl">已回報</div><div class="sn" id="stDone">0</div><div class="ss">間店面</div></div>
-    <div class="sc red"><div class="sl">未回報</div><div class="sn" id="stMissing">0</div><div class="ss">間店面</div></div>
-    <div class="sc orange"><div class="sl">待確認</div><div class="sn" id="stUnread">0</div><div class="ss">則回報</div></div>
-    <div class="sc"><div class="sl">影片總數</div><div class="sn" id="stVideos">0</div><div class="ss">支（本日）</div></div>
+  <!-- 多日回報總覽 -->
+  <div class="overview-panel" id="overviewPanel">
+    <div class="overview-header">
+      <div class="overview-title">📊 各店回報總覽</div>
+      <div class="overview-range" id="overviewRange"></div>
+    </div>
+    <div class="overview-body" id="overviewBody"></div>
+    <div class="ov-load-more" id="ovLoadMore" onclick="loadMoreOverview()" style="display:none">載入更多 ↓</div>
   </div>
 
   <!-- 店長狀態 -->
@@ -372,8 +388,9 @@ async function loadStores(){
 
 function setupUI(){
   if(cuRole==='admin'||cuRole==='consultant'){
-    document.getElementById('statsRow').style.display='grid';
+    document.getElementById('overviewPanel').style.display='block';
     document.getElementById('storeTabsWrap').style.display='block';
+    loadOverview();
   }
   if(cuRole==='admin'||cuRole==='manager'){
     document.getElementById('addBtn').style.display='inline-flex';
@@ -396,14 +413,88 @@ async function loadAndRender(){
   }
 }
 
-function renderStats(){
+let overviewDays = 14; // 預設顯示14天
+let overviewData = {}; // { 'YYYY-MM-DD': Set(store names) }
+
+async function loadOverview(){
   if(cuRole!=='admin'&&cuRole!=='consultant') return;
-  const reported = new Set(allReports.map(r=>r.store));
-  document.getElementById('stDone').textContent = reported.size;
-  document.getElementById('stMissing').textContent = Math.max(0,allStores.length-reported.size);
-  document.getElementById('stUnread').textContent = allReports.filter(r=>!r.reviewed).length;
-  document.getElementById('stVideos').textContent = allReports.reduce((a,r)=>a+(r.videos||[]).length,0);
+  try {
+    // 抓最近 overviewDays 天的回報
+    const dates = [];
+    for(let i=0;i<overviewDays;i++){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      dates.push(`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`);
+    }
+    const oldest = dates[dates.length-1];
+    const newest = dates[0];
+
+    const snap = await getDocs(query(
+      collection(db,'cctv_reports'),
+      where('date','>=',oldest),
+      where('date','<=',newest)
+    ));
+
+    overviewData = {};
+    snap.docs.forEach(d=>{
+      const r = d.data();
+      if(!overviewData[r.date]) overviewData[r.date] = new Set();
+      overviewData[r.date].add(r.store);
+    });
+
+    renderOverview(dates);
+  } catch(e){ console.error('overview error',e); }
 }
+
+function renderOverview(dates){
+  const body = document.getElementById('overviewBody');
+  const weekdays = ['日','一','二','三','四','五','六'];
+  const today = todayStr();
+
+  body.innerHTML = dates.map(dateStr=>{
+    const reported = overviewData[dateStr] || new Set();
+    const done = allStores.filter(s=>reported.has(s));
+    const miss = allStores.filter(s=>!reported.has(s));
+    const [y,m,d] = dateStr.split('-');
+    const w = weekdays[new Date(dateStr+'T00:00:00').getDay()];
+    const isToday = dateStr===today;
+
+    const doneTags = done.map(s=>`<span class="ov-tag done" onclick="jumpToDate('${dateStr}')" title="點擊查看詳細">${s}</span>`).join('');
+    const missTags = miss.map(s=>`<span class="ov-tag miss">✗ ${s}</span>`).join('');
+
+    return `<div class="ov-row">
+      <div class="ov-date" style="${isToday?'background:#EEF2FF;':''}">
+        <div class="ov-d" style="${isToday?'color:var(--blue);':''}">${m}/${d}</div>
+        <div class="ov-w">${isToday?'今天':'週'+w}</div>
+      </div>
+      <div class="ov-stores">
+        ${done.length===allStores.length&&allStores.length>0
+          ? `<span class="ov-all-done">✅ 全部已回報（${done.length}間）</span>`
+          : `${doneTags}${missTags}`}
+        ${!allStores.length?'<span style="font-size:12px;color:var(--text3)">—</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('overviewRange').textContent = `最近 ${dates.length} 天`;
+  const loadMore = document.getElementById('ovLoadMore');
+  loadMore.style.display = overviewDays < 60 ? 'block' : 'none';
+}
+
+window.loadMoreOverview = async function(){
+  overviewDays = Math.min(overviewDays+14, 60);
+  await loadOverview();
+};
+
+window.jumpToDate = function(dateStr){
+  viewDate = dateStr;
+  storeFilter = 'all';
+  document.getElementById('dateLbl').textContent = dateDisp(viewDate);
+  loadAndRender();
+  // scroll to report list
+  document.getElementById('reportList').scrollIntoView({behavior:'smooth'});
+};
+
+function renderStats(){ /* 已由 overview 取代 */ }
 
 function renderMissing(){
   if(cuRole!=='admin'&&cuRole!=='consultant') return;
@@ -661,6 +752,7 @@ window.submitReport = async function(){
     viewDate = date;
     document.getElementById('dateLbl').textContent = dateDisp(viewDate);
     await loadAndRender();
+    if(cuRole==='admin'||cuRole==='consultant') await loadOverview();
   } catch(e){
     toast('Firestore 寫入失敗：'+e.message);
     btn.disabled = false; btn.textContent = '✓ 提交回報';
@@ -700,6 +792,7 @@ window.delReport = async function(btn){
     await deleteDoc(doc(db,'cctv_reports',id));
     toast('✅ 已刪除');
     await loadAndRender();
+    if(cuRole==='admin'||cuRole==='consultant') await loadOverview();
   } catch(e){ toast('刪除失敗：'+e.message); btn.disabled=false; btn.textContent='刪除'; }
 };
 </script>
