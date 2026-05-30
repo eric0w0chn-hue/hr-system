@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>監視器回報 — 鑫系統</title>
+<style>
+:root{
+  --bg:#F0F2F5;--surface:#FFFFFF;--surface2:#F7F8FA;
+  --border:#E4E7ED;--border2:#D0D5DD;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
+  --accent:#2D3142;--accent-hover:#1A1D2E;--accent-light:#ECEEF5;
+  --green:#087443;--green-bg:#E6FAF0;--green-border:#ADE8C4;
+  --red:#C0392B;--red-bg:#FEE9E9;--red-border:#FFBDBD;
+  --orange:#C47A00;--orange-bg:#FFF4E0;--orange-border:#FDDFA0;
+  --blue:#3B5BDB;--blue-bg:#E8EEFF;--blue-border:#BAC8FF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;transition:all .15s;font-family:inherit}
+.back-btn:hover{background:var(--surface2);color:var(--text)}
+.dv{width:1px;height:20px;background:var(--border)}
+.page-title{font-size:15px;font-weight:700}
+
+/* ── Layout ── */
+.main{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+.sc{background:#fff;border-radius:10px;padding:13px 15px;border:1px solid var(--border);border-left:4px solid var(--accent)}
+.sc.green{border-left-color:var(--green)}.sc.red{border-left-color:var(--red)}.sc.orange{border-left-color:var(--orange)}
+.sc .sl{font-size:10px;color:var(--text2);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.sc .sn{font-size:24px;font-weight:700}.sc .ss{font-size:11px;color:var(--text3);margin-top:1px}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.btn{font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s;border:none;height:36px}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
+.btn-sm{font-size:12px;padding:4px 10px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
+.btn-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}.btn-green:hover{background:#C9F0DA}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
+
+/* ── Date nav ── */
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.date-nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text2);transition:all .15s;font-family:inherit}
+.date-nav-btn:hover{background:var(--surface2)}
+.date-label{font-size:14px;font-weight:600;min-width:130px;text-align:center}
+.today-btn{font-size:12px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text2);font-family:inherit;transition:all .15s}
+.today-btn:hover{background:var(--surface2)}
+
+/* ── Missing banner ── */
+.missing-banner{background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:none}
+.missing-banner.show{display:block}
+.missing-title{font-size:13px;font-weight:600;color:var(--orange);margin-bottom:6px}
+.missing-tags{display:flex;gap:6px;flex-wrap:wrap}
+.missing-tag{font-size:12px;padding:3px 10px;background:rgba(196,122,0,.12);color:var(--orange);border-radius:20px;border:1px solid var(--orange-border)}
+
+/* ── Store tabs ── */
+.store-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.store-tab{font-size:12px;padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text2);font-family:inherit;transition:all .15s;font-weight:500}
+.store-tab:hover{background:var(--surface2)}
+.store-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Report cards ── */
+.report-list{display:flex;flex-direction:column;gap:12px}
+.report-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:box-shadow .15s}
+.report-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07)}
+.rc-header{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.rc-store{font-size:15px;font-weight:700}
+.rc-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.rc-body{padding:14px 16px}
+
+/* ── Badge ── */
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-pending{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.badge-new{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.badge-expired{background:#F4F5F8;color:var(--text3);border:1px solid var(--border)}
+
+/* ── Video grid ── */
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.video-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#000;position:relative}
+.video-item video{width:100%;display:block;max-height:180px;background:#000;object-fit:contain}
+.video-label{padding:7px 10px;font-size:12px;font-weight:500;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.video-expired{padding:40px 16px;text-align:center;font-size:13px;color:var(--text3);background:#F8F8F8}
+.video-expired .exp-icon{font-size:28px;margin-bottom:6px}
+.video-uploading{padding:30px 16px;text-align:center;font-size:12px;color:var(--text3)}
+
+/* ── Note ── */
+.note-box{margin-top:10px;padding:9px 12px;background:#FAFAFA;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.6}
+.note-lbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+
+/* ── Card footer ── */
+.rc-footer{padding:9px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty .ei{font-size:40px;margin-bottom:10px}
+.empty .et{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:5px}
+
+/* ── Modal overlay ── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.modal-ov.open{display:flex}
+@media(min-width:600px){.modal-ov{align-items:center}}
+.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:22px 18px 32px;position:relative}
+@media(min-width:600px){.modal{border-radius:16px;padding:26px 24px 32px}}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{width:28px;height:28px;border-radius:7px;border:none;background:var(--surface2);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ── Form ── */
+.fr{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.flbl{font-size:12px;font-weight:600;color:var(--text2)}
+.flbl .req{color:var(--red);margin-left:2px}
+.flbl .hint{font-size:11px;color:var(--text3);font-weight:400;margin-left:4px}
+.inp{font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s;width:100%}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.sel{font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;cursor:pointer;width:100%}
+.sel:focus{border-color:var(--accent)}
+.textarea{font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;resize:vertical;min-height:68px;width:100%;line-height:1.5}
+.textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+
+/* ── Drop zone ── */
+.dropzone{border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#FAFAFA;position:relative}
+.dropzone.drag-over{border-color:var(--accent);background:var(--accent-light)}
+.dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:28px;margin-bottom:6px}
+.dz-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:3px}
+.dz-sub{font-size:12px;color:var(--text3)}
+
+/* ── Upload preview list ── */
+.upload-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.upload-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)}
+.upload-thumb{width:44px;height:36px;border-radius:5px;background:#000;object-fit:cover;flex-shrink:0}
+.upload-info{flex:1;min-width:0}
+.upload-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upload-size{font-size:11px;color:var(--text3)}
+.upload-prog-wrap{height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden}
+.upload-prog{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+.upload-status{font-size:11px;font-weight:600}
+.upload-remove{width:22px;height:22px;border-radius:5px;border:none;background:var(--red-bg);color:var(--red);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── My status ── */
+.my-status{border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13px;font-weight:600}
+.my-status.done{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.my-status.todo{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#1A1D23;color:#fff;font-size:13px;padding:10px 20px;border-radius:10px;z-index:2000;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Loading screen ── */
+#loadingScreen{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:10px}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中…</div>
+</div>
+
+<div id="appWrap" style="display:none">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="location.href='dashboard.html'">← 返回</button>
+    <div class="dv"></div>
+    <div class="page-title">📹 監視器回報</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="roleChip" style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600"></span>
+    <span id="userNameChip" style="font-size:13px;color:var(--text2)"></span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 管理員統計 -->
+  <div class="stats" id="statsRow" style="display:none">
+    <div class="sc green"><div class="sl">已回報</div><div class="sn" id="stDone">0</div><div class="ss">間店面</div></div>
+    <div class="sc red"><div class="sl">未回報</div><div class="sn" id="stMissing">0</div><div class="ss">間店面</div></div>
+    <div class="sc orange"><div class="sl">待確認</div><div class="sn" id="stUnread">0</div><div class="ss">則回報</div></div>
+    <div class="sc"><div class="sl">影片總數</div><div class="sn" id="stVideos">0</div><div class="ss">支（本日）</div></div>
+  </div>
+
+  <!-- 店長狀態 -->
+  <div id="myStatusWrap"></div>
+
+  <!-- 未回報提醒 -->
+  <div class="missing-banner" id="missingBanner">
+    <div class="missing-title">⚠️ 以下店面今日尚未回報</div>
+    <div class="missing-tags" id="missingTags"></div>
+  </div>
+
+  <!-- 日期導航 -->
+  <div class="date-nav">
+    <button class="date-nav-btn" onclick="chDate(-1)">‹</button>
+    <div class="date-label" id="dateLbl"></div>
+    <button class="date-nav-btn" onclick="chDate(1)">›</button>
+    <button class="today-btn" onclick="goToday()">今天</button>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary" id="addBtn" onclick="openModal()" style="display:none">＋ 提交回報</button>
+  </div>
+
+  <!-- 店面 tabs（管理員） -->
+  <div id="storeTabsWrap" style="display:none">
+    <div class="store-tabs" id="storeTabs"></div>
+  </div>
+
+  <!-- 回報清單 -->
+  <div class="report-list" id="reportList">
+    <div class="empty"><div class="ei">📹</div><div class="et">載入中…</div></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ── 新增回報 Modal ── -->
+<div class="modal-ov" id="addModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span>📹 提交監視器回報</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="fr">
+      <div class="flbl">回報日期<span class="req">*</span></div>
+      <input type="date" class="inp" id="fDate">
+    </div>
+
+    <div class="fr" id="storePickWrap">
+      <div class="flbl">店面<span class="req">*</span></div>
+      <select class="sel" id="fStore"></select>
+    </div>
+
+    <div class="fr">
+      <div class="flbl">
+        上傳監視器影片<span class="req">*</span>
+        <span class="hint">最多 5 支，每支上限 500MB，3 天後自動刪除</span>
+      </div>
+      <!-- 拖拉區 -->
+      <div class="dropzone" id="dropZone">
+        <input type="file" id="fileInput" accept="video/*" multiple>
+        <div class="dz-icon">📂</div>
+        <div class="dz-title">點擊選取或拖拉影片至此</div>
+        <div class="dz-sub">支援 MP4、MOV、AVI 等格式</div>
+      </div>
+      <!-- 預覽清單 -->
+      <div class="upload-list" id="uploadList"></div>
+    </div>
+
+    <div class="fr">
+      <div class="flbl">備註（選填）</div>
+      <textarea class="textarea" id="fNote" placeholder="如有異常畫面或特殊狀況，請在此說明…"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="submitReport()">✓ 提交回報</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, addDoc, updateDoc, deleteDoc,
+  collection, getDocs, query, where, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain:"liangpinghri.firebaseapp.com",
+  projectId:"liangpinghri",
+  storageBucket:"liangpinghri.appspot.com",
+  messagingSenderId:"410255807470",
+  appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ── State ──
+let cu = null, cuRole = '', cuName = '', cuLocs = [];
+let allStores = [];
+let allReports = [];
+let viewDate = todayStr();
+let storeFilter = 'all';
+let pendingFiles = []; // [{file, name, objectUrl, storagePath, downloadURL, progress, status}]
+
+// ── Utils ──
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+function p2(n){ return String(n).padStart(2,'0'); }
+function dateDisp(s){
+  const today = todayStr();
+  const yd = (() => { const d = new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; })();
+  const [y,m,d] = s.split('-');
+  const label = s===today?'今天':s===yd?'昨天':'';
+  const w = ['日','一','二','三','四','五','六'][new Date(s+'T00:00:00').getDay()];
+  return `${y}/${m}/${d}${label?` （${label}）`:` （週${w}）`}`;
+}
+function fmtTs(ts){
+  if(!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function fmtSize(b){ return b>1048576?`${(b/1048576).toFixed(1)}MB`:`${(b/1024).toFixed(0)}KB`; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── Auth ──
+onAuthStateChanged(auth, async user => {
+  if(!user){ location.href='index.html'; return; }
+  cu = user;
+  const snap = await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists()){ location.href='index.html'; return; }
+  const d = snap.data();
+  cuRole = d.role||'employee'; cuName = d.name||user.email; cuLocs = d.locations||[];
+
+  const roleMap={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
+  const colorMap={admin:'background:#FFF4E0;color:#C47A00',consultant:'background:#F0EBFF;color:#6741D9',manager:'background:#E6FAF0;color:#087443',employee:'background:#E8EEFF;color:#3B5BDB'};
+  document.getElementById('roleChip').textContent = roleMap[cuRole]||cuRole;
+  document.getElementById('roleChip').style.cssText = colorMap[cuRole]||'';
+  document.getElementById('userNameChip').textContent = cuName;
+
+  await loadStores();
+  setupUI();
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'block';
+  await loadAndRender();
+});
+
+async function loadStores(){
+  try {
+    const snap = await getDocs(collection(db,'work_locations'));
+    allStores = snap.docs.map(d=>d.data().name||d.id).filter(Boolean).sort();
+  } catch {
+    try {
+      const snap = await getDocs(collection(db,'users'));
+      const s = new Set();
+      snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
+      allStores = [...s].sort();
+    } catch { allStores = ['梁鑫鵝肉飯']; }
+  }
+}
+
+function setupUI(){
+  if(cuRole==='admin'||cuRole==='consultant'){
+    document.getElementById('statsRow').style.display='grid';
+    document.getElementById('storeTabsWrap').style.display='block';
+  }
+  if(cuRole==='admin'||cuRole==='manager'){
+    document.getElementById('addBtn').style.display='inline-flex';
+  }
+  document.getElementById('dateLbl').textContent = dateDisp(viewDate);
+}
+
+// ── Load & Render ──
+async function loadAndRender(){
+  document.getElementById('reportList').innerHTML = '<div class="empty"><div class="ei">⏳</div><div class="et">載入中…</div></div>';
+  try {
+    const q = query(collection(db,'cctv_reports'),where('date','==',viewDate),orderBy('createdAt','desc'));
+    const snap = await getDocs(q);
+    allReports = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(cuRole==='manager') allReports = allReports.filter(r=>!cuLocs.length||cuLocs.includes(r.store));
+    if(cuRole==='employee') allReports = [];
+    renderStats(); renderMissing(); renderMyStatus(); renderStoreTabs(); renderReports();
+  } catch(e){
+    document.getElementById('reportList').innerHTML=`<div class="empty"><div class="ei">⚠️</div><div class="et">載入失敗</div><div style="font-size:12px;color:var(--text3)">${e.message}</div></div>`;
+  }
+}
+
+function renderStats(){
+  if(cuRole!=='admin'&&cuRole!=='consultant') return;
+  const reported = new Set(allReports.map(r=>r.store));
+  document.getElementById('stDone').textContent = reported.size;
+  document.getElementById('stMissing').textContent = Math.max(0,allStores.length-reported.size);
+  document.getElementById('stUnread').textContent = allReports.filter(r=>!r.reviewed).length;
+  document.getElementById('stVideos').textContent = allReports.reduce((a,r)=>a+(r.videos||[]).length,0);
+}
+
+function renderMissing(){
+  if(cuRole!=='admin'&&cuRole!=='consultant') return;
+  const reported = new Set(allReports.map(r=>r.store));
+  const missing = allStores.filter(s=>!reported.has(s));
+  const banner = document.getElementById('missingBanner');
+  if(missing.length && viewDate===todayStr()){
+    banner.classList.add('show');
+    document.getElementById('missingTags').innerHTML = missing.map(s=>`<span class="missing-tag">${s}</span>`).join('');
+  } else banner.classList.remove('show');
+}
+
+function renderMyStatus(){
+  if(cuRole!=='manager') return;
+  const wrap = document.getElementById('myStatusWrap');
+  if(!cuLocs.length){ wrap.innerHTML=''; return; }
+  const reported = new Set(allReports.map(r=>r.store));
+  const done = cuLocs.filter(s=>reported.has(s));
+  const todo = cuLocs.filter(s=>!reported.has(s));
+  let html = '';
+  if(todo.length) html += `<div class="my-status todo">📋 ${viewDate===todayStr()?'今日':'該日'}尚未回報：${todo.join('、')}</div>`;
+  if(done.length) html += `<div class="my-status done">✅ 已回報：${done.join('、')}</div>`;
+  wrap.innerHTML = html;
+}
+
+function renderStoreTabs(){
+  if(cuRole!=='admin'&&cuRole!=='consultant') return;
+  const stores = [...new Set(allReports.map(r=>r.store))].sort();
+  document.getElementById('storeTabs').innerHTML =
+    `<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setSF('all')">全部（${allReports.length}）</button>`
+    + stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setSF('${s}')">${s}</button>`).join('');
+}
+window.setSF = function(s){ storeFilter=s; renderStoreTabs(); renderReports(); };
+
+function renderReports(){
+  const list = document.getElementById('reportList');
+  const filtered = storeFilter==='all' ? allReports : allReports.filter(r=>r.store===storeFilter);
+  if(!filtered.length){
+    list.innerHTML = `<div class="empty"><div class="ei">📹</div><div class="et">${viewDate===todayStr()?'今日':'該日'}尚無回報</div></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(r => {
+    const canDel = cuRole==='admin'||r.submittedBy===cu.uid;
+    const canReview = cuRole==='admin'||cuRole==='consultant';
+    const videos = r.videos||[];
+    const expired = r.videosExpired;
+    const videoHtml = videos.length
+      ? `<div class="video-grid">
+          ${videos.map((v,i)=> expired
+            ? `<div class="video-item">
+                <div class="video-expired"><div class="exp-icon">🗑</div>影片已過期（3天自動清除）</div>
+                <div class="video-label"><span>📹 ${esc(v.name||`影片${i+1}`)}</span></div>
+               </div>`
+            : `<div class="video-item">
+                <video src="${v.url}" controls preload="metadata" playsinline></video>
+                <div class="video-label">
+                  <span>📹 ${esc(v.name||`影片${i+1}`)}</span>
+                  <a href="${v.url}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none">↗ 全螢幕</a>
+                </div>
+               </div>`
+          ).join('')}
+         </div>`
+      : `<div style="font-size:13px;color:var(--text3)">無影片</div>`;
+
+    return `<div class="report-card" id="rc-${r.id}">
+      <div class="rc-header">
+        <div>
+          <div class="rc-store">🏪 ${esc(r.store||'—')}</div>
+          <div class="rc-meta">由 ${esc(r.submitterName||'—')} 提交於 ${fmtTs(r.createdAt)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${expired?'<span class="badge badge-expired">影片已過期</span>':''}
+          ${r.reviewed
+            ? `<span class="badge badge-done">✓ 已確認</span><span style="font-size:11px;color:var(--text3)">${esc(r.reviewedBy||'')}</span>`
+            : `<span class="badge badge-new">待確認</span>`}
+        </div>
+      </div>
+      <div class="rc-body">
+        ${videoHtml}
+        ${r.note?`<div class="note-box"><div class="note-lbl">備註</div>${esc(r.note)}</div>`:''}
+      </div>
+      <div class="rc-footer">
+        <div style="display:flex;gap:6px">
+          ${canReview&&!r.reviewed?`<button class="btn-sm btn-green" onclick="markDone('${r.id}')">✓ 標記已確認</button>`:''}
+          ${canReview&&r.reviewed?`<button class="btn-sm btn-outline" style="border:1px solid var(--border)" onclick="unmark('${r.id}')">取消確認</button>`:''}
+        </div>
+        <div>
+          ${canDel?`<button class="btn-sm btn-danger" onclick="delReport('${r.id}',${JSON.stringify(videos)})">刪除</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Date nav ──
+window.chDate = function(d){
+  const dt = new Date(viewDate+'T00:00:00');
+  dt.setDate(dt.getDate()+d);
+  viewDate = `${dt.getFullYear()}-${p2(dt.getMonth()+1)}-${p2(dt.getDate())}`;
+  storeFilter='all';
+  document.getElementById('dateLbl').textContent = dateDisp(viewDate);
+  loadAndRender();
+};
+window.goToday = function(){
+  viewDate = todayStr(); storeFilter='all';
+  document.getElementById('dateLbl').textContent = dateDisp(viewDate);
+  loadAndRender();
+};
+
+// ── Modal ──
+window.openModal = function(){
+  const now = new Date();
+  const di = document.getElementById('fDate');
+  di.value = todayStr();
+  di.max = todayStr();
+  const earliest = new Date(now-30*86400000);
+  di.min = `${earliest.getFullYear()}-${p2(earliest.getMonth()+1)}-${p2(earliest.getDate())}`;
+
+  // store picker
+  const myStores = cuRole==='admin' ? allStores : cuLocs.filter(Boolean);
+  const sp = document.getElementById('fStore');
+  sp.innerHTML = (myStores.length ? myStores : allStores).map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('storePickWrap').style.display = (myStores.length>1||cuRole==='admin') ? 'flex' : myStores.length===1 ? 'none' : 'flex';
+
+  pendingFiles = [];
+  document.getElementById('uploadList').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fNote').value = '';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = '✓ 提交回報';
+  document.getElementById('addModal').classList.add('open');
+};
+window.closeModal = function(){
+  // 清除尚未上傳完成的 objectURL
+  pendingFiles.forEach(f=>{ if(f.objectUrl) URL.revokeObjectURL(f.objectUrl); });
+  document.getElementById('addModal').classList.remove('open');
+};
+document.getElementById('addModal').addEventListener('click', e=>{ if(e.target===document.getElementById('addModal')) closeModal(); });
+
+// ── File handling ──
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+
+fileInput.addEventListener('change', e => handleFiles([...e.target.files]));
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles([...e.dataTransfer.files]); });
+
+function handleFiles(files){
+  const videoFiles = files.filter(f=>f.type.startsWith('video/'));
+  if(!videoFiles.length){ toast('請選擇影片檔案'); return; }
+  const total = pendingFiles.length + videoFiles.length;
+  if(total > 5){ toast('最多上傳 5 支影片'); return; }
+  videoFiles.forEach(f=>{
+    if(f.size > 500*1024*1024){ toast(`${f.name} 超過 500MB 上限`); return; }
+    const objectUrl = URL.createObjectURL(f);
+    pendingFiles.push({file:f, name:f.name, objectUrl, storagePath:null, downloadURL:null, progress:0, status:'waiting'});
+  });
+  renderUploadList();
+}
+
+function renderUploadList(){
+  const ul = document.getElementById('uploadList');
+  if(!pendingFiles.length){ ul.innerHTML=''; return; }
+  ul.innerHTML = pendingFiles.map((pf,i)=>`
+    <div class="upload-item" id="uitem-${i}">
+      <video class="upload-thumb" src="${pf.objectUrl}" muted></video>
+      <div class="upload-info">
+        <div class="upload-name">${esc(pf.name)}</div>
+        <div class="upload-size">${fmtSize(pf.file.size)}</div>
+        <div class="upload-prog-wrap"><div class="upload-prog" id="uprg-${i}" style="width:${pf.progress}%"></div></div>
+      </div>
+      <span class="upload-status" id="ust-${i}" style="color:${pf.status==='done'?'var(--green)':pf.status==='error'?'var(--red)':'var(--text3)'}">
+        ${pf.status==='done'?'✓':pf.status==='error'?'✗':pf.status==='uploading'?pf.progress+'%':'待上傳'}
+      </span>
+      ${pf.status==='waiting'?`<button class="upload-remove" onclick="removeFile(${i})">✕</button>`:'<div style="width:22px"></div>'}
+    </div>`).join('');
+}
+
+window.removeFile = function(i){
+  if(pendingFiles[i]?.objectUrl) URL.revokeObjectURL(pendingFiles[i].objectUrl);
+  pendingFiles.splice(i,1);
+  renderUploadList();
+};
+
+// ── Submit ──
+window.submitReport = async function(){
+  const date = document.getElementById('fDate').value;
+  if(!date){ toast('請選擇回報日期'); return; }
+  const store = document.getElementById('fStore').value || (cuLocs[0]||'');
+  if(!store){ toast('請選擇店面'); return; }
+  if(!pendingFiles.length){ toast('請先選取至少一支影片'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '上傳中…';
+
+  // 1. 上傳所有影片到 Firebase Storage
+  const uploadedVideos = [];
+  for(let i=0;i<pendingFiles.length;i++){
+    const pf = pendingFiles[i];
+    pf.status = 'uploading';
+    renderUploadList();
+
+    try {
+      const ext = pf.file.name.split('.').pop();
+      const path = `cctv_videos/${date}/${store}/${Date.now()}_${i}.${ext}`;
+      const storageRef = ref(storage, path);
+      const task = uploadBytesResumable(storageRef, pf.file, {
+        customMetadata: { store, date, submittedBy: cu.uid }
+      });
+
+      await new Promise((resolve, reject)=>{
+        task.on('state_changed',
+          snap => {
+            pf.progress = Math.round(snap.bytesTransferred/snap.totalBytes*100);
+            const bar = document.getElementById(`uprg-${i}`);
+            const lbl = document.getElementById(`ust-${i}`);
+            if(bar) bar.style.width = pf.progress+'%';
+            if(lbl) lbl.textContent = pf.progress+'%';
+          },
+          reject,
+          async ()=>{
+            const url = await getDownloadURL(task.snapshot.ref);
+            pf.storagePath = path;
+            pf.downloadURL = url;
+            pf.status = 'done';
+            pf.progress = 100;
+            renderUploadList();
+            uploadedVideos.push({ name: pf.name, url, storagePath: path });
+            resolve();
+          }
+        );
+      });
+    } catch(e){
+      pf.status = 'error';
+      renderUploadList();
+      toast(`${pf.name} 上傳失敗：${e.message}`);
+      btn.disabled = false; btn.textContent = '✓ 提交回報';
+      return;
+    }
+  }
+
+  // 2. 寫入 Firestore
+  try {
+    const note = document.getElementById('fNote').value.trim();
+    await addDoc(collection(db,'cctv_reports'),{
+      date, store, videos: uploadedVideos, note,
+      submittedBy: cu.uid, submitterName: cuName,
+      reviewed: false, reviewedBy: '', reviewedAt: null,
+      videosExpired: false,
+      createdAt: serverTimestamp()
+    });
+    closeModal();
+    toast('✅ 回報提交成功');
+    viewDate = date;
+    document.getElementById('dateLbl').textContent = dateDisp(viewDate);
+    await loadAndRender();
+  } catch(e){
+    toast('Firestore 寫入失敗：'+e.message);
+    btn.disabled = false; btn.textContent = '✓ 提交回報';
+  }
+};
+
+// ── Review ──
+window.markDone = async function(id){
+  try {
+    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:true, reviewedBy:cuName, reviewedAt:serverTimestamp() });
+    toast('✅ 已標記確認');
+    await loadAndRender();
+  } catch(e){ toast('操作失敗：'+e.message); }
+};
+window.unmark = async function(id){
+  try {
+    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:false, reviewedBy:'', reviewedAt:null });
+    toast('已取消確認');
+    await loadAndRender();
+  } catch(e){ toast('操作失敗：'+e.message); }
+};
+
+// ── Delete（同時刪 Storage 影片）──
+window.delReport = async function(id, videos){
+  if(!confirm('確定刪除此回報？Storage 中的影片也會一併刪除。')) return;
+  try {
+    // 刪 Storage 影片
+    for(const v of videos){
+      if(v.storagePath){
+        try { await deleteObject(ref(storage,v.storagePath)); } catch {}
+      }
+    }
+    // 刪 Firestore
+    await deleteDoc(doc(db,'cctv_reports',id));
+    toast('已刪除');
+    await loadAndRender();
+  } catch(e){ toast('刪除失敗：'+e.message); }
+};
+</script>
+</body>
+</html>
