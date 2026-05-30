@@ -82,6 +82,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .folder-popup-card.disabled:hover{transform:none;box-shadow:none}
 .fp-remove{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.1);border:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:background .15s}
 .fp-remove:hover{background:#e24b4a;color:#fff}
+.folder-add-card{background:var(--surface);border:1px dashed var(--border2);border-radius:10px;padding:10px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .15s;text-align:center}
+.folder-add-card:hover{background:#f0f4ff;border-color:var(--accent);transform:translateY(-1px)}
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -154,6 +156,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       <button class="folder-popup-close" onclick="closeFolderPopup()">✕</button>
     </div>
     <div class="folder-popup-grid" id="folderPopupGrid"></div>
+    <div id="folderAddSection"></div>
   </div>
 </div>
 <script type="module">
@@ -259,12 +262,24 @@ function renderFolderCard(folder, allMods) {
 // ── 資料夾彈窗 ──
 window.openFolderPopup = function(fid) {
   _openFolderId = fid;
+  renderFolderPopupContent(fid);
+  const ov = document.getElementById('folderOverlay');
+  ov.style.display = 'flex';
+  requestAnimationFrame(() => ov.classList.add('show'));
+};
+
+function renderFolderPopupContent(fid) {
   const folders = getFolders(_currentRole, _currentUid);
   const folder = folders[fid] || { name: '', items: [] };
   const keys = VISIBLE_KEYS[_currentRole] || VISIBLE_KEYS['employee'];
   const allMods = ALL_MODULES.filter(m => keys.includes(m.key));
+  const inFolder = new Set(Object.values(folders).flatMap(f => f.items || []));
+  // 不在任何資料夾、也不是資料夾本身的 module
+  const available = allMods.filter(m => !inFolder.has(m.key));
 
   document.getElementById('folderNameInput').value = folder.name || '';
+
+  // 目前在資料夾內的卡片
   const pgrid = document.getElementById('folderPopupGrid');
   pgrid.innerHTML = (folder.items || []).map(k => {
     const m = allMods.find(x => x.key === k);
@@ -277,9 +292,23 @@ window.openFolderPopup = function(fid) {
     </div>`;
   }).join('');
 
-  const ov = document.getElementById('folderOverlay');
-  ov.style.display = 'flex';
-  requestAnimationFrame(() => ov.classList.add('show'));
+  // ＋加入功能區塊（有可加入的項目才顯示）
+  const addSection = document.getElementById('folderAddSection');
+  if (available.length > 0) {
+    addSection.style.display = 'block';
+    addSection.innerHTML = `
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 10px">加入功能</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+        ${available.map(m => `
+          <div class="folder-add-card" onclick="addToFolderFromPopup('${fid}','${m.key}')">
+            <div style="font-size:18px">${m.icon}</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2)">${m.name}</div>
+          </div>`).join('')}
+      </div>`;
+  } else {
+    addSection.style.display = 'none';
+    addSection.innerHTML = '';
+  }
 
   document.getElementById('folderNameInput').oninput = function() {
     const f2 = getFolders(_currentRole, _currentUid);
@@ -287,6 +316,11 @@ window.openFolderPopup = function(fid) {
     const lbl = document.querySelector(`[data-key="${fid}"] .folder-label`);
     if (lbl) lbl.textContent = this.value || '未命名資料夾';
   };
+}
+
+window.addToFolderFromPopup = function(fid, key) {
+  addToFolder(fid, key);
+  renderFolderPopupContent(fid); // 重新渲染彈窗內容
 };
 
 window.closeFolderPopup = function() {
