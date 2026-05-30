@@ -342,9 +342,9 @@ async function saveGroupsToFirestore(groups){
   }catch(e){ console.error('saveGroups error:', e); alert('儲存失敗，請確認網路連線'); }
 }
 
-// 相容舊 API，內部同步用
+// 相容舊 API — deep copy 後存，避免參考問題
 function saveGroups(uid, groups){
-  saveGroupsToFirestore(groups);
+  saveGroupsToFirestore(JSON.parse(JSON.stringify(groups)));
 }
 
 function getCurrentGroups(){
@@ -623,13 +623,16 @@ function initItemDrag(){
 
     function saveItemOrder(){
       const newKeys = getItems().map(el=>el.dataset.key);
-      const groups = getCurrentGroups();
+      // deep copy 避免直接改 _sharedGroups 參考
+      const groups = JSON.parse(JSON.stringify(getCurrentGroups()));
       const g = groups.find(x=>x.id===gid);
       if(!g) return;
       // 保留在此群組但不在 sidebar 可見的 key
       const extra = (g.keys||[]).filter(k=>!ALL_MODULES.find(m=>m.key===k&&(VISIBLE_KEYS[_currentRole]||[]).includes(m.key)));
       g.keys = [...newKeys, ...extra];
-      saveGroups(_currentUid, groups);
+      // 立即更新記憶體，再存 Firestore
+      _sharedGroups = groups;
+      saveGroupsToFirestore(groups);
     }
 
     let lastItemMouseTarget = null;
@@ -731,10 +734,11 @@ function initGroupDrag(){
       if(!dragSrc) return;
       // 儲存新順序
       const newOrder = getGroups().map(g=>g.dataset.gid);
-      const allGroups = getCurrentGroups();
+      const allGroups = JSON.parse(JSON.stringify(getCurrentGroups()));
       const sorted = newOrder.map(id=>allGroups.find(g=>g.id===id)).filter(Boolean);
       allGroups.forEach(g=>{ if(!sorted.some(x=>x.id===g.id)) sorted.push(g); });
-      saveGroups(_currentUid, sorted);
+      _sharedGroups = sorted;
+      saveGroupsToFirestore(sorted);
       dragSrc = null;
     });
     el.addEventListener('dragover', e=>{
@@ -800,10 +804,11 @@ function initGroupDrag(){
         const cards=getGroups(), si=cards.indexOf(touchSrc), ti=cards.indexOf(target);
         if(si<ti) target.after(touchSrc); else target.before(touchSrc);
         const newOrder=getGroups().map(g=>g.dataset.gid);
-        const allGroups=getCurrentGroups();
+        const allGroups=JSON.parse(JSON.stringify(getCurrentGroups()));
         const sorted=newOrder.map(id=>allGroups.find(g=>g.id===id)).filter(Boolean);
         allGroups.forEach(g=>{ if(!sorted.find(x=>x.id===g.id)) sorted.push(g); });
-        saveGroups(_currentUid, sorted);
+        _sharedGroups = sorted;
+        saveGroupsToFirestore(sorted);
       }
       touchSrc.classList.remove('dragging-group');
       touchSrc=null;
