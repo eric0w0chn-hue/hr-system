@@ -197,22 +197,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <div class="main">
 
-  <!-- 多日回報總覽 -->
-  <div class="overview-panel" id="overviewPanel">
-    <div class="overview-header">
-      <div class="overview-title">📊 各店回報總覽</div>
-      <div class="overview-range" id="overviewRange"></div>
-    </div>
-    <div class="overview-body" id="overviewBody"></div>
-    <div class="ov-load-more" id="ovLoadMore" onclick="loadMoreOverview()" style="display:none">載入更多 ↓</div>
-  </div>
+
 
   <!-- 店長狀態 -->
   <div id="myStatusWrap"></div>
 
   <!-- 未回報提醒 -->
   <div class="missing-banner" id="missingBanner">
-    <div class="missing-title">⚠️ 以下店面今日尚未回報</div>
+    <div class="missing-title" id="missingTitle">⚠️ 以下店面尚未回報</div>
     <div class="missing-tags" id="missingTags"></div>
   </div>
 
@@ -388,9 +380,7 @@ async function loadStores(){
 
 function setupUI(){
   if(cuRole==='admin'||cuRole==='consultant'){
-    document.getElementById('overviewPanel').style.display='block';
     document.getElementById('storeTabsWrap').style.display='block';
-    loadOverview();
   }
   if(cuRole==='admin'||cuRole==='manager'){
     document.getElementById('addBtn').style.display='inline-flex';
@@ -501,10 +491,15 @@ function renderMissing(){
   const reported = new Set(allReports.map(r=>r.store));
   const missing = allStores.filter(s=>!reported.has(s));
   const banner = document.getElementById('missingBanner');
-  if(missing.length && viewDate===todayStr()){
+  const today = todayStr();
+  if(missing.length){
     banner.classList.add('show');
+    document.getElementById('missingTitle').textContent =
+      '⚠️ ' + (viewDate===today?'今日':'該日（'+viewDate.slice(5).replace('-','/')+'）') + ' 以下店面尚未回報';
     document.getElementById('missingTags').innerHTML = missing.map(s=>`<span class="missing-tag">${s}</span>`).join('');
-  } else banner.classList.remove('show');
+  } else {
+    banner.classList.remove('show');
+  }
 }
 
 function renderMyStatus(){
@@ -752,7 +747,6 @@ window.submitReport = async function(){
     viewDate = date;
     document.getElementById('dateLbl').textContent = dateDisp(viewDate);
     await loadAndRender();
-    if(cuRole==='admin'||cuRole==='consultant') await loadOverview();
   } catch(e){
     toast('Firestore 寫入失敗：'+e.message);
     btn.disabled = false; btn.textContent = '✓ 提交回報';
@@ -792,7 +786,6 @@ window.delReport = async function(btn){
     await deleteDoc(doc(db,'cctv_reports',id));
     toast('✅ 已刪除');
     await loadAndRender();
-    if(cuRole==='admin'||cuRole==='consultant') await loadOverview();
   } catch(e){ toast('刪除失敗：'+e.message); btn.disabled=false; btn.textContent='刪除'; }
 };
 </script>
