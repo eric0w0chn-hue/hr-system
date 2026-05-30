@@ -498,7 +498,8 @@ onAuthStateChanged(auth,async user=>{
       document.getElementById('userAv').textContent=idNo.slice(0,1);
       document.getElementById('userName').textContent=idNo;
       document.getElementById('roleLabel').innerHTML='<span class="role-badge role-employee">同仁</span>';
-      document.getElementById('greetText').textContent=`${gr} 👋`;
+      const greetEl=document.getElementById('greetText');
+      if(greetEl) greetEl.textContent=`${gr} 👋`;
       document.getElementById('sidebarGreet').textContent=`${gr} 👋`;
       _currentUid=user.uid; renderAll('employee');
     } else {
@@ -510,7 +511,8 @@ onAuthStateChanged(auth,async user=>{
       document.getElementById('userAv').textContent=(name||'?').slice(0,1);
       document.getElementById('userName').textContent=name;
       document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
-      document.getElementById('greetText').textContent=`${gr}，${name} 👋`;
+      const greetEl2=document.getElementById('greetText');
+      if(greetEl2) greetEl2.textContent=`${gr}，${name} 👋`;
       document.getElementById('sidebarGreet').textContent=`${gr}，${name} 👋`;
       if(role==='admin'){
         document.getElementById('previewBar').style.display='flex';
@@ -532,7 +534,8 @@ onAuthStateChanged(auth,async user=>{
     }
   }catch(e){console.error(e); renderAll('employee');}
   const now=new Date();
-  document.getElementById('todayText').textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const todayEl=document.getElementById('todayText');
+  if(todayEl) todayEl.textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
   document.getElementById('sidebarDate').textContent=now.toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'});
   document.getElementById('yearText').textContent=now.getFullYear();
   document.getElementById('loading').style.display='none';
