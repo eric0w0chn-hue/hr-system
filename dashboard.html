@@ -368,7 +368,7 @@ function renderAll(role){
   });
   // 未分組功能（只有 admin 且非預覽才顯示）
   if(isAdmin&&!inPreview){
-    const assignedKeys=new Set(groups.flatMap(g=>g.keys));
+    const assignedKeys=new Set(groups.reduce((a,g)=>a.concat(g.keys||[]),[]));
     const unassigned=ALL_MODULES.filter(m=>visKeys.includes(m.key)&&!assignedKeys.has(m.key));
     if(unassigned.length){
       sHtml+=`<div class="sidebar-unassigned">
@@ -571,14 +571,20 @@ onAuthStateChanged(auth,async user=>{
       }
       renderAll(role);
     }
-  }catch(e){console.error(e); renderAll('employee');}
-  const now=new Date();
-  const todayEl=document.getElementById('todayText');
-  if(todayEl) todayEl.textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
-  document.getElementById('sidebarDate').textContent=now.toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'});
-  document.getElementById('yearText').textContent=now.getFullYear();
-  document.getElementById('loading').style.display='none';
-  document.getElementById('app').style.display='block';
+  }catch(e){
+    console.error('renderAll error:', e);
+    try{ renderAll('employee'); }catch(_){}
+  } finally {
+    const now=new Date();
+    const todayEl=document.getElementById('todayText');
+    if(todayEl) todayEl.textContent=now.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+    const sidebarDateEl=document.getElementById('sidebarDate');
+    if(sidebarDateEl) sidebarDateEl.textContent=now.toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'});
+    const yearEl=document.getElementById('yearText');
+    if(yearEl) yearEl.textContent=now.getFullYear();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+  }
 });
 window.goTo=function(page){window.location.href=page;};
 window.doLogout=async function(){if(!confirm('確定要登出嗎？'))return;await signOut(auth);window.location.href='/hr-system/index.html';};
@@ -599,7 +605,7 @@ function initItemDrag(){
       const g = groups.find(x=>x.id===gid);
       if(!g) return;
       // 保留在此群組但不在 sidebar 可見的 key
-      const extra = g.keys.filter(k=>!ALL_MODULES.find(m=>m.key===k&&(VISIBLE_KEYS[_currentRole]||[]).includes(m.key)));
+      const extra = (g.keys||[]).filter(k=>!ALL_MODULES.find(m=>m.key===k&&(VISIBLE_KEYS[_currentRole]||[]).includes(m.key)));
       g.keys = [...newKeys, ...extra];
       saveGroups(_currentUid, groups);
     }
@@ -697,8 +703,7 @@ function initGroupDrag(){
       const newOrder = getGroups().map(g=>g.dataset.gid);
       const allGroups = getCurrentGroups();
       const sorted = newOrder.map(id=>allGroups.find(g=>g.id===id)).filter(Boolean);
-      // 補上不在 sidebar 的群組（空群組）
-      allGroups.forEach(g=>{ if(!sorted.find(x=>x.id===g.id)) sorted.push(g); });
+      allGroups.forEach(g=>{ if(!sorted.some(x=>x.id===g.id)) sorted.push(g); });
       saveGroups(_currentUid, sorted);
       dragSrc = null;
     });
