@@ -91,6 +91,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .admin-mode .sidebar-add-group{display:block}
 .sidebar-add-group:hover{border-color:rgba(255,255,255,.5);color:#fff;background:rgba(255,255,255,.06)}
 .sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.3);text-align:center}
+.sidebar-reset-btn{margin:2px 12px 8px;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,100,100,.25);background:transparent;color:rgba(255,100,100,.5);font-size:10px;cursor:pointer;width:calc(100% - 24px);font-family:inherit;transition:all .15s;text-align:left;display:none}
+.admin-mode .sidebar-reset-btn{display:block}
+.sidebar-reset-btn:hover{border-color:rgba(255,100,100,.6);color:rgba(255,100,100,.9)}padding:10px 12px;border-radius:8px;background:rgba(255,180,0,.08);border:1px dashed rgba(255,180,0,.3)}
+.sidebar-unassigned-title{font-size:10px;color:rgba(255,180,0,.7);font-weight:600;margin-bottom:6px;letter-spacing:.4px}
+.sidebar-unassigned-item{font-size:11px;color:rgba(255,255,255,.4);padding:2px 0;line-height:1.6}
 
 /* ── Main content ── */
 .main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);min-height:100vh}
@@ -228,6 +233,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     </div>
     <div id="sidebarContent"></div>
     <button class="sidebar-add-group" id="addGroupBtn" onclick="openGroupModal()">＋ 新增群組</button>
+    <button class="sidebar-reset-btn" id="resetGroupBtn" onclick="resetGroups()">↺ 重置所有群組</button>
     <div class="sidebar-footer">鑫系統 LIANGPING · <span id="yearText"></span></div>
   </div>
 
@@ -310,10 +316,7 @@ const VISIBLE_KEYS={
 };
 
 // ── 預設群組（ADMIN 自訂群組的初始結構）──
-const DEFAULT_GROUPS=[
-  {id:'g_people',  name:'人事管理',   icon:'👥', keys:['hr','clock','account','salary','device']},
-  {id:'g_daily',   name:'每日作業',   icon:'📋', keys:['schedule','price','cctv','meeting']},
-];
+const DEFAULT_GROUPS=[];  // 無預設，由 ADMIN 自訂
 
 let _currentUid='';
 let _currentRole='';
@@ -324,11 +327,10 @@ const EMOJI_LIST=['📋','👥','🏪','⏱','📅','🥬','📱','💰','📹',
 function getGroups(uid){ try{return JSON.parse(localStorage.getItem(`sidebarGroups_${uid}`)||'null');}catch{return null;} }
 function saveGroups(uid,groups){ try{localStorage.setItem(`sidebarGroups_${uid}`,JSON.stringify(groups));}catch{} }
 
-// ── 取得目前群組（若無則用預設）──
+// ── 取得目前群組 ──
 function getCurrentGroups(){
   const saved=getGroups(_currentUid);
-  if(saved) return saved;
-  return DEFAULT_GROUPS.map(g=>({...g}));
+  return saved || [];
 }
 
 // ── renderSidebar & renderMain ──
@@ -364,6 +366,24 @@ function renderAll(role){
     if(!gMods.length) sHtml+=`<div style="padding:6px 14px 6px 36px;font-size:11px;color:rgba(255,255,255,.3)">（無可用功能）</div>`;
     sHtml+=`</div></div><div class="sidebar-divider"></div>`;
   });
+  // 未分組功能（只有 admin 且非預覽才顯示）
+  if(isAdmin&&!inPreview){
+    const assignedKeys=new Set(groups.flatMap(g=>g.keys));
+    const unassigned=ALL_MODULES.filter(m=>visKeys.includes(m.key)&&!assignedKeys.has(m.key));
+    if(unassigned.length){
+      sHtml+=`<div class="sidebar-unassigned">
+        <div class="sidebar-unassigned-title">⚠ 未分組功能</div>
+        ${unassigned.map(m=>`<div class="sidebar-unassigned-item">${m.icon} ${m.name}</div>`).join('')}
+      </div>`;
+    }
+  }
+  // 空狀態引導（admin 且沒有任何群組）
+  if(isAdmin&&!inPreview&&!groups.length){
+    sHtml=`<div style="padding:20px 16px;text-align:center">
+      <div style="font-size:24px;margin-bottom:8px">📂</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7">尚未建立任何群組<br>點擊下方「＋ 新增群組」<br>開始自訂您的選單</div>
+    </div>`;
+  }
   sb.innerHTML=sHtml;
   document.getElementById('sidebar').classList.toggle('admin-mode', isAdmin&&!inPreview);
 
@@ -435,14 +455,14 @@ function renderModChecklist(selectedKeys){
   const mods=ALL_MODULES.filter(m=>visKeys.includes(m.key));
   document.getElementById('modChecklist').innerHTML=mods.map(m=>{
     const checked=selectedKeys.includes(m.key);
-    return `<label class="mod-check-item${checked?' checked':''}" onclick="toggleModCheck(this,'${m.key}')">
+    return `<label class="mod-check-item${checked?' checked':''}" data-key="${m.key}" onclick="toggleModCheck(this)">
       <input type="checkbox" ${checked?'checked':''} style="display:none">
       <span class="ci-icon">${m.icon}</span>
       <span class="ci-name">${m.name}</span>
     </label>`;
   }).join('');
 }
-window.toggleModCheck=function(el,key){
+window.toggleModCheck=function(el){
   el.classList.toggle('checked');
   el.querySelector('input').checked=el.classList.contains('checked');
 };
@@ -451,7 +471,7 @@ window.saveGroup=function(){
   const name=document.getElementById('groupNameInput').value.trim();
   if(!name){alert('請輸入群組名稱');return;}
   const icon=document.querySelector('.emoji-opt.selected')?.textContent||'📋';
-  const keys=[...document.querySelectorAll('.mod-check-item.checked')].map(el=>el.getAttribute('onclick').match(/'([^']+)'\)$/)?.[1]).filter(Boolean);
+  const keys=[...document.querySelectorAll('.mod-check-item.checked')].map(el=>el.dataset.key).filter(Boolean);
   const groups=getCurrentGroups();
   if(_editingGroupId){
     const idx=groups.findIndex(g=>g.id===_editingGroupId);
@@ -474,7 +494,11 @@ window.deleteCurrentGroup=function(){
 };
 
 // ── Modal helpers ──
-window.openModal=function(id){
+window.resetGroups=function(){
+  if(!confirm('確定要清除所有群組設定？所有功能將變為未分組狀態。')) return;
+  saveGroups(_currentUid, []);
+  renderAll(_currentRole);
+};
   const ov=document.getElementById(id);
   ov.style.display='flex';
   requestAnimationFrame(()=>ov.classList.add('show'));
