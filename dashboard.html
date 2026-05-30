@@ -60,6 +60,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── 資料夾卡片 ── */
+.folder-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px 16px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:10px;position:relative;user-select:none}
+.folder-card:hover{border-color:var(--border2);box-shadow:0 6px 24px rgba(0,0,0,.08);transform:translateY(-2px)}
+.folder-card.dragging{opacity:.4;border:2px dashed var(--border2);transform:none}
+.folder-card.drag-over{border:2px dashed var(--accent);transform:translateY(-3px)}
+.folder-card.folder-drop-target{border:2px dashed #f59e0b;background:#fffbeb;transform:scale(1.03)}
+.folder-previews{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--surface2);border-radius:8px;padding:6px;min-height:52px;align-items:center}
+.folder-preview-icon{font-size:16px;text-align:center;line-height:1}
+.folder-label{font-size:13px;font-weight:600;color:var(--text);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-count{font-size:10px;color:var(--text3);text-align:center}
+
+/* 模組卡片疊加提示 */
+.module-card.folder-drop-target{border:2px dashed #f59e0b;background:#fffbeb;transform:scale(1.03)}
+
+/* ── 資料夾彈窗 ── */
+.folder-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.folder-overlay.show{opacity:1}
+.folder-popup{background:var(--surface);border-radius:20px;padding:24px;width:min(420px,90vw);max-height:80vh;overflow-y:auto;transform:scale(.85);transition:transform .2s;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.folder-overlay.show .folder-popup{transform:scale(1)}
+.folder-popup-header{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.folder-name-input{flex:1;font-size:16px;font-weight:600;border:none;outline:none;background:transparent;color:var(--text);border-bottom:2px solid var(--border);padding:2px 4px;font-family:inherit}
+.folder-name-input:focus{border-bottom-color:var(--accent)}
+.folder-popup-close{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.folder-popup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.folder-popup-card{background:var(--surface2);border-radius:12px;border:1px solid var(--border);padding:14px 12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;position:relative}
+.folder-popup-card:hover{border-color:var(--border2);box-shadow:0 4px 12px rgba(0,0,0,.07);transform:translateY(-1px)}
+.folder-popup-card.disabled{opacity:.5;cursor:not-allowed}
+.folder-popup-card.disabled:hover{transform:none;box-shadow:none}
+.fp-remove{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.12);border:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:background .15s}
+.fp-remove:hover{background:#e24b4a;color:#fff}
+
+/* ── 長按選取模式 ── */
+.module-card.selected,.folder-card.selected{outline:3px solid var(--accent);outline-offset:2px}
+.edit-mode-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;border-radius:50px;padding:10px 20px;display:flex;gap:12px;align-items:center;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.25);font-size:13px;white-space:nowrap}
+.edit-mode-bar button{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:20px;padding:5px 14px;cursor:pointer;font-size:12px;font-family:inherit;transition:background .15s}
+.edit-mode-bar button:hover{background:rgba(255,255,255,.35)}
+
 @media(max-width:600px){
   .topbar{padding:8px 12px;height:auto;min-height:56px}
   .topbar h1{font-size:13px}
@@ -120,6 +157,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <div class="footer">鑫系統 LIANGPING &nbsp;·&nbsp; <span id="yearText"></span></div>
   </div>
 </div>
+
+<!-- 資料夾彈窗 -->
+<div class="folder-overlay" id="folderOverlay" onclick="closeFolderIfBg(event)">
+  <div class="folder-popup" id="folderPopup">
+    <div class="folder-popup-header">
+      <input class="folder-name-input" id="folderNameInput" maxlength="12" placeholder="資料夾名稱">
+      <button class="folder-popup-close" onclick="closeFolderPopup()">✕</button>
+    </div>
+    <div class="folder-popup-grid" id="folderPopupGrid"></div>
+  </div>
+</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -164,149 +212,270 @@ let _currentUid = '';
 let _currentRole = '';
 
 function getSavedOrder(role, uid) {
-  try {
-    const saved = localStorage.getItem(`moduleOrder_${uid}_${role}`);
-    return saved ? JSON.parse(saved) : null;
-  } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(`moduleOrder_${uid}_${role}`)||'null'); } catch { return null; }
+}
+function saveOrder(role, uid, keys) {
+  try { localStorage.setItem(`moduleOrder_${uid}_${role}`, JSON.stringify(keys)); } catch {}
 }
 
-function saveOrder(role, uid, keys) {
-  try {
-    localStorage.setItem(`moduleOrder_${uid}_${role}`, JSON.stringify(keys));
-  } catch {}
+// ── 資料夾資料 ──
+function getFolders(role, uid){
+  try { return JSON.parse(localStorage.getItem(`folders_${uid}_${role}`)||'{}'); } catch { return {}; }
 }
+function saveFolders(role, uid, folders){
+  try { localStorage.setItem(`folders_${uid}_${role}`, JSON.stringify(folders)); } catch {}
+}
+function newFolderId(){ return 'folder_' + Date.now(); }
+
+let _openFolderId = null;
 
 function renderModules(role, hiddenKeys=[]){
   _currentRole = role;
   const keys = VISIBLE_KEYS[role]||VISIBLE_KEYS['employee'];
-  let modules = ALL_MODULES.filter(m=>keys.includes(m.key)&&!hiddenKeys.includes(m.key));
+  let allMods = ALL_MODULES.filter(m=>keys.includes(m.key)&&!hiddenKeys.includes(m.key));
 
-  // 套用自訂排列
+  const folders = getFolders(role, _currentUid);
+  const inFolder = new Set(Object.values(folders).flatMap(f=>f.items||[]));
   const savedOrder = getSavedOrder(role, _currentUid);
-  if(savedOrder) {
-    modules.sort((a,b) => {
-      const ia = savedOrder.indexOf(a.key);
-      const ib = savedOrder.indexOf(b.key);
-      return (ia===-1?999:ia) - (ib===-1?999:ib);
+
+  let items = [];
+  Object.entries(folders).forEach(([fid, fd])=>{ items.push({type:'folder', key:fid, ...fd}); });
+  allMods.forEach(m=>{ if(!inFolder.has(m.key)) items.push({type:'module', ...m}); });
+
+  if(savedOrder){
+    items.sort((a,b)=>{
+      const ia=savedOrder.indexOf(a.key), ib=savedOrder.indexOf(b.key);
+      return (ia===-1?999:ia)-(ib===-1?999:ib);
     });
   }
 
   const grid = document.getElementById('moduleGrid');
-  grid.innerHTML = modules.map(m => {
+  grid.innerHTML = items.map(item=>{
+    if(item.type==='folder') return renderFolderCard(item, allMods);
+    const m = item;
     const badgeHtml = m.active
       ? `<span class="card-badge ${m.adminOnly?'badge-admin':'badge-active'}">${m.adminOnly?'管理員':'可使用'}</span>`
       : `<span class="card-badge badge-soon">即將推出</span>`;
     const clickAttr = m.active ? `onclick="goTo('${m.page}')"` : '';
-    return `<div class="module-card${m.active?'':' disabled'}" data-key="${m.key}" draggable="true" ${clickAttr}>
+    return `<div class="module-card${m.active?'':' disabled'}" data-key="${m.key}" data-type="module" draggable="true" ${clickAttr}>
       ${badgeHtml}
       <div class="icon-wrap">${m.icon}</div>
       <div><div class="mod-name">${m.name}</div><div class="mod-desc" style="margin-top:4px">${m.desc}</div></div>
     </div>`;
   }).join('');
 
-  // 顯示提示
   const hint = document.getElementById('dragHint');
-  if(hint) hint.style.display = modules.length > 1 ? 'flex' : 'none';
+  if(hint) hint.style.display = items.length > 1 ? 'flex' : 'none';
 
   initDrag(grid);
 }
 
+function renderFolderCard(folder, allMods){
+  const previews = (folder.items||[]).slice(0,6).map(k=>{
+    const m = allMods.find(x=>x.key===k);
+    return `<div class="folder-preview-icon">${m?m.icon:'📄'}</div>`;
+  }).join('');
+  return `<div class="folder-card" data-key="${folder.key}" data-type="folder" draggable="true" onclick="openFolderPopup('${folder.key}')">
+    <div class="folder-previews">${previews||'<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:11px">空資料夾</div>'}</div>
+    <div class="folder-label">${folder.name||'未命名資料夾'}</div>
+    <div class="folder-count">${(folder.items||[]).length} 個項目</div>
+  </div>`;
+}
+
+window.openFolderPopup = function(fid){
+  _openFolderId = fid;
+  const folders = getFolders(_currentRole, _currentUid);
+  const folder = folders[fid]||{name:'',items:[]};
+  const keys = VISIBLE_KEYS[_currentRole]||VISIBLE_KEYS['employee'];
+  const allMods = ALL_MODULES.filter(m=>keys.includes(m.key));
+
+  document.getElementById('folderNameInput').value = folder.name||'';
+  const pgrid = document.getElementById('folderPopupGrid');
+  pgrid.innerHTML = (folder.items||[]).map(k=>{
+    const m = allMods.find(x=>x.key===k);
+    if(!m) return '';
+    const clickAttr = m.active ? `onclick="goTo('${m.page}')"` : '';
+    return `<div class="folder-popup-card${m.active?'':' disabled'}" ${clickAttr}>
+      <button class="fp-remove" onclick="event.stopPropagation();removeFromFolder('${fid}','${k}')" title="移出資料夾">✕</button>
+      <div class="icon-wrap" style="width:36px;height:36px;font-size:17px">${m.icon}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text)">${m.name}</div>
+    </div>`;
+  }).join('');
+
+  const ov = document.getElementById('folderOverlay');
+  ov.style.display = 'flex';
+  requestAnimationFrame(()=>ov.classList.add('show'));
+
+  document.getElementById('folderNameInput').oninput = function(){
+    const f2 = getFolders(_currentRole, _currentUid);
+    if(f2[fid]){ f2[fid].name = this.value; saveFolders(_currentRole, _currentUid, f2); }
+    const lbl = document.querySelector(`[data-key="${fid}"] .folder-label`);
+    if(lbl) lbl.textContent = this.value||'未命名資料夾';
+  };
+};
+
+window.closeFolderPopup = function(){
+  const ov = document.getElementById('folderOverlay');
+  ov.classList.remove('show');
+  setTimeout(()=>{ ov.style.display='none'; _openFolderId=null; }, 200);
+};
+
+window.closeFolderIfBg = function(e){
+  if(e.target===document.getElementById('folderOverlay')) closeFolderPopup();
+};
+
+window.removeFromFolder = function(fid, key){
+  const folders = getFolders(_currentRole, _currentUid);
+  if(!folders[fid]) return;
+  folders[fid].items = (folders[fid].items||[]).filter(k=>k!==key);
+  if(folders[fid].items.length===0) delete folders[fid];
+  saveFolders(_currentRole, _currentUid, folders);
+  closeFolderPopup();
+  renderModules(_currentRole);
+};
+
+function createFolder(key1, key2){
+  const folders = getFolders(_currentRole, _currentUid);
+  const fid = newFolderId();
+  folders[fid] = { name:'新資料夾', items:[key1, key2] };
+  saveFolders(_currentRole, _currentUid, folders);
+  const savedOrder = getSavedOrder(_currentRole, _currentUid)||
+    [...document.querySelectorAll('#moduleGrid [data-key]')].map(c=>c.dataset.key);
+  const idx1=savedOrder.indexOf(key1), idx2=savedOrder.indexOf(key2);
+  const insertAt=Math.min(idx1<0?999:idx1, idx2<0?999:idx2);
+  const newOrder=savedOrder.filter(k=>k!==key1&&k!==key2);
+  newOrder.splice(insertAt===999?newOrder.length:insertAt, 0, fid);
+  saveOrder(_currentRole, _currentUid, newOrder);
+  renderModules(_currentRole);
+  setTimeout(()=>openFolderPopup(fid), 100);
+}
+
+function addToFolder(fid, key){
+  const folders = getFolders(_currentRole, _currentUid);
+  if(!folders[fid]) return;
+  if(!folders[fid].items.includes(key)) folders[fid].items.push(key);
+  saveFolders(_currentRole, _currentUid, folders);
+  renderModules(_currentRole);
+}
+
 function initDrag(grid) {
   let dragSrc = null;
+  let hoverTarget = null;
+  let hoverTimer = null;
+  const FOLDER_MERGE_DELAY = 700;
 
-  grid.querySelectorAll('.module-card[draggable]').forEach(card => {
+  function clearHover(){
+    clearTimeout(hoverTimer);
+    if(hoverTarget){ hoverTarget.classList.remove('folder-drop-target'); hoverTarget=null; }
+  }
+  function persistOrder(){
+    saveOrder(_currentRole, _currentUid, [...grid.querySelectorAll('[data-key]')].map(c=>c.dataset.key));
+  }
+
+  grid.querySelectorAll('[data-key][draggable]').forEach(card => {
     card.addEventListener('dragstart', e => {
       dragSrc = card;
-      setTimeout(() => card.classList.add('dragging'), 0);
+      setTimeout(()=>card.classList.add('dragging'), 0);
       e.dataTransfer.effectAllowed = 'move';
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
-      grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
-      // 儲存新順序
-      const newOrder = [...grid.querySelectorAll('.module-card')].map(c => c.dataset.key);
-      saveOrder(_currentRole, _currentUid, newOrder);
+      grid.querySelectorAll('[data-key]').forEach(c=>c.classList.remove('drag-over','folder-drop-target'));
+      clearHover(); persistOrder(); dragSrc=null;
     });
     card.addEventListener('dragover', e => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if(card !== dragSrc) {
-        grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
-        card.classList.add('drag-over');
+      if(!dragSrc||card===dragSrc) return;
+      const dragType=dragSrc.dataset.type, targetType=card.dataset.type;
+      if(dragType==='module'&&(targetType==='module'||targetType==='folder')){
+        if(hoverTarget!==card){
+          clearHover(); hoverTarget=card; card.classList.add('folder-drop-target');
+          hoverTimer=setTimeout(()=>{
+            if(dragSrc&&hoverTarget===card){
+              if(targetType==='folder') addToFolder(card.dataset.key, dragSrc.dataset.key);
+              else createFolder(dragSrc.dataset.key, card.dataset.key);
+              dragSrc=null;
+            }
+          }, FOLDER_MERGE_DELAY);
+        }
+        return;
       }
+      clearHover();
+      grid.querySelectorAll('[data-key]').forEach(c=>c.classList.remove('drag-over'));
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', ()=>{
+      card.classList.remove('drag-over');
+      if(hoverTarget===card) clearHover();
     });
     card.addEventListener('drop', e => {
-      e.preventDefault();
-      if(dragSrc && card !== dragSrc) {
-        const cards = [...grid.querySelectorAll('.module-card')];
-        const srcIdx = cards.indexOf(dragSrc);
-        const tgtIdx = cards.indexOf(card);
-        if(srcIdx < tgtIdx) grid.insertBefore(dragSrc, card.nextSibling);
-        else grid.insertBefore(dragSrc, card);
-        card.classList.remove('drag-over');
+      e.preventDefault(); clearHover();
+      if(!dragSrc||card===dragSrc) return;
+      card.classList.remove('drag-over','folder-drop-target');
+      const dragType=dragSrc.dataset.type, targetType=card.dataset.type;
+      if(!(dragType==='module'&&(targetType==='module'||targetType==='folder'))){
+        const cards=[...grid.querySelectorAll('[data-key]')];
+        const si=cards.indexOf(dragSrc), ti=cards.indexOf(card);
+        if(si<ti) grid.insertBefore(dragSrc,card.nextSibling);
+        else grid.insertBefore(dragSrc,card);
+        persistOrder();
       }
     });
-
   });
 
-  // ── 手機 Touch 拖拉 ──
-  let touchDragEl = null;
-  let touchClone  = null;
-  let touchTimer  = null;
-
-  function getTouchCard(x, y) {
-    if(touchClone) touchClone.style.display = 'none';
-    const el = document.elementFromPoint(x, y);
-    if(touchClone) touchClone.style.display = '';
-    return el ? el.closest('.module-card') : null;
+  // ── Touch 拖拉 ──
+  let touchDragEl=null, touchClone=null, touchTimer2=null;
+  function getTouchTarget(x,y){
+    if(touchClone) touchClone.style.display='none';
+    const el=document.elementFromPoint(x,y);
+    if(touchClone) touchClone.style.display='';
+    return el?el.closest('[data-key]'):null;
   }
-
-  grid.querySelectorAll('.module-card').forEach(card => {
-    card.addEventListener('touchstart', e => {
-      touchTimer = setTimeout(() => {
-        touchDragEl = card;
-        card.classList.add('dragging');
-        const rect = card.getBoundingClientRect();
-        touchClone = card.cloneNode(true);
-        touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;opacity:0.85;pointer-events:none;z-index:9999;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);transform:scale(1.04);transition:none;`;
+  grid.querySelectorAll('[data-key]').forEach(card=>{
+    card.addEventListener('touchstart',e=>{
+      touchTimer2=setTimeout(()=>{
+        touchDragEl=card; card.classList.add('dragging');
+        const r=card.getBoundingClientRect();
+        touchClone=card.cloneNode(true);
+        touchClone.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;opacity:.85;pointer-events:none;z-index:9999;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);transform:scale(1.04);transition:none;`;
         document.body.appendChild(touchClone);
         if(navigator.vibrate) navigator.vibrate(40);
-      }, 400);
-    }, {passive:true});
-
-    card.addEventListener('touchmove', e => {
-      if(!touchDragEl){ clearTimeout(touchTimer); return; }
+      },400);
+    },{passive:true});
+    card.addEventListener('touchmove',e=>{
+      if(!touchDragEl){clearTimeout(touchTimer2);return;}
       e.preventDefault();
-      const t = e.touches[0];
-      const rect = touchDragEl.getBoundingClientRect();
-      if(touchClone){
-        touchClone.style.left = (t.clientX - rect.width/2) + 'px';
-        touchClone.style.top  = (t.clientY - rect.height/2) + 'px';
+      const t=e.touches[0], r=touchDragEl.getBoundingClientRect();
+      if(touchClone){touchClone.style.left=(t.clientX-r.width/2)+'px';touchClone.style.top=(t.clientY-r.height/2)+'px';}
+      const target=getTouchTarget(t.clientX,t.clientY);
+      grid.querySelectorAll('[data-key]').forEach(c=>c.classList.remove('drag-over','folder-drop-target'));
+      if(target&&target!==touchDragEl){
+        const dt=touchDragEl.dataset.type, tt=target.dataset.type;
+        if(dt==='module'&&(tt==='module'||tt==='folder')) target.classList.add('folder-drop-target');
+        else target.classList.add('drag-over');
       }
-      const target = getTouchCard(t.clientX, t.clientY);
-      grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
-      if(target && target !== touchDragEl) target.classList.add('drag-over');
-    }, {passive:false});
-
-    card.addEventListener('touchend', e => {
-      clearTimeout(touchTimer);
+    },{passive:false});
+    card.addEventListener('touchend',e=>{
+      clearTimeout(touchTimer2);
       if(!touchDragEl) return;
-      const t = e.changedTouches[0];
-      const target = getTouchCard(t.clientX, t.clientY);
-      grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('drag-over'));
-      if(target && target !== touchDragEl){
-        const cards = [...grid.querySelectorAll('.module-card')];
-        const srcIdx = cards.indexOf(touchDragEl);
-        const tgtIdx = cards.indexOf(target);
-        if(srcIdx < tgtIdx) grid.insertBefore(touchDragEl, target.nextSibling);
-        else grid.insertBefore(touchDragEl, target);
-        const newOrder = [...grid.querySelectorAll('.module-card')].map(c => c.dataset.key);
-        saveOrder(_currentRole, _currentUid, newOrder);
+      const t=e.changedTouches[0], target=getTouchTarget(t.clientX,t.clientY);
+      grid.querySelectorAll('[data-key]').forEach(c=>c.classList.remove('drag-over','folder-drop-target'));
+      if(target&&target!==touchDragEl){
+        const dt=touchDragEl.dataset.type, tt=target.dataset.type;
+        if(dt==='module'&&tt==='folder') addToFolder(target.dataset.key, touchDragEl.dataset.key);
+        else if(dt==='module'&&tt==='module') createFolder(touchDragEl.dataset.key, target.dataset.key);
+        else {
+          const cards=[...grid.querySelectorAll('[data-key]')];
+          const si=cards.indexOf(touchDragEl), ti=cards.indexOf(target);
+          if(si<ti) grid.insertBefore(touchDragEl,target.nextSibling);
+          else grid.insertBefore(touchDragEl,target);
+          persistOrder();
+        }
       }
       touchDragEl.classList.remove('dragging');
-      if(touchClone){ touchClone.remove(); touchClone = null; }
-      touchDragEl = null;
-    }, {passive:true});
+      if(touchClone){touchClone.remove();touchClone=null;}
+      touchDragEl=null;
+    },{passive:true});
   });
 }
 onAuthStateChanged(auth,async user=>{
