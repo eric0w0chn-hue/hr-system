@@ -359,6 +359,7 @@ onAuthStateChanged(auth, async user => {
   if(!snap.exists()){ location.href='index.html'; return; }
   const d = snap.data();
   cuRole = d.role||'employee'; cuName = d.name||user.email; cuLocs = d.locations||[];
+  if(cuRole==='employee'){ location.href='dashboard.html'; return; }
 
   const roleMap={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
   const colorMap={admin:'background:#FFF4E0;color:#C47A00',consultant:'background:#F0EBFF;color:#6741D9',manager:'background:#E6FAF0;color:#087443',employee:'background:#E8EEFF;color:#3B5BDB'};
@@ -546,7 +547,6 @@ function renderReports(){
   }
   list.innerHTML = filtered.map(r => {
     const canDel = cuRole==='admin'||r.submittedBy===cu.uid;
-    const canReview = cuRole==='admin'||cuRole==='consultant';
     const videos = r.videos||[];
     const expired = r.videosExpired;
     const videoHtml = videos.length
@@ -576,8 +576,7 @@ function renderReports(){
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${expired?'<span class="badge badge-expired">影片已過期</span>':''}
           ${r.reviewed
-            ? `<span class="badge badge-done">✓ 已確認</span><span style="font-size:11px;color:var(--text3)">${esc(r.reviewedBy||'')}</span>`
-            : `<span class="badge badge-new">待確認</span>`}
+            ? '' : ''}
         </div>
       </div>
       <div class="rc-body">
@@ -586,8 +585,7 @@ function renderReports(){
       </div>
       <div class="rc-footer">
         <div style="display:flex;gap:6px">
-          ${canReview&&!r.reviewed?`<button class="btn-sm btn-green" onclick="markDone('${r.id}')">✓ 標記已確認</button>`:''}
-          ${canReview&&r.reviewed?`<button class="btn-sm btn-outline" style="border:1px solid var(--border)" onclick="unmark('${r.id}')">取消確認</button>`:''}
+
         </div>
         <div>
           ${canDel?`<button class="btn-sm btn-danger" data-id="${r.id}" data-videos="${encodeURIComponent(JSON.stringify(videos))}" onclick="delReport(this)">刪除</button>`:''}
@@ -767,20 +765,7 @@ window.submitReport = async function(){
 };
 
 // ── Review ──
-window.markDone = async function(id){
-  try {
-    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:true, reviewedBy:cuName, reviewedAt:serverTimestamp() });
-    toast('✅ 已標記確認');
-    await loadAndRender();
-  } catch(e){ toast('操作失敗：'+e.message); }
-};
-window.unmark = async function(id){
-  try {
-    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:false, reviewedBy:'', reviewedAt:null });
-    toast('已取消確認');
-    await loadAndRender();
-  } catch(e){ toast('操作失敗：'+e.message); }
-};
+
 
 // ── Delete（同時刪 Storage 影片）──
 window.delReport = async function(btn){
