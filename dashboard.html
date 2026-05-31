@@ -388,7 +388,8 @@ function renderAll(role){
     gMods.forEach(m=>{
       const badge=m.active?(m.adminOnly?`<span class="item-badge admin-only">管理員</span>`:''):`<span class="item-badge soon">即將推出</span>`;
       const click=m.active?`onclick="goTo('${m.page}')"`:` style="cursor:not-allowed;opacity:.5"`;
-      sHtml+=`<div class="sidebar-item" data-key="${m.key}" data-gid="${g.id}" ${m.active?'draggable="true"':''} ${click}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon">${m.icon}</span><span class="item-name">${m.name}</span>${badge}</div>`;
+      const itemClick = m.active ? `onclick="goTo('${m.page}')"` : '';
+      sHtml+=`<div class="sidebar-item" data-key="${m.key}" data-gid="${g.id}" ${m.active?'draggable="true"':''}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon" ${itemClick} style="cursor:${m.active?'pointer':'not-allowed'}${m.active?'':';opacity:.5'}">${m.icon}</span><span class="item-name" ${itemClick} style="flex:1;cursor:${m.active?'pointer':'not-allowed'}${m.active?'':';opacity:.5'}">${m.name}</span>${badge}</div>`;
     });
     if(!gMods.length) sHtml+=`<div style="padding:6px 14px 6px 36px;font-size:11px;color:rgba(255,255,255,.3)">（無可用功能）</div>`;
     sHtml+=`</div></div><div class="sidebar-divider"></div>`;
