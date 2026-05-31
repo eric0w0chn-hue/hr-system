@@ -3,165 +3,329 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>帳號管理 — 鑫系統</title>
+<title>排班管理 — 鑫系統</title>
 <style>
 :root{
-  --bg:#F0F2F5;
-  --surface:#FFFFFF;
-  --surface2:#F7F8FA;
-  --border:#E4E7ED;
-  --border2:#D0D5DD;
-  --text:#1A1D23;
-  --text2:#5A6175;
-  --text3:#9AA0B4;
-  --accent:#3B5BDB;
-  --accent-light:#EEF2FF;
-  --silver:#8892A4;
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
 /* Topbar */
-.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
-.topbar-left{display:flex;align-items:center;gap:16px}
-.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
-.back-btn:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
-.divider-v{width:1px;height:20px;background:var(--border)}
-.page-name{font-size:15px;font-weight:600;color:var(--text)}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:200;flex-wrap:nowrap;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
+.back-btn{font-size:12px;padding:5px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.dv{width:1px;height:20px;background:rgba(255,255,255,.2)}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
 .topbar-right{display:flex;align-items:center;gap:8px}
-.stat-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text2)}
-.stat-pill strong{color:var(--text);font-weight:600}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)}
 
 /* Main */
-.main{max-width:1000px;margin:0 auto;padding:28px 24px}
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px}
+.main{max-width:1300px;margin:0 auto;padding:24px 20px}
 
-/* Cards grid */
-.accounts-grid{display:flex;flex-direction:column;gap:10px}
-.account-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;transition:box-shadow .15s,border-color .15s}
-.account-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06);border-color:var(--border2)}
-.account-card.is-disabled{opacity:.6}
+/* Toolbar */
+.toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar select{font-size:13px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer}
+.toolbar select:focus{outline:none;border-color:var(--accent)}
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-btn{width:32px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--text2)}
+.month-btn:hover{background:var(--accent-light);border-color:var(--border2)}
+.month-label{font-size:15px;font-weight:600;color:var(--text);min-width:90px;text-align:center}
+.btn{font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2)}
+.btn:hover{background:var(--accent-light);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#3D4158}
+.ml-auto{margin-left:auto}
 
-/* Avatar */
-.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;letter-spacing:.5px}
-.av-b{background:#E8EEFF;color:#3B5BDB}
-.av-t{background:#E6FAF0;color:#087443}
-.av-c{background:#FEE9E9;color:#C0392B}
-.av-p{background:#F0EBFF;color:#6741D9}
-.av-a{background:#FFF4E0;color:#C47A00}
-.av-k{background:#FFE8F5;color:#C2255C}
+/* Calendar */
+.cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface2);border-bottom:1px solid var(--border)}
+.cal-head-cell{padding:10px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.3px}
+.cal-head-cell.sun{color:#E05252}
+.cal-head-cell.sat{color:#5B8EDB}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-cell{min-height:110px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;transition:background .1s;vertical-align:top}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell.other-month{background:#FAFBFC;opacity:.5}
+.cal-cell.today{background:#F0F2FF}
+.cal-cell.today .day-num{color:var(--accent);font-weight:700}
+.cal-cell.is-sun .day-num{color:#E05252}
+.cal-cell.is-sat .day-num{color:#5B8EDB}
+.cal-cell.is-holiday{background:#FFF5F5}
+.cal-cell.is-holiday .day-num{color:#E05252}
+.holiday-name{font-size:9px;color:#E05252;display:block;margin-bottom:2px;font-weight:500}
+.day-num{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px;display:block}
+.shift-tag{font-size:11px;padding:3px 6px;border-radius:6px;margin-bottom:3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:3px;transition:opacity .1s;line-height:1.4;min-width:0}
+.shift-tag:hover{opacity:.8}
+.shift-tag .emp-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.shift-tag .time{font-size:10px;opacity:.8;white-space:nowrap;flex-shrink:0}
+.shift-tag .del-btn{font-size:10px;opacity:0;transition:opacity .1s;cursor:pointer;flex-shrink:0;line-height:1}
+.shift-tag:hover .del-btn{opacity:1}
 
-/* Info block */
-.acc-info{flex:1;min-width:0}
-.acc-name{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
-.acc-id{font-size:12px;color:var(--text3);margin-top:2px;font-family:monospace;letter-spacing:.3px}
-.acc-locs{font-size:11px;color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:4px}
-.loc-tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--text2)}
+/* 主內容 + 右側統計欄 */
+.content-wrap{display:flex;gap:14px;align-items:flex-start}
+.cal-section{flex:1;min-width:0;overflow:hidden}
+.sidebar{width:180px;flex-shrink:0;position:sticky;top:76px}
 
-/* Badges */
-.badge{display:inline-flex;align-items:center;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:.2px}
-.role-admin{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
-.role-consultant{background:#F0EBFF;color:#6741D9;border:1px solid #D8CAFF}
-.role-manager{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
-.role-employee{background:#E8EEFF;color:#3B5BDB;border:1px solid #BAC8FF}
-.status-ok{background:#F4F4F4;color:#5A6175;border:1px solid #E4E7ED}
-.status-off{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+.add-btn{font-size:11px;color:var(--text3);cursor:pointer;padding:2px 4px;border-radius:4px;transition:all .1s;display:inline-flex;align-items:center;gap:2px;margin-top:2px}
+.add-btn:hover{background:var(--accent-light);color:var(--accent)}
 
-/* Actions */
-.acc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.btn{font-size:12px;padding:6px 13px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
-.btn-ghost:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
-.btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}
-.btn-primary:hover{background:#2F4AC8}
-.btn-warn{background:transparent;border:1px solid #FFBDBD;color:#C0392B}
-.btn-warn:hover{background:#FEE9E9}
-.btn-del{background:transparent;border:1px solid var(--border);color:var(--text3)}
-.btn-del:hover{background:#FEE9E9;border-color:#FFBDBD;color:#C0392B}
+/* 人員篩選 */
+.emp-filter-wrap{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.emp-filter-btn{font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;transition:all .15s;white-space:nowrap}
+.emp-filter-btn:hover{border-color:var(--border2);background:var(--surface2)}
+.emp-filter-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+.emp-filter-label{font-size:11px;color:var(--text3);white-space:nowrap}
+.c0{background:#E8F4FD;color:#1A6B9A} .c1{background:#E6F9F0;color:#0A6E45}
+.c2{background:#FEF3E2;color:#9A5B0A} .c3{background:#F3E8FD;color:#6B1A9A}
+.c4{background:#FDE8E8;color:#9A1A1A} .c5{background:#E8FDE8;color:#1A6B1A}
+.c6{background:#FDF3E8;color:#9A6B1A} .c7{background:#E8E8FD;color:#1A1A9A}
 
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;backdrop-filter:blur(2px)}
-.modal{background:var(--surface);border-radius:16px;width:480px;max-width:100%;padding:28px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border)}
-.modal-header{display:flex;align-items:center;gap:12px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.modal-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
-.modal-title{font-size:15px;font-weight:600;color:var(--text)}
-.modal-sub{font-size:12px;color:var(--text3);margin-top:2px}
-.fr{margin-bottom:16px}
-.fr label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600;letter-spacing:.2px}
-.fr select{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer;transition:border-color .15s}
-.fr select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.12)}
-.loc-section-label{font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.2px;margin-bottom:8px}
-.loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:150px;overflow-y:auto}
-.loc-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .1s;user-select:none}
-.loc-item:hover{background:var(--accent-light);border-color:#BAC8FF}
-.loc-item input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
-.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+.modal{background:var(--surface);border-radius:16px;width:460px;max-width:100%;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.fr{margin-bottom:14px}
+.fr label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.fr select,.fr input{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s}
+.fr select:focus,.fr input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
 
 /* Toast */
-.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px}
+.toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 
 /* Loading */
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.empty{text-align:center;padding:48px;color:var(--text3);font-size:13px}
-.pg-btn{font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;transition:all .15s;min-width:32px}
-.pg-btn:hover:not([disabled]){background:var(--surface2);border-color:var(--border2);color:var(--text)}
-.pg-btn:disabled{opacity:.4;cursor:not-allowed}
-.pg-active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;font-weight:600}
 
-@media(max-width:640px){
-  .topbar{padding:0 16px}
-  .main{padding:16px}
-  .account-card{flex-wrap:wrap;gap:12px}
-  .acc-actions{width:100%;justify-content:flex-end}
-  .loc-grid{grid-template-columns:1fr}
+.empty-cal{grid-column:1/-1;padding:48px;text-align:center;color:var(--text3);font-size:13px}
+.legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* 主內容 + 右側統計欄 */
+.content-wrap{display:flex;gap:16px;align-items:flex-start}
+.cal-section{flex:1;min-width:0}
+.sidebar{width:200px;flex-shrink:0;position:sticky;top:76px}
+.sidebar-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sidebar-list{max-height:calc(100vh - 200px);overflow-y:auto}
+.sidebar-item{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #F4F5F8;font-size:13px;transition:background .1s}
+.sidebar-item:last-child{border-bottom:none}
+.sidebar-item:hover{background:var(--surface2)}
+.sidebar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-right:6px}
+.sidebar-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
+.sidebar-days{font-size:13px;font-weight:700;color:var(--accent);min-width:24px;text-align:right}
+.sidebar-empty{padding:20px 14px;font-size:12px;color:var(--text3);text-align:center}
+
+/* 員工唯讀模式 / 鎖定提示 */
+.readonly-notice{border-radius:10px;padding:8px 14px;font-size:12px;margin-bottom:12px;display:none}
+.readonly-notice.show{display:block}
+.readonly-notice.type-readonly{background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB}
+.readonly-notice.type-lock{background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00}
+
+/* 假單卡片 */
+.leave-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;transition:box-shadow .15s}
+.leave-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.07)}
+.leave-card.draggable{cursor:grab}
+.leave-card.dragging{opacity:.4;border:2px dashed var(--border2)}
+.leave-card.drag-over{border:2px dashed var(--accent)}
+.leave-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.lb-pending{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
+.lb-approved{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
+.lb-rejected{background:#FEE9E9;color:#C0392B;border:1px solid #FFBDBD}
+.leave-priority{width:22px;height:22px;background:var(--accent);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* ══════════════════════════════
+   手機響應式
+══════════════════════════════ */
+
+/* ── 手機版 topbar ── */
+@media(max-width:600px){
+  .topbar{padding:0 10px;height:auto;min-height:52px;flex-wrap:wrap;gap:6px}
+  .topbar-left{gap:8px;flex:1;min-width:0}
+  .topbar h1,.topbar-title{font-size:13px}
+  .topbar-right{gap:5px;flex-shrink:0}
+  .topbar-right .role-label,.topbar-right .date-label{font-size:11px}
+  .topbar-right .user-name{max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  .btn-back{font-size:12px;padding:5px 10px}
+}
+@media (max-width: 768px) {
+
+  /* Topbar */
+  .topbar { padding: 0 10px; gap: 6px; height: auto; min-height: 52px; }
+  .topbar-left { gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+  .topbar h1 { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .topbar-right { flex-shrink: 0; gap: 5px; }
+  .back-btn { font-size: 11px; padding: 4px 10px; }
+  #toolbarBtns { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; padding: 0 0 10px 0; }
+  #toolbarBtns .btn { font-size: 11px; padding: 6px 10px; }
+
+  /* Main padding */
+  .main { padding: 12px; }
+
+  /* Toolbar */
+  .toolbar { padding: 10px 12px; gap: 8px; }
+  .toolbar select { font-size: 12px; padding: 6px 8px; }
+  .month-label { font-size: 13px; min-width: 70px; }
+
+  /* 本月出勤天數 sidebar → 摺疊到日曆下方 */
+  .content-wrap { flex-direction: column; gap: 10px; }
+  .sidebar {
+    width: 100%;
+    position: static;
+    top: auto;
+  }
+  .sidebar-card { border-radius: 10px; }
+  .sidebar-list { max-height: 160px; display: grid; grid-template-columns: repeat(2, 1fr); }
+  .sidebar-item { border-right: 1px solid #F4F5F8; }
+  .sidebar-item:nth-child(2n) { border-right: none; }
+  .sidebar-title { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .sidebar-title::after { content: '▾'; font-size: 12px; color: var(--text3); }
+  .sidebar-card.collapsed .sidebar-list { display: none; }
+  .sidebar-card.collapsed .sidebar-title::after { content: '▸'; }
+
+  /* 日曆格子 */
+  .cal-section { width: 100%; overflow-x: auto; }
+  .cal-wrap { min-width: 0; }
+  .cal-cell { min-height: 60px; padding: 3px; }
+  .day-num { font-size: 11px; margin-bottom: 2px; }
+  .holiday-name { display: none; }
+
+  /* shift tag 手機版精簡 */
+  .shift-tag { font-size: 10px; padding: 2px 4px; }
+  .shift-tag .time { display: none; }
+  .shift-tag .del-btn { opacity: 1; font-size: 11px; }
+
+  /* 人員篩選列 */
+  .emp-filter-wrap { gap: 4px; }
+  .emp-filter-btn { font-size: 10px; padding: 2px 8px; }
+
+  /* Tab 按鈕 */
+  #tabShift, #tabLeave { font-size: 12px !important; padding: 6px 14px !important; }
+
+  /* 假單卡片 */
+  .leave-card { flex-direction: column; gap: 8px; padding: 12px 14px; }
+  .backup-counts { gap: 8px; }
+
+  /* readonly notice */
+  .readonly-notice { font-size: 12px; padding: 8px 12px; }
+}
+
+@media (max-width: 480px) {
+  .cal-cell { min-height: 48px; padding: 2px; }
+  .cal-head-cell { font-size: 10px; padding: 6px 0; }
+  .day-num { font-size: 10px; }
+  .shift-tag { font-size: 9px; padding: 1px 3px; border-radius: 4px; }
+  .shift-tag .emp-name { max-width: 28px; }
+  .sidebar-list { grid-template-columns: repeat(3, 1fr); max-height: 120px; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-
-<div id="loading">
-  <div class="spinner"></div>
-  <div style="font-size:13px;color:var(--text3)">載入中...</div>
-</div>
+<div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入中...</div></div>
 
 <div id="app" style="display:none">
   <div class="topbar">
     <div class="topbar-left">
       <button class="back-btn" onclick="window.location.href='/hr-system/dashboard.html'">← 主選單</button>
-      <div class="divider-v"></div>
-      <span class="page-name"><img src="data:image/png;base64,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" style="width:28px;height:28px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:8px">帳號管理</span>
+      <div class="dv"></div>
+      <h1><img src="data:image/png;base64,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" style="width:28px;height:28px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:4px"> 排班管理</h1>
     </div>
     <div class="topbar-right">
-      <div class="stat-pill">共 <strong id="totalCount">0</strong> 個帳號</div>
-      <div class="stat-pill">停用 <strong id="disabledCount">0</strong></div>
+      <span class="role-chip" id="roleChip">—</span>
     </div>
   </div>
 
   <div class="main">
-    <div class="section-header">
-      <span class="section-title">所有帳號</span>
-      <button class="btn btn-primary" onclick="window.location.href='/hr-system/batch_accounts.html'" style="font-size:12px;padding:6px 14px">⚡ 批次建立帳號</button>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:16px;color:var(--text3)">🔍</span>
-      <input id="searchInput" type="text" placeholder="搜尋姓名、身分證號、角色..." oninput="filterList()"
-        style="flex:1;font-size:13px;border:none;outline:none;background:transparent;color:var(--text);font-family:inherit">
-      <select id="roleFilter" onchange="filterList()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);font-family:inherit;cursor:pointer">
-        <option value="">全部角色</option>
-        <option value="admin">管理員</option>
-        <option value="consultant">顧問</option>
-        <option value="manager">店長/副店長</option>
-        <option value="employee">同仁</option>
+    <div class="toolbar">
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="monthLabel">—</span>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <select id="locationFilter" onchange="onLocationChange()">
+        <option value="">選擇店面</option>
       </select>
-      <span id="searchCount" style="font-size:12px;color:var(--text3);white-space:nowrap"></span>
-      <button class="btn btn-outline" onclick="window.location.href='/hr-system/oplog.html'" style="margin-left:8px;white-space:nowrap">📋 操作日誌</button>
+      <div class="legend" id="empLegend"></div>
+      <div class="ml-auto" style="display:flex;gap:8px" id="toolbarBtns">
+        <button class="btn" onclick="openShiftTypesModal()">⚙ 班別設定</button>
+        <button class="btn" id="exportBtn" onclick="exportToExcel()" style="display:none">📤 匯出 Excel</button>
+        <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
+      </div>
     </div>
-    <div class="accounts-grid" id="accountList">
-      <div class="empty">載入中...</div>
+    <!-- Tab 切換 -->
+    <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:12px;width:fit-content">
+      <button id="tabShift" onclick="switchTab('shift')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit">📅 排班</button>
+      <button id="tabLeave" onclick="switchTab('leave')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit">🏖 假單申請</button>
+    </div>
+    <div class="readonly-notice" id="readonlyNotice">👁 您目前為查看模式，無法編輯班表</div>
+    <!-- 人員篩選列 -->
+    <div id="empFilterBar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="emp-filter-label">篩選同仁：</span>
+      <div class="emp-filter-wrap" id="empFilterBtns"></div>
+    </div>
+    <div class="content-wrap">
+      <div class="cal-section">
+        <div class="cal-wrap">
+          <div class="cal-head">
+            <div class="cal-head-cell">一</div><div class="cal-head-cell">二</div>
+            <div class="cal-head-cell">三</div><div class="cal-head-cell">四</div>
+            <div class="cal-head-cell">五</div><div class="cal-head-cell sat">六</div>
+            <div class="cal-head-cell sun">日</div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+      </div>
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-card">
+          <div class="sidebar-title" onclick="this.closest('.sidebar-card').classList.toggle('collapsed')">本月出勤天數</div>
+          <div class="sidebar-list" id="sidebarList">
+            <div class="sidebar-empty">請選擇店面</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 假單申請區塊 -->
+  <div id="leaveSection" style="display:none">
+    <div class="main">
+      <!-- 同仁：提交假單 -->
+      <div id="leaveSubmitBar" style="display:none;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openLeaveModal()" style="font-size:13px;padding:9px 18px">＋ 申請休假</button>
+      </div>
+
+      <!-- 管理員：審核 tabs -->
+      <div id="leaveAdminTabs" style="display:none;margin-bottom:12px;flex-direction:column;gap:10px">
+        <!-- 狀態篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">狀態：</span>
+          <button onclick="setLeaveFilter('pending')" id="lf-pending" class="btn" style="font-size:12px">⏳ 待審核 <span id="lf-pending-cnt" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
+          <button onclick="setLeaveFilter('approved')" id="lf-approved" class="btn" style="font-size:12px">✅ 已核准</button>
+          <button onclick="setLeaveFilter('rejected')" id="lf-rejected" class="btn" style="font-size:12px">❌ 已拒絕</button>
+          <button onclick="setLeaveFilter('all')" id="lf-all" class="btn" style="font-size:12px">全部</button>
+        </div>
+        <!-- 假別篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">假別：</span>
+          <button onclick="setLeaveTypeFilter('all')" id="lt-all" class="btn" style="font-size:12px">全部</button>
+          <button onclick="setLeaveTypeFilter('vacation')" id="lt-vacation" class="btn" style="font-size:12px">🏖 次月休假</button>
+          <button onclick="setLeaveTypeFilter('special')" id="lt-special" class="btn" style="font-size:12px">📋 特殊假</button>
+          <span id="vacation-lock-info" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div id="drag-hint-leave" style="display:none;font-size:11px;color:var(--text3)">⠿ 拖拉可調整優先順序</div>
+      </div>
+
+      <div id="leaveList" style="display:flex;flex-direction:column;gap:10px">
+        <div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">載入中...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -172,267 +336,1205 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, collection, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
-  authDomain: "liangpinghri.firebaseapp.com",
-  projectId: "liangpinghri",
-  storageBucket: "liangpinghri.firebasestorage.app",
-  messagingSenderId: "410255807470",
-  appId: "1:410255807470:web:dc08ba070c7db4f083f4ff"
-};
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-const roleNames      = { admin:'管理員', consultant:'顧問', manager:'店長/副店長', employee:'同仁' };
-const roleBadgeClass = { admin:'role-admin', consultant:'role-consultant', manager:'role-manager', employee:'role-employee' };
-const avCls = n => ['av-b','av-t','av-c','av-p','av-a','av-k'][(n||'?').charCodeAt(0)%6];
+const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
+let currentUser=null,currentRole='',currentLocations=[];
+let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
+let allEmployees=[],workLocations=[],shifts={},locationCodes={};
+let selectedLocation='';
+let shiftTypes=[]; // 自訂班別
+let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
+let isReadOnly=false; // 同仁唯讀模式
+let filterEmpIds=new Set(); // 人員複選篩選
 
-let allUsers = [], workLocations = [], currentUserUid = '';
+// ── Toast ──
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+function closeModal(){document.getElementById('modalArea').innerHTML='';}
+window.closeModal=closeModal;
 
-function showToast(msg, icon='✓'){
-  const t = document.getElementById('toast');
-  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2400);
-}
+// ══════════════════════════════════════════════════════
+// ── 匯出 Excel（格式同薪資系統範本）──
+// ══════════════════════════════════════════════════════
+window.exportToExcel = async function() {
+  // 決定要撈的店面清單：永遠撈所有可管理的店面
+  const exportLocs = currentRole === 'admin'
+    ? workLocations
+    : (currentLocations.length ? currentLocations : (selectedLocation ? [selectedLocation] : []));
 
-async function loadData(){
-  try{
-    const s = await getDoc(doc(db,'hr','settings'));
-    workLocations = s.exists() ? (s.data().workLocations||[]) : [];
-  }catch(e){ workLocations=[]; }
-  try{
-    const snap = await getDocs(collection(db,'users'));
-    allUsers = snap.docs.map(d=>({uid:d.id,...d.data()}));
-    // 排序：admin 優先，再依名字
-    const order = {admin:0,consultant:1,manager:2,employee:3};
-    allUsers.sort((a,b)=>(order[a.role]??4)-(order[b.role]??4)||(a.name||'').localeCompare(b.name||'','zh-TW'));
-  }catch(e){ allUsers=[]; }
-}
+  if(!exportLocs.length){ showToast('無可匯出的店面，請先選擇店面'); return; }
 
-function updateStats(){
-  document.getElementById('totalCount').textContent = allUsers.length;
-  document.getElementById('disabledCount').textContent = allUsers.filter(u=>u.disabled).length;
-}
+  showToast('匯出中，請稍候...');
 
-function renderList(){
-  updateStats();
-  filterList();
-}
+  const yearMonthKey = `${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+  const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
 
-let currentPage = 1;
-const PAGE_SIZE = 15;
+  // 並行撈所有店面班表
+  // 並行撈所有店面班表
+  // 主店（currentUser 的 workLocation）→ 全員；其他跨店 → 只撈自己
+  const currentEmp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const myEmpId = currentEmp.id ? String(currentEmp.id) : null;
+  const myWorkLocation = currentEmp.workLocation||'';
 
-window.filterList = function(){
-  currentPage = 1; // 搜尋時重設到第一頁
-  const q = (document.getElementById('searchInput').value||'').toLowerCase();
-  const roleF = document.getElementById('roleFilter').value;
-  const filtered = allUsers.filter(u=>{
-    const matchQ = !q ||
-      (u.name||'').toLowerCase().includes(q) ||
-      (u.idNo||'').toLowerCase().includes(q) ||
-      (roleNames[u.role]||'').includes(q);
-    const matchRole = !roleF || u.role === roleF;
-    return matchQ && matchRole;
-  });
-  document.getElementById('searchCount').textContent = `${filtered.length} / ${allUsers.length} 筆`;
-  renderListItems(filtered);
-};
+  const allLocShifts = await Promise.all(
+    exportLocs.map(async loc => {
+      try {
+        const snap = await getDoc(doc(db,'schedules',`${yearMonthKey}_${loc}`));
+        return { loc, shifts: snap.exists() ? (snap.data().shifts||{}) : {} };
+      } catch(e) { return { loc, shifts: {} }; }
+    })
+  );
 
-window._lastFiltered = [];
+  // 整合成平排列表
+  const rows = [];
+  for(const { loc, shifts: locShifts } of allLocShifts){
+    const locCode = locationCodes[loc]||'';
+    const locCell = locCode ? `${locCode} - ${loc}` : loc;
 
-function fmtLoginTime(iso){
-  if(!iso) return '從未登入';
-  const d=new Date(iso);
-  const now=new Date();
-  const diff=now-d;
-  const mins=Math.floor(diff/60000);
-  if(mins<1) return '剛剛';
-  if(mins<60) return mins+'分鐘前';
-  const hrs=Math.floor(mins/60);
-  if(hrs<24) return hrs+'小時前';
-  const days=Math.floor(hrs/24);
-  if(days<7) return days+'天前';
-  const tw=d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',timeZone:'Asia/Taipei'})+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});
-  return tw;
-}
+    // 決定這間店要匯出哪些人
+    // admin → 全員；非admin → 主店全員，其他店只匯出自己
+    const isMainStore = currentRole==='admin' || loc===myWorkLocation;
 
-function renderListItems(users){
-  window._lastFiltered = users;
-  renderPage(users, currentPage);
-}
+    for(const dateStr of Object.keys(locShifts).sort()){
+      for(const s of locShifts[dateStr]){
+        // 人員篩選（UI 篩選器）
+        if(filterEmpIds.size > 0 && !filterEmpIds.has(String(s.empId))) continue;
+        // 跨店只匯自己
+        if(!isMainStore && myEmpId && String(s.empId) !== myEmpId) continue;
 
-function renderPage(users, page){
-  const container = document.getElementById('accountList');
-  const total = users.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  page = Math.min(Math.max(1, page), totalPages);
-  currentPage = page;
-
-  const start = (page-1)*PAGE_SIZE;
-  const pageUsers = users.slice(start, start+PAGE_SIZE);
-
-  if(!pageUsers.length){
-    container.innerHTML = '<div class="empty">沒有符合的帳號</div>';
-    return;
-  }
-  container.innerHTML = pageUsers.map(u => {
-    const role = u.role||'employee';
-    const isSelf = u.uid === currentUserUid;
-    const showLocs = role==='consultant'||role==='manager';
-    const locsHtml = showLocs && (u.locations||[]).length
-      ? (u.locations).map(l=>`<span class="loc-tag">${l}</span>`).join('')
-      : (showLocs ? '<span style="color:var(--text3);font-size:11px">未設定店面</span>' : '');
-
-    return `<div class="account-card${u.disabled?' is-disabled':''}">
-      <div class="av ${avCls(u.name||'?')}">${(u.name||'?').slice(0,2)}</div>
-      <div class="acc-info">
-        <div class="acc-name">
-          ${u.name||'未命名'}
-          <span class="badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>
-          ${u.disabled ? '<span class="badge status-off">已停用</span>' : '<span class="badge status-ok">正常</span>'}
-          ${isSelf ? '<span style="font-size:11px;color:var(--text3)">(本人)</span>' : ''}
-        </div>
-        <div class="acc-id">${u.idNo||'—'}</div>
-        ${showLocs ? `<div class="acc-locs">${locsHtml}</div>` : ''}
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">🕐 最後登入：${fmtLoginTime(u.lastLoginAt)}</div>
-      </div>
-      <div class="acc-actions">
-        <button class="btn btn-ghost" onclick="openEdit('${u.uid}')">✎ 編輯</button>
-        ${!isSelf ? `
-        <button class="btn ${u.disabled?'btn-ghost':'btn-warn'}" onclick="toggleDisable('${u.uid}')">
-          ${u.disabled ? '啟用' : '停用'}
-        </button>
-        <button class="btn btn-del" onclick="deleteAccount('${u.uid}')" title="刪除帳號">✕</button>
-        ` : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  // 分頁 UI
-  if(totalPages > 1){
-    const pgBtns = [];
-    pgBtns.push(`<button class="pg-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>`);
-    for(let i=1;i<=totalPages;i++){
-      if(i===1||i===totalPages||Math.abs(i-page)<=1){
-        pgBtns.push(`<button class="pg-btn${i===page?' pg-active':''}" onclick="goPage(${i})">${i}</button>`);
-      } else if(Math.abs(i-page)===2){
-        pgBtns.push(`<span style="color:var(--text3);padding:0 4px">…</span>`);
+        const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
+        const empNo = emp.empNo||'';
+        const empName = s.empName||emp.name||'';
+        const empCell = empNo ? `${empNo}-${empName}` : empName;
+        rows.push({
+          locCell,
+          shiftType: '',
+          empCell,
+          date: dateStr.replace(/-/g, '/'),
+          startTime: toHMS(s.startTime),
+          endTime: toHMS(s.endTime),
+        });
       }
     }
-    pgBtns.push(`<button class="pg-btn" onclick="goPage(${page+1})" ${page===totalPages?'disabled':''}>›</button>`);
-    container.innerHTML += `<div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:16px 0;border-top:1px solid var(--border);margin-top:8px">${pgBtns.join('')}<span style="font-size:12px;color:var(--text3);margin-left:8px">第 ${page} / ${totalPages} 頁，共 ${total} 筆</span></div>`;
+  }
+
+  // 依日期排序
+  rows.sort((a,b) => a.date.localeCompare(b.date));
+
+  if(!rows.length){ showToast('本月所有店面無排班資料可匯出'); return; }
+
+  // 建立 Workbook
+  const wb = XLSX.utils.book_new();
+  const wsData = [];
+
+  // 標題列（第一列）
+  wsData.push([
+    '排班編號\n(自動填寫，請勿更動)',
+    '上班地點\n(必填，格式必須正確)',
+    '值班班別\n(非必填，填寫則視為班別排班)',
+    '值班餐飲人員\n(必填，格式必須正確)',
+    '值班日期\n(必填，格式必須正確)',
+    '上班時間\n(若非班別班則必須填寫，格式必須正確)',
+    '下班時間\n(若非班別班則必須填寫，格式必須正確)',
+  ]);
+
+  // 資料列（含 A 欄公式）
+  rows.forEach((r, i) => {
+    const row = i + 2; // Excel 第2列起
+    const formula =
+      `CONCATENATE(` +
+      `IF(ISNUMBER(SEARCH("-",B${row})),TRIM(LEFT(B${row},SEARCH("-",B${row},1)-1)),B${row}),` +
+      `IF(ISNUMBER(SEARCH("-",C${row})),SUBSTITUTE(TRIM(LEFT(C${row},SEARCH("-",C${row},1)-1))," ",""),IF(C${row} = "","NOSHIFT",C${row})),` +
+      `IF(ISNUMBER(SEARCH("-",D${row})),TRIM(LEFT(D${row},SEARCH("-",D${row},1)-1)),D${row}),` +
+      `SUBSTITUTE(E${row},"/",""),` +
+      `IF(OR(F${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(F${row},":",""),(4))),` +
+      `IF(OR(G${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(G${row},":",""),(4))))`;
+
+    wsData.push([
+      { f: formula },
+      r.locCell,
+      r.shiftType,
+      r.empCell,
+      r.date,
+      r.startTime,
+      r.endTime,
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // 設定欄寬
+  ws['!cols'] = [
+    { wch: 35 }, // A
+    { wch: 22 }, // B
+    { wch: 20 }, // C
+    { wch: 20 }, // D
+    { wch: 14 }, // E
+    { wch: 14 }, // F
+    { wch: 14 }, // G
+  ];
+
+  // 設定列高（標題列）
+  ws['!rows'] = [{ hpt: 40 }];
+
+  // 標題列換行
+  ws['A1'].s = { alignment: { wrapText: true } };
+
+  XLSX.utils.book_append_sheet(wb, ws, '工作表1');
+
+  // 匯出檔名
+  let fileName;
+  if(filterEmpIds.size === 1){
+    const filteredEmpId = [...filterEmpIds][0];
+    const filteredEmp = allEmployees.find(e=>String(e.id)===String(filteredEmpId));
+    const empName = filteredEmp ? filteredEmp.name : filteredEmpId;
+    fileName = `${empName}_${viewYear}年${viewMonth}月.xlsx`;
+  } else if(currentRole==='admin'){
+    fileName = `${viewYear}年${viewMonth}月_全店班表.xlsx`;
+  } else {
+    fileName = `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
+  }
+  XLSX.writeFile(wb, fileName);
+  const scopeMsg = filterEmpIds.size===1 ? `（跨 ${exportLocs.length} 間店）` : `（${exportLocs.length} 間店 / 全員）`;
+  showToast(`✅ 已匯出 ${rows.length} 筆排班 ${scopeMsg}`);
+};
+
+
+// ── 顏色 ──
+const EMP_COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
+const empColorMap={};
+function getEmpColor(empId){
+  if(!empColorMap[empId]){const keys=Object.keys(empColorMap);empColorMap[empId]=EMP_COLORS[keys.length%EMP_COLORS.length];}
+  return empColorMap[empId];
+}
+
+// ── 載入台灣國定假日（人事行政局 API）──
+async function loadHolidays(year){
+  try{
+    const res=await fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`);
+    const data=await res.json();
+    twHolidays={};
+    data.forEach(d=>{
+      if(d.isHoliday){
+        const ds=`${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
+        twHolidays[ds]=d.description||'假日';
+      }
+    });
+  }catch(e){twHolidays={};}
+}
+
+// ── 月份導航 ──
+window.changeMonth=async function(dir){
+  viewMonth+=dir;
+  if(viewMonth>12){viewMonth=1;viewYear++;}
+  if(viewMonth<1){viewMonth=12;viewYear--;}
+  document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
+  await loadHolidays(viewYear);
+  if(!isReadOnly && window._checkScheduleLock){
+    const lockMsg=window._checkScheduleLock();
+    if(lockMsg){
+      document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
+      document.getElementById('readonlyNotice').classList.remove('type-readonly');
+      document.getElementById('readonlyNotice').classList.add('show','type-lock');
+      document.getElementById('toolbarBtns').style.display='none';
+    } else {
+      document.getElementById('readonlyNotice').classList.remove('show');
+      document.getElementById('toolbarBtns').style.display='flex';
+    }
+  }
+  loadShifts();
+};
+
+// ── 店面選擇 ──
+window.onLocationChange=async function(){
+  selectedLocation=document.getElementById('locationFilter').value;
+  filterEmpIds.clear(); // 重設篩選
+  shifts={}; // 先清空，避免顯示舊店資料
+  renderCalendar();renderLegend();renderSidebar();
+  await loadShifts();
+};
+
+// ── 載入班表 ──
+async function loadShifts(){
+  if(!selectedLocation){renderCalendar();return;}
+  const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
+  try{const snap=await getDoc(doc(db,'schedules',key));shifts=snap.exists()?(snap.data().shifts||{}):{};
+  }catch(e){shifts={};}
+  renderCalendar();renderLegend();renderSidebar();
+}
+
+// ── 儲存班表 ──
+async function saveShifts(){
+  if(!selectedLocation) return;
+  const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
+  try{
+    // 將 shifts 轉成純 JSON 再存，避免 Firestore 物件問題
+    const shiftsJson = JSON.parse(JSON.stringify(shifts));
+    await setDoc(doc(db,'schedules',key),{
+      shifts: shiftsJson,
+      location: selectedLocation,
+      yearMonth: `${viewYear}-${String(viewMonth).padStart(2,'0')}`,
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e){
+    console.error('儲存失敗：', e);
+    showToast('❌ 儲存失敗：' + e.message);
   }
 }
 
-window.goPage = function(p){
-  renderPage(window._lastFiltered, p);
-  document.getElementById('accountList').scrollIntoView({behavior:'smooth',block:'start'});
+// ── 載入 & 儲存班別設定 ──
+async function loadShiftTypes(){
+  try{const s=await getDoc(doc(db,'hr','shiftTypes'));shiftTypes=s.exists()?(s.data().list||[]):[];}
+  catch(e){shiftTypes=[];}
+}
+async function saveShiftTypes(){
+  await setDoc(doc(db,'hr','shiftTypes'),{list:shiftTypes,updatedAt:new Date().toISOString()});
+}
+
+// ── 渲染月曆（週一起始）──
+function renderCalendar(){
+  const grid=document.getElementById('calGrid');
+  if(!selectedLocation){grid.innerHTML='<div class="empty-cal">請先選擇店面以查看班表</div>';return;}
+  const today=new Date();
+  const daysInMonth=new Date(viewYear,viewMonth,0).getDate();
+  const prevDays=new Date(viewYear,viewMonth-1,0).getDate();
+  // 週一為 0，週日為 6
+  let firstDow=new Date(viewYear,viewMonth-1,1).getDay(); // 0=日,1=一,...,6=六
+  firstDow=(firstDow+6)%7; // 轉成週一起始：一=0,...,六=5,日=6
+  let html='';
+
+  // 上個月補位
+  for(let i=firstDow-1;i>=0;i--){
+    html+=`<div class="cal-cell other-month"><span class="day-num">${prevDays-i}</span></div>`;
+  }
+  // 本月
+  for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(viewYear,viewMonth-1,d);
+    const dow=date.getDay(); // 0=日,6=六
+    const isToday=today.getFullYear()===viewYear&&today.getMonth()+1===viewMonth&&today.getDate()===d;
+    const dateStr=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const holiday=twHolidays[dateStr];
+    const isSun=dow===0,isSat=dow===6;
+    let cls='cal-cell';
+    if(isToday)cls+=' today';
+    if(isSun)cls+=' is-sun';
+    if(isSat)cls+=' is-sat';
+    if(holiday)cls+=' is-holiday';
+
+    const dayShifts=(shifts[dateStr]||[]).filter(s=>filterEmpIds.size===0||filterEmpIds.has(String(s.empId)));
+    const shiftsHtml=dayShifts.map((s,idx)=>{
+      const c=getEmpColor(s.empId);
+      const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
+      const clickFn = isReadOnly ? '' : `onclick="openEditModal('${dateStr}',${idx})"`;
+      return `<div class="shift-tag ${c}" ${clickFn} style="${isReadOnly?'cursor:default':''}">
+        <span class="emp-name">${s.empName}</span>
+        <span class="time">${s.startTime}-${s.endTime}</span>
+        ${delBtn}
+      </div>`;
+    }).join('');
+
+    html+=`<div class="${cls}">
+      <span class="day-num">${d}</span>
+      ${holiday?`<span class="holiday-name">${holiday}</span>`:''}
+      ${shiftsHtml}
+      ${!isReadOnly&&selectedLocation?`<span class="add-btn" onclick="openAddModal('${dateStr}')">＋</span>`:''}
+    </div>`;
+  }
+  // 補足
+  const totalCells=firstDow+daysInMonth;
+  const remain=totalCells%7===0?0:7-(totalCells%7);
+  for(let i=1;i<=remain;i++){
+    html+=`<div class="cal-cell other-month"><span class="day-num">${i}</span></div>`;
+  }
+  grid.innerHTML=html;
+}
+
+// ── 同仁圖例 + 篩選按鈕（複選）──
+function renderLegend(){
+  const usedEmps={};
+  Object.values(shifts).forEach(arr=>arr.forEach(s=>{usedEmps[s.empId]=s.empName;}));
+
+  // 圖例
+  const legend=document.getElementById('empLegend');
+  legend.innerHTML=Object.entries(usedEmps).map(([id,name])=>
+    `<div class="legend-item"><div class="legend-dot ${getEmpColor(id)}"></div>${name}</div>`
+  ).join('');
+
+  // 篩選按鈕列
+  const bar=document.getElementById('empFilterBar');
+  const btns=document.getElementById('empFilterBtns');
+  if(!Object.keys(usedEmps).length){bar.style.display='none';return;}
+  bar.style.display='flex';
+
+  // 批次刪除（只在篩選單人且非唯讀時顯示）
+  const singleFilter=filterEmpIds.size===1;
+  const singleId=singleFilter?[...filterEmpIds][0]:'';
+  const batchDelBtn=(!isReadOnly&&singleFilter&&!window._checkScheduleLock?.())
+    ?`<button class="btn" onclick="openBatchDeleteModal('${singleId}','${usedEmps[singleId]||''}')"
+        style="margin-left:8px;color:#C0392B;border-color:#FECACA;font-size:12px">🗑 批次刪除</button>`:'';
+
+  btns.innerHTML=
+    `<button class="emp-filter-btn${filterEmpIds.size===0?' active':''}" onclick="setEmpFilter('')">全部</button>`+
+    Object.entries(usedEmps).map(([id,name])=>{
+      const active=filterEmpIds.has(id);
+      const cls=getEmpColor(id);
+      return `<button class="emp-filter-btn${active?' active':''}" onclick="toggleEmpFilter('${id}')"
+        style="${active?`background:var(--accent);border-color:var(--accent);color:#fff`:''}">
+        <span class="${cls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${name}
+      </button>`;
+    }).join('')+batchDelBtn;
+}
+
+window.setEmpFilter=function(empId){
+  // 空字串 = 清除所有篩選
+  if(!empId){ filterEmpIds.clear(); }
+  else { filterEmpIds.clear(); filterEmpIds.add(empId); }
+  renderLegend(); renderCalendar(); renderSidebar();
 };
 
-window.openEdit = function(uid){
-  const u = allUsers.find(x=>x.uid===uid);
-  if(!u) return;
-  const role = u.role||'employee';
-  const showLocs = role==='consultant'||role==='manager';
-  const locChecks = workLocations.map(l=>{
-    const checked = (u.locations||[]).includes(l)?'checked':'';
-    return `<label class="loc-item"><input type="checkbox" value="${l}" ${checked}><span>${l}</span></label>`;
-  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px">尚未設定工作地點</div>';
+window.toggleEmpFilter=function(empId){
+  if(filterEmpIds.has(empId)) filterEmpIds.delete(empId);
+  else filterEmpIds.add(empId);
+  renderLegend(); renderCalendar(); renderSidebar();
+};
+
+// ── 批次刪除 Modal ──
+window.openBatchDeleteModal=function(empId, empName){
+  // 收集該人所有排班日期
+  const empShifts=[];
+  Object.entries(shifts).forEach(([dateStr,arr])=>{
+    arr.forEach((s,idx)=>{
+      if(s.empId==empId) empShifts.push({dateStr,idx,s});
+    });
+  });
+  if(!empShifts.length){showToast('此人本月無排班記錄');return;}
+
+  // 按日期排序
+  empShifts.sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+
+  // 產生日期列表（同一天可能多筆）
+  const dateGroups={};
+  empShifts.forEach(({dateStr,s})=>{
+    if(!dateGroups[dateStr]) dateGroups[dateStr]=[];
+    dateGroups[dateStr].push(`${s.startTime}-${s.endTime}`);
+  });
+
+  const listHtml=Object.entries(dateGroups).map(([date,times])=>{
+    const d=new Date(date);
+    const weekDay=['日','一','二','三','四','五','六'][d.getDay()];
+    const month=date.slice(5,7);
+    const day=date.slice(8,10);
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:6px;transition:background .1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="batch-del-check" value="${date}" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+      <span style="font-size:13px;font-weight:500;color:var(--text);min-width:80px">${month}/${day}（${weekDay}）</span>
+      <span style="font-size:12px;color:var(--text2)">${times.join('、')}</span>
+    </label>`;
+  }).join('');
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
+        <div class="modal-title">🗑 批次刪除班表 — ${empName}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:12px;color:var(--text2)">共 ${Object.keys(dateGroups).length} 天排班</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="font-size:12px;padding:4px 10px" onclick="toggleAllBatchDel(true)">全選</button>
+            <button class="btn" style="font-size:12px;padding:4px 10px" onclick="toggleAllBatchDel(false)">取消全選</button>
+          </div>
+        </div>
+        <div>${listHtml}</div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn" style="background:#C0392B;color:#fff;border-color:#C0392B" onclick="confirmBatchDelete('${empId}')">確認刪除</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.toggleAllBatchDel=function(checked){
+  document.querySelectorAll('.batch-del-check').forEach(el=>el.checked=checked);
+};
+
+window.confirmBatchDelete=async function(empId){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);closeModal();return;}
+
+  const selected=[...document.querySelectorAll('.batch-del-check:checked')].map(el=>el.value);
+  if(!selected.length){showToast('請至少選擇一個日期');return;}
+  if(!confirm(`確定要刪除 ${selected.length} 天的排班記錄嗎？`)) return;
+
+  selected.forEach(dateStr=>{
+    if(shifts[dateStr]){
+      shifts[dateStr]=shifts[dateStr].filter(s=>s.empId!=empId);
+      if(!shifts[dateStr].length) delete shifts[dateStr];
+    }
+  });
+
+  closeModal();
+  renderCalendar();renderLegend();renderSidebar();
+  showToast('儲存中...');
+  await saveShifts();
+  showToast(`已刪除 ${selected.length} 天排班 ✓`);
+};
+function renderSidebar(){
+  const list=document.getElementById('sidebarList');
+  if(!selectedLocation){list.innerHTML='<div class="sidebar-empty">請選擇店面</div>';return;}
+  // 同一人同一天只計算一次（用 Set 記錄 empId+date）
+  const daySet={}; // empId -> Set of dates
+  const nameMap={};
+  Object.entries(shifts).forEach(([dateStr,arr])=>arr.forEach(s=>{
+    if(!daySet[s.empId]) daySet[s.empId]=new Set();
+    daySet[s.empId].add(dateStr);
+    nameMap[s.empId]=s.empName;
+  }));
+  if(!Object.keys(daySet).length){
+    list.innerHTML='<div class="sidebar-empty">本月尚無排班</div>';return;
+  }
+  const sorted=Object.entries(daySet).sort((a,b)=>b[1].size-a[1].size);
+  list.innerHTML=sorted.map(([id,dates])=>`
+    <div class="sidebar-item">
+      <div class="sidebar-dot ${getEmpColor(id)}"></div>
+      <span class="sidebar-name" title="${nameMap[id]}">${nameMap[id]}</span>
+      <span class="sidebar-days">${dates.size}</span>
+    </div>`).join('');
+}
+
+// ── 班別快選 HTML ──
+function shiftTypeButtons(onSelect){
+  if(!shiftTypes.length)return '<div style="font-size:12px;color:var(--text3)">尚未設定班別，可至「班別設定」新增</div>';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">${
+    shiftTypes.map(t=>`<button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="${onSelect}('${t.start}','${t.end}')">${t.name}<span style="color:var(--text3);margin-left:4px;font-size:11px">${t.start}-${t.end}</span></button>`).join('')
+  }</div>`;
+}
+
+// ── 新增排班 Modal ──
+window.openAddModal=function(dateStr=''){
+  const empOptions=getEmpOptions();
+  // 產生本月日期格子
+  const daysInMonth=new Date(viewYear,viewMonth,0).getDate();
+  const today=new Date();
+  let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px">';
+  // 週標題
+  ['一','二','三','四','五','六','日'].forEach(d=>{
+    calHtml+=`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3);padding:2px 0">${d}</div>`;
+  });
+  // 空格補位（週一起始）
+  let firstDow=new Date(viewYear,viewMonth-1,1).getDay();
+  firstDow=(firstDow+6)%7;
+  for(let i=0;i<firstDow;i++) calHtml+='<div></div>';
+  // 日期格
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow=new Date(viewYear,viewMonth-1,d).getDay();
+    const isSun=dow===0,isSat=dow===6;
+    const isHol=!!twHolidays[ds];
+    const color=isHol||isSun?'#E05252':isSat?'#5B8EDB':'var(--text)';
+    const preselect=ds===dateStr?'batch-day-sel':'';
+    calHtml+=`<div class="batch-day ${preselect}" data-date="${ds}" onclick="toggleBatchDay(this)"
+      style="text-align:center;padding:5px 2px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:${color};transition:all .1s">${d}</div>`;
+  }
+  calHtml+='</div>';
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:520px">
+        <div class="modal-title">📅 新增排班（批次）</div>
+        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
+        <!-- 批次模式（預設開啟）-->
+        <input type="checkbox" id="batchToggle" checked style="display:none">
+        <div id="batch-mode">
+          <div class="fr">
+            <label>選擇日期（可多選）</label>
+            ${calHtml}
+            <div style="font-size:11px;color:var(--text3);margin-top:6px" id="batchSelectedCount">已選 0 天</div>
+          </div>
+        </div>
+        <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
+        <div class="time-row">
+          <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
+          <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="18:00"></div>
+        </div>
+        <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" placeholder="例：支援、代班"></div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveAdd()">儲存</button>
+        </div>
+      </div>
+    </div>`;
+
+  // 若有預選日期，更新計數
+  if(dateStr) updateBatchCount();
+};
+
+window.toggleBatchMode=function(){
+  const on=document.getElementById('batchToggle').checked;
+  document.getElementById('single-mode').style.display=on?'none':'block';
+  document.getElementById('batch-mode').style.display=on?'block':'none';
+  const slider=document.getElementById('batchSlider');
+  const knob=document.getElementById('batchKnob');
+  if(slider) slider.style.background=on?'var(--accent)':'#C8CDD8';
+  if(knob) knob.style.left=on?'18px':'2px';
+};
+
+window.toggleBatchDay=function(el){
+  el.classList.toggle('batch-day-sel');
+  if(el.classList.contains('batch-day-sel')){
+    el.style.background='var(--accent)';el.style.color='#fff';el.style.borderColor='var(--accent)';
+  } else {
+    el.style.background='';el.style.color='';el.style.borderColor='var(--border)';
+    // 恢復週末/假日顏色
+    const ds=el.dataset.date;
+    const dow=new Date(ds).getDay();
+    const isHol=!!twHolidays[ds];
+    if(isHol||dow===0) el.style.color='#E05252';
+    else if(dow===6) el.style.color='#5B8EDB';
+    else el.style.color='var(--text)';
+  }
+  updateBatchCount();
+};
+
+window.updateBatchCount=function(){
+  const sel=document.querySelectorAll('.batch-day-sel');
+  const cnt=document.getElementById('batchSelectedCount');
+  if(cnt) cnt.textContent=`已選 ${sel.length} 天`;
+};
+
+window.applyShiftType=function(start,end){
+  document.getElementById('m-start').value=start;
+  document.getElementById('m-end').value=end;
+};
+
+// ── 編輯排班 Modal ──
+window.openEditModal=function(dateStr,idx){
+  const s=shifts[dateStr][idx];
+  const empOptions=getEmpOptions(s.empId);
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">✎ 編輯排班</div>
+        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
+        <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
+        <div class="time-row">
+          <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="${s.startTime}"></div>
+          <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="${s.endTime}"></div>
+        </div>
+        <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" value="${s.note||''}" placeholder="例：支援、代班"></div>
+        <div class="mf">
+          <button class="btn" style="margin-right:auto;color:#C0392B;border-color:#FECACA" onclick="deleteShift('${dateStr}',${idx});closeModal()">刪除</button>
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveEdit('${dateStr}',${idx})">儲存</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+// ── 班別設定 Modal ──
+window.openShiftTypesModal=function(){
+  renderShiftTypesModal();
+};
+function renderShiftTypesModal(){
+  const listHtml=shiftTypes.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:13px;font-weight:500">${t.name}</span>
+      <span style="font-size:12px;color:var(--text2)">${t.start} - ${t.end}</span>
+      <button class="btn" style="padding:3px 8px;font-size:11px;color:#C0392B;border-color:#FECACA" onclick="removeShiftType(${i})">✕</button>
+    </div>`).join('')||'<div style="font-size:13px;color:var(--text3);padding:12px 0">尚未設定任何班別</div>';
 
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
-        <div class="modal-header">
-          <div class="modal-av av ${avCls(u.name||'?')}">${(u.name||'?').slice(0,2)}</div>
-          <div>
-            <div class="modal-title">${u.name||'未命名'}</div>
-            <div class="modal-sub">${u.idNo||'—'}</div>
+        <div class="modal-title">⚙ 班別設定</div>
+        <div id="st-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px">${listHtml}</div>
+        <div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;letter-spacing:.3px;text-transform:uppercase">新增班別</div>
+          <div class="fr"><label>班別名稱</label><input type="text" id="st-name" placeholder="例：早班、晚班、大夜"></div>
+          <div class="time-row">
+            <div class="fr"><label>上班時間</label><input type="time" id="st-start" value="09:00"></div>
+            <div class="fr"><label>下班時間</label><input type="time" id="st-end" value="18:00"></div>
           </div>
-        </div>
-        <div class="fr">
-          <label>角色設定</label>
-          <select id="edit-role" onchange="toggleLocSection()">
-            <option value="admin"      ${role==='admin'?'selected':''}>管理員　— 完整權限</option>
-            <option value="consultant" ${role==='consultant'?'selected':''}>顧問　— 指定多店面</option>
-            <option value="manager"    ${role==='manager'?'selected':''}>店長/副店長　— 指定店面</option>
-            <option value="employee"   ${role==='employee'?'selected':''}>同仁　— 個人資料</option>
-          </select>
-        </div>
-        <div id="loc-section" style="display:${showLocs?'block':'none'}">
-          <div class="loc-section-label">負責店面（可多選）</div>
-          <div class="loc-grid" id="loc-checks">${locChecks}</div>
+          <button class="btn btn-primary" style="width:100%" onclick="addShiftType()">＋ 新增</button>
         </div>
         <div class="mf">
-          <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-          <button class="btn btn-primary" onclick="saveEdit('${uid}')">儲存變更</button>
+          <button class="btn btn-primary" onclick="closeModal()">完成</button>
         </div>
       </div>
     </div>`;
 };
 
-window.toggleLocSection = function(){
-  const role = document.getElementById('edit-role').value;
-  const sec  = document.getElementById('loc-section');
-  if(sec) sec.style.display = (role==='consultant'||role==='manager') ? 'block' : 'none';
+window.addShiftType=async function(){
+  const name=document.getElementById('st-name').value.trim();
+  const start=document.getElementById('st-start').value;
+  const end=document.getElementById('st-end').value;
+  if(!name||!start||!end){showToast('請填寫完整');return;}
+  if(shiftTypes.find(t=>t.name===name)){showToast('班別名稱已存在');return;}
+  shiftTypes.push({name,start,end});
+  await saveShiftTypes();
+  showToast('班別已新增 ✓');
+  renderShiftTypesModal();
 };
 
-window.saveEdit = async function(uid){
-  const role = document.getElementById('edit-role').value;
-  const checks = document.querySelectorAll('#loc-checks input:checked');
-  const locations = Array.from(checks).map(c=>c.value);
-  try{
-    await setDoc(doc(db,'users',uid),{role,locations},{merge:true});
-    const u = allUsers.find(x=>x.uid===uid);
-    if(u){u.role=role;u.locations=locations;}
-    closeModal(); renderList();
-    showToast('角色已更新');
-  }catch(e){ showToast('儲存失敗：'+e.message,'✕'); }
+window.removeShiftType=async function(idx){
+  if(!confirm(`確定要刪除「${shiftTypes[idx].name}」班別？`))return;
+  shiftTypes.splice(idx,1);
+  await saveShiftTypes();
+  showToast('已刪除');
+  renderShiftTypesModal();
 };
 
-window.toggleDisable = async function(uid){
-  const u = allUsers.find(x=>x.uid===uid);
-  if(!u) return;
-  const newVal = !u.disabled;
-  if(!confirm(newVal?`確定要停用「${u.name}」的帳號嗎？`:`確定要啟用「${u.name}」的帳號嗎？`)) return;
-  try{
-    await setDoc(doc(db,'users',uid),{disabled:newVal},{merge:true});
-    u.disabled=newVal; filterList();
-    // 回到同一頁
-    renderPage(window._lastFiltered, currentPage);
-    showToast(newVal?'帳號已停用':'帳號已啟用');
-  }catch(e){ showToast('操作失敗','✕'); }
-};
+function getEmpOptions(selectedId=''){
+  const locEmps=currentRole==='admin'?allEmployees:allEmployees.filter(e=>e.workLocation===selectedLocation);
+  return locEmps.map(e=>`<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${e.name}　${e.workLocation||''}</option>`).join('');
+}
 
-window.deleteAccount = async function(uid){
-  const u = allUsers.find(x=>x.uid===uid);
-  if(!u) return;
-  if(!confirm(`確定要刪除「${u.name||u.idNo}」的帳號資料嗎？\n\n此操作將移除 Firestore 帳號記錄，無法復原。`)) return;
-  try{
-    await deleteDoc(doc(db,'users',uid));
-    allUsers = allUsers.filter(x=>x.uid!==uid);
-    updateStats(); filterList();
-    showToast('帳號記錄已刪除');
-  }catch(e){ showToast('刪除失敗：'+e.message,'✕'); }
-};
+window.saveAdd=async function(){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);return;}
+  const sel=document.getElementById('m-emp');
+  const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
+  const startTime=document.getElementById('m-start').value;
+  const endTime=document.getElementById('m-end').value;
+  const note=document.getElementById('m-note').value.trim();
+  if(!empId||!startTime||!endTime){showToast('請填寫完整資料');return;}
 
-window.closeModal = function(){ document.getElementById('modalArea').innerHTML=''; };
+  const isBatch=document.getElementById('batchToggle')?.checked;
 
-onAuthStateChanged(auth, async user => {
-  if(!user){ window.location.href='/hr-system/index.html'; return; }
-  const snap = await getDoc(doc(db,'users',user.uid));
-  if(!snap.exists()||snap.data().disabled){
-    await signOut(auth); window.location.href='/hr-system/index.html?disabled=1'; return;
+  let dates=[];
+  if(isBatch){
+    dates=[...document.querySelectorAll('.batch-day-sel')].map(el=>el.dataset.date);
+    if(!dates.length){showToast('請至少選擇一個日期');return;}
+  } else {
+    const date=document.getElementById('m-date').value;
+    if(!date){showToast('請選擇日期');return;}
+    dates=[date];
   }
-  if(snap.data().role!=='admin'){ window.location.href='/hr-system/dashboard.html'; return; }
-  currentUserUid = user.uid;
-  await loadData(); renderList();
+
+  dates.forEach(date=>{
+    if(!shifts[date])shifts[date]=[];
+    shifts[date].push({empId,empName,startTime,endTime,note});
+  });
+
+  closeModal();renderCalendar();renderLegend();renderSidebar();
+  showToast('儲存中...');
+  await saveShifts();
+  showToast(`已儲存 ${dates.length} 筆排班 ✓`);
+};
+
+window.saveEdit=async function(dateStr,idx){
+  if(window._checkScheduleLock&&window._checkScheduleLock()){
+    showToast('⚠ 已超過25號，無法修改次月班表');closeModal();return;
+  }
+  const sel=document.getElementById('m-emp');
+  const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
+  const date=document.getElementById('m-date').value;
+  const startTime=document.getElementById('m-start').value;
+  const endTime=document.getElementById('m-end').value;
+  const note=document.getElementById('m-note').value.trim();
+  if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
+  if(date!==dateStr){
+    if(!shifts[date])shifts[date]=[];
+    shifts[date].push({empId,empName,startTime,endTime,note});
+    shifts[dateStr].splice(idx,1);
+    if(!shifts[dateStr].length)delete shifts[dateStr];
+  }else{shifts[dateStr][idx]={empId,empName,startTime,endTime,note};}
+  closeModal();renderCalendar();renderLegend();renderSidebar();
+  showToast('儲存中...');await saveShifts();showToast('已更新 ✓');
+};
+
+window.deleteShift=async function(dateStr,idx){
+  const _lm=window._checkScheduleLock&&window._checkScheduleLock();
+  if(_lm){showToast('🔒 '+_lm);return;}
+  if(!confirm('確定要刪除這筆排班？'))return;
+  shifts[dateStr].splice(idx,1);
+  if(!shifts[dateStr].length)delete shifts[dateStr];
+  renderCalendar();renderLegend();renderSidebar();
+  showToast('儲存中...');await saveShifts();showToast('已刪除 ✓');
+};
+
+// ── 初始化 ──
+onAuthStateChanged(auth,async user=>{
+  if(!user){window.location.href='/hr-system/index.html';return;}
+  const snap=await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists()||snap.data().disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
+  const data=snap.data();
+  currentRole=data.role||'employee';
+  currentLocations=data.locations||[];
+  currentUser=user;
+
+  // employee 設為唯讀
+  if(currentRole==='employee'){
+    isReadOnly=true;
+    document.getElementById('readonlyNotice').classList.add('show','type-readonly');
+    document.getElementById('toolbarBtns').style.display='none';
+  }
+
+  // 非 admin：鎖定邏輯
+  if(currentRole!=='admin'){
+    const today=new Date();
+    const todayDay=today.getDate();
+    const todayMonth=today.getMonth()+1;
+    const todayYear=today.getFullYear();
+    const nextMonth=todayMonth===12?1:todayMonth+1;
+    const nextYear=todayMonth===12?todayYear+1:todayYear;
+
+    window._checkScheduleLock=function(){
+      if(currentRole==='admin') return false;
+
+      const viewDate=viewYear*100+viewMonth;
+      const currentDate=todayYear*100+todayMonth;
+      const nextDate=nextYear*100+nextMonth;
+
+      // 當月及過去 → 永遠鎖定
+      if(viewDate <= currentDate) return '當月及過去的班表已鎖定，無法修改';
+
+      // 次月 → 25號後鎖定
+      if(viewDate===nextDate && todayDay>25) return '已超過25號，次月班表已鎖定，無法修改，如需異動請聯繫總公司';
+
+      // 第三個月以後 → 可預排
+      return false;
+    };
+  } else {
+    window._checkScheduleLock=function(){ return false; };
+  }
+  document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
+  // 只有 admin / manager 顯示匯出按鈕
+  if(currentRole==='admin'||currentRole==='manager'){
+    document.getElementById('exportBtn').style.display='';
+  }
+
+  // 並行載入所有資料
+  await Promise.all([
+    getDoc(doc(db,'hr','settings')).then(s=>{
+      if(s.exists()){
+        workLocations=s.data().workLocations||[];
+        locationCodes=s.data().locationCodes||{};
+      }
+    }),
+    getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
+    loadShiftTypes(),
+    loadHolidays(viewYear),
+  ]);
+
+  const locSelect=document.getElementById('locationFilter');
+  const availLocs=currentRole==='admin'?workLocations:
+    currentRole==='employee'
+      ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&e.workLocation===l) || currentLocations.includes(l))
+      : currentLocations.filter(l=>workLocations.includes(l));
+  availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
+  if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];}
+
+  document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
+
+  // 初始載入時也檢查鎖定狀態
+  if(!isReadOnly && window._checkScheduleLock){
+    const lockMsg=window._checkScheduleLock();
+    if(lockMsg){
+      document.getElementById('readonlyNotice').textContent=`🔒 ${lockMsg}`;
+      document.getElementById('readonlyNotice').classList.remove('type-readonly');
+      document.getElementById('readonlyNotice').classList.add('show','type-lock');
+      document.getElementById('toolbarBtns').style.display='none';
+    }
+  }
+
+  await loadShifts();
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
+
+// ══════════════════════════════════════════════════════
+let leaveRequests = [];
+let leaveFilter = 'all';
+let currentTab = 'shift';
+
+// ── Tab 切換 ──
+window.switchTab = function(tab) {
+  currentTab = tab;
+  const shiftSec = document.querySelector('.content-wrap')?.closest('.main')?.parentElement;
+  // 找到 content-wrap 的父層 main
+  const mainDivs = document.querySelectorAll('#app > .main, #app > div > .main');
+  document.getElementById('leaveSection').style.display = tab==='leave' ? 'block' : 'none';
+
+  // 排班區塊 toggle
+  const empFilterBar = document.getElementById('empFilterBar');
+  const calWrap = document.querySelector('.content-wrap');
+  const readonlyNotice = document.getElementById('readonlyNotice');
+  const toolbarBtns = document.getElementById('toolbarBtns');
+  const toolbar = document.querySelector('.toolbar');
+
+  if(tab==='shift'){
+    if(calWrap) calWrap.style.display='flex';
+    if(toolbar) toolbar.style.display='flex';
+    // tab 樣式
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+  } else {
+    if(calWrap) calWrap.style.display='none';
+    if(toolbar) toolbar.style.display='none';
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    loadLeaveRequests();
+  }
+};
+
+let leaveTypeFilter = 'all'; // 'all' | 'vacation' | 'special'
+
+// ── 假單狀態篩選 ──
+window.setLeaveFilter = function(f) {
+  leaveFilter = f;
+  ['pending','approved','rejected','all'].forEach(k=>{
+    const btn = document.getElementById('lf-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  renderLeaveList();
+};
+
+// ── 假別篩選 ──
+window.setLeaveTypeFilter = function(f) {
+  leaveTypeFilter = f;
+  ['all','vacation','special'].forEach(k=>{
+    const btn = document.getElementById('lt-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  // 拖拉提示只在待審核+休假篩選時顯示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display = (leaveFilter==='pending'&&f==='vacation')?'block':'none';
+  renderLeaveList();
+};
+
+// ── 載入假單 ──
+async function loadLeaveRequests() {
+  try {
+    let q;
+    // 全部撈回後 client 端篩選，避免複合索引需求
+    q = query(collection(db,'leave_requests'), orderBy('createdAt','desc'));
+    const snaps = await getDocs(q);
+    let allReqs = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    if(currentRole==='employee') {
+      allReqs = allReqs.filter(r=>r.uid===currentUser.uid);
+    } else {
+      // 管理員：待審核依 priority 排，其餘依時間排
+      allReqs.sort((a,b)=>{
+        if(a.status==='pending'&&b.status==='pending') return (a.priority||999)-(b.priority||999);
+        if(a.status==='pending') return -1;
+        if(b.status==='pending') return 1;
+        return 0;
+      });
+    }
+    leaveRequests = allReqs;
+    renderLeaveList();
+  } catch(e) {
+    document.getElementById('leaveList').innerHTML=`<div style="text-align:center;padding:40px;color:#e24b4a">載入失敗：${e.message}</div>`;
+  }
+}
+
+// ── 渲染假單列表 ──
+function renderLeaveList() {
+  const list = document.getElementById('leaveList');
+  const isAdmin = currentRole==='admin'||currentRole==='consultant'||currentRole==='manager';
+
+  // 顯示/隱藏 UI 元素
+  document.getElementById('leaveSubmitBar').style.display = currentRole==='employee' ? 'block' : 'none';
+  const adminTabs = document.getElementById('leaveAdminTabs');
+  adminTabs.style.display = isAdmin ? 'flex' : 'none';
+
+  // 更新待審核數量
+  const pendingCnt = leaveRequests.filter(r=>r.status==='pending').length;
+  const cntEl = document.getElementById('lf-pending-cnt');
+  if(cntEl) cntEl.textContent = pendingCnt;
+
+  // 鎖定狀態提示
+  const today = new Date();
+  const lockInfo = document.getElementById('vacation-lock-info');
+  if(lockInfo) {
+    const todayDay = today.getDate();
+    const nextMonth = today.getMonth()===11?1:today.getMonth()+2;
+    const nextYear = today.getMonth()===11?today.getFullYear()+1:today.getFullYear();
+    lockInfo.textContent = todayDay > 20
+      ? `（${nextYear}年${nextMonth}月休假申請已截止）`
+      : `（${nextYear}年${nextMonth}月申請截止：本月20號）`;
+  }
+
+  // 篩選
+  let filtered = leaveRequests;
+  if(isAdmin && leaveFilter!=='all') filtered = filtered.filter(r=>r.status===leaveFilter);
+  if(isAdmin && leaveTypeFilter==='vacation') filtered = filtered.filter(r=>r.leaveType==='休假');
+  if(isAdmin && leaveTypeFilter==='special')  filtered = filtered.filter(r=>r.leaveType!=='休假');
+
+  // 拖拉提示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display=(leaveFilter==='pending'&&leaveTypeFilter==='vacation'&&isAdmin)?'block':'none';
+
+  if(!filtered.length) {
+    list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:12px">暫無假單記錄</div>';
+    return;
+  }
+
+  const statusLabel = {pending:'⏳ 待審核', approved:'✅ 已核准', rejected:'❌ 已拒絕'};
+  const statusClass = {pending:'lb-pending', approved:'lb-approved', rejected:'lb-rejected'};
+
+  list.innerHTML = filtered.map((r,i)=>{
+    const isPending = r.status==='pending';
+    const canDrag = isAdmin && leaveFilter==='pending';
+    const adminBtns = isAdmin && isPending ? `
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn" style="font-size:12px;background:#E6FAF0;color:#087443;border-color:#ADE8C4" onclick="reviewLeave('${r.id}','approved')">✅ 核准</button>
+        <button class="btn" style="font-size:12px;background:#FEE9E9;color:#C0392B;border-color:#FFBDBD" onclick="reviewLeave('${r.id}','rejected')">❌ 拒絕</button>
+        <button class="btn" style="font-size:12px;color:#C0392B" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : (isAdmin && !isPending ? `
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn" style="font-size:12px" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : '');
+
+    const empBtns = currentRole==='employee' && isPending ? `
+      <button class="btn" style="font-size:12px;color:#C0392B;margin-top:8px" onclick="cancelLeave('${r.id}')">撤回申請</button>` : '';
+
+    const priorityBadge = isAdmin && isPending ? `<div class="leave-priority">${i+1}</div>` : '';
+
+    return `<div class="leave-card${canDrag?' draggable':''}" data-id="${r.id}" ${canDrag?'draggable="true"':''}>
+      ${priorityBadge}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-weight:600;font-size:14px">${r.empName||'—'}</span>
+          <span class="leave-badge ${statusClass[r.status]||'lb-pending'}">${statusLabel[r.status]||r.status}</span>
+          <span style="font-size:11px;color:var(--text3)">${r.workLocation||''}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px">
+          📅 ${r.startDate} ${r.endDate&&r.endDate!==r.startDate?'～ '+r.endDate:''} &nbsp;|&nbsp; 🏷 ${r.leaveType||'休假'}
+          ${r.days ? `&nbsp;|&nbsp; ${r.days} 天` : ''}
+        </div>
+        ${r.reason?`<div style="font-size:12px;color:var(--text3)">備註：${r.reason}</div>`:''}
+        ${r.reviewNote?`<div style="font-size:12px;color:#3B5BDB;margin-top:4px">審核備注：${r.reviewNote}</div>`:''}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">申請時間：${r.createdAt?.toDate?r.createdAt.toDate().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):r.createdAt||'—'}</div>
+        ${adminBtns}${empBtns}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 拖拉排序（僅待審核、管理員）
+  if(isAdmin && leaveFilter==='pending') initLeaveDrag();
+}
+
+// ── 拖拉優先順序 ──
+function initLeaveDrag() {
+  const list = document.getElementById('leaveList');
+  let dragSrc = null;
+  list.querySelectorAll('.leave-card.draggable').forEach(card=>{
+    card.addEventListener('dragstart', e=>{ dragSrc=card; setTimeout(()=>card.classList.add('dragging'),0); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); savePriority(); });
+    card.addEventListener('dragover', e=>{ e.preventDefault(); if(card!==dragSrc){ list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); card.classList.add('drag-over'); } });
+    card.addEventListener('drop', e=>{ e.preventDefault(); if(dragSrc&&card!==dragSrc){ const cards=[...list.querySelectorAll('.leave-card')]; const si=cards.indexOf(dragSrc),ti=cards.indexOf(card); if(si<ti) list.insertBefore(dragSrc,card.nextSibling); else list.insertBefore(dragSrc,card); card.classList.remove('drag-over'); } });
+  });
+}
+
+async function savePriority() {
+  const cards = [...document.getElementById('leaveList').querySelectorAll('.leave-card')];
+  for(let i=0;i<cards.length;i++){
+    const id = cards[i].dataset.id;
+    if(id) await updateDoc(doc(db,'leave_requests',id),{priority:i+1}).catch(()=>{});
+  }
+  // 重新排序本地資料
+  const newOrder = cards.map(c=>c.dataset.id);
+  leaveRequests.sort((a,b)=>newOrder.indexOf(a.id)-newOrder.indexOf(b.id));
+}
+
+// ── 申請假單 Modal（同仁）──
+window.openLeaveModal = function() {
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const today2 = new Date();
+  const todayDay2 = today2.getDate();
+  const nextMonth2 = today2.getMonth()===11?1:today2.getMonth()+2;
+  const nextYear2  = today2.getMonth()===11?today2.getFullYear()+1:today2.getFullYear();
+  const nextMonthName = `${nextYear2} 年 ${nextMonth2} 月`;
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:480px">
+        <div class="modal-title">🏖 申請假單</div>
+        <div class="fr"><label>假別</label>
+          <select id="l-type" onchange="onLeaveTypeChange()">
+            <optgroup label="── 次月休假（20號前申請）">
+              <option value="休假">休假</option>
+            </optgroup>
+            <optgroup label="── 特殊假（隨時可申請）">
+              <option value="病假">病假</option>
+              <option value="事假">事假</option>
+              <option value="生理假">生理假</option>
+              <option value="婚假">婚假</option>
+              <option value="喪假">喪假</option>
+              <option value="其他">其他</option>
+            </optgroup>
+          </select>
+        </div>
+        <div id="leave-lock-notice" style="display:none;font-size:12px;background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          🔒 次月休假申請截止日為每月 20 號，目前已超過截止日，如需申請請聯繫主管
+        </div>
+        <div id="leave-month-notice" style="display:none;font-size:12px;background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          📅 次月休假：請選擇 <strong id="nextMonthLabel"></strong> 的休假日期
+        </div>
+        <div class="time-row">
+          <div class="fr"><label>開始日期</label><input type="date" id="l-start" onchange="onDateChange()"></div>
+          <div class="fr"><label>結束日期</label><input type="date" id="l-end" onchange="onDateChange()"></div>
+        </div>
+        <div id="leave-days-preview" style="display:none;font-size:12px;color:var(--text2);margin-top:-8px;margin-bottom:4px"></div>
+        <div class="fr"><label>備註（選填）</label><input type="text" id="l-reason" placeholder="假單事由"></div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="submitLeave()">送出申請</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
+};
+// ── 假別切換 ──
+window.onLeaveTypeChange = function() {
+  const type = document.getElementById('l-type').value;
+  const isVacation = type === '休假';
+  const lockNotice = document.getElementById('leave-lock-notice');
+  const monthNotice = document.getElementById('leave-month-notice');
+  const startInput = document.getElementById('l-start');
+  const endInput = document.getElementById('l-end');
+
+  const today = new Date();
+  const todayDay = today.getDate();
+  const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+  const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2,'0')}`;
+  const nextMonthLabel = `${nextYear} 年 ${nextMonth} 月`;
+
+  if(isVacation) {
+    if(todayDay > 20) {
+      lockNotice.style.display = 'block';
+      monthNotice.style.display = 'none';
+      startInput.disabled = true;
+      endInput.disabled = true;
+    } else {
+      lockNotice.style.display = 'none';
+      monthNotice.style.display = 'block';
+      document.getElementById('nextMonthLabel').textContent = nextMonthLabel;
+      // 限定只能選次月日期
+      startInput.min = nextMonthStr + '-01';
+      startInput.max = nextMonthStr + '-' + new Date(nextYear, nextMonth, 0).getDate();
+      endInput.min = startInput.min;
+      endInput.max = startInput.max;
+      startInput.disabled = false;
+      endInput.disabled = false;
+    }
+  } else {
+    lockNotice.style.display = 'none';
+    monthNotice.style.display = 'none';
+    startInput.min = '';
+    startInput.max = '';
+    endInput.min = '';
+    endInput.max = '';
+    startInput.disabled = false;
+    endInput.disabled = false;
+  }
+  onDateChange();
+};
+
+window.onDateChange = function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value;
+  const preview = document.getElementById('leave-days-preview');
+  if(start && end && end >= start) {
+    const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+    preview.textContent = `共 ${days} 天`;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+};
+
+window.submitLeave = async function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value || start;
+  const type  = document.getElementById('l-type').value;
+  const reason= document.getElementById('l-reason').value.trim();
+  if(!start){ showToast('請選擇日期'); return; }
+  if(end < start){ showToast('結束日期不能早於開始日期'); return; }
+
+  // 次月休假：再次確認是否超過 20 號
+  if(type === '休假') {
+    const todayDay = new Date().getDate();
+    if(todayDay > 20) { showToast('🔒 已超過申請截止日（20號）'); return; }
+
+    // 確認選的是次月
+    const today = new Date();
+    const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+    const nextYear  = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const startMonth = parseInt(start.slice(5,7));
+    const startYear  = parseInt(start.slice(0,4));
+    if(startYear !== nextYear || startMonth !== nextMonth) {
+      showToast('次月休假只能選擇次月的日期');
+      return;
+    }
+  }
+
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+  const isVacation = type === '休假';
+  const maxPri = leaveRequests.filter(r=>r.status==='pending'&&r.leaveType==='休假').length + 1;
+
+  await addDoc(collection(db,'leave_requests'),{
+    uid: currentUser.uid,
+    empName: emp.name||'—',
+    workLocation: emp.workLocation||'—',
+    leaveType: type,
+    isVacation,
+    startDate: start,
+    endDate: end,
+    days,
+    reason,
+    status: 'pending',
+    priority: isVacation ? maxPri : 999,
+    createdAt: serverTimestamp(),
+  });
+  closeModal();
+  showToast('假單已送出，等待審核 ✓');
+  await loadLeaveRequests();
+};
+
+// ── 審核假單 ──
+window.reviewLeave = async function(id, status) {
+  const note = status==='rejected' ? prompt('拒絕原因（選填）：')||'' : '';
+  await updateDoc(doc(db,'leave_requests',id),{
+    status,
+    reviewNote: note,
+    reviewedBy: currentUser.uid,
+    reviewedAt: serverTimestamp(),
+  });
+  showToast(status==='approved'?'已核准 ✓':'已拒絕');
+  await loadLeaveRequests();
+};
+
+// ── 同仁撤回 ──
+window.cancelLeave = async function(id) {
+  if(!confirm('確定要撤回這筆假單申請？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已撤回');
+  await loadLeaveRequests();
+};
+
+// ── 管理員刪除 ──
+window.deleteLeave = async function(id) {
+  if(!confirm('確定要刪除這筆假單記錄？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已刪除');
+  await loadLeaveRequests();
+};
+
+// 初始設定待審核篩選
+window.addEventListener('DOMContentLoaded', ()=>setLeaveFilter('pending'));
+
 </script>
 </body>
 </html>

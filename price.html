@@ -16,8 +16,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
-.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
-.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100;flex-wrap:nowrap;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
 .back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
 .back-btn:hover{background:var(--surface2);color:var(--text)}
 .dv{width:1px;height:20px;background:var(--border)}
@@ -133,6 +133,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spin-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
+
+/* ── 手機版 topbar ── */
+@media(max-width:600px){
+  .topbar{padding:0 10px;height:auto;min-height:52px;flex-wrap:wrap;gap:6px}
+  .topbar-left{gap:8px;flex:1;min-width:0}
+  .topbar h1,.topbar-title{font-size:13px}
+  .topbar-right{gap:5px;flex-shrink:0}
+  .topbar-right .role-label,.topbar-right .date-label{font-size:11px}
+  .topbar-right .user-name{max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  .btn-back{font-size:12px;padding:5px 10px}
+}
 @media(max-width:800px){
   .main{padding:12px}
   .topbar{padding:0 14px;height:52px}

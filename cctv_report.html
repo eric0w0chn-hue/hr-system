@@ -19,8 +19,8 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
 /* ── Topbar ── */
-.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100}
-.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100;flex-wrap:nowrap;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
 .back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;transition:all .15s;font-family:inherit}
 .back-btn:hover{background:var(--surface2);color:var(--text)}
 .dv{width:1px;height:20px;background:var(--border)}
@@ -56,6 +56,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
 .btn-sm{font-size:12px;padding:4px 10px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
+.btn-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}.btn-green:hover{background:#C9F0DA}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
 
 /* ── Date nav ── */
@@ -91,6 +92,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* ── Badge ── */
 .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-pending{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.badge-new{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
 .badge-expired{background:#F4F5F8;color:var(--text3);border:1px solid var(--border)}
 
 /* ── Video grid ── */
@@ -117,6 +121,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── Modal overlay ── */
 .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center}
 .modal-ov.open{display:flex}
+
+/* ── 手機版 topbar ── */
+@media(max-width:600px){
+  .topbar{padding:0 10px;height:auto;min-height:52px;flex-wrap:wrap;gap:6px}
+  .topbar-left{gap:8px;flex:1;min-width:0}
+  .topbar h1,.topbar-title{font-size:13px}
+  .topbar-right{gap:5px;flex-shrink:0}
+  .topbar-right .role-label,.topbar-right .date-label{font-size:11px}
+  .topbar-right .user-name{max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  .btn-back{font-size:12px;padding:5px 10px}
+}
 @media(min-width:600px){.modal-ov{align-items:center}}
 .modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:22px 18px 32px;position:relative}
 @media(min-width:600px){.modal{border-radius:16px;padding:26px 24px 32px}}
@@ -531,6 +546,7 @@ function renderReports(){
   }
   list.innerHTML = filtered.map(r => {
     const canDel = cuRole==='admin'||r.submittedBy===cu.uid;
+    const canReview = cuRole==='admin'||cuRole==='consultant';
     const videos = r.videos||[];
     const expired = r.videosExpired;
     const videoHtml = videos.length
@@ -559,6 +575,9 @@ function renderReports(){
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${expired?'<span class="badge badge-expired">影片已過期</span>':''}
+          ${r.reviewed
+            ? `<span class="badge badge-done">✓ 已確認</span><span style="font-size:11px;color:var(--text3)">${esc(r.reviewedBy||'')}</span>`
+            : `<span class="badge badge-new">待確認</span>`}
         </div>
       </div>
       <div class="rc-body">
@@ -566,7 +585,10 @@ function renderReports(){
         ${r.note?`<div class="note-box"><div class="note-lbl">備註</div>${esc(r.note)}</div>`:''}
       </div>
       <div class="rc-footer">
-        <div></div>
+        <div style="display:flex;gap:6px">
+          ${canReview&&!r.reviewed?`<button class="btn-sm btn-green" onclick="markDone('${r.id}')">✓ 標記已確認</button>`:''}
+          ${canReview&&r.reviewed?`<button class="btn-sm btn-outline" style="border:1px solid var(--border)" onclick="unmark('${r.id}')">取消確認</button>`:''}
+        </div>
         <div>
           ${canDel?`<button class="btn-sm btn-danger" data-id="${r.id}" data-videos="${encodeURIComponent(JSON.stringify(videos))}" onclick="delReport(this)">刪除</button>`:''}
         </div>
@@ -744,7 +766,21 @@ window.submitReport = async function(){
   }
 };
 
-
+// ── Review ──
+window.markDone = async function(id){
+  try {
+    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:true, reviewedBy:cuName, reviewedAt:serverTimestamp() });
+    toast('✅ 已標記確認');
+    await loadAndRender();
+  } catch(e){ toast('操作失敗：'+e.message); }
+};
+window.unmark = async function(id){
+  try {
+    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:false, reviewedBy:'', reviewedAt:null });
+    toast('已取消確認');
+    await loadAndRender();
+  } catch(e){ toast('操作失敗：'+e.message); }
+};
 
 // ── Delete（同時刪 Storage 影片）──
 window.delReport = async function(btn){
