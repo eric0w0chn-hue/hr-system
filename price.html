@@ -16,8 +16,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
-.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100;flex-wrap:nowrap;gap:8px}
-.topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
 .back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
 .back-btn:hover{background:var(--surface2);color:var(--text)}
 .dv{width:1px;height:20px;background:var(--border)}
@@ -40,6 +40,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .banner{border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .banner-blue{background:var(--accent-light);border:1px solid #BAC8FF;color:var(--accent)}
 .banner-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+/* missing banner */
+.missing-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none}
+.missing-banner.show{display:block}
+.missing-title{font-size:13px;font-weight:600;color:var(--yellow);margin-bottom:8px}
+.missing-tags{display:flex;gap:6px;flex-wrap:wrap}
+.missing-tag{font-size:12px;padding:3px 10px;background:rgba(196,122,0,.1);color:var(--yellow);border-radius:20px;border:1px solid var(--yellow-border)}
 
 /* 廠商管理 */
 .vendor-wrap{position:relative;flex:1}
@@ -133,17 +139,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spin-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
-
-/* ── 手機版 topbar ── */
-@media(max-width:600px){
-  .topbar{padding:0 10px;height:auto;min-height:52px;flex-wrap:wrap;gap:6px}
-  .topbar-left{gap:8px;flex:1;min-width:0}
-  .topbar h1,.topbar-title{font-size:13px}
-  .topbar-right{gap:5px;flex-shrink:0}
-  .topbar-right .role-label,.topbar-right .date-label{font-size:11px}
-  .topbar-right .user-name{max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
-  .btn-back{font-size:12px;padding:5px 10px}
-}
 @media(max-width:800px){
   .main{padding:12px}
   .topbar{padding:0 14px;height:52px}
@@ -222,37 +217,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .vb-header .vendor-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
 .vb-body{padding:12px 14px}
 @media(max-width:480px){.item-row{grid-template-columns:1fr 1fr 80px 32px}.col-header{grid-template-columns:1fr 1fr 80px 32px}}
-
-/* ── 手機版品項列修正 ── */
-@media(max-width:520px){
-  .item-row{
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    padding:10px 10px 10px 10px;
-    position:relative;
-    border-top:1px solid var(--border);
-  }
-  .item-row > div:first-child{padding-right:32px} /* 品項名稱讓出 X 按鈕空間 */
-  .item-row .del-row-btn{
-    position:absolute;
-    top:10px;
-    right:8px;
-    width:26px;height:26px;
-    border-radius:50%;
-    border:1px solid var(--border);
-    background:var(--surface);
-    font-size:14px;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    color:var(--text3);
-    flex-shrink:0;
-  }
-  .item-row .unit-row{display:flex;gap:6px}
-  .item-row .price-inp{width:100%}
-  .col-header{display:none}
-  .vb-header .del-row-btn{position:static;width:32px;height:32px;border-radius:8px;flex-shrink:0}
-}
 </style>
 </head>
 <body>
@@ -309,6 +273,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
           <input type="date" id="viewDate" class="sel" style="font-size:12px;padding:5px 8px" onchange="loadReports()">
         </div>
         <div class="card-body" style="padding:14px">
+          <!-- 未回報提醒 -->
+          <div class="missing-banner" id="missingBanner">
+            <div class="missing-title" id="missingTitle">⚠️ 今日 以下店面尚未回報</div>
+            <div class="missing-tags" id="missingTags"></div>
+          </div>
           <div class="store-tabs" id="storeTabs"></div>
           <div id="reportList"><div class="empty-state">請稍候...</div></div>
         </div>
@@ -597,10 +566,27 @@ window.loadReports=async function(){
     const tabsEl=document.getElementById('storeTabs');
     tabsEl.innerHTML=`<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setStoreFilter('all')">全部(${allReports.length})</button>`
       +stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setStoreFilter('${s}')">${s}</button>`).join('');
+    renderMissing(dateVal);
     renderReports();
   }catch(e){list.innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗，請重新整理</div>`;
     console.error(e);}
 };
+
+function renderMissing(dateVal){
+  if(cRole!=='admin'&&cRole!=='consultant') return;
+  const reported=new Set(allReports.map(r=>r.store));
+  const missing=visibleStores.filter(s=>!reported.has(s));
+  const banner=document.getElementById('missingBanner');
+  if(!banner) return;
+  if(missing.length){
+    banner.classList.add('show');
+    document.getElementById('missingTitle').textContent=
+      '⚠️ '+(dateVal===todayStr?'今日':'該日（'+dateVal.slice(5).replace('-','/')+'）')+' 以下店面尚未回報';
+    document.getElementById('missingTags').innerHTML=missing.map(s=>`<span class="missing-tag">${s}</span>`).join('');
+  } else {
+    banner.classList.remove('show');
+  }
+}
 
 window.setStoreFilter=function(s){
   storeFilter=s;
