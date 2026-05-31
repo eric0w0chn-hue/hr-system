@@ -13,11 +13,12 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
 /* ── Topbar ── */
-.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100;flex-wrap:nowrap;gap:8px}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:200;gap:8px;flex-wrap:nowrap}
 .topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
 .back-btn{font-size:12px;padding:5px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .back-btn:hover{background:rgba(255,255,255,.22)}
-.dv{width:1px;height:20px;background:rgba(255,255,255,.25);font-weight:700}
+.dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.page-title{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
 
 /* ── Layout ── */
 .main{max-width:960px;margin:0 auto;padding:20px 16px 60px}
