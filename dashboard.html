@@ -374,7 +374,7 @@ function renderAll(role){
   groups.forEach(g=>{
     const gMods=ALL_MODULES.filter(m=>g.keys.includes(m.key)&&visKeys.includes(m.key));
     if(!gMods.length&&!isAdmin) return; // 非 admin 跳過空群組
-    sHtml+=`<div class="sidebar-group" id="sg_${g.id}" data-gid="${g.id}" draggable="true">
+    sHtml+=`<div class="sidebar-group" id="sg_${g.id}" data-gid="${g.id}">
       <div class="sidebar-group-header" onclick="toggleGroup('${g.id}')">
         <span class="drag-handle" title="拖拉排序" onclick="event.stopPropagation()">⠿</span>
         <span class="sidebar-group-icon">${g.icon}</span>
@@ -387,7 +387,6 @@ function renderAll(role){
       <div class="sidebar-group-items">`;
     gMods.forEach(m=>{
       const badge=m.active?(m.adminOnly?`<span class="item-badge admin-only">管理員</span>`:''):`<span class="item-badge soon">即將推出</span>`;
-      const click=m.active?`onclick="goTo('${m.page}')"`:` style="cursor:not-allowed;opacity:.5"`;
       const navClick = m.active ? `onclick="goTo('${m.page}')"` : '';
       sHtml+=`<div class="sidebar-item${m.active?'':' disabled'}" data-key="${m.key}" data-gid="${g.id}" data-page="${m.active?m.page:''}" ${navClick}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon">${m.icon}</span><span class="item-name">${m.name}</span>${badge}</div>`;
     });
