@@ -88,12 +88,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .grp-btn.del:hover{background:#e24b4a;color:#fff}
 /* 新增群組按鈕 */
 .sidebar-add-group{margin:8px 12px 4px;padding:7px 10px;border-radius:8px;border:1px dashed rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;width:calc(100% - 24px);font-family:inherit;transition:all .15s;text-align:left;display:none}
+.can-edit .sidebar-edit-toggle{display:block}
 .admin-mode .sidebar-add-group{display:block}
 .sidebar-add-group:hover{border-color:rgba(255,255,255,.5);color:#fff;background:rgba(255,255,255,.06)}
+.sidebar-edit-toggle{display:none;margin:10px 12px 4px;padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);font-size:11px;cursor:pointer;width:calc(100% - 24px);font-family:inherit;transition:all .15s;text-align:left}
+.sidebar-edit-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
+.sidebar-edit-toggle.active{border-color:rgba(100,200,255,.4);background:rgba(100,200,255,.1);color:rgba(180,230,255,.9)}
 .sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.3);text-align:center}
 .sidebar-reset-btn{margin:2px 12px 8px;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,100,100,.25);background:transparent;color:rgba(255,100,100,.5);font-size:10px;cursor:pointer;width:calc(100% - 24px);font-family:inherit;transition:all .15s;text-align:left;display:none}
 .admin-mode .sidebar-reset-btn{display:block}
-.sidebar-reset-btn:hover{border-color:rgba(255,100,100,.6);color:rgba(255,100,100,.9)}padding:10px 12px;border-radius:8px;background:rgba(255,180,0,.08);border:1px dashed rgba(255,180,0,.3)}
+.sidebar-reset-btn:hover{border-color:rgba(255,100,100,.6);color:rgba(255,100,100,.9)}
 .sidebar-unassigned-title{font-size:10px;color:rgba(255,180,0,.7);font-weight:600;margin-bottom:6px;letter-spacing:.4px}
 .sidebar-unassigned-item{font-size:11px;color:rgba(255,255,255,.4);padding:2px 0;line-height:1.6}
 
@@ -241,6 +245,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       <div class="date" id="sidebarDate"></div>
     </div>
     <div id="sidebarContent"></div>
+    <button class="sidebar-edit-toggle" id="editModeToggle" onclick="toggleEditMode()">✎ 編輯模式</button>
     <button class="sidebar-add-group" id="addGroupBtn" onclick="openGroupModal()">＋ 新增群組</button>
     <button class="sidebar-reset-btn" id="resetGroupBtn" onclick="resetGroups()">↺ 重置所有群組</button>
     <div class="sidebar-footer">鑫系統 LIANGPING · <span id="yearText"></span></div>
@@ -373,7 +378,7 @@ function renderAll(role){
   let sHtml='';
   groups.forEach(g=>{
     const gMods=ALL_MODULES.filter(m=>g.keys.includes(m.key)&&visKeys.includes(m.key));
-    if(!gMods.length&&!isAdmin) return; // 非 admin 跳過空群組
+    if(!gMods.length) return; // 空群組一律隱藏
     sHtml+=`<div class="sidebar-group" id="sg_${g.id}" data-gid="${g.id}">
       <div class="sidebar-group-header" onclick="toggleGroup('${g.id}')">
         <span class="drag-handle" title="拖拉排序" onclick="event.stopPropagation()">⠿</span>
@@ -390,7 +395,7 @@ function renderAll(role){
       const navClick = m.active ? `onclick="goTo('${m.page}')"` : '';
       sHtml+=`<div class="sidebar-item${m.active?'':' disabled'}" data-key="${m.key}" data-gid="${g.id}" data-page="${m.active?m.page:''}" ${navClick}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon">${m.icon}</span><span class="item-name">${m.name}</span>${badge}</div>`;
     });
-    if(!gMods.length) sHtml+=`<div style="padding:6px 14px 6px 36px;font-size:11px;color:rgba(255,255,255,.3)">（無可用功能）</div>`;
+    // 空群組已在上方 return，不會到這裡
     sHtml+=`</div></div><div class="sidebar-divider"></div>`;
   });
   // 未分組功能（只有 admin 且非預覽才顯示）
@@ -412,7 +417,12 @@ function renderAll(role){
     </div>`;
   }
   sb.innerHTML=sHtml;
-  document.getElementById('sidebar').classList.toggle('admin-mode', isAdmin&&!inPreview);
+  // 非預覽 admin 才顯示編輯按鈕，但預設不進入編輯模式
+  document.getElementById('sidebar').classList.toggle('can-edit', isAdmin&&!inPreview);
+  document.getElementById('sidebar').classList.remove('admin-mode'); // 預設關閉
+  // 更新編輯模式切換按鈕可見性
+  const editToggleBtn = document.getElementById('editModeToggle');
+  if(editToggleBtn) editToggleBtn.style.display = (isAdmin&&!inPreview)?'block':'none';
 
   // 預設展開第一個群組
   const firstGrp=document.querySelector('.sidebar-group');
@@ -521,8 +531,14 @@ window.deleteCurrentGroup=function(){
 };
 
 // ── Modal helpers ──
+window.toggleEditMode = function(){
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('editModeToggle');
+  const isOn = sb.classList.toggle('admin-mode');
+  btn.classList.toggle('active', isOn);
+  btn.textContent = isOn ? '✎ 編輯中（點此關閉）' : '✎ 編輯模式';
+};
 window.resetGroups=function(){
-  if(!confirm('確定要清除所有群組設定？所有功能將變為未分組狀態。')) return;
   saveGroups(_currentUid, []);
   renderAll(_currentRole);
 };
