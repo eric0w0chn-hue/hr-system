@@ -13,7 +13,7 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;font-size:14px;padding:16px 16px 32px}
 .app{max-width:100%;margin:0;padding:0}
 /* 頂部 bar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--accent);height:62px;margin-bottom:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--accent);height:62px;margin-bottom:0;padding:0 max(20px, calc(50vw - 630px))}
 .topbar h1{font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
 .topbar h1::before{content:'';display:inline-block;width:4px;height:20px;background:rgba(255,255,255,.4);border-radius:2px}
 .topbar-right{display:flex;flex-direction:row;align-items:center;gap:12px}
@@ -21,11 +21,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 #clockLabel{font-size:13px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.5px}
 .card{background:var(--card-bg);border:none;overflow:visible;margin-bottom:16px}
 /* 分頁列 */
-.tabs{display:flex;padding:0 32px;border-bottom:2px solid var(--border);background:#fff}
+.tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;padding:0 max(20px, calc(50vw - 630px))}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .tab:hover:not(.active){color:var(--text);background:#F1F5F9}
-.main{padding:24px 32px}
+.main{max-width:1300px;margin:0 auto;padding:24px 20px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit}
 .toolbar input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
@@ -128,6 +128,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .detail-header{flex-wrap:wrap;gap:8px}
   body{padding:8px 8px 24px}
   .topbar{padding:0 14px}
+  .tabs{padding:0 14px}
   .topbar h1{font-size:13px}
   .main{padding:12px 14px}
 }
