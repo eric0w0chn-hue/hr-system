@@ -388,8 +388,8 @@ function renderAll(role){
     gMods.forEach(m=>{
       const badge=m.active?(m.adminOnly?`<span class="item-badge admin-only">管理員</span>`:''):`<span class="item-badge soon">即將推出</span>`;
       const click=m.active?`onclick="goTo('${m.page}')"`:` style="cursor:not-allowed;opacity:.5"`;
-      const itemClick = m.active ? `onclick="goTo('${m.page}')"` : '';
-      sHtml+=`<div class="sidebar-item" data-key="${m.key}" data-gid="${g.id}" ${m.active?'draggable="true"':''}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon" ${itemClick} style="cursor:${m.active?'pointer':'not-allowed'}${m.active?'':';opacity:.5'}">${m.icon}</span><span class="item-name" ${itemClick} style="flex:1;cursor:${m.active?'pointer':'not-allowed'}${m.active?'':';opacity:.5'}">${m.name}</span>${badge}</div>`;
+      const navClick = m.active ? `onclick="goTo('${m.page}')"` : '';
+      sHtml+=`<div class="sidebar-item${m.active?'':' disabled'}" data-key="${m.key}" data-gid="${g.id}" data-page="${m.active?m.page:''}" ${navClick}><span class="item-drag-handle" onclick="event.stopPropagation()">⠿</span><span class="item-icon">${m.icon}</span><span class="item-name">${m.name}</span>${badge}</div>`;
     });
     if(!gMods.length) sHtml+=`<div style="padding:6px 14px 6px 36px;font-size:11px;color:rgba(255,255,255,.3)">（無可用功能）</div>`;
     sHtml+=`</div></div><div class="sidebar-divider"></div>`;
@@ -646,11 +646,25 @@ function initItemDrag(){
     }
 
     let lastItemMouseTarget = null;
-    itemsWrap.addEventListener('mousedown', e=>{ lastItemMouseTarget = e.target; });
 
-    itemsWrap.querySelectorAll('.sidebar-item[draggable]').forEach(el=>{
+    // mousedown on handle → 動態加 draggable，mouseup 清除
+    itemsWrap.addEventListener('mousedown', e=>{
+      lastItemMouseTarget = e.target;
+      const handle = e.target.closest('.item-drag-handle');
+      // 只有點到 handle 才讓整個 item 可拖
+      itemsWrap.querySelectorAll('.sidebar-item').forEach(el=>el.removeAttribute('draggable'));
+      if(handle){
+        const item = handle.closest('.sidebar-item');
+        if(item) item.setAttribute('draggable','true');
+      }
+    });
+    window.addEventListener('mouseup', ()=>{
+      itemsWrap.querySelectorAll('.sidebar-item[draggable]').forEach(el=>el.removeAttribute('draggable'));
+    });
+
+    itemsWrap.querySelectorAll('.sidebar-item').forEach(el=>{
       el.addEventListener('dragstart', e=>{
-        const fromHandle = lastItemMouseTarget && (lastItemMouseTarget.classList.contains('item-drag-handle') || lastItemMouseTarget.closest('.item-drag-handle'));
+        const fromHandle = lastItemMouseTarget && lastItemMouseTarget.closest('.item-drag-handle');
         if(!fromHandle){ e.preventDefault(); return; }
         dragSrc = el;
         setTimeout(()=>el.classList.add('dragging-item'), 0);
@@ -658,6 +672,7 @@ function initItemDrag(){
         e.stopPropagation();
       });
       el.addEventListener('dragend', ()=>{
+        el.removeAttribute('draggable');
         el.classList.remove('dragging-item');
         itemsWrap.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('drag-item-over'));
         if(dragSrc){ saveItemOrder(); dragSrc=null; }
@@ -727,12 +742,22 @@ function initGroupDrag(){
   function getGroups(){ return [...sb.querySelectorAll('.sidebar-group[data-gid]')]; }
 
   let lastMouseTarget = null;
-  sb.addEventListener('mousedown', e=>{ lastMouseTarget = e.target; });
+  sb.addEventListener('mousedown', e=>{
+    lastMouseTarget = e.target;
+    const handle = e.target.closest('.drag-handle');
+    sb.querySelectorAll('.sidebar-group').forEach(el=>el.removeAttribute('draggable'));
+    if(handle){
+      const grp = handle.closest('.sidebar-group');
+      if(grp) grp.setAttribute('draggable','true');
+    }
+  });
+  window.addEventListener('mouseup', ()=>{
+    sb.querySelectorAll('.sidebar-group[draggable]').forEach(el=>el.removeAttribute('draggable'));
+  });
 
-  sb.querySelectorAll('.sidebar-group[draggable]').forEach(el=>{
+  sb.querySelectorAll('.sidebar-group').forEach(el=>{
     el.addEventListener('dragstart', e=>{
-      // 只允許從 drag-handle 啟動
-      const fromHandle = lastMouseTarget && (lastMouseTarget.classList.contains('drag-handle') || lastMouseTarget.closest('.drag-handle'));
+      const fromHandle = lastMouseTarget && lastMouseTarget.closest('.drag-handle');
       if(!fromHandle){ e.preventDefault(); return; }
       dragSrc = el;
       setTimeout(()=>el.classList.add('dragging-group'), 0);
