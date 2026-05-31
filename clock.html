@@ -35,6 +35,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:600px){
+  .topbar{padding:0 10px}
+  .topbar h1{font-size:13px}
+  .topbar-left{gap:8px}
+  .back-btn{font-size:11px;padding:4px 10px}
+  .topbar-right{gap:5px}
+  .role-chip{display:none}
+}
 </style>
 </head>
 <body>

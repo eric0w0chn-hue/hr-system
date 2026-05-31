@@ -6,19 +6,14 @@
 <title>菜價回報 — 鑫系統</title>
 <style>
 :root{
-  --bg:#F0F2F5;--surface:#FFFFFF;--surface2:#F7F8FA;
-  --border:#E4E7ED;--border2:#D0D5DD;
-  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
-  --accent:#3B5BDB;--accent-light:#EEF2FF;
-  --green:#087443;--green-bg:#E6FAF0;--green-border:#ADE8C4;
-  --red:#C0392B;--red-bg:#FEE9E9;--red-border:#FFBDBD;
-  --yellow:#C47A00;--yellow-bg:#FFF4E0;--yellow-border:#FDDFA0;
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
-.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
+.topbar{height:60px;background:var(--accent);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:100}
 .topbar-left{display:flex;align-items:center;gap:12px}
-.back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all .15s;font-family:inherit}
+.back-btn{font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:var(--surface);transition:all .15s;font-family:inherit}
 .back-btn:hover{background:var(--surface2);color:var(--text)}
 .dv{width:1px;height:20px;background:var(--border)}
 .page-title{font-size:15px;font-weight:700}
@@ -204,7 +199,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
 .cdd-drag{color:#C0C0C0;cursor:grab;font-size:12px;margin-right:6px;padding:0 2px;flex-shrink:0;user-select:none}
 .cdd-drag:active{cursor:grabbing}
-.cdd-item.drag-over{border-top:2px solid var(--accent);background:#EEF2FF}
+.cdd-item.drag-over{border-top:2px solid var(--accent);background:#F0F2F5}
 .cdd-placeholder{color:var(--text3)}
 .cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text2);position:sticky;bottom:0;background:#fff;z-index:1}
 .cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
@@ -217,6 +212,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .vb-header .vendor-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
 .vb-body{padding:12px 14px}
 @media(max-width:480px){.item-row{grid-template-columns:1fr 1fr 80px 32px}.col-header{grid-template-columns:1fr 1fr 80px 32px}}
+@media(max-width:600px){
+  .topbar{padding:0 10px}
+  .topbar h1{font-size:13px}
+  .topbar-left{gap:8px}
+  .back-btn{font-size:11px;padding:4px 10px}
+  .topbar-right{gap:5px}
+  .role-chip{display:none}
+}
 </style>
 </head>
 <body>

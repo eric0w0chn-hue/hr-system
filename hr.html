@@ -6,16 +6,14 @@
 <title>人員資訊管理系統</title>
 <style>
 :root{
-  --primary:#2D3142;--primary-dark:#1A1D23;--primary-light:#F0F2F5;--primary-border:#C8CDD8;
-  --accent:#2D3142;--accent-light:#F4F5F8;
-  --gray-bg:#ECEEF2;--card-bg:#fff;--border:#DDE1E9;
-  --text:#1A1D23;--text-2:#5A6175;--text-3:#9AA0B4
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;font-size:14px;padding:16px 16px 32px}
 .app{max-width:1140px;margin:0 auto;padding:0}
 /* 頂部 bar */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--primary);height:62px;margin-bottom:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--accent);height:62px;margin-bottom:0}
 .topbar h1{font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
 .topbar h1::before{content:'';display:inline-block;width:4px;height:20px;background:rgba(255,255,255,.4);border-radius:2px}
 .topbar-right{display:flex;flex-direction:row;align-items:center;gap:12px}
@@ -25,23 +23,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* 分頁列 */
 .tabs{display:flex;padding:0 20px;border-bottom:2px solid var(--border);background:#fff}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
-.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .tab:hover:not(.active){color:var(--text);background:#F1F5F9}
 .main{padding:18px 20px}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit}
-.toolbar input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
+.toolbar input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
 .toolbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;cursor:pointer;font-family:inherit}
 /* 按鈕 */
 .btn{font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;height:36px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s}
-.btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary-dark)}
-.btn-primary:hover{background:var(--primary-dark)}
+.btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.btn-primary:hover{background:var(--accent)}
 .btn-sm{font-size:12px;padding:4px 11px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500;font-family:inherit}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
 .btn-outline:hover{background:#F8FAFC;border-color:#94A3B8}
 /* 統計卡片 */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
-.sc{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sc{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--border);border-left:4px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .sc .sl{font-size:11px;color:var(--text-2);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
 .sc .sn{font-size:24px;font-weight:700;color:var(--text)}
 .sc .ss{font-size:11px;color:var(--text-3);margin-top:2px}
@@ -69,7 +67,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 .detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .detail-tabs::-webkit-scrollbar{display:none}
 .dtab{padding:9px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
-.dtab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.dtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .dtab:hover:not(.active){background:#F1F5F9;color:var(--text)}
 .detail-body{padding:18px 20px}
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -93,7 +91,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
 .fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
-.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
 .fr textarea{resize:vertical;min-height:60px}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
@@ -102,9 +100,9 @@ tr.data-row.selected td{background:var(--primary-light)}
 .toast.show{opacity:1;transform:translateY(0)}
 /* 可排序欄位標題 */
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
-th.sortable:hover{background:#F0F2F5;color:var(--primary)}
-th.sort-asc::after{content:' ↑';color:var(--primary)}
-th.sort-desc::after{content:' ↓';color:var(--primary)}
+th.sortable:hover{background:#F0F2F5;color:var(--accent)}
+th.sort-asc::after{content:' ↑';color:var(--accent)}
+th.sort-desc::after{content:' ↓';color:var(--accent)}
 /* 頭像上傳 */
 .av-wrap{position:relative;display:inline-flex;flex-shrink:0}
 .av-wrap .av-upload{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;font-size:14px;opacity:0}
@@ -112,8 +110,8 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .av-photo{border-radius:50%;object-fit:cover;display:block}
 .pagination{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px}
 .pg-btn{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--text-2);font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
-.pg-btn:hover:not([disabled]){background:#F0F2F5;border-color:var(--primary);color:var(--primary)}
-.pg-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600}
+.pg-btn:hover:not([disabled]){background:#F0F2F5;border-color:var(--accent);color:var(--accent)}
+.pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
 .pg-btn[disabled]{opacity:.4;cursor:not-allowed}
 .pg-info{font-size:12px;color:var(--text-2);margin:0 6px}
 
@@ -143,12 +141,12 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 .cdd-menu.open{display:block}
 .cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
 .cdd-item:hover{background:#FFF8F0}
-.cdd-item.selected{background:var(--primary-light);color:var(--primary);font-weight:500}
+.cdd-item.selected{background:var(--primary-light);color:var(--accent);font-weight:500}
 .cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
 .cdd-item .cdd-del:hover{color:#EF4444;background:#FEE2E2}
 .cdd-drag{color:#C0C0C0;cursor:grab;font-size:12px;margin-right:6px;padding:0 2px;flex-shrink:0;user-select:none}
 .cdd-drag:active{cursor:grabbing}
-.cdd-item.drag-over{border-top:2px solid var(--primary);background:#FFF8F0}
+.cdd-item.drag-over{border-top:2px solid var(--accent);background:#FFF8F0}
 .cdd-placeholder{color:var(--text-3)}
 .cdd-add{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid #F3F4F6;font-size:12px;color:var(--text-2);position:sticky;bottom:0;background:#fff;z-index:1}
 .cdd-add input{flex:1;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-family:inherit}
@@ -168,6 +166,14 @@ th.sort-desc::after{content:' ↓';color:var(--primary)}
 @media(hover:hover){.alert-tip:hover .tip-box{display:block}}
 .alert-tip.tip-open .tip-box{display:block}
 
+@media(max-width:600px){
+  .topbar{padding:0 10px}
+  .topbar h1{font-size:13px}
+  .topbar-left{gap:8px}
+  .back-btn{font-size:11px;padding:4px 10px}
+  .topbar-right{gap:5px}
+  .role-chip{display:none}
+}
 </style>
 <body>
 <div class="app">
@@ -968,7 +974,7 @@ function render() {
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid ${fi.shoe?'#86EFAC':'#FCA5A5'}">
               <div><div style="font-size:13px;font-weight:500">👟 廚師鞋補助</div><div style="font-size:12px;color:#6B7280">金額：$2,000</div></div>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.shoe?'#16A34A':'#DC2626'}">
-                <input type="checkbox" ${fi.shoe?'checked':''} onchange="toggleFixedBonus(${sel.id},'shoe',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
+                <input type="checkbox" ${fi.shoe?'checked':''} onchange="toggleFixedBonus(${sel.id},'shoe',this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
                 ${fi.shoe?'已發放':'未發放'}
               </label>
             </div>
@@ -983,7 +989,7 @@ function render() {
                 </div>
               </div>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.health?'#16A34A':'#DC2626'}">
-                <input type="checkbox" ${fi.health?'checked':''} onchange="toggleFixedBonus(${sel.id},'health',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
+                <input type="checkbox" ${fi.health?'checked':''} onchange="toggleFixedBonus(${sel.id},'health',this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
                 ${fi.health?'已發放':'未發放'}
               </label>
             </div>
@@ -993,7 +999,7 @@ function render() {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:13px;font-weight:600">🎂 生日禮金</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 的生日！金額：$1,000</div></div>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${fi.birthday?'#16A34A':'#92400E'}">
-              <input type="checkbox" ${fi.birthday?'checked':''} onchange="toggleFixedBonus(${sel.id},'birthday',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
+              <input type="checkbox" ${fi.birthday?'checked':''} onchange="toggleFixedBonus(${sel.id},'birthday',this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
               ${fi.birthday?'已發放':'未發放'}
             </label>
           </div>
@@ -1002,7 +1008,7 @@ function render() {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:13px;font-weight:600">🏆 發放久任獎金！</div><div style="font-size:12px;color:#6B7280">今天是 ${sel.name} 到職 ${yearsOnJob} 週年紀念日</div></div>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:${tenureChecked?'#16A34A':'#1D4ED8'}">
-              <input type="checkbox" ${tenureChecked?'checked':''} onchange="toggleFixedBonus(${sel.id},'${tenureKey}',this.checked)" style="width:16px;height:16px;accent-color:var(--primary)">
+              <input type="checkbox" ${tenureChecked?'checked':''} onchange="toggleFixedBonus(${sel.id},'${tenureKey}',this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
               OK
             </label>
           </div>
