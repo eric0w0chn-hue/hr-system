@@ -56,7 +56,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
 .btn-sm{font-size:12px;padding:4px 10px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
-.btn-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}.btn-green:hover{background:#C9F0DA}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
 
 /* ── Date nav ── */
@@ -92,9 +91,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* ── Badge ── */
 .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
-.badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
-.badge-pending{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
-.badge-new{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
 .badge-expired{background:#F4F5F8;color:var(--text3);border:1px solid var(--border)}
 
 /* ── Video grid ── */
@@ -535,7 +531,6 @@ function renderReports(){
   }
   list.innerHTML = filtered.map(r => {
     const canDel = cuRole==='admin'||r.submittedBy===cu.uid;
-    const canReview = cuRole==='admin'||cuRole==='consultant';
     const videos = r.videos||[];
     const expired = r.videosExpired;
     const videoHtml = videos.length
@@ -564,9 +559,6 @@ function renderReports(){
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${expired?'<span class="badge badge-expired">影片已過期</span>':''}
-          ${r.reviewed
-            ? `<span class="badge badge-done">✓ 已確認</span><span style="font-size:11px;color:var(--text3)">${esc(r.reviewedBy||'')}</span>`
-            : `<span class="badge badge-new">待確認</span>`}
         </div>
       </div>
       <div class="rc-body">
@@ -574,10 +566,7 @@ function renderReports(){
         ${r.note?`<div class="note-box"><div class="note-lbl">備註</div>${esc(r.note)}</div>`:''}
       </div>
       <div class="rc-footer">
-        <div style="display:flex;gap:6px">
-          ${canReview&&!r.reviewed?`<button class="btn-sm btn-green" onclick="markDone('${r.id}')">✓ 標記已確認</button>`:''}
-          ${canReview&&r.reviewed?`<button class="btn-sm btn-outline" style="border:1px solid var(--border)" onclick="unmark('${r.id}')">取消確認</button>`:''}
-        </div>
+        <div></div>
         <div>
           ${canDel?`<button class="btn-sm btn-danger" data-id="${r.id}" data-videos="${encodeURIComponent(JSON.stringify(videos))}" onclick="delReport(this)">刪除</button>`:''}
         </div>
@@ -755,21 +744,7 @@ window.submitReport = async function(){
   }
 };
 
-// ── Review ──
-window.markDone = async function(id){
-  try {
-    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:true, reviewedBy:cuName, reviewedAt:serverTimestamp() });
-    toast('✅ 已標記確認');
-    await loadAndRender();
-  } catch(e){ toast('操作失敗：'+e.message); }
-};
-window.unmark = async function(id){
-  try {
-    await updateDoc(doc(db,'cctv_reports',id),{ reviewed:false, reviewedBy:'', reviewedAt:null });
-    toast('已取消確認');
-    await loadAndRender();
-  } catch(e){ toast('操作失敗：'+e.message); }
-};
+
 
 // ── Delete（同時刪 Storage 影片）──
 window.delReport = async function(btn){
