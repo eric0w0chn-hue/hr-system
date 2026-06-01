@@ -311,6 +311,7 @@ const storage = getStorage(getApp());
 // ── State ──
 let cu = null, cuRole = '', cuName = '', cuLocs = [];
 let allStores = [];
+const EXCLUDE_STORES = ['梁平有限公司']; // 不納入統計的特殊店面
 let allReports = [];
 let viewDate = todayStr();
 let storeFilter = 'all';
@@ -370,7 +371,7 @@ async function loadStores(){
     // 讀取 hr/settings 的 workLocations 陣列
     const snap = await getDoc(doc(db,'hr','settings'));
     if(snap.exists() && snap.data().workLocations){
-      allStores = [...snap.data().workLocations].filter(Boolean).sort();
+      allStores = [...snap.data().workLocations].filter(s=>s&&!EXCLUDE_STORES.includes(s)).sort();
       return;
     }
   } catch {}
@@ -379,7 +380,7 @@ async function loadStores(){
     const snap = await getDocs(collection(db,'users'));
     const s = new Set();
     snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
-    allStores = [...s].sort();
+    allStores = [...s].filter(s=>!EXCLUDE_STORES.includes(s)).sort();
   } catch { allStores = ['梁鑫鵝肉飯']; }
 }
 
