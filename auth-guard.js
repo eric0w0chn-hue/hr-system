@@ -132,11 +132,18 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     }
 
     // ⑤ 通過，回傳 context
+    // ⑥ 過濾 locations：只回傳符合 locationType 的店面
+    //    admin 不過濾，功能設 'all' 也不過濾
+    const locationTypes = modules['__locationTypes__'] || {};
+    const filteredLocations = (locType && locType !== 'all' && role !== 'admin')
+      ? locations.filter(loc => (locationTypes[loc] || 'store') === locType)
+      : locations;
+
     onReady({
       user,
       uid: user.uid,
       role,
-      locations,
+      locations: filteredLocations,
       userData,
       db,
       auth,
