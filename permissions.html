@@ -363,8 +363,10 @@ window.savePermissions = async function(){
       if(!data[mod.key]) data[mod.key] = {roles:['admin']};
       if(!data[mod.key].roles.includes('admin')) data[mod.key].roles.unshift('admin');
     });
+    const order = ALL_MODULES.map(m => m.key);
     await setDoc(doc(db,'settings','permissions'), {
       modules: data,
+      order,
       updatedAt: new Date().toISOString(),
       updatedBy: _currentUid
     });
@@ -425,6 +427,19 @@ onAuthStateChanged(auth, async user => {
     const permSnap = await getDoc(doc(db,'settings','permissions'));
     if(permSnap.exists() && permSnap.data().modules){
       _permissions = deepCopy(permSnap.data().modules);
+      // 依照儲存的順序重排 ALL_MODULES
+      const savedOrder = permSnap.data().order || [];
+      if(savedOrder.length){
+        ALL_MODULES.sort((a, b) => {
+          const ai = savedOrder.indexOf(a.key);
+          const bi = savedOrder.indexOf(b.key);
+          // 有在 order 裡的照順序，沒有的排最後
+          if(ai < 0 && bi < 0) return 0;
+          if(ai < 0) return 1;
+          if(bi < 0) return -1;
+          return ai - bi;
+        });
+      }
     } else {
       // 第一次使用，套用預設值並自動寫入
       _permissions = deepCopy(DEFAULT_PERMISSIONS);
