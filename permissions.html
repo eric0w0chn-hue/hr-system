@@ -81,12 +81,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* admin 行特殊色 */
 .admin-toggle input:checked+.toggle-slider{background:var(--admin)}
 
-/* ── Quick actions ── */
-.quick-row{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
-.quick-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .1s}
-.quick-btn:hover{background:var(--surface2);border-color:var(--border2)}
-.quick-btn.danger{color:var(--red);border-color:#FCA5A5}
-.quick-btn.danger:hover{background:var(--red-bg)}
+/* ── Drag handle ── */
+.drag-handle{cursor:grab;color:var(--text3);font-size:16px;padding:0 6px;user-select:none;flex-shrink:0;opacity:.4;transition:opacity .15s}
+.drag-handle:hover{opacity:1}
+.drag-handle:active{cursor:grabbing}
+.perm-table tbody tr.drag-over{border-top:2px solid var(--accent)}
+.perm-table tbody tr.dragging{opacity:.35}
 
 /* ── Changed indicator ── */
 .changed-dot{width:6px;height:6px;border-radius:50%;background:#E24B4A;display:inline-block;margin-left:6px;vertical-align:middle;opacity:0;transition:opacity .2s}
@@ -145,16 +145,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <span class="role-pill consultant">🅒 顧問</span>
     <span class="role-pill manager">🅜 店長/副店長</span>
     <span class="role-pill employee">🅔 同仁</span>
-  </div>
-
-  <div class="quick-row">
-    <span style="font-size:12px;color:var(--text2);align-self:center;margin-right:4px">快速操作：</span>
-    <button class="quick-btn" onclick="setAll('consultant',true)">顧問 全開</button>
-    <button class="quick-btn danger" onclick="setAll('consultant',false)">顧問 全關</button>
-    <button class="quick-btn" onclick="setAll('manager',true)">店長 全開</button>
-    <button class="quick-btn danger" onclick="setAll('manager',false)">店長 全關</button>
-    <button class="quick-btn" onclick="setAll('employee',true)">同仁 全開</button>
-    <button class="quick-btn danger" onclick="setAll('employee',false)">同仁 全關</button>
   </div>
 
   <div class="perm-card">
@@ -284,9 +274,10 @@ function renderTable(){
       ? `<span class="badge-inactive">尚未開放</span>` : '';
 
     return `
-      <tr class="${!mod.active ? 'mod-inactive' : ''}">
+      <tr class="${!mod.active ? 'mod-inactive' : ''}" draggable="true" data-key="${mod.key}">
         <td>
           <div class="mod-info">
+            <span class="drag-handle" title="拖曳排序">⠿</span>
             <div class="mod-icon">${mod.icon}</div>
             <div>
               <div class="mod-name">
@@ -312,18 +303,46 @@ window.onToggle = function(key, role, checked){
   markChanged();
 };
 
-// ── 快速全開/全關 ──
-window.setAll = function(role, on){
-  ALL_MODULES.forEach(mod => {
-    if(role === 'admin') return; // admin 不動
-    if(!_permissions[mod.key]) _permissions[mod.key] = {roles:[]};
-    const roles = _permissions[mod.key].roles;
-    if(on && !roles.includes(role)) roles.push(role);
-    if(!on) _permissions[mod.key].roles = roles.filter(r => r !== role);
+
+
+
+// ── 拖曳排序 ──
+let _dragSrcKey = null;
+
+function initDrag(){
+  const tbody = document.getElementById('permBody');
+  tbody.addEventListener('dragstart', e => {
+    const tr = e.target.closest('tr[data-key]');
+    if(!tr) return;
+    _dragSrcKey = tr.dataset.key;
+    tr.classList.add('dragging');
   });
-  renderTable();
-  markChanged();
-};
+  tbody.addEventListener('dragend', e => {
+    const tr = e.target.closest('tr[data-key]');
+    if(tr) tr.classList.remove('dragging');
+    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+  });
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    const tr = e.target.closest('tr[data-key]');
+    tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+    if(tr && tr.dataset.key !== _dragSrcKey) tr.classList.add('drag-over');
+  });
+  tbody.addEventListener('drop', e => {
+    e.preventDefault();
+    const tr = e.target.closest('tr[data-key]');
+    if(!tr || !_dragSrcKey || tr.dataset.key === _dragSrcKey) return;
+    const targetKey = tr.dataset.key;
+    const srcIdx    = ALL_MODULES.findIndex(m => m.key === _dragSrcKey);
+    const tgtIdx    = ALL_MODULES.findIndex(m => m.key === targetKey);
+    if(srcIdx < 0 || tgtIdx < 0) return;
+    const [moved] = ALL_MODULES.splice(srcIdx, 1);
+    ALL_MODULES.splice(tgtIdx, 0, moved);
+    renderTable();
+    markChanged();
+    _dragSrcKey = null;
+  });
+}
 
 // ── 標記有變更 ──
 function markChanged(){
@@ -424,6 +443,7 @@ onAuthStateChanged(auth, async user => {
 
   _saved = deepCopy(_permissions);
   renderTable();
+  initDrag();
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display     = 'block';
