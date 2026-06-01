@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>權限管理 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;
+  --admin:#C47A00;--admin-bg:#FFF4E0;
+  --consultant:#6741D9;--consultant-bg:#F0EBFF;
+  --manager:#087443;--manager-bg:#E6FAF0;
+  --employee:#3B5BDB;--employee-bg:#E8EEFF;
+  --green:#087443;--green-bg:#E6FAF0;
+  --red:#C0392B;--red-bg:#FEECEB;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.back-btn{font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.topbar h1{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.save-btn{padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:#fff;color:var(--accent);transition:all .15s}
+.save-btn:hover{background:#f0f0f0}
+.save-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Main ── */
+.main{max-width:900px;margin:0 auto;padding:24px 20px}
+.page-header{margin-bottom:24px}
+.page-header h2{font-size:18px;font-weight:700;color:var(--text)}
+.page-header p{font-size:13px;color:var(--text2);margin-top:4px;line-height:1.6}
+
+/* ── Info box ── */
+.info-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:12.5px;color:#1E40AF;line-height:1.7}
+.info-box strong{font-weight:600}
+
+/* ── Role legend ── */
+.role-legend{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.role-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.role-pill.admin{background:var(--admin-bg);color:var(--admin)}
+.role-pill.consultant{background:var(--consultant-bg);color:var(--consultant)}
+.role-pill.manager{background:var(--manager-bg);color:var(--manager)}
+.role-pill.employee{background:var(--employee-bg);color:var(--employee)}
+
+/* ── Permission table card ── */
+.perm-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.perm-table{width:100%;border-collapse:collapse}
+.perm-table thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
+.perm-table thead th{padding:10px 16px;font-size:12px;font-weight:600;color:var(--text2);text-align:left;white-space:nowrap}
+.perm-table thead th.role-col{text-align:center;width:90px}
+.perm-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.perm-table tbody tr:last-child{border-bottom:none}
+.perm-table tbody tr:hover{background:var(--surface2)}
+.perm-table td{padding:12px 16px;vertical-align:middle}
+.perm-table td.role-col{text-align:center}
+
+/* ── Module info ── */
+.mod-info{display:flex;align-items:center;gap:10px}
+.mod-icon{font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:8px;flex-shrink:0}
+.mod-name{font-size:14px;font-weight:600;color:var(--text)}
+.mod-desc{font-size:11px;color:var(--text3);margin-top:2px}
+.mod-key{font-size:10px;font-family:monospace;background:var(--surface2);color:var(--text3);padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.mod-inactive{opacity:.45}
+.badge-inactive{font-size:10px;padding:2px 7px;border-radius:10px;background:#F4F5F8;color:var(--text3);border:1px solid var(--border);margin-left:6px}
+
+/* ── Toggle switch ── */
+.toggle-wrap{display:flex;justify-content:center;align-items:center}
+.toggle{position:relative;display:inline-block;width:36px;height:20px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#D1D5DB;border-radius:20px;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input:checked+.toggle-slider{background:#087443}
+.toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
+.toggle input:disabled+.toggle-slider{opacity:.4;cursor:not-allowed}
+
+/* admin 行特殊色 */
+.admin-toggle input:checked+.toggle-slider{background:var(--admin)}
+
+/* ── Quick actions ── */
+.quick-row{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.quick-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .1s}
+.quick-btn:hover{background:var(--surface2);border-color:var(--border2)}
+.quick-btn.danger{color:var(--red);border-color:#FCA5A5}
+.quick-btn.danger:hover{background:var(--red-bg)}
+
+/* ── Changed indicator ── */
+.changed-dot{width:6px;height:6px;border-radius:50%;background:#E24B4A;display:inline-block;margin-left:6px;vertical-align:middle;opacity:0;transition:opacity .2s}
+.changed-dot.show{opacity:1}
+
+/* ── Save state ── */
+.save-status{font-size:12px;color:rgba(255,255,255,.7);transition:opacity .3s}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:640px){
+  .topbar{padding:0 12px}
+  .topbar h1{font-size:13px}
+  .main{padding:16px 12px}
+  .perm-table thead th.role-col{width:68px}
+  .perm-table td{padding:10px 10px}
+  .mod-desc{display:none}
+  .perm-table thead th:first-child{display:table-cell}
+}
+</style>
+</head>
+<body>
+<div id="loading" style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text3);font-size:13px;gap:8px">
+  <div style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite"></div>
+  載入中…
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+
+<div id="app" style="display:none">
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">← 返回</button>
+    <h1>🔐 權限管理</h1>
+  </div>
+  <div class="topbar-right">
+    <span class="save-status" id="saveStatus"></span>
+    <button class="save-btn" id="saveBtn" onclick="savePermissions()" disabled>儲存變更</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-header">
+    <h2>功能權限設定</h2>
+    <p>設定每個功能模組哪些身分可以看到。變更後立即對所有帳號生效，不需要改程式碼。</p>
+  </div>
+
+  <div class="info-box">
+    💡 <strong>使用說明：</strong>開啟 = 該身分可以看到並進入此功能；關閉 = 功能入口隱藏、直接進入也會被擋回首頁。
+    管理員（admin）永遠可以看到所有功能，不可關閉。
+  </div>
+
+  <div class="role-legend">
+    <span class="role-pill admin">🅐 管理員</span>
+    <span class="role-pill consultant">🅒 顧問</span>
+    <span class="role-pill manager">🅜 店長/副店長</span>
+    <span class="role-pill employee">🅔 同仁</span>
+  </div>
+
+  <div class="quick-row">
+    <span style="font-size:12px;color:var(--text2);align-self:center;margin-right:4px">快速操作：</span>
+    <button class="quick-btn" onclick="setAll('consultant',true)">顧問 全開</button>
+    <button class="quick-btn danger" onclick="setAll('consultant',false)">顧問 全關</button>
+    <button class="quick-btn" onclick="setAll('manager',true)">店長 全開</button>
+    <button class="quick-btn danger" onclick="setAll('manager',false)">店長 全關</button>
+    <button class="quick-btn" onclick="setAll('employee',true)">同仁 全開</button>
+    <button class="quick-btn danger" onclick="setAll('employee',false)">同仁 全關</button>
+  </div>
+
+  <div class="perm-card">
+    <table class="perm-table" id="permTable">
+      <thead>
+        <tr>
+          <th>功能模組</th>
+          <th class="role-col">🅐 管理員</th>
+          <th class="role-col">🅒 顧問</th>
+          <th class="role-col">🅜 店長</th>
+          <th class="role-col">🅔 同仁</th>
+        </tr>
+      </thead>
+      <tbody id="permBody">
+        <!-- 由 JS 產生 -->
+      </tbody>
+    </table>
+  </div>
+
+  <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:right">
+    設定儲存於 Firestore <code>settings/permissions</code>，所有頁面讀取此設定
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain:"liangpinghri.firebaseapp.com",
+  projectId:"liangpinghri",
+  storageBucket:"liangpinghri.firebasestorage.app",
+  messagingSenderId:"410255807470",
+  appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── 全部功能模組定義（與 dashboard.html 同步）──
+const ALL_MODULES = [
+  {key:'hr',       icon:'👥', name:'人員資訊',   desc:'同仁基本資料、薪資歷程、特休假管理',      page:'hr.html',       active:true},
+  {key:'clock',    icon:'⏱',  name:'打卡系統',   desc:'出缺勤紀錄、即時值班、異常管理',          page:'clock.html',    active:true},
+  {key:'schedule', icon:'📅', name:'排班管理',   desc:'班表設定、輪班規則、換班申請',            page:'schedule.html', active:true},
+  {key:'price',    icon:'🥬', name:'菜價回報',   desc:'每日菜價回報、廠商比價、各店同步',        page:'price.html',    active:true},
+  {key:'device',   icon:'📱', name:'打卡審核',   desc:'裝置綁定申請審核、MAC 白名單管理',        page:'device_approval.html', active:true},
+  {key:'meeting',  icon:'📋', name:'會議紀錄',   desc:'各店會議音檔、文字紀錄、報告管理',        page:'meeting.html',  active:true},
+  {key:'salary',   icon:'💰', name:'薪資計算',   desc:'月薪結算、固定獎金、勞健保試算',          page:'salary.html',   active:false},
+  {key:'account',  icon:'🔑', name:'帳號管理',   desc:'帳號角色設定、店面權限管理、帳號停用',    page:'account.html',  active:true},
+  {key:'cctv',     icon:'📹', name:'監視器回報', desc:'每日監視器影片回報、未回報追蹤',          page:'cctv_report.html', active:true},
+  {key:'oplog',    icon:'📝', name:'操作紀錄',   desc:'系統操作日誌查詢',                        page:'oplog.html',    active:true},
+  {key:'permissions',icon:'🔐',name:'權限管理',  desc:'各功能模組的 role 可見性設定',            page:'permissions.html', active:true},
+  {key:'backup',   icon:'💾', name:'備份管理',   desc:'資料備份與還原',                          page:'backup.html',   active:true},
+];
+
+// ── 預設權限（Firestore 沒資料時的 fallback）──
+const DEFAULT_PERMISSIONS = {
+  hr:          {roles:['admin','consultant','manager']},
+  clock:       {roles:['admin','consultant','manager']},
+  schedule:    {roles:['admin','consultant','manager','employee']},
+  price:       {roles:['admin','consultant','manager']},
+  device:      {roles:['admin']},
+  meeting:     {roles:['admin','consultant','manager']},
+  salary:      {roles:['admin']},
+  account:     {roles:['admin','consultant']},
+  cctv:        {roles:['admin','consultant','manager']},
+  oplog:       {roles:['admin']},
+  permissions: {roles:['admin']},
+  backup:      {roles:['admin']},
+};
+
+const ROLES = ['admin','consultant','manager','employee'];
+const ROLE_LABELS = {admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
+
+let _permissions = {};   // 目前編輯中的狀態
+let _saved       = {};   // 上次儲存的狀態
+let _hasChanges  = false;
+
+// ── 深複製 ──
+function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+
+// ── 產生 table rows ──
+function renderTable(){
+  const tbody = document.getElementById('permBody');
+  tbody.innerHTML = ALL_MODULES.map(mod => {
+    const perm  = _permissions[mod.key] || {roles:[]};
+    const roles = perm.roles || [];
+
+    const roleCells = ROLES.map(role => {
+      const checked   = roles.includes(role);
+      const isAdmin   = (role === 'admin');
+      const adminCls  = isAdmin ? 'admin-toggle' : '';
+      // admin 永遠 checked & disabled
+      return `
+        <td class="role-col">
+          <div class="toggle-wrap">
+            <label class="toggle ${adminCls}">
+              <input type="checkbox"
+                data-key="${mod.key}"
+                data-role="${role}"
+                ${checked || isAdmin ? 'checked' : ''}
+                ${isAdmin ? 'disabled' : ''}
+                onchange="onToggle('${mod.key}','${role}',this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </td>`;
+    }).join('');
+
+    const inactiveBadge = !mod.active
+      ? `<span class="badge-inactive">尚未開放</span>` : '';
+
+    return `
+      <tr class="${!mod.active ? 'mod-inactive' : ''}">
+        <td>
+          <div class="mod-info">
+            <div class="mod-icon">${mod.icon}</div>
+            <div>
+              <div class="mod-name">
+                ${mod.name}
+                <span class="mod-key">${mod.key}</span>
+                ${inactiveBadge}
+              </div>
+              <div class="mod-desc">${mod.desc}</div>
+            </div>
+          </div>
+        </td>
+        ${roleCells}
+      </tr>`;
+  }).join('');
+}
+
+// ── toggle 單一格 ──
+window.onToggle = function(key, role, checked){
+  if(!_permissions[key]) _permissions[key] = {roles:[]};
+  const roles = _permissions[key].roles;
+  if(checked && !roles.includes(role)) roles.push(role);
+  if(!checked) _permissions[key].roles = roles.filter(r => r !== role);
+  markChanged();
+};
+
+// ── 快速全開/全關 ──
+window.setAll = function(role, on){
+  ALL_MODULES.forEach(mod => {
+    if(role === 'admin') return; // admin 不動
+    if(!_permissions[mod.key]) _permissions[mod.key] = {roles:[]};
+    const roles = _permissions[mod.key].roles;
+    if(on && !roles.includes(role)) roles.push(role);
+    if(!on) _permissions[mod.key].roles = roles.filter(r => r !== role);
+  });
+  renderTable();
+  markChanged();
+};
+
+// ── 標記有變更 ──
+function markChanged(){
+  _hasChanges = true;
+  document.getElementById('saveBtn').disabled = false;
+  document.getElementById('saveStatus').textContent = '有未儲存的變更';
+}
+
+// ── 儲存到 Firestore ──
+window.savePermissions = async function(){
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+  try{
+    // 確保 admin 在所有模組都有
+    const data = deepCopy(_permissions);
+    ALL_MODULES.forEach(mod => {
+      if(!data[mod.key]) data[mod.key] = {roles:['admin']};
+      if(!data[mod.key].roles.includes('admin')) data[mod.key].roles.unshift('admin');
+    });
+    await setDoc(doc(db,'settings','permissions'), {
+      modules: data,
+      updatedAt: new Date().toISOString(),
+      updatedBy: _currentUid
+    });
+    _saved      = deepCopy(data);
+    _permissions = deepCopy(data);
+    _hasChanges = false;
+    btn.textContent = '✓ 已儲存';
+    document.getElementById('saveStatus').textContent = '';
+    toast('✅ 權限設定已儲存');
+    renderTable();
+    setTimeout(() => {
+      btn.textContent = '儲存變更';
+    }, 2000);
+  }catch(e){
+    toast('❌ 儲存失敗：' + e.message);
+    btn.disabled = false;
+    btn.textContent = '儲存變更';
+  }
+};
+
+// ── Toast ──
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ── 離開前提醒 ──
+window.addEventListener('beforeunload', e => {
+  if(_hasChanges){ e.preventDefault(); e.returnValue = ''; }
+});
+
+// ── 目前登入 uid ──
+let _currentUid = '';
+
+// ── Auth ──
+onAuthStateChanged(auth, async user => {
+  if(!user){ window.location.href = 'index.html'; return; }
+
+  const snap = await getDoc(doc(db,'users',user.uid));
+  if(!snap.exists() || snap.data().disabled){
+    await signOut(auth);
+    window.location.href = 'index.html?disabled=1';
+    return;
+  }
+  const data = snap.data();
+  if(data.role !== 'admin'){
+    // 非 admin → 讀取 permissions 確認是否有 permissions 功能權限
+    // 預設只有 admin 可進，直接擋
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  _currentUid = user.uid;
+
+  // ── 從 Firestore 讀取目前權限設定 ──
+  try{
+    const permSnap = await getDoc(doc(db,'settings','permissions'));
+    if(permSnap.exists() && permSnap.data().modules){
+      _permissions = deepCopy(permSnap.data().modules);
+    } else {
+      // 第一次使用，套用預設值並自動寫入
+      _permissions = deepCopy(DEFAULT_PERMISSIONS);
+    }
+  }catch(e){
+    console.warn('讀取權限失敗，使用預設值', e);
+    _permissions = deepCopy(DEFAULT_PERMISSIONS);
+  }
+
+  // 確保所有模組都有 entry，且 admin 都在
+  ALL_MODULES.forEach(mod => {
+    if(!_permissions[mod.key]) _permissions[mod.key] = {roles:['admin']};
+    if(!_permissions[mod.key].roles.includes('admin'))
+      _permissions[mod.key].roles.unshift('admin');
+  });
+
+  _saved = deepCopy(_permissions);
+  renderTable();
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display     = 'block';
+});
+</script>
+</body>
+</html>
