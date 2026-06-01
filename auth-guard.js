@@ -135,9 +135,20 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     // ⑥ 過濾 locations：只回傳符合 locationType 的店面
     //    admin 不過濾，功能設 'all' 也不過濾
     const locationTypes = modules['__locationTypes__'] || {};
-    const filteredLocations = (locType && locType !== 'all' && role !== 'admin')
-      ? locations.filter(loc => (locationTypes[loc] || 'store') === locType)
-      : locations;
+    const allOfType     = modPerm?.allOfType === true;
+    let filteredLocations;
+    if (!locType || locType === 'all' || role === 'admin') {
+      // 不限制，回傳全部
+      filteredLocations = locations;
+    } else if (allOfType) {
+      // 開放看全部同類型：回傳 locationTypes 裡所有符合類型的店面
+      filteredLocations = Object.entries(locationTypes)
+        .filter(([, t]) => t === locType)
+        .map(([loc]) => loc);
+    } else {
+      // 預設：只回傳 user 自己 locations 裡符合類型的店面
+      filteredLocations = locations.filter(loc => (locationTypes[loc] || 'store') === locType);
+    }
 
     onReady({
       user,

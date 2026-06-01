@@ -98,9 +98,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .loc-badge-store{background:#E6FAF0;color:#087443;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600}
 
 /* ── 適用店面欄 ── */
-.loc-type-col{text-align:center;width:90px}
+.loc-type-col{text-align:center;width:140px}
 .loc-type-sel-sm{font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-family:inherit;cursor:pointer;outline:none;width:72px}
 .loc-type-sel-sm:focus{border-color:var(--accent)}
+.all-type-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.all-type-chk{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);cursor:pointer;white-space:nowrap}
+.all-type-chk input{cursor:pointer;accent-color:var(--accent)}
 
 /* ── Drag handle ── */
 .drag-handle{cursor:grab;color:var(--text3);font-size:16px;padding:0 6px;user-select:none;flex-shrink:0;opacity:.4;transition:opacity .15s}
@@ -179,7 +182,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
             <th class="role-col">🅒 顧問</th>
             <th class="role-col">🅜 店長</th>
             <th class="role-col">🅔 同仁</th>
-            <th class="loc-type-col">適用店面</th>
+            <th class="loc-type-col">適用店面／全開</th>
           </tr>
         </thead>
         <tbody id="permBody">
@@ -343,13 +346,24 @@ function renderTable(){
         </td>`;
     }).join('');
     const curLocType = (_permissions[mod.key]||{}).locationType || 'all';
+    const curAllType  = (_permissions[mod.key]||{}).allOfType === true;
+    const chkDisabled = (curLocType === 'all') ? 'disabled' : '';
     const locTypeCell = `
       <td class="loc-type-col">
-        <select class="loc-type-sel-sm" onchange="onLocType('${mod.key}',this.value)">
-          <option value="all"   ${curLocType==='all'    ?'selected':''}>全部</option>
-          <option value="central" ${curLocType==='central'?'selected':''}>央廚</option>
-          <option value="store"   ${curLocType==='store'  ?'selected':''}>門市</option>
-        </select>
+        <div class="all-type-wrap">
+          <select class="loc-type-sel-sm" onchange="onLocType('${mod.key}',this.value)">
+            <option value="all"     ${curLocType==='all'    ?'selected':''}>全部</option>
+            <option value="central" ${curLocType==='central'?'selected':''}>央廚</option>
+            <option value="store"   ${curLocType==='store'  ?'selected':''}>門市</option>
+          </select>
+          <label class="all-type-chk" title="開啟後可看到全部同類型店面的資料">
+            <input type="checkbox"
+              ${curAllType ? 'checked' : ''}
+              ${chkDisabled}
+              onchange="onAllOfType('${mod.key}',this.checked)">
+            看全部同類型
+          </label>
+        </div>
       </td>`;
 
     const inactiveBadge = !mod.active
@@ -393,6 +407,14 @@ window.onToggle = function(key, role, checked){
 window.onLocType = function(key, val){
   if(!_permissions[key]) _permissions[key] = {roles:[]};
   _permissions[key].locationType = val;
+  if(val === 'all') _permissions[key].allOfType = false;
+  markChanged();
+  renderTable(); // 更新 checkbox disabled 狀態
+};
+
+window.onAllOfType = function(key, checked){
+  if(!_permissions[key]) _permissions[key] = {roles:[]};
+  _permissions[key].allOfType = checked;
   markChanged();
 };
 
