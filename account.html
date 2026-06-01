@@ -188,14 +188,8 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+import { authGuard, db } from './auth-guard.js';
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const PAGE_SIZE = 10;
 let allUsers = [];
@@ -400,18 +394,10 @@ function showToast(msg){
 }
 
 // auth
-onAuthStateChanged(auth, async user=>{
-  if(!user){window.location.href='/hr-system/index.html';return;}
+authGuard('account', async ({ user, role, uid }) => {
+  currentRole = role;
+  currentUid  = uid;
   try{
-    const selfSnap = await getDoc(doc(db,'users',user.uid));
-    if(selfSnap.exists()){
-      const d=selfSnap.data();
-      if(d.role!=='admin'&&d.role!=='consultant'){
-        window.location.href='/hr-system/dashboard.html';return;
-      }
-      currentRole=d.role;
-    }
-    currentUid=user.uid;
     // 載入所有使用者
     const snap=await getDocs(collection(db,'users'));
     allUsers=[];
