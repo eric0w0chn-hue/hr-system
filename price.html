@@ -304,14 +304,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, getDocs, collection, query, where, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const fc={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
-const app=initializeApp(fc);
-const auth=getAuth(app);
-const db=getFirestore(app);
+import { authGuard, db } from './auth-guard.js';
+import { doc, getDoc, setDoc, getDocs, collection, query, where, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let cu=null,cRole='',cName='',cStore='';
 let allStores=[],visibleStores=[],allReports=[],todayStr='';
@@ -725,18 +719,12 @@ window.saveVisibility=async function(){
 };
 
 // ══ Auth ══
-onAuthStateChanged(auth,async user=>{
-  if(!user){window.location.href='/hr-system/index.html';return;}
+authGuard('price',async({user,role,locations,userData})=>{
   try{
-    const snap=await getDoc(doc(db,'users',user.uid));
-    if(!snap.exists()||snap.data().disabled){window.location.href='/hr-system/index.html';return;}
-    const data=snap.data();
-    cRole=data.role||'employee';
-    cName=data.name||'—';
-    // 帳號管理存的是 locations 陣列，取第一個作為主要店面
-    const locs=data.locations||[];
-    cStore=locs.length?locs[0]:(data.workLocation||'');
-    if(cRole==='employee'){window.location.href='/hr-system/dashboard.html';return;}
+    cRole=role;
+    cName=userData.name||'—';
+    const locs=locations;
+    cStore=locs.length?locs[0]:(userData.workLocation||'');
     cu=user;
     todayStr=twToday();
     document.getElementById('todayLabel').textContent=fmtDate(todayStr);
