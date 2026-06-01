@@ -541,7 +541,7 @@ window.loadReports=async function(){
     const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',dateVal)));
     // 所有管理職都能看到所有可見店面（不限自己的店）
     allReports=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(r=>cRole==='admin'||visibleStores.includes(r.store));
+      .filter(r=>visibleStores.includes(r.store));
 
     const stores=[...new Set(allReports.map(r=>r.store))].filter(Boolean).sort();
     const tabsEl=document.getElementById('storeTabs');
@@ -628,7 +628,7 @@ window.deleteReport=async function(id){
 // ══ 今日品項摘要 ══
 async function loadSummary(){
   const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',todayStr)));
-  const reports=snap.docs.map(d=>d.data()).filter(r=>cRole==='admin'||visibleStores.includes(r.store));
+  const reports=snap.docs.map(d=>d.data()).filter(r=>visibleStores.includes(r.store));
   const itemMap={};
   reports.forEach(r=>(r.items||[]).forEach(i=>{
     if(!itemMap[i.item]) itemMap[i.item]={};
@@ -708,7 +708,7 @@ authGuard('price',async({user,role,locations,userData})=>{
     }
 
     // 可見店面：admin 看全部，其他 role 只看 auth-guard 過濾後的 locations
-    visibleStores = (cRole==='admin') ? [...allStores] : (locs.length ? [...locs] : [...allStores]);
+    visibleStores = locs.length ? [...locs] : [...allStores];
 
     await loadOptions();
     addVendorBlock();
