@@ -321,10 +321,11 @@ const ALL_MODULES=[
   {key:'meeting', icon:'📋', name:'會議紀錄',  desc:'各店會議音檔、文字紀錄、報告文件管理與備份',   page:'meeting.html',active:true},
   {key:'salary',  icon:'💰', name:'薪資計算',  desc:'月薪結算、固定獎金、勞健保自負額試算',         page:'salary.html',active:false,adminOnly:true},
   {key:'account', icon:'🔑', name:'帳號管理',  desc:'帳號角色設定、店面權限管理、帳號停用',         page:'account.html',active:true,adminOnly:true},
-  {key:'cctv',    icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
+  {key:'cctv',       icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
+  {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv'],
+  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv','permissions'],
   consultant:['hr','schedule','price','meeting','cctv'],
   manager:  ['hr','schedule','price','meeting','cctv'],
   employee: ['schedule']
