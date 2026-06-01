@@ -197,7 +197,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
 .topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0}
 .role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap}
-@media(max-width:600px){.topbar{padding:0 12px;gap:6px}.topbar h1{font-size:14px}.back-btn{font-size:11px;padding:4px 9px}}
+@media(max-width:600px){
+  .topbar{padding:0 10px;gap:6px}
+  .topbar h1{font-size:14px}
+  .back-btn{font-size:11px;padding:4px 9px}
+  /* 手机版隐藏次要资讯，标题优先完整显示 */
+  #todayChip,#todayLabel,#updateTime,#storagePill,.storage-pill{display:none}
+  .role-chip{font-size:10px;padding:2px 8px;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+}
 /* ===== 標準 topbar 結束 ===== */
 </style>
 </head>

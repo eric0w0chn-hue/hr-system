@@ -30,6 +30,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .filter-bar input,.filter-bar select{font-size:13px;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s;outline:none}
 .filter-bar input:focus,.filter-bar select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
 .filter-bar input{flex:1;min-width:160px}
+.filter-bar input[type=date]{flex:0 1 auto;min-width:150px;width:auto;-webkit-appearance:none;appearance:none;min-height:36px;line-height:1.4;text-align:left}
+.filter-bar input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .btn{font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;border:1px solid var(--border)}
 .btn-outline{background:var(--surface);color:var(--text2)}
 .btn-outline:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
@@ -92,6 +94,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .main{padding:16px}
   .filter-bar{flex-direction:column}
   .filter-bar input{width:100%}
+  .filter-bar input[type=date]{width:100%;flex:1 1 100%}
   th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5){display:none}
 }
 /* ===== 標準 topbar（統一規格）===== */
