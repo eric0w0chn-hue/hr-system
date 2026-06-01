@@ -191,7 +191,7 @@ function renderTable(){
       <td style="font-size:12px">${r.workLocation||'—'}</td>
       <td style="font-weight:500">${r.empName||'—'}</td>
       <td class="mono">${r.clockIn||'—'}</td>
-      <td class="mono">${r.clockOut||<span style="color:#C47A00">尚未打卡</span>}</td>
+      <td class="mono">${r.clockOut||'<span style="color:#C47A00">尚未打卡</span>'}</td>
       <td><span class="badge ${statusBadge[s]||'b-normal'}">${statusLabel[s]||s}</span></td>
       <td style="font-size:12px;color:var(--text3)">${r.note||'—'}</td>
     </tr>`;
