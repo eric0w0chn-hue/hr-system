@@ -203,7 +203,10 @@ const db   = getFirestore(app);
 // ── 全部功能模組定義（與 dashboard.html 同步）──
 const ALL_MODULES = [
   {key:'hr',       icon:'👥', name:'人員資訊',   desc:'同仁基本資料、薪資歷程、特休假管理',      page:'hr.html',       active:true},
-  {key:'clock',    icon:'⏱',  name:'打卡系統',   desc:'出缺勤紀錄、即時值班、異常管理',          page:'clock.html',    active:true},
+  {key:'clock',           icon:'⏱',  name:'打卡系統',       desc:'出缺勤紀錄、即時值班、異常管理',        page:'clock.html',           active:true},
+  {key:'clock_attendance', icon:'📋', name:'出缺勤紀錄',     desc:'查詢同仁打卡記錄、出勤狀況、匯出報表',  page:'attendance.html',      active:true},
+  {key:'clock_anomaly',    icon:'⚠️', name:'上下班異常排除', desc:'未打卡異常列表，批次排除與管理員回報',  page:'anomaly.html',         active:true},
+  {key:'clock_anomaly_query',icon:'🔍',name:'異常查詢',      desc:'歷史異常記錄查詢，依店面、人員、日期篩選',page:'anomaly_query.html',  active:true},
   {key:'schedule', icon:'📅', name:'排班管理',   desc:'班表設定、輪班規則、換班申請',            page:'schedule.html', active:true},
   {key:'price',    icon:'🥬', name:'菜價回報',   desc:'每日菜價回報、廠商比價、各店同步',        page:'price.html',    active:true},
   {key:'device',   icon:'📱', name:'打卡審核',   desc:'裝置綁定申請審核、MAC 白名單管理',        page:'device_approval.html', active:true},
@@ -219,7 +222,10 @@ const ALL_MODULES = [
 // ── 預設權限（Firestore 沒資料時的 fallback）──
 const DEFAULT_PERMISSIONS = {
   hr:          {roles:['admin','consultant','manager']},
-  clock:       {roles:['admin','consultant','manager']},
+  clock:                {roles:['admin','consultant','manager']},
+  clock_attendance:     {roles:['admin','consultant','manager']},
+  clock_anomaly:        {roles:['admin','consultant','manager']},
+  clock_anomaly_query:  {roles:['admin','consultant','manager']},
   schedule:    {roles:['admin','consultant','manager','employee']},
   price:       {roles:['admin','consultant','manager']},
   device:      {roles:['admin']},

@@ -90,13 +90,8 @@ tr:hover td{background:#FAFBFC}
   </div>
 </div>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
+import { authGuard, db } from './auth-guard.js';
+import { doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 let workLocations=[],allEmployees=[],currentLocations=[],currentRole='';
 let searchResults=[],currentPage=1;
 const PAGE_SIZE=20;
@@ -180,11 +175,8 @@ window.doExport=function(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='異常查詢.csv';a.click();URL.revokeObjectURL(url);
 };
 
-onAuthStateChanged(auth, async user=>{
-  if(!user){window.location.href='/hr-system/index.html';return;}
-  const snap=await getDoc(doc(db,'users',user.uid));
-  if(!snap.exists()||snap.data().disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
-  const data=snap.data(); currentRole=data.role||'employee'; currentLocations=data.locations||[];
+authGuard('clock_anomaly_query', async ({ role, locations }) => {
+  currentRole=role; currentLocations=locations;
   const [s1,s2]=await Promise.all([getDoc(doc(db,'hr','settings')),getDoc(doc(db,'hr','employees'))]);
   workLocations=s1.exists()?(s1.data().workLocations||[]):[];
   allEmployees=s2.exists()?(s2.data().list||[]):[];

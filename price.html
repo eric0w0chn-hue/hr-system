@@ -284,20 +284,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       </div>
     </div>
 
-      <!-- Admin 可見性設定（預設收起）-->
-      <div id="adminSection" style="display:none;margin-top:0">
-        <div class="card">
-          <div class="card-header" style="cursor:pointer" onclick="toggleVisSection()">
-            <span class="card-title">可見店面設定</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" id="saveVisBtn"
-                onclick="event.stopPropagation();saveVisibility()" hidden>儲存</button>
-              <span id="visSectionArrow" style="font-size:12px;color:var(--text3)">▸ 展開</span>
-            </div>
-          </div>
-          <div id="visibilityList" style="display:none;padding:0 18px 12px"></div>
-        </div>
-      </div>
+
   </div>
 </div>
 
@@ -682,41 +669,7 @@ async function loadOptions(){
 }
 
 // ══ Admin 可見性設定 ══
-async function loadVisibility(){
-  const s=await getDoc(doc(db,'price_settings','visibility'));
-  const data=s.exists()?s.data():{};
-  const el=document.getElementById('visibilityList');
-  if(!allStores.length){el.innerHTML='<div class="summary-empty">無店面資料</div>';return;}
-  el.innerHTML=allStores.map(s=>{
-    const on=data[s]!==false;
-    return`<div class="vis-row">
-      <span>${s}</span>
-      <label class="toggle">
-        <input type="checkbox" id="vis-${s.replace(/\s/g,'_')}" ${on?'checked':''}>
-        <span class="tg-sl"></span><span class="tg-kn"></span>
-      </label>
-    </div>`;
-  }).join('');
-}
 
-window.toggleVisSection=function(){
-  const list=document.getElementById('visibilityList');
-  const arrow=document.getElementById('visSectionArrow');
-  const btn=document.getElementById('saveVisBtn');
-  const open=list.style.display!=='none';
-  list.style.display=open?'none':'block';
-  arrow.textContent=open?'▸ 展開':'▾ 收起';
-  if(btn) btn.hidden=open;
-};
-
-window.saveVisibility=async function(){
-  const data={};
-  allStores.forEach(s=>{data[s]=document.getElementById('vis-'+s.replace(/\s/g,'_'))?.checked??true;});
-  await setDoc(doc(db,'price_settings','visibility'),data);
-  visibleStores=allStores.filter(s=>data[s]!==false);
-  toast('✅ 設定已儲存');
-  await loadReports();
-};
 
 // ══ Auth ══
 authGuard('price',async({user,role,locations,userData})=>{
@@ -755,17 +708,10 @@ authGuard('price',async({user,role,locations,userData})=>{
       if(myLocs.length===1) cStore=myLocs[0];
     }
 
-    // 載入可見設定
-    const visSnap=await getDoc(doc(db,'price_settings','visibility'));
-    const visData=visSnap.exists()?visSnap.data():{};
-    visibleStores=allStores.filter(s=>visData[s]!==false);
-    if(!visibleStores.length) visibleStores=[...allStores];
+    // 可見店面 = 全部店面（統一由 permissions.html 控制可見身分）
+    visibleStores=[...allStores];
 
-    // Admin
-    if(cRole==='admin'){
-      document.getElementById('adminSection').style.display='block';
-      await loadVisibility();
-    }
+
 
     await loadOptions();
     addVendorBlock();
