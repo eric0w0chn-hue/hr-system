@@ -133,11 +133,11 @@ export async function authGuard(moduleKey, onReady, options = {}) {
 
     // ⑤ 通過，回傳 context
     // ⑥ 過濾 locations：只回傳符合 locationType 的店面
-    //    admin 不過濾，功能設 'all' 也不過濾
+    //    功能設 'all' 不過濾；admin 也依 locationType 過濾（但不影響能否進入）
     const locationTypes = modules['__locationTypes__'] || {};
     const allOfType     = modPerm?.allOfType === true;
     let filteredLocations;
-    if (!locType || locType === 'all' || role === 'admin') {
+    if (!locType || locType === 'all') {
       // 不限制，回傳全部
       filteredLocations = locations;
     } else if (allOfType) {
