@@ -695,19 +695,15 @@ authGuard('price',async({user,role,locations,userData})=>{
       fStore.innerHTML=`<option value="${cStore}">${cStore||'未設定店面'}</option>`;
       storeRow.style.display='none';
       document.getElementById('myStoreLabel').textContent=cStore||'';
-    } else if(cRole==='admin'){
-      // admin：顯示全部店面
-      fStore.innerHTML=allStores.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
-      storeRow.style.display='flex';
     } else {
-      // consultant：只顯示自己管理的店面（locations 陣列）
-      const myLocs=locs.length?locs:allStores;
-      fStore.innerHTML=myLocs.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
-      storeRow.style.display = myLocs.length>1 ? 'flex' : 'none';
-      if(myLocs.length===1) cStore=myLocs[0];
+      // admin / consultant：顯示 auth-guard 過濾後的店面（locs）
+      const myLocs = locs.length ? locs : allStores;
+      fStore.innerHTML = myLocs.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
+      storeRow.style.display = myLocs.length > 1 ? 'flex' : 'none';
+      if(myLocs.length === 1) cStore = myLocs[0];
     }
 
-    // 可見店面：admin 看全部，其他 role 只看 auth-guard 過濾後的 locations
+    // 可見店面：統一用 auth-guard 過濾後的 locs
     visibleStores = locs.length ? [...locs] : [...allStores];
 
     await loadOptions();
