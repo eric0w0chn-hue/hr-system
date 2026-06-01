@@ -43,7 +43,13 @@ async function fetchPermissions() {
   if (_permFetch) return _permFetch;   // 避免同時發多個請求
 
   _permFetch = getDoc(doc(db, 'settings', 'permissions')).then(snap => {
-    _permCache = snap.exists() ? (snap.data().modules || {}) : {};
+    if(snap.exists()){
+      _permCache = snap.data().modules || {};
+      // 把 locationTypes 附掛在 __locationTypes__ key 供判斷用
+      _permCache['__locationTypes__'] = snap.data().locationTypes || {};
+    } else {
+      _permCache = {};
+    }
     _permFetch = null;
     return _permCache;
   }).catch(() => {
@@ -101,10 +107,28 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     // ④ 判斷權限
     //    - Firestore 無此 key → 預設只有 admin 可進
     //    - roles 為空陣列 → 視為不限制（全部可進）
-    const allowed = modules[moduleKey]?.roles;
+    const modPerm  = modules[moduleKey];
+    const allowed  = modPerm?.roles;
     if (allowed !== undefined && allowed.length > 0 && !allowed.includes(role)) {
       window.location.href = noPermRedirect;
       return;
+    }
+
+    // ⑤ 判斷店面類型限制（locationType: 'all' | 'central' | 'store'）
+    //    admin 不受店面類型限制
+    const locType = modPerm?.locationType;
+    if (locType && locType !== 'all' && role !== 'admin') {
+      // 讀取 locationTypes 設定
+      const locationTypes = modules['__locationTypes__'] || {};
+      // 取得該 user 負責的店面中，是否有符合類型的店
+      const hasMatch = locations.some(loc => {
+        const t = locationTypes[loc] || 'store';
+        return t === locType;
+      });
+      if (!hasMatch) {
+        window.location.href = noPermRedirect;
+        return;
+      }
     }
 
     // ⑤ 通過，回傳 context
