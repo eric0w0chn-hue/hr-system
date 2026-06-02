@@ -496,8 +496,8 @@ function renderStats(){ /* 已由 overview 取代 */ }
 function renderMissing(){
   if(cuRole!=='admin'&&cuRole!=='consultant') return;
   const reported = new Set(allReports.map(r=>r.store));
-  // 顧問有指定店面時，只顯示負責範圍內的未回報
-  const scopeStores = (cuRole==='consultant'&&cuLocs.length) ? cuLocs : allStores;
+  // 未回報範圍：admin 看全部店面，其他 role 只看自己負責的
+  const scopeStores = (cuRole==='admin') ? allStores : (cuLocs.length ? cuLocs : allStores);
   const missing = scopeStores.filter(s=>!reported.has(s));
   const banner = document.getElementById('missingBanner');
   const today = todayStr();
