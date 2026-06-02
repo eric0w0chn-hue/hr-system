@@ -192,7 +192,7 @@ function renderList(){
   document.getElementById('statCount').textContent = backups.length;
   document.getElementById('statLatest').textContent = backups[0]?.date || '—';
   document.getElementById('statOldest').textContent = backups[backups.length-1]?.date || '—';
-  if(backups[0]) document.getElementById('lastBackupInfo').textContent = `最後備份：${fmtTime(backups[0].createdAt)}`;
+
 
   if(!backups.length){
     document.getElementById('backupList').innerHTML='<div class="empty-state">尚無備份記錄<br>點右上角「立即備份」建立第一筆</div>';
