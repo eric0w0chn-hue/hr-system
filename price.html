@@ -681,8 +681,12 @@ authGuard('price',async({user,role,locations,userData})=>{
   try{
     cRole=role;
     cName=userData.name||'—';
-    const locs=locations;
-    cStore=locs.length?locs[0]:(userData.workLocation||'');
+    const locs=locations; // authGuard 過濾後（供 admin/consultant 用）
+    // manager 用原始 userData.locations[0]，避免 authGuard 過濾後順序不固定
+    const rawLocs=userData.locations||(userData.workLocation?[userData.workLocation]:[]);
+    cStore=role==='manager'
+      ?(rawLocs.length?rawLocs[0]:'')
+      :(locs.length?locs[0]:(userData.workLocation||''));
     cu=user;
     todayStr=twToday();
     document.getElementById('todayLabel').textContent=fmtDate(todayStr);
@@ -693,11 +697,10 @@ authGuard('price',async({user,role,locations,userData})=>{
     const hrSnap=await getDoc(doc(db,'hr','settings'));
     allStores=(hrSnap.exists()?hrSnap.data().workLocations||[]:[] ).filter(Boolean);
 
-    // 問題3：店面選擇器 — 店長/副店長不需選，admin/consultant 顯示全部
+    // 店面選擇器 — 店長不需選，admin/consultant 顯示全部
     const fStore=document.getElementById('f-store');
     const storeRow=document.getElementById('storeRow');
     if(cRole==='manager'){
-      // 店長：直接用 cStore（已從 locations[0] 取得）
       fStore.innerHTML=`<option value="${cStore}">${cStore||'未設定店面'}</option>`;
       storeRow.style.display='none';
       document.getElementById('myStoreLabel').textContent=cStore||'';
