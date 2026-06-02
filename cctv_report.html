@@ -435,7 +435,7 @@ async function loadOverview(){
     snap.docs.forEach(d=>{
       const r = d.data();
       if(!overviewData[r.date]) overviewData[r.date] = new Set();
-      overviewData[r.date].add(r.store);
+      overviewData[r.date].add(normStore(r.store));
     });
 
     renderOverview(dates);
@@ -449,8 +449,8 @@ function renderOverview(dates){
 
   body.innerHTML = dates.map(dateStr=>{
     const reported = overviewData[dateStr] || new Set();
-    const done = allStores.filter(s=>reported.has(s));
-    const miss = allStores.filter(s=>!reported.has(s));
+    const done = allStores.filter(s=>reported.has(normStore(s)));
+    const miss = allStores.filter(s=>!reported.has(normStore(s)));
     const [y,m,d] = dateStr.split('-');
     const w = weekdays[new Date(dateStr+'T00:00:00').getDay()];
     const isToday = dateStr===today;
@@ -493,12 +493,19 @@ window.jumpToDate = function(dateStr){
 
 function renderStats(){ /* 已由 overview 取代 */ }
 
+// 正規化店面名稱：把常見異體字統一，避免比對失敗
+function normStore(s){
+  return (s||'').trim()
+    .replace(/鋪/g,'舖')   // 鋪↔舖
+    .replace(/蔡/g,'蔡');  // 預留其他異體字
+}
+
 function renderMissing(){
   if(cuRole!=='admin'&&cuRole!=='consultant') return;
-  const reported = new Set(allReports.map(r=>r.store));
+  const reported = new Set(allReports.map(r=>normStore(r.store)));
   // 未回報範圍：admin 看全部店面，其他 role 只看自己負責的
   const scopeStores = (cuRole==='admin') ? allStores : (cuLocs.length ? cuLocs : allStores);
-  const missing = scopeStores.filter(s=>!reported.has(s));
+  const missing = scopeStores.filter(s=>!reported.has(normStore(s)));
   const banner = document.getElementById('missingBanner');
   const today = todayStr();
   if(missing.length){
