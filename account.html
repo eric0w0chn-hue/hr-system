@@ -366,9 +366,24 @@ window.toggleDisable = async function(uid, disable){
 };
 
 window.delUser = async function(uid){
-  if(!confirm('確定要刪除此帳號？此操作無法復原。')) return;
+  if(!confirm('確定要刪除此帳號？此操作無法復原，hr 員工資料也將一併移除。')) return;
   try{
+    // 1. 刪除 Firestore users 文件
     await deleteDoc(doc(db,'users',uid));
+
+    // 2. 刪除 hr 員工資料（依 uid 找到對應筆）
+    try{
+      const hrSnap = await getDoc(doc(db,'hr','employees'));
+      if(hrSnap.exists()){
+        const data = hrSnap.data();
+        const employees = data.list || [];
+        const filtered = employees.filter(e => e.uid !== uid);
+        if(filtered.length !== employees.length){
+          await updateDoc(doc(db,'hr','employees'), {list: filtered});
+        }
+      }
+    }catch(e){ console.warn('hr 資料刪除失敗', e); }
+
     allUsers = allUsers.filter(x=>x.uid!==uid);
     updateStats(); renderList();
     showToast('✅ 已刪除');
