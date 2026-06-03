@@ -218,11 +218,10 @@ function buildStoreBar() {
   if (_locations.length <= 1) return;
   const bar = document.getElementById('storeBar');
   bar.style.display = 'flex';
-  // "全部" button
   const allBtn = makeStoreBtn('全部', null);
   bar.appendChild(allBtn);
   _locations.forEach(loc => {
-    bar.appendChild(makeStoreBtn(loc.name, loc.id || loc.name));
+    bar.appendChild(makeStoreBtn(loc, loc));
   });
 }
 
@@ -257,7 +256,7 @@ function renderEntries() {
   const content = document.getElementById('content');
 
   // filter by accessible stores
-  const accessibleIds = new Set(_locations.map(l => l.id || l.name));
+  const accessibleIds = new Set(_locations);
   let list = _entries.filter(e => accessibleIds.has(e.store));
 
   // filter by selected store
@@ -279,7 +278,7 @@ function renderEntries() {
 
   let html = '';
   Object.entries(grouped).forEach(([storeId, items]) => {
-    const storeName = (_locations.find(l => (l.id || l.name) === storeId) || {}).name || storeId;
+    const storeName = storeId;
     // sort by updatedAt desc
     items.sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
     html += `
@@ -402,9 +401,8 @@ window.toggleModalPw = function() {
 
 function populateStoreSelect(selectedStore) {
   const sel = document.getElementById('fStore');
-  sel.innerHTML = _locations.map(l => {
-    const id = l.id || l.name;
-    return `<option value="${esc(id)}" ${id === selectedStore ? 'selected' : ''}>${esc(l.name)}</option>`;
+  sel.innerHTML = _locations.map(loc => {
+    return `<option value="${esc(loc)}" ${loc === selectedStore ? 'selected' : ''}>${esc(loc)}</option>`;
   }).join('');
 }
 
