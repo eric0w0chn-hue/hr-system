@@ -19,10 +19,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
 .page-title{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
 .main{max-width:900px;margin:0 auto;padding:24px 20px;display:block}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
-.card-header{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between}
 .card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
-.card-body{padding:16px 18px}
+.card-body{padding:18px 20px}
 
 /* 表單元素 */
 .fr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -145,53 +145,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .main{padding:12px}
   .topbar{padding:0 14px;height:52px}
   .page-title{font-size:14px}
+  .card{border-radius:12px;margin-bottom:12px}
+  .card-header{padding:12px 14px}
+  .card-body{padding:14px}
+
+  /* store label */
+  #myStoreLabel{font-size:11px !important}
 
   /* 廠商區塊 */
   .vendor-block{border-radius:10px;margin-bottom:10px}
-  .vb-header{padding:8px 10px}
-  .vb-body{padding:10px}
+  .vb-header{padding:10px 12px}
+  .vb-body{padding:10px 12px}
 
-  /* 品項列：手機改成兩行排列 */
+  /* 品項列：手機卡片式 */
   .col-header{display:none}
   .item-row{
-    display:flex;flex-direction:column;gap:6px;
-    padding:8px;background:var(--surface2);border-radius:8px;
-    margin-bottom:6px;position:relative;
+    display:flex;flex-direction:column;gap:8px;
+    padding:12px;background:var(--surface2);border-radius:10px;
+    border:1px solid var(--border);
+    margin-bottom:8px;position:relative;
   }
-  .item-row > div:first-child{ width:100% }
-  .item-row .cdd-trigger{width:100%;font-size:13px}
-  .unit-row{display:flex;gap:6px;align-items:center}
-  .unit-row input[type=number]{flex:1;min-width:0}
-  .unit-row select{flex:1;min-width:0}
-  .item-row .price-inp{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;text-align:left}
-  .item-row .del-row-btn{position:absolute;top:8px;right:8px}
+  .item-row > div:first-child{width:100%}
+  .item-row .cdd-trigger{width:100%;font-size:14px;min-height:44px}
+  .unit-row{display:flex;gap:8px;align-items:center}
+  .unit-row input[type=number]{flex:1;min-width:0;min-height:44px;font-size:14px}
+  .unit-row select{flex:1;min-width:0;min-height:44px;font-size:14px}
+  .item-row .price-inp{width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;text-align:left;min-height:44px}
+  .item-row .del-row-btn{position:absolute;top:10px;right:10px;width:36px;height:36px}
+  .item-row::before{content:'品項';font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.3px}
 
-  /* 品項欄標籤 */
-  .item-row::before{content:'品項';font-size:11px;color:var(--text3);font-weight:600}
+  /* 廠商 input */
+  .vb-header .vendor-wrap input{min-height:44px;font-size:14px}
 
-  /* cdd 按鈕文字不換行 */
+  /* cdd */
   .cdd-trigger{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cdd-trigger span:first-child{overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 16px);display:inline-block;vertical-align:middle}
+  .cdd-trigger span:first-child{overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 20px);display:inline-block;vertical-align:middle}
 
   /* 表單欄位 */
-  .fr{flex-wrap:wrap}
-  .fr label{min-width:auto}
-  .fr .inp,.fr select{font-size:14px}
+  .fr{gap:10px;margin-bottom:12px}
+  .fr label{min-width:36px;font-size:12px}
+  .fr .inp,.fr select{font-size:14px;min-height:44px}
 
-  /* 回報表 */
-  .report-card-header{flex-wrap:wrap;gap:4px}
-  .report-table th,.report-table td{padding:6px 8px;font-size:12px}
-  .store-tabs{gap:4px}
-  .store-tab{font-size:11px;padding:3px 10px}
+  /* 新增廠商 */
+  .add-item-btn{min-height:48px;font-size:14px;border-radius:10px;margin-bottom:16px}
 
-  /* submit 按鈕 */
-  .submit-row{flex-wrap:wrap}
-  .submit-row .btn{flex:1;justify-content:center}
+  /* 清除/送出 */
+  .submit-row{flex-wrap:wrap;gap:10px;padding-top:14px;margin-top:14px}
+  .submit-row .btn{flex:1;justify-content:center;min-height:48px;font-size:14px;border-radius:10px}
+
+  /* 歷史區 */
+  .report-card-header{flex-wrap:wrap;gap:6px;padding:10px 12px}
+  .report-table th,.report-table td{padding:8px 10px;font-size:12px}
+  .store-tabs{gap:5px;margin-bottom:10px}
+  .store-tab{font-size:12px;padding:5px 12px;min-height:34px;display:inline-flex;align-items:center}
+
+  /* missing banner */
+  .missing-title{font-size:12px}
+  .missing-tag{font-size:12px;padding:4px 10px;min-height:30px;display:inline-flex;align-items:center}
 }
 
 @media(max-width:480px){
-  .item-row{padding:10px 10px 10px 10px}
+  .main{padding:10px}
+  .card-header{padding:11px 12px}
+  .card-body{padding:12px}
+  .item-row{padding:12px}
   .item-row .del-row-btn{top:10px;right:10px}
+  .submit-row .btn{font-size:15px}
 }
 /* cdd 下拉元件（比照人員管理）*/
 .cdd{position:relative;display:inline-block;width:100%}
@@ -234,6 +253,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     </div>
     <div class="topbar-right">
       <span id="todayLabel" style="font-size:11px;color:rgba(255,255,255,.6)"></span>
+      <span id="myStoreLabel" style="font-size:12px;font-weight:600;color:rgba(255,255,255,.9);background:rgba(255,255,255,.12);padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.2)"></span>
       <span class="role-chip" id="roleChip"></span>
     </div>
   </div>
@@ -245,7 +265,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       <div class="card">
         <div class="card-header">
           <span class="card-title">今日回報</span>
-          <span id="myStoreLabel" style="font-size:12px;color:var(--accent);font-weight:600"></span>
         </div>
         <div class="card-body">
           <div id="formBanner"></div>
