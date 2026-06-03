@@ -248,6 +248,9 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
   try {
     const hidSnap = await getDoc(doc(dbRef, 'settings', 'store_accounts_hidden'));
     _hiddenMap = hidSnap.exists() ? (hidSnap.data() || {}) : {};
+    console.log('[store_accounts] uid:', uid);
+    console.log('[store_accounts] hiddenMap keys:', Object.keys(_hiddenMap));
+    console.log('[store_accounts] myHidden:', _hiddenMap[uid]);
   } catch(e) {
     _hiddenMap = {};
   }
