@@ -194,7 +194,7 @@ tr:hover td{background:var(--surface2)}
       <h3>⚙ 店面可見性管理</h3>
       <button class="modal-close" onclick="closeMgmt()">✕</button>
     </div>
-    <div class="modal-body" style="padding-bottom:4px">
+    <div class="modal-body" style="padding-bottom:4px;max-height:60vh;overflow-y:auto">
       <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">點擊店面標籤可切換該使用者在「店內帳號管理」的可見性。<br><span style="color:#DC2626;font-weight:600">劃線紅色</span> = 隱藏，不會看到該店資料。</p>
       <div id="mgmtUserList"><div class="mgmt-empty">載入中…</div></div>
     </div>
@@ -270,7 +270,7 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
       _allUsers = [];
       usersSnap.forEach(d => {
         const u = d.data();
-        if (!u.disabled && u.role !== 'admin') {
+        if (!u.disabled && (u.role === 'consultant' || u.role === 'manager')) {
           _allUsers.push({ uid: d.id, name: u.name||'', role: u.role||'employee', locations: u.locations||[] });
         }
       });
