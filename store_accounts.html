@@ -248,9 +248,6 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
   try {
     const hidSnap = await getDoc(doc(dbRef, 'settings', 'store_accounts_hidden'));
     _hiddenMap = hidSnap.exists() ? (hidSnap.data() || {}) : {};
-    console.log('[store_accounts] uid:', uid);
-    console.log('[store_accounts] hiddenMap keys:', Object.keys(_hiddenMap));
-    console.log('[store_accounts] myHidden:', _hiddenMap[uid]);
   } catch(e) {
     _hiddenMap = {};
   }
@@ -288,12 +285,14 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
 
 // ── Store Bar ──
 function buildStoreBar() {
-  if (_locations.length <= 1) return;
+  const myHidden = new Set(_hiddenMap[_uid] || []);
+  const visibleLocs = _locations.filter(loc => !myHidden.has(loc));
+  if (visibleLocs.length <= 1) return;
   const bar = document.getElementById('storeBar');
   bar.style.display = 'flex';
   const allBtn = makeStoreBtn('全部', null);
   bar.appendChild(allBtn);
-  _locations.forEach(loc => {
+  visibleLocs.forEach(loc => {
     bar.appendChild(makeStoreBtn(loc, loc));
   });
 }
