@@ -198,8 +198,8 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
   _locations = locations;
   _db = dbRef;
 
-  // admin / consultant 或 locations 為空時，從 hr/settings 讀完整店面清單
-  if (_locations.length === 0 || role === 'admin' || role === 'consultant') {
+  // admin 看全部店面；其他角色用自己的 locations（若為空才 fallback 全部）
+  if (role === 'admin') {
     try {
       const settSnap = await getDoc(doc(dbRef, 'hr', 'settings'));
       const allLocs = settSnap.exists() ? (settSnap.data().workLocations || []) : [];
