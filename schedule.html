@@ -334,7 +334,13 @@ const db=getFirestore(app);
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[];
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
-let allEmployees=[],workLocations=[],shifts={},locationCodes={};
+let allEmployees=[],workLocations=[],shifts={},locationCodes={
+  "梁平有限公司":"tw000","鑫耀鑫餐廳":"tw002","梁鑫雞肉飯專門店":"tw003",
+  "鑫營雞肉本舖":"tw004","府中雞肉飯專門店":"tw005","景新雞肉飯專門店":"tw006",
+  "天津雞肉飯":"tw008","鑫雞肉央廚":"tw001","大直讚雞肉飯":"tw009",
+  "心惦雞肉飯":"tw010","幸福雞肉飯":"tw012","福城雞肉飯":"tw013",
+  "泉州鑫廚房":"tw007","新莊央廚":"tw011","巷日雞肉飯":"tw008"
+};
 let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
@@ -1128,7 +1134,8 @@ onAuthStateChanged(auth,async user=>{
     getDoc(doc(db,'hr','settings')).then(s=>{
       if(s.exists()){
         workLocations=s.data().workLocations||[];
-        locationCodes=s.data().locationCodes||{};
+        // Firestore 有設定就合併，沒有就保留寫死的預設值
+        if(s.data().locationCodes) locationCodes={...locationCodes,...s.data().locationCodes};
       }
     }),
     getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
