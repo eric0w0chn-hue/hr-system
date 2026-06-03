@@ -182,9 +182,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 }
 </style>
 <body>
-<div class="app">
-  <div class="card">
-    <div class="topbar">
+<div class="topbar">
       <div class="topbar-left">
         <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
         <div class="topbar-dv"></div>
@@ -204,8 +202,6 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
       <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
     </div>
     <div class="main" id="mainContent"></div>
-  </div>
-</div>
 <div id="modalArea"></div>
 <div class="toast" id="toast"></div>
 
@@ -668,8 +664,6 @@ function render() {
       </div>
       <div class="detail-body">
         <div class="dg">
-          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
           <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
           <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
           <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source||'—'}</div></div>
@@ -746,8 +740,7 @@ function render() {
       </div>
       <div class="detail-body">
         <div class="dg">
-          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
+          <div class="di"><div class="dl">年齡</div><div class="dv">${(()=>{if(!sel.birthday)return'—';const b=new Date(sel.birthday);const t=new Date();let a=t.getFullYear()-b.getFullYear();if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate()))a--;return a+'歲';})()}</div></div>
           <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate||'—'}</div></div>
           <div class="di"><div class="dl">離職日</div><div class="dv">${sel.resignDate||'—'}</div></div>
           <div class="di"><div class="dl">月薪</div><div class="dv">$${(sel.salary||0).toLocaleString()}</div></div>
@@ -869,8 +862,6 @@ function render() {
       if(detailTab==='basic'){
         body=`<div class="dg">
           <div class="di"><div class="dl">同仁編號</div><div class="dv">${sel.empNo||'—'}</div></div>
-          <div class="di"><div class="dl">電話</div><div class="dv">${sel.phone||'—'}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv" style="font-size:12px">${sel.email||'—'}</div></div>
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
           <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
