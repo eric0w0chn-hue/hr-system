@@ -664,6 +664,7 @@ function render() {
       </div>
       <div class="detail-body">
         <div class="dg">
+          <div class="di"><div class="dl">年齡</div><div class="dv">${sel.age?sel.age+'歲':'—'}</div></div>
           <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
           <div class="di"><div class="dl">工作年資</div><div class="dv">${sel.experience||'—'}</div></div>
           <div class="di"><div class="dl">來源管道</div><div class="dv">${sel.source||'—'}</div></div>
@@ -1358,8 +1359,7 @@ function openModal(mode, targetId, extraIdx) {
       <div class="fr"><label>來源管道</label><select id="m-source"><option>104人力銀行</option><option>LinkedIn</option><option>內部推薦</option><option>Yourator</option><option>其他</option></select></div>
       <div class="fr"><label>適合度評估</label><select id="m-fit"><option value="">未評估</option><option>合適</option><option>尚可</option><option>不佳</option></select></div>
       <div class="fr"><label>狀態</label><select id="m-status"><option>待通知</option><option>錄取</option><option>已婉拒</option><option>未前來面試</option></select></div>
-      <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
-      <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
+      <div class="fr"><label>年齡</label><input id="m-age" type="number" min="15" max="80" placeholder="歲" value="${r.age||''}"></div>
       <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
       <div class="fr"><label>兵役狀況</label><select id="m-military"><option value="">請選擇</option><option>役退</option><option>免役</option><option>待役中</option></select></div>
       <div class="fr"><label>工作年資</label><input id="m-experience" value="${r.experience||''}"></div>
@@ -1511,7 +1511,7 @@ async function saveModal(){
   const m=editMode, tid=editTarget;
   if(m==='addInterview'||m==='editInterview'){
     if(!g('m-name')){alert('請填寫姓名');return;}
-    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),phone:g('m-phone'),email:g('m-email'),education:g('m-education'),military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
+    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),age:parseInt(g('m-age'))||null,education:g('m-education'),military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
     if(m==='editInterview'){
       const i=interviews.findIndex(r=>r.id===tid);
       const prev=interviews[i]||{};
