@@ -1227,26 +1227,23 @@ function render() {
           const thisYear=new Date().getFullYear();
           const extraDates=(sel.extraLeave&&sel.extraLeave[thisYear])||[];
           const extraSorted=[...extraDates].sort();
-          return`<div style="border:2px dashed #F59E0B;border-radius:12px;padding:14px;margin-top:16px;background:#FFFBEB">
-            <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:4px">⭐ ${thisYear} 年度臨時預放特休</div>
-            <div style="font-size:11px;color:#B45309;margin-bottom:10px">此區塊為當年度特殊規則暫用，不影響法定特休計算</div>
-            <div style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:10px">
-              已登記：<span style="font-size:20px">${extraSorted.length}</span> 天
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-              ${extraSorted.map(d=>\`<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #FCD34D;border-radius:6px;padding:3px 8px;font-size:12px">
-                <span>\${d}</span>
-                <button onclick="removeExtraLeaveDate(\${sel.id},'\${d}')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>
-              </div>\`).join('')}
-              \${extraSorted.length===0?'<span style="font-size:12px;color:#9b9b98">尚未登記任何預放特休</span>':''}
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input id="extra-leave-input-\${sel.id}" type="date"
-                min="\${thisYear}-01-01" max="\${thisYear}-12-31"
-                style="font-size:13px;padding:5px 8px;border:1px solid #FCD34D;border-radius:6px">
-              <button class="btn btn-sm" style="background:#F59E0B;color:#fff;border:1px solid #F59E0B" onclick="addExtraLeaveDate(\${sel.id})">＋ 新增日期</button>
-            </div>
-          </div>`;
+          const extraChips=extraSorted.map(function(d){
+            return '<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #FCD34D;border-radius:6px;padding:3px 8px;font-size:12px">'
+              +'<span>'+d+'</span>'
+              +'<button onclick="removeExtraLeaveDate('+sel.id+',\''+d+'\')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>'
+              +'</div>';
+          }).join('');
+          const extraEmpty=extraSorted.length===0?'<span style="font-size:12px;color:#9b9b98">尚未登記任何預放特休</span>':'';
+          return '<div style="border:2px dashed #F59E0B;border-radius:12px;padding:14px;margin-top:16px;background:#FFFBEB">'
+            +'<div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:4px">⭐ '+thisYear+' 年度臨時預放特休</div>'
+            +'<div style="font-size:11px;color:#B45309;margin-bottom:10px">此區塊為當年度特殊規則暫用，不影響法定特休計算</div>'
+            +'<div style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:10px">已登記：<span style="font-size:20px">'+extraSorted.length+'</span> 天</div>'
+            +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+extraChips+extraEmpty+'</div>'
+            +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<input id="extra-leave-input-'+sel.id+'" type="date" min="'+thisYear+'-01-01" max="'+thisYear+'-12-31" style="font-size:13px;padding:5px 8px;border:1px solid #FCD34D;border-radius:6px">'
+            +'<button class="btn btn-sm" style="background:#F59E0B;color:#fff;border:1px solid #F59E0B" onclick="addExtraLeaveDate('+sel.id+')">＋ 新增日期</button>'
+            +'</div>'
+            +'</div>';
         })()}`;
       } else if(detailTab==='insurance'){
         const ins=sel.insurance||{grade:'',dependents:[],gradeHistory:[]};
