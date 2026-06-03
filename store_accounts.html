@@ -101,6 +101,17 @@ tr:hover td{background:var(--surface2)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;font-size:13px;padding:9px 18px;border-radius:10px;z-index:999;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* 管理 modal 使用者列表 */
+.mgmt-user-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mgmt-user-row:last-child{border-bottom:none}
+.mgmt-user-name{font-size:13px;font-weight:600;color:var(--text);min-width:80px}
+.mgmt-user-role{font-size:11px;color:var(--text3);background:var(--surface2);border-radius:5px;padding:2px 7px;flex-shrink:0}
+.mgmt-stores{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.mgmt-store-tag{font-size:11px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .15s;user-select:none}
+.mgmt-store-tag:hover{border-color:#DC2626;color:#DC2626}
+.mgmt-store-tag.hidden{background:#FEF2F2;color:#DC2626;border-color:#FECACA;text-decoration:line-through}
+.mgmt-empty{font-size:12px;color:var(--text3);padding:24px 0;text-align:center}
+
 /* section header (store name row) */
 .section-name{font-size:13px;font-weight:700;color:var(--text);padding:4px 0 10px;display:flex;align-items:center;gap:6px}
 .section-count{font-size:11px;font-weight:500;background:var(--accent-light);color:var(--text2);border-radius:10px;padding:2px 8px}
@@ -124,6 +135,7 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="topbar-right">
       <button class="btn btn-primary" id="btnAdd" onclick="openModal()">＋ 新增帳號</button>
+      <button class="btn btn-ghost" id="btnMgmt" onclick="openMgmt()" style="display:none;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.2)">⚙ 管理</button>
       <span class="role-chip" id="roleChip">—</span>
     </div>
   </div>
@@ -175,30 +187,53 @@ tr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+<!-- 管理 Modal -->
+<div class="modal-backdrop" id="mgmtModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <h3>⚙ 店面可見性管理</h3>
+      <button class="modal-close" onclick="closeMgmt()">✕</button>
+    </div>
+    <div class="modal-body" style="padding-bottom:4px">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">點擊店面標籤可切換該使用者在「店內帳號管理」的可見性。<br><span style="color:#DC2626;font-weight:600">劃線紅色</span> = 隱藏，不會看到該店資料。</p>
+      <div id="mgmtUserList"><div class="mgmt-empty">載入中…</div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeMgmt()">關閉</button>
+      <button class="btn btn-primary" onclick="saveMgmt()">儲存變更</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { authGuard, db } from './auth-guard.js';
 import {
-  collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy
+  collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let _role = '';
+let _uid = '';
 let _locations = [];
-let _currentStore = null; // null = show all
-let _entries = []; // { id, store, name, account, password, note, updatedAt }
+let _currentStore = null;
+let _entries = [];
 let _editId = null;
 let _db = null;
+let _allUsers = [];       // { uid, name, role, locations }
+let _hiddenMap = {};      // { uid: [store, ...] } — 從 settings/store_accounts_hidden 讀取
+let _hiddenMapDraft = {}; // 管理 modal 編輯中的暫存
 
 // ── pw visibility per row (rowId -> bool) ──
 const _pwVisible = {};
 
 authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: dbRef }) => {
   _role = role;
+  _uid  = uid;
   _locations = locations;
   _db = dbRef;
 
-  // admin 看全部店面；其他角色用自己的 locations（若為空才 fallback 全部）
+  // admin 看全部店面
   if (role === 'admin') {
     try {
       const settSnap = await getDoc(doc(dbRef, 'hr', 'settings'));
@@ -209,15 +244,39 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
     }
   }
 
+  // 讀取隱藏設定
+  try {
+    const hidSnap = await getDoc(doc(dbRef, 'settings', 'store_accounts_hidden'));
+    _hiddenMap = hidSnap.exists() ? (hidSnap.data() || {}) : {};
+  } catch(e) {
+    _hiddenMap = {};
+  }
+
   const rc = document.getElementById('roleChip');
   if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // 員工不能新增
   if (role === 'employee') {
     document.getElementById('btnAdd').style.display = 'none';
+  }
+
+  // admin 才能看管理按鈕，並載入 allUsers
+  if (role === 'admin') {
+    document.getElementById('btnMgmt').style.display = 'inline-flex';
+    try {
+      const usersSnap = await getDocs(collection(dbRef, 'users'));
+      _allUsers = [];
+      usersSnap.forEach(d => {
+        const u = d.data();
+        if (!u.disabled && u.role !== 'admin') {
+          _allUsers.push({ uid: d.id, name: u.name||'', role: u.role||'employee', locations: u.locations||[] });
+        }
+      });
+    } catch(e) {
+      console.warn('[store_accounts] 無法載入使用者列表:', e);
+    }
   }
 
   buildStoreBar();
@@ -268,7 +327,9 @@ function renderEntries() {
 
   // filter by accessible stores
   const accessibleIds = new Set(_locations);
-  let list = _entries.filter(e => accessibleIds.has(e.store));
+  // 套用個人隱藏設定
+  const myHidden = new Set(_hiddenMap[_uid] || []);
+  let list = _entries.filter(e => accessibleIds.has(e.store) && !myHidden.has(e.store));
 
   // filter by selected store
   if (_currentStore !== null) {
@@ -452,6 +513,72 @@ window.saveEntry = async function() {
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
+
+// ── 管理 Modal ──
+window.openMgmt = function() {
+  _hiddenMapDraft = JSON.parse(JSON.stringify(_hiddenMap));
+  renderMgmtList();
+  document.getElementById('mgmtModal').classList.add('show');
+};
+
+window.closeMgmt = function() {
+  document.getElementById('mgmtModal').classList.remove('show');
+};
+
+document.getElementById('mgmtModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('mgmtModal')) closeMgmt();
+});
+
+function renderMgmtList() {
+  const wrap = document.getElementById('mgmtUserList');
+  if (!_allUsers.length) {
+    wrap.innerHTML = '<div class="mgmt-empty">無使用者資料</div>';
+    return;
+  }
+  const roleLabel = {consultant:'顧問', manager:'店長/副店長', employee:'同仁'};
+  wrap.innerHTML = _allUsers.map(u => {
+    const hidden = new Set(_hiddenMapDraft[u.uid] || []);
+    // 顯示該使用者有權限的店面（自己的 locations）
+    const userLocs = u.locations.length ? u.locations : _locations;
+    const tags = userLocs.map(loc => {
+      const isHidden = hidden.has(loc);
+      return `<span class="mgmt-store-tag${isHidden?' hidden':''}" data-uid="${u.uid}" data-loc="${esc(loc)}" onclick="_toggleHidden(this)">${esc(loc)}</span>`;
+    }).join('');
+    return `<div class="mgmt-user-row">
+      <span class="mgmt-user-name">${esc(u.name)}</span>
+      <span class="mgmt-user-role">${roleLabel[u.role]||u.role}</span>
+      <div class="mgmt-stores">${tags || '<span style="font-size:12px;color:var(--text3)">無店面</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+window._toggleHidden = function(el) {
+  const uid = el.dataset.uid;
+  const loc = el.dataset.loc;
+  if (!_hiddenMapDraft[uid]) _hiddenMapDraft[uid] = [];
+  const arr = _hiddenMapDraft[uid];
+  const idx = arr.indexOf(loc);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(loc);
+  el.classList.toggle('hidden');
+};
+
+window.saveMgmt = async function() {
+  try {
+    // 清掉空陣列的 key
+    const toSave = {};
+    Object.entries(_hiddenMapDraft).forEach(([uid, arr]) => {
+      if (arr.length > 0) toSave[uid] = arr;
+    });
+    await setDoc(doc(_db, 'settings', 'store_accounts_hidden'), toSave);
+    _hiddenMap = JSON.parse(JSON.stringify(_hiddenMapDraft));
+    closeMgmt();
+    renderEntries();
+    showToast('✅ 已儲存');
+  } catch(e) {
+    showToast('儲存失敗：' + e.message);
+  }
+};
 
 // ── Toast ──
 function showToast(msg, ms=2200) {
