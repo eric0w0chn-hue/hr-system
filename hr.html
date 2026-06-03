@@ -1220,7 +1220,34 @@ function render() {
         </div>
         <div style="font-size:11px;color:#9b9b98;line-height:1.6">
           ＊依台灣勞基法第38條：6個月以上未滿1年→3天；1年→7天；2年→10天；3～4年→14天；5～9年→15天；10年以上每年+1天，上限30天
-        </div>`;
+        </div>
+
+        <!-- 臨時預放特休（當年度特殊規則） -->
+        ${(()=>{
+          const thisYear=new Date().getFullYear();
+          const extraDates=(sel.extraLeave&&sel.extraLeave[thisYear])||[];
+          const extraSorted=[...extraDates].sort();
+          return`<div style="border:2px dashed #F59E0B;border-radius:12px;padding:14px;margin-top:16px;background:#FFFBEB">
+            <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:4px">⭐ ${thisYear} 年度臨時預放特休</div>
+            <div style="font-size:11px;color:#B45309;margin-bottom:10px">此區塊為當年度特殊規則暫用，不影響法定特休計算</div>
+            <div style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:10px">
+              已登記：<span style="font-size:20px">${extraSorted.length}</span> 天
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+              ${extraSorted.map(d=>\`<div style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #FCD34D;border-radius:6px;padding:3px 8px;font-size:12px">
+                <span>\${d}</span>
+                <button onclick="removeExtraLeaveDate(\${sel.id},'\${d}')" style="background:none;border:none;cursor:pointer;color:#9b9b98;font-size:13px;line-height:1;padding:0 1px">×</button>
+              </div>\`).join('')}
+              \${extraSorted.length===0?'<span style="font-size:12px;color:#9b9b98">尚未登記任何預放特休</span>':''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="extra-leave-input-\${sel.id}" type="date"
+                min="\${thisYear}-01-01" max="\${thisYear}-12-31"
+                style="font-size:13px;padding:5px 8px;border:1px solid #FCD34D;border-radius:6px">
+              <button class="btn btn-sm" style="background:#F59E0B;color:#fff;border:1px solid #F59E0B" onclick="addExtraLeaveDate(\${sel.id})">＋ 新增日期</button>
+            </div>
+          </div>`;
+        })()}`;
       } else if(detailTab==='insurance'){
         const ins=sel.insurance||{grade:'',dependents:[],gradeHistory:[]};
         const gradeHistory=ins.gradeHistory||[];
@@ -1860,12 +1887,35 @@ window.removeLeaveDate=async function(id,date){
   r.leaves.forEach(l=>{if(l.usedDates)l.usedDates=l.usedDates.filter(d=>d!==date);});
   render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
 };
+window.addExtraLeaveDate=async function(id){
+  const r=employees.find(x=>x.id===id); if(!r)return;
+  const el=document.getElementById('extra-leave-input-'+id); if(!el||!el.value)return;
+  const date=el.value;
+  const yr=new Date(date).getFullYear();
+  if(!r.extraLeave)r.extraLeave={};
+  if(!r.extraLeave[yr])r.extraLeave[yr]=[];
+  if(r.extraLeave[yr].includes(date)){showToast('此日期已登記過');return;}
+  r.extraLeave[yr].push(date);
+  el.value='';
+  render(); showToast('儲存中...'); await saveData(); showToast('預放特休已新增 ✓');
+};
+window.removeExtraLeaveDate=async function(id,date){
+  const r=employees.find(x=>x.id===id); if(!r)return;
+  const yr=new Date(date).getFullYear();
+  if(!r.extraLeave||!r.extraLeave[yr])return;
+  r.extraLeave[yr]=r.extraLeave[yr].filter(d=>d!==date);
+  render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
+};
 window.transferToEmployee=async function(id){
   const r=interviews.find(x=>x.id===id); if(!r)return;
   if(!confirm(`確定要將「${r.name}」轉為在職同仁嗎？\n基本資料會自動帶入，可再到在職同仁頁面補充到職日等資訊。`))return;
+  // 面試地點 → 工作地點（若存在於 workLocations 清單則直接帶入，否則也帶入）
+  const wl = r.location||'';
+  // 優先帶入職稱清單第一個（若有），面試資料無職稱欄位
+  const defaultTitle = titleOptions.length ? titleOptions[0] : '';
   const newEmp={
-    id:Date.now(), name:r.name, phone:r.phone||'', email:r.email||'',
-    education:r.education||'', workLocation:'', title:'', status:'在職',
+    id:Date.now(), name:r.name, phone:'', email:'',
+    education:r.education||'', workLocation:wl, title:defaultTitle, status:'在職',
     startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
     note:r.note||'', emergency:{name:'',relation:'',phone:''},
     salaryHistory:[], performance:[], leaves:[], trainings:[]
