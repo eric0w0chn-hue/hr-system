@@ -180,7 +180,7 @@ tr:hover td{background:var(--surface2)}
 <script type="module">
 import { authGuard, db } from './auth-guard.js';
 import {
-  collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy
+  collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let _role = '';
@@ -197,6 +197,17 @@ authGuard('store_accounts', ({ user, uid, role, locations, userData, db: dbRef }
   _role = role;
   _locations = locations;
   _db = dbRef;
+
+  // admin / consultant 或 locations 為空時，從 hr/settings 讀完整店面清單
+  if (_locations.length === 0 || role === 'admin' || role === 'consultant') {
+    try {
+      const settSnap = await getDoc(doc(dbRef, 'hr', 'settings'));
+      const allLocs = settSnap.exists() ? (settSnap.data().workLocations || []) : [];
+      if (allLocs.length > 0) _locations = allLocs;
+    } catch(e) {
+      console.warn('[store_accounts] 無法讀取 hr/settings:', e);
+    }
+  }
 
   const rc = document.getElementById('roleChip');
   if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
