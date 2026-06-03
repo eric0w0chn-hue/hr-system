@@ -193,7 +193,7 @@ let _db = null;
 // ── pw visibility per row (rowId -> bool) ──
 const _pwVisible = {};
 
-authGuard('store_accounts', ({ user, uid, role, locations, userData, db: dbRef }) => {
+authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: dbRef }) => {
   _role = role;
   _locations = locations;
   _db = dbRef;
