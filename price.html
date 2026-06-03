@@ -36,6 +36,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .banner{border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .banner-blue{background:var(--accent-light);border:1px solid #BAC8FF;color:var(--accent)}
 .banner-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+/* 回報篩選列 */
+.store-filter-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.store-filter-row label{font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap}
+.store-filter-sel{flex:1;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer;min-height:40px}
+.store-filter-sel:focus{border-color:var(--accent)}
 /* missing banner */
 .missing-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none}
 .missing-banner.show{display:block}
@@ -68,6 +73,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .col-header span{font-size:11px;color:var(--text3);font-weight:600}
 .item-rows{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
 .item-row{display:grid;grid-template-columns:1.4fr 1fr 90px 32px;gap:6px;align-items:center}
+.item-row .mobile-bottom-row{display:contents}
+.item-row .mobile-bottom-row .unit-row{display:flex;gap:4px;align-items:center}
 .item-row .item-name-wrap{position:relative}
 .item-row .item-name-wrap input{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
 .item-row .item-name-wrap input:focus{border-color:var(--accent)}
@@ -90,7 +97,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .unit-row select:focus{border-color:var(--accent)}
 
 /* 價格欄 */
-.price-inp{width:100%;font-size:13px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;text-align:right;font-family:inherit;outline:none}
+.price-inp{width:100%;font-size:13px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none}
 .price-inp:focus{border-color:var(--accent)}
 .del-row-btn{width:32px;height:32px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text3);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .del-row-btn:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
@@ -108,9 +115,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .submit-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 
 /* 查看區 */
-.store-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
-.store-tab{font-size:12px;padding:4px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;font-family:inherit}
-.store-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* store-tabs removed */
 .report-card{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px}
 .report-card-header{padding:10px 14px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface2)}
 .report-store{font-size:13px;font-weight:600}
@@ -206,8 +211,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   /* 歷史區 */
   .report-card-header{flex-wrap:wrap;gap:6px;padding:10px 12px}
   .report-table th,.report-table td{padding:8px 10px;font-size:12px}
-  .store-tabs{gap:5px;margin-bottom:10px}
-  .store-tab{font-size:12px;padding:5px 12px;min-height:34px;display:inline-flex;align-items:center}
+
 
   /* missing banner */
   .missing-title{font-size:12px}
@@ -316,7 +320,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
             <div class="missing-title" id="missingTitle">⚠️ 今日 以下店面尚未回報</div>
             <div class="missing-tags" id="missingTags"></div>
           </div>
-          <div class="store-tabs" id="storeTabs"></div>
+          <div class="store-filter-row">
+            <label>回報</label>
+            <select id="storeTabs" class="store-filter-sel" onchange="setStoreFilter(this.value)"></select>
+          </div>
           <div id="reportList"><div class="empty-state">請稍候...</div></div>
         </div>
       </div>
@@ -486,7 +493,7 @@ window.addVendorBlock=function(vendor='',items=[]){
       <button class="del-row-btn" onclick="this.closest('.vendor-block').remove()" title="移除" style="flex-shrink:0">×</button>
     </div>
     <div class="vb-body">
-      <div class="col-header"><span>品項名稱</span><span>數量 / 單位</span><span style="text-align:right">單價(元)</span><span></span></div>
+      <div class="col-header"><span>品項名稱</span><span>數量 / 單位</span><span>單價(元)</span><span></span></div>
       <div class="item-rows" id="iRows-${bid}"></div>
       <button class="add-item-btn" onclick="addItemRow(${bid})">＋ 新增品項</button>
     </div>`;
@@ -595,8 +602,9 @@ window.loadReports=async function(){
 
     const stores=[...new Set(allReports.map(r=>r.store))].filter(Boolean).sort();
     const tabsEl=document.getElementById('storeTabs');
-    tabsEl.innerHTML=`<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setStoreFilter('all')">全部(${allReports.length})</button>`
-      +stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setStoreFilter('${s}')">${s}</button>`).join('');
+    tabsEl.innerHTML=`<option value="all">全部（${allReports.length} 筆）</option>`
+      +stores.map(s=>`<option value="${s}"${storeFilter===s?' selected':''}>${s}</option>`).join('');
+    tabsEl.value=storeFilter;
     renderMissing(dateVal);
     renderReports();
   }catch(e){list.innerHTML=`<div class="empty-state" style="color:var(--red)">載入失敗，請重新整理</div>`;
@@ -621,8 +629,8 @@ function renderMissing(dateVal){
 
 window.setStoreFilter=function(s){
   storeFilter=s;
-  document.querySelectorAll('.store-tab').forEach(b=>b.classList.toggle('active',
-    s==='all'?b.textContent.startsWith('全部'):b.textContent===s));
+  const sel=document.getElementById('storeTabs');
+  if(sel) sel.value=s;
   renderReports();
 };
 
