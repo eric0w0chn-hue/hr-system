@@ -255,6 +255,7 @@ const ALL_MODULES = [
   {key:'oplog',    icon:'📝', name:'操作紀錄',   desc:'系統操作日誌查詢',                        page:'oplog.html',    active:true},
   {key:'permissions',icon:'🔐',name:'權限管理',  desc:'各功能模組的 role 可見性設定',            page:'permissions.html', active:true},
   {key:'backup',   icon:'💾', name:'備份管理',   desc:'資料備份與還原',                          page:'backup.html',   active:true},
+  {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
 ];
 
 // ── 預設權限（Firestore 沒資料時的 fallback）──
@@ -276,6 +277,7 @@ const DEFAULT_PERMISSIONS = {
   oplog:       {roles:['admin']},
   permissions: {roles:['admin']},
   backup:      {roles:['admin']},
+  store_accounts: {roles:['admin','consultant','manager']},
 };
 
 const ROLES = ['admin','consultant','manager','employee'];
