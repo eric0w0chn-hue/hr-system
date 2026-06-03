@@ -126,24 +126,36 @@ tr:hover td{background:var(--surface2)}
 
   /* Main */
   .main{padding:12px}
-  .card{padding:12px;border-radius:10px}
-
-  /* Store bar */
-  .store-bar{gap:6px}
-  .store-btn{font-size:11px;padding:4px 11px}
+  .card{padding:0;border-radius:12px;overflow:hidden}
+  .card-header{padding:14px 16px 12px;border-bottom:1px solid var(--border)}
+  .card-header h2{font-size:13px}
 
   /* Table → 卡片式 */
+  .tbl-wrap{overflow-x:visible}
   table thead{display:none}
-  table tbody tr{display:block;padding:12px 14px;border-bottom:1px solid var(--border)}
+  table tbody tr{display:block;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface)}
   table tbody tr:last-child{border-bottom:none}
-  table td{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:none;font-size:13px}
-  table td::before{content:attr(data-label);font-size:11px;color:var(--text3);font-weight:500;flex-shrink:0;margin-right:8px;white-space:nowrap}
-  table td:first-child{font-weight:600;font-size:14px;margin-bottom:4px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  table tbody tr:hover{background:var(--surface)}
+
+  /* 第一欄（項目名稱）當標題 */
+  table td:first-child{display:block;font-weight:700;font-size:15px;color:var(--text);padding:0 0 10px;border-bottom:1px solid var(--border);margin-bottom:8px}
   table td:first-child::before{display:none}
 
-  /* Modal */
+  /* 其他欄位左右排列 */
+  table td{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:none;font-size:13px;min-height:30px}
+  table td::before{content:attr(data-label);font-size:12px;color:var(--text3);font-weight:500;flex-shrink:0;margin-right:8px}
+
+  /* 操作按鈕靠右 */
+  .btns-row{justify-content:flex-end}
+  .btn.btn-sm{min-height:34px;padding:0 14px;font-size:12px}
+
+  /* Modal 底部滑出 */
   .modal-backdrop{padding:0;align-items:flex-end}
   .modal{border-radius:16px 16px 0 0;max-height:90vh}
+}
+@media(min-width:601px){
+  .modal-backdrop{align-items:center;padding:16px}
+  .modal{border-radius:14px}
 }
 </style>
 </head>
@@ -164,7 +176,9 @@ tr:hover td{background:var(--surface2)}
   </div>
   <div class="main">
     <!-- Store selector (shown when multiple stores) -->
-    <div class="store-bar" id="storeBar" style="display:none"></div>
+    <div id="storeBar" style="display:none;margin-bottom:16px">
+      <select id="storeSelect" onchange="_onStoreChange(this.value)" style="font-size:13px;padding:9px 12px;border:1px solid var(--border2);border-radius:10px;background:var(--surface);color:var(--text);font-family:inherit;width:100%;max-width:320px;cursor:pointer;outline:none"></select>
+    </div>
     <!-- Content area -->
     <div id="content"></div>
   </div>
@@ -306,32 +320,22 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
   loadAll();
 });
 
-// ── Store Bar ──
+// ── Store Dropdown ──
 function buildStoreBar() {
   const myHidden = new Set(_hiddenMap[_uid] || []);
   const visibleLocs = _locations.filter(loc => !myHidden.has(loc));
   if (visibleLocs.length <= 1) return;
   const bar = document.getElementById('storeBar');
-  bar.style.display = 'flex';
-  const allBtn = makeStoreBtn('全部', null);
-  bar.appendChild(allBtn);
-  visibleLocs.forEach(loc => {
-    bar.appendChild(makeStoreBtn(loc, loc));
-  });
+  const sel = document.getElementById('storeSelect');
+  bar.style.display = 'block';
+  sel.innerHTML = `<option value="">🏪 全部店面</option>`
+    + visibleLocs.map(loc => `<option value="${esc(loc)}">${esc(loc)}</option>`).join('');
 }
 
-function makeStoreBtn(label, storeId) {
-  const b = document.createElement('button');
-  b.className = 'store-btn' + (storeId === _currentStore ? ' active' : '');
-  b.textContent = label;
-  b.onclick = () => {
-    _currentStore = storeId;
-    document.querySelectorAll('.store-btn').forEach(el => el.classList.remove('active'));
-    b.classList.add('active');
-    renderEntries();
-  };
-  return b;
-}
+window._onStoreChange = function(val) {
+  _currentStore = val || null;
+  renderEntries();
+};
 
 // ── Load from Firestore ──
 async function loadAll() {
