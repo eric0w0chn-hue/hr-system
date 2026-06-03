@@ -141,6 +141,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .spin-lg{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .toast{position:fixed;bottom:24px;right:24px;background:#1A1D23;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
+/* 收合動畫 */
+.form-body{overflow:hidden;transition:max-height .3s ease,opacity .25s ease;max-height:1000px;opacity:1}
+.form-body.collapsed{max-height:0;opacity:0}
+.collapse-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;padding:0 2px;transition:transform .25s;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px}
+.collapse-btn:hover{background:var(--border);color:var(--text2)}
+.collapse-btn.open{transform:rotate(0deg)}
+.collapse-btn.closed{transform:rotate(-90deg)}
+
 @media(max-width:800px){
   .main{padding:12px}
   .topbar{padding:0 14px;height:52px}
@@ -161,16 +169,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .col-header{display:none}
   .item-row{
     display:flex;flex-direction:column;gap:8px;
-    padding:12px;background:var(--surface2);border-radius:10px;
+    padding:12px 12px 12px 12px;background:var(--surface2);border-radius:10px;
     border:1px solid var(--border);
     margin-bottom:8px;position:relative;
   }
-  .item-row > div:first-child{width:100%}
+  .item-row > div:first-child{width:100%;padding-right:44px}
   .item-row .cdd-trigger{width:100%;font-size:14px;min-height:44px}
-  .unit-row{display:flex;gap:8px;align-items:center}
-  .unit-row input[type=number]{flex:1;min-width:0;min-height:44px;font-size:14px}
+  /* 數量+單位+單價 橫排，各自分配空間 */
+  .item-row .mobile-bottom-row{display:flex;gap:8px;align-items:center}
+  .unit-row{display:flex;gap:6px;align-items:center;flex:1}
+  .unit-row input[type=number]{width:64px;flex-shrink:0;min-height:44px;font-size:14px}
   .unit-row select{flex:1;min-width:0;min-height:44px;font-size:14px}
-  .item-row .price-inp{width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;text-align:left;min-height:44px}
+  .item-row .price-inp{flex:1;font-size:14px;padding:10px 10px;border:1px solid var(--border);border-radius:8px;text-align:left;min-height:44px;min-width:0}
   .item-row .del-row-btn{position:absolute;top:10px;right:10px;width:36px;height:36px}
   .item-row::before{content:'品項';font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.3px}
 
@@ -232,7 +242,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cdd-add input:focus{outline:none;border-color:var(--accent)}
 /* 廠商區塊 */
 .vendor-block{border:1px solid var(--border);border-radius:12px;overflow:visible;margin-bottom:12px;background:var(--surface2)}
-.vb-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);border-radius:12px 12px 0 0}
+.vb-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);border-radius:12px 12px 0 0;overflow:visible}
 .vb-header .vendor-wrap{flex:1;position:relative}
 .vb-header .vendor-wrap input{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none}
 .vb-header .vendor-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,91,219,.1)}
@@ -263,9 +273,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <div>
       <!-- 回報表單 -->
       <div class="card">
-        <div class="card-header">
+        <div class="card-header" onclick="toggleForm()" style="cursor:pointer;user-select:none">
           <span class="card-title">今日回報</span>
+          <button class="collapse-btn open" id="collapseBtn" aria-label="收合">▾</button>
         </div>
+        <div class="form-body" id="formBody">
         <div class="card-body">
           <div id="formBanner"></div>
 
@@ -289,6 +301,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
             <button class="btn btn-primary" id="submitBtn" onclick="submitReport()">📤 送出回報</button>
           </div>
         </div>
+        </div><!-- /form-body -->
       </div>
 
       <!-- 歷史查看 -->
@@ -325,6 +338,16 @@ let vendorOptions=[],itemOptions=[];
 let storeFilter='all';
 
 function toast(m,d=2200){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+window.toggleForm=function(e){
+  if(e){e.stopPropagation();}
+  const body=document.getElementById('formBody');
+  const btn=document.getElementById('collapseBtn');
+  if(!body)return;
+  const isOpen=!body.classList.contains('collapsed');
+  body.classList.toggle('collapsed',isOpen);
+  btn.classList.toggle('open',!isOpen);
+  btn.classList.toggle('closed',isOpen);
+};
 function twToday(){return new Date(Date.now()+8*3600000).toISOString().slice(0,10);}
 function fmtDate(ds){if(!ds)return'—';const[y,m,d]=ds.split('-');return`${+y-1911}年${+m}月${+d}日`;}
 function fmtTime(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});}
@@ -482,16 +505,18 @@ window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
   div.className='item-row';
   div.innerHTML=`
     <div style="position:relative">${priceCddHtml(safeId,itemOptions,item,'','請選擇或新增品項')}</div>
-    <div class="unit-row">
-      <input type="number" value="${qty}" placeholder="數量" min="0" step="0.5" style="font-size:13px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
-      <select style="font-size:13px;padding:7px 6px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--surface);outline:none">
-        <option value="件"${unit==='件'?' selected':''}>件</option>
-        <option value="公斤"${unit==='公斤'?' selected':''}>公斤</option>
-        <option value="斤"${unit==='斤'?' selected':''}>斤</option>
-      </select>
+    <div class="mobile-bottom-row" style="display:flex;gap:8px;align-items:center">
+      <div class="unit-row" style="flex:1">
+        <input type="number" value="${qty}" placeholder="數量" min="0" step="0.5" style="width:64px;flex-shrink:0;font-size:13px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
+        <select style="flex:1;font-size:13px;padding:7px 6px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--surface);outline:none">
+          <option value="件"${unit==='件'?' selected':''}>件</option>
+          <option value="公斤"${unit==='公斤'?' selected':''}>公斤</option>
+          <option value="斤"${unit==='斤'?' selected':''}>斤</option>
+        </select>
+      </div>
+      <input type="number" class="price-inp" value="${price}" placeholder="單價" min="0" step="0.5"
+        style="flex:1;min-width:0;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none">
     </div>
-    <input type="number" class="price-inp" value="${price}" placeholder="單價" min="0" step="0.5"
-      style="font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;outline:none;width:100%">
     <button class="del-row-btn" onclick="this.closest('.item-row').remove()">×</button>`;
   rows.appendChild(div);
 };
