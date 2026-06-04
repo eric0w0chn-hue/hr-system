@@ -188,7 +188,7 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const PAGE_SIZE = 10;
