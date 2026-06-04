@@ -18,7 +18,7 @@
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
@@ -160,6 +160,31 @@ export async function authGuard(moduleKey, onReady, options = {}) {
       auth,
     });
   });
+}
+
+/**
+ * 寫入系統操作日誌至 sys_oplogs
+ *
+ * @param {object} payload
+ * @param {string} payload.editor  - 操作者姓名
+ * @param {string} payload.role    - 操作者角色
+ * @param {string} payload.module  - 功能模組（如 'hr'、'meeting'、'schedule'）
+ * @param {string} payload.action  - 動作描述（如 '新增同仁'、'刪除請假'）
+ * @param {string} [payload.detail] - 補充說明（對象、名稱等）
+ */
+export async function writeOpLog({ editor, role, module: mod, action, detail = '' }) {
+  try {
+    await addDoc(collection(db, 'sys_oplogs'), {
+      ts:     serverTimestamp(),
+      editor: editor || '—',
+      role:   role   || '—',
+      module: mod    || '—',
+      action,
+      detail,
+    });
+  } catch (e) {
+    console.warn('[writeOpLog] 寫入失敗', e);
+  }
 }
 
 /**
