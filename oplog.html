@@ -144,12 +144,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <!-- 篩選列 -->
     <div class="filter-bar">
       <input type="text" id="fEditor" placeholder="搜尋操作者..." oninput="applyFilter()">
+      <select id="fModule" onchange="applyFilter()">
+        <option value="">全部模組</option>
+        <option value="hr">👥 人員資訊</option>
+        <option value="account">🔑 帳號管理</option>
+        <option value="schedule">📅 排班/請假</option>
+        <option value="meeting">📝 會議記錄</option>
+        <option value="price">💰 物價回報</option>
+        <option value="anomaly">⚠️ 異常排除</option>
+      </select>
       <select id="fAction" onchange="applyFilter()">
         <option value="">全部動作</option>
         <option value="新增">新增</option>
         <option value="編輯">編輯</option>
         <option value="刪除">刪除</option>
         <option value="匯入">匯入/還原</option>
+        <option value="排除">異常排除</option>
+        <option value="核准">核准/拒絕</option>
+        <option value="送出">送出回報</option>
+        <option value="儲存">儲存班表</option>
       </select>
       <select id="fRole" onchange="applyFilter()">
         <option value="">全部角色</option>
@@ -170,13 +183,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
           <tr>
             <th style="width:120px">時間</th>
             <th style="width:90px">操作者</th>
-            <th style="width:80px">角色</th>
-            <th style="width:100px">動作</th>
+            <th style="width:70px">角色</th>
+            <th style="width:90px">模組</th>
+            <th style="width:110px">動作</th>
             <th>對象／內容</th>
           </tr>
         </thead>
         <tbody id="logTableBody">
-          <tr><td colspan="5"><div class="empty-state"><div class="spinner"></div>載入中...</div></td></tr>
+          <tr><td colspan="6"><div class="empty-state"><div class="spinner"></div>載入中...</div></td></tr>
         </tbody>
       </table>
       <div class="pagination" id="pagination" style="display:none">
@@ -201,6 +215,17 @@ let currentPage = 1;
 // ── Toast ──
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200); }
 
+
+// ── Module badge ──
+const MODULE_MAP = {
+  hr:'👥 人員', account:'🔑 帳號', schedule:'📅 排班',
+  meeting:'📝 會議', price:'💰 物價', anomaly:'⚠️ 異常', '—':'—'
+};
+function modBadge(mod){
+  const label = MODULE_MAP[mod] || mod || '—';
+  return `<span style="font-size:11px;color:var(--text2)">${label}</span>`;
+}
+
 // ── Action badge ──
 function actBadge(action){
   if(!action) return '<span class="act act-other">—</span>';
@@ -224,18 +249,36 @@ function fmtTime(ts){
   return `<div style="font-weight:500">${date}</div><div style="font-size:11px;color:var(--text3)">${time}</div>`;
 }
 
-// ── 載入日誌 ──
+// ── 載入日誌（sys_oplogs + hr_oplogs 合併）──
 window.loadLogs = async function(){
   try{
-    const q = query(collection(db,'hr_oplogs'), orderBy('ts','desc'), limit(500));
-    const snaps = await getDocs(q);
-    allLogs = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    const [sysSnap, hrSnap] = await Promise.all([
+      getDocs(query(collection(db,'sys_oplogs'), orderBy('ts','desc'), limit(500))),
+      getDocs(query(collection(db,'hr_oplogs'),  orderBy('ts','desc'), limit(300))),
+    ]);
+    // sys_oplogs 有 module 欄；hr_oplogs 舊資料補上 module:'hr'
+    const sysLogs = sysSnap.docs.map(d=>({id:d.id,...d.data()}));
+    const hrLogs  = hrSnap.docs.map(d=>({id:'hr_'+d.id,...d.data(), module: d.data().module||'hr'}));
+    // 去重：hr.html 雙寫後 sys_oplogs 已有，ts+editor+action 相同視為同筆
+    const sysKeys = new Set(sysLogs.map(l=>{
+      const t = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
+      return `${Math.round(t/1000)}_${l.editor}_${l.action}`;
+    }));
+    const dedupHr = hrLogs.filter(l=>{
+      const t = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
+      return !sysKeys.has(`${Math.round(t/1000)}_${l.editor}_${l.action}`);
+    });
+    allLogs = [...sysLogs, ...dedupHr].sort((a,b)=>{
+      const ta = a.ts?.toDate ? a.ts.toDate() : new Date(a.ts||0);
+      const tb = b.ts?.toDate ? b.ts.toDate() : new Date(b.ts||0);
+      return tb - ta;
+    });
     updateStats();
     applyFilter();
     showToast('已載入最新資料');
   }catch(e){
     console.error(e);
-    document.getElementById('logTableBody').innerHTML=`<tr><td colspan="5"><div class="empty-state" style="color:#e24b4a">載入失敗：${e.message}</div></td></tr>`;
+    document.getElementById('logTableBody').innerHTML=`<tr><td colspan="6"><div class="empty-state" style="color:#e24b4a">載入失敗：${e.message}</div></td></tr>`;
   }
 };
 
@@ -260,8 +303,10 @@ window.applyFilter = function(){
   const from   = document.getElementById('fDateFrom').value;
   const to     = document.getElementById('fDateTo').value;
 
+  const mod = document.getElementById('fModule').value;
   filtered = allLogs.filter(l=>{
     if(editor && !(l.editor||'').toLowerCase().includes(editor)) return false;
+    if(mod && (l.module||'') !== mod) return false;
     if(action && !(l.action||'').includes(action)) return false;
     if(role && l.role !== role) return false;
     if(from || to){
@@ -278,6 +323,7 @@ window.applyFilter = function(){
 
 window.clearFilter = function(){
   document.getElementById('fEditor').value='';
+  document.getElementById('fModule').value='';
   document.getElementById('fAction').value='';
   document.getElementById('fRole').value='';
   document.getElementById('fDateFrom').value='';
@@ -306,6 +352,7 @@ function renderTable(){
       <td>${fmtTime(l.ts)}</td>
       <td style="font-weight:500">${l.editor||'—'}</td>
       <td>${roleBadge(l.role)}</td>
+      <td>${modBadge(l.module)}</td>
       <td>${actBadge(l.action)}</td>
       <td style="color:var(--text2);font-size:12px">${l.detail||'—'}</td>
     </tr>`).join('');
@@ -334,12 +381,12 @@ window.goPage = function(p){ currentPage=p; renderTable(); window.scrollTo(0,0);
 // ── 匯出 CSV ──
 window.exportCSV = function(){
   if(!filtered.length){showToast('沒有資料可匯出');return;}
-  const rows=[['時間','操作者','角色','動作','對象/內容']];
+  const rows=[['時間','操作者','角色','模組','動作','對象/內容']];
   filtered.forEach(l=>{
     const d = l.ts?.toDate ? l.ts.toDate() : new Date(l.ts||0);
     rows.push([
       d.toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}),
-      l.editor||'',l.role||'',l.action||'',l.detail||''
+      l.editor||'',l.role||'',l.module||'',l.action||'',l.detail||''
     ]);
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');

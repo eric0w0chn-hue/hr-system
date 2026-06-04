@@ -188,7 +188,7 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db } from './auth-guard.js';
+import { authGuard, db, writeOpLog } from './auth-guard.js';
 import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const PAGE_SIZE = 10;
@@ -196,6 +196,7 @@ let allUsers = [];
 let currentPage = 1;
 let currentUid = '';
 let currentRole = '';
+let currentUserName = '';
 let storeList = [];  // 從 hr/employees 動態載入
 
 const roleNames = {admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -345,6 +346,7 @@ window.saveEdit = async function(){
   if(!name){showToast('請輸入姓名');return;}
   try{
     await updateDoc(doc(db,'users',uid),{name,role,locations,workLocation:locations[0]||''});
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'account', action:'編輯帳號', detail:`${name}（${role}）` });
     const idx = allUsers.findIndex(x=>x.uid===uid);
     if(idx>=0) allUsers[idx]={...allUsers[idx],name,role,locations,workLocation:locations[0]||''};
     updateStats();
@@ -358,6 +360,8 @@ window.toggleDisable = async function(uid, disable){
   if(disable&&!confirm('確定要停用此帳號？')) return;
   try{
     await updateDoc(doc(db,'users',uid),{disabled:disable});
+    const target = allUsers.find(x=>x.uid===uid);
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'account', action:disable?'停用帳號':'啟用帳號', detail:target?.name||uid });
     const idx=allUsers.findIndex(x=>x.uid===uid);
     if(idx>=0) allUsers[idx].disabled=disable;
     updateStats(); renderList();
@@ -384,7 +388,9 @@ window.delUser = async function(uid){
       }
     }catch(e){ console.warn('hr 資料刪除失敗', e); }
 
+    const delName = allUsers.find(x=>x.uid===uid)?.name || uid;
     allUsers = allUsers.filter(x=>x.uid!==uid);
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'account', action:'刪除帳號', detail:delName });
     updateStats(); renderList();
     showToast('✅ 已刪除');
   }catch(e){showToast('刪除失敗：'+e.message);}
@@ -409,9 +415,10 @@ function showToast(msg){
 }
 
 // auth
-authGuard('account', async ({ user, role, uid }) => {
+authGuard('account', async ({ user, role, uid, userData }) => {
   currentRole = role;
   currentUid  = uid;
+  currentUserName = userData?.name || '管理員';
   try{
     // 載入所有使用者
     const snap=await getDocs(collection(db,'users'));

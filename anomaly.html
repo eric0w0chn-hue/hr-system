@@ -108,7 +108,7 @@ tr:hover td{background:#FAFBFC}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db } from './auth-guard.js';
+import { authGuard, db, writeOpLog } from './auth-guard.js';
 import { doc, getDoc, getDocs, setDoc, updateDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 let workLocations=[],currentLocations=[],currentRole='',currentUserName='';
 let searchResults=[];
@@ -187,6 +187,7 @@ window.batchResolve=async function(){
   if(!confirm(`確定要批次排除 ${selected.length} 筆異常嗎？`)) return;
   const now=new Date().toISOString();
   await Promise.all(selected.map(id=>setDoc(doc(db,'attendance_anomaly',id),{resolvedAt:now,resolvedBy:currentUserName,managerNote:note||'批次排除'},{merge:true})));
+  writeOpLog({ editor:currentUserName, role:currentRole, module:'anomaly', action:'批次排除異常', detail:`${selected.length} 筆` });
   showToast(`已排除 ${selected.length} 筆 ✓`);
   doSearch();
 };
@@ -217,7 +218,9 @@ window.openResolveModal=function(id){
 window.saveResolve=async function(id){
   const note=document.getElementById('m-note').value.trim();
   if(!note){showToast('請填寫排除說明');return;}
+  const target = searchResults.find(x=>x.id===id);
   await setDoc(doc(db,'attendance_anomaly',id),{resolvedAt:new Date().toISOString(),resolvedBy:currentUserName,managerNote:note},{merge:true});
+  writeOpLog({ editor:currentUserName, role:currentRole, module:'anomaly', action:'排除異常', detail:`${target?.empName||''}（${target?.workLocation||''}）` });
   closeModal();showToast('已排除 ✓');doSearch();
 };
 

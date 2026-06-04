@@ -206,7 +206,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth } from './auth-guard.js';
+import { authGuard, db, auth, writeOpLog as sysWriteOpLog } from './auth-guard.js';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -230,7 +230,7 @@ let editMode=null, editTarget=null;
 let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[], insuranceGrades=[];
 let sortField='', sortDir=1;
 let currentPage=1;
-const PAGE_SIZE=15; // sortDir: 1=升冪 -1=降冪
+const PAGE_SIZE=10; // sortDir: 1=升冪 -1=降冪
 
 // ── 民國年轉換工具 ──
 // 西元 YYYY-MM-DD → 民國 YYY年MM月DD日
@@ -446,13 +446,16 @@ async function loadData() {
 // ── 操作日誌寫入 ──
 async function writeOpLog(action, detail=''){
   try{
-    await addDoc(collection(db,'hr_oplogs'),{
-      ts: serverTimestamp(),
-      editor: currentUserName,
-      role: currentUserRole,
-      action,
-      detail,
-    });
+    await Promise.all([
+      addDoc(collection(db,'hr_oplogs'),{
+        ts: serverTimestamp(),
+        editor: currentUserName,
+        role: currentUserRole,
+        action,
+        detail,
+      }),
+      sysWriteOpLog({ editor:currentUserName, role:currentUserRole, module:'hr', action, detail }),
+    ]);
   }catch(e){ console.warn('oplog write failed',e); }
 }
 
