@@ -3,14 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" href="/hr-system/icons/icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/hr-system/icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/hr-system/icons/favicon-32.png">
-<link rel="manifest" href="/hr-system/manifest.json">
-<meta name="apple-mobile-web-app-title" content="鑫系統">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2D3142">
 <title>鑫系統 LIANGPING</title>
 <style>
 :root{
@@ -329,12 +321,14 @@ const ALL_MODULES=[
   {key:'meeting', icon:'📋', name:'會議紀錄',  desc:'各店會議音檔、文字紀錄、報告文件管理與備份',   page:'meeting.html',active:true},
   {key:'salary',  icon:'💰', name:'薪資計算',  desc:'月薪結算、固定獎金、勞健保自負額試算',         page:'salary.html',active:false,adminOnly:true},
   {key:'account', icon:'🔑', name:'帳號管理',  desc:'帳號角色設定、店面權限管理、帳號停用',         page:'account.html',active:true,adminOnly:true},
-  {key:'cctv',    icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
+  {key:'cctv',       icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
+  {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
+  {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv'],
-  consultant:['hr','schedule','price','meeting','cctv'],
-  manager:  ['hr','schedule','price','meeting','cctv'],
+  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv','permissions','store_accounts'],
+  consultant:['hr','schedule','price','meeting','cctv','store_accounts'],
+  manager:  ['hr','schedule','price','meeting','cctv','store_accounts'],
   employee: ['schedule']
 };
 
