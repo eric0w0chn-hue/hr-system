@@ -259,13 +259,14 @@ tr.dragging{opacity:.4}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db } from './auth-guard.js';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let _role = '';
 let _uid = '';
+let _name = '';
 let _locations = [];
 let _currentStore = null;
 let _entries = [];
@@ -281,6 +282,7 @@ const _pwVisible = {};
 authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: dbRef }) => {
   _role = role;
   _uid  = uid;
+  _name = userData?.name || '—';
   _locations = locations;
   _db = dbRef;
 
@@ -495,8 +497,10 @@ window._del = function(id) {
   const e = _entries.find(x => x.id === id);
   if (!e) return;
   if (!confirm(`確定要刪除「${e.name}」的帳號資料？`)) return;
+  const _delName = _entries.find(x => x.id === id)?.name || id;
   deleteDoc(doc(_db, 'store_accounts', id))
     .then(() => {
+      writeOpLog({ editor:_name, role:_role, module:'store_accounts', action:'刪除店內帳號', detail:_delName });
       _entries = _entries.filter(x => x.id !== id);
       renderEntries();
       showToast('已刪除');
@@ -552,11 +556,13 @@ window.saveEntry = async function() {
   try {
     if (_editId) {
       await updateDoc(doc(_db, 'store_accounts', _editId), data);
+      writeOpLog({ editor:_name, role:_role, module:'store_accounts', action:'編輯店內帳號', detail:`${store} ${name}` });
       const idx = _entries.findIndex(x => x.id === _editId);
       if (idx >= 0) _entries[idx] = { id: _editId, ...data };
       showToast('已更新');
     } else {
       const ref = await addDoc(collection(_db, 'store_accounts'), data);
+      writeOpLog({ editor:_name, role:_role, module:'store_accounts', action:'新增店內帳號', detail:`${store} ${name}` });
       _entries.push({ id: ref.id, ...data });
       showToast('已新增');
     }
