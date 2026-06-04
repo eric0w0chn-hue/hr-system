@@ -735,12 +735,13 @@ authGuard('price',async({user,role,locations,userData})=>{
   try{
     cRole=role;
     cName=userData.name||'—';
-    const locs=locations; // authGuard 過濾後（供 admin/consultant 用）
-    // manager 用原始 userData.locations[0]，避免 authGuard 過濾後順序不固定
+    const locs=locations; // authGuard 過濾後（供查看範圍用）
+    // ownLocs = 此人真正管理的店面，用於提交選單（不受 seeAll 擴展影響）
     const rawLocs=userData.locations||(userData.workLocation?[userData.workLocation]:[]);
+    const ownLocs=rawLocs.filter(Boolean);
     cStore=role==='manager'
       ?(rawLocs.length?rawLocs[0]:'')
-      :(locs.length?locs[0]:(userData.workLocation||''));
+      :(ownLocs.length?ownLocs[0]:(userData.workLocation||''));
     cu=user;
     todayStr=twToday();
     document.getElementById('todayLabel').textContent=fmtDate(todayStr);
@@ -759,8 +760,8 @@ authGuard('price',async({user,role,locations,userData})=>{
       storeRow.style.display='none';
       document.getElementById('myStoreLabel').textContent=cStore||'';
     } else {
-      // admin / consultant：顯示 auth-guard 過濾後的店面（locs）
-      const myLocs = locs.length ? locs : allStores;
+      // admin / consultant：提交選單用自己真正管理的店（ownLocs），不受 seeAll 擴展影響
+      const myLocs = ownLocs.length ? ownLocs : allStores;
       fStore.innerHTML = myLocs.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${s}</option>`).join('');
       storeRow.style.display = myLocs.length > 1 ? 'flex' : 'none';
       if(myLocs.length === 1) cStore = myLocs[0];
