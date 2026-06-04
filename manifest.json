@@ -1,0 +1,23 @@
+{
+  "name": "鑫系統 LIANGPING",
+  "short_name": "鑫系統",
+  "description": "梁平鑫系統 — 輔助管理系統",
+  "start_url": "/hr-system/dashboard.html",
+  "display": "standalone",
+  "background_color": "#ECEEF2",
+  "theme_color": "#2D3142",
+  "icons": [
+    {
+      "src": "/hr-system/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/hr-system/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
