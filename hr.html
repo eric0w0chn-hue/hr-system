@@ -206,7 +206,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth, writeOpLog as sysWriteOpLog } from './auth-guard.js?v=2';
+import { authGuard, db, auth, writeOpLog as sysWriteOpLog } from './auth-guard.js?v=3';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
