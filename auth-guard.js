@@ -34,28 +34,44 @@ const app  = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// 權限設定快取（同一頁面生命週期內只讀一次）
-let _permCache = null;
-let _permFetch  = null;  // 進行中的 fetch promise
+// ── 跨頁快取（sessionStorage）──
+// permissions 和 userData 在同一 session 只讀一次，換頁不重打
+const PERM_KEY     = 'lp_perm_v1';
+const USERDATA_KEY = 'lp_user_v1';
+const CACHE_TTL    = 5 * 60 * 1000; // 5 分鐘
 
+function cacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(key); return null; }
+    return data;
+  } catch { return null; }
+}
+function cacheSet(key, data) {
+  try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+export function clearAuthCache() {
+  try { sessionStorage.removeItem(PERM_KEY); sessionStorage.removeItem(USERDATA_KEY); } catch {}
+}
+
+let _permFetch = null;
 async function fetchPermissions() {
-  if (_permCache) return _permCache;
-  if (_permFetch) return _permFetch;   // 避免同時發多個請求
+  const cached = cacheGet(PERM_KEY);
+  if (cached) return cached;
+  if (_permFetch) return _permFetch;
 
   _permFetch = getDoc(doc(db, 'settings', 'permissions')).then(snap => {
-    if(snap.exists()){
-      _permCache = snap.data().modules || {};
-      // 把 locationTypes 附掛在 __locationTypes__ key 供判斷用
-      _permCache['__locationTypes__'] = snap.data().locationTypes || {};
-    } else {
-      _permCache = {};
+    const result = {};
+    if (snap.exists()) {
+      Object.assign(result, snap.data().modules || {});
+      result['__locationTypes__'] = snap.data().locationTypes || {};
     }
+    cacheSet(PERM_KEY, result);
     _permFetch = null;
-    return _permCache;
-  }).catch(() => {
-    _permFetch = null;
-    return {};
-  });
+    return result;
+  }).catch(() => { _permFetch = null; return {}; });
   return _permFetch;
 }
 
@@ -82,16 +98,23 @@ export async function authGuard(moduleKey, onReady, options = {}) {
       return;
     }
 
-    // ② 讀取使用者資料
+    // ② 讀取使用者資料（優先從 sessionStorage 快取）
     let userData;
     try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      if (!snap.exists() || snap.data().disabled) {
-        await signOut(auth);
-        window.location.href = redirectTo + '?disabled=1';
-        return;
+      const cacheKey = USERDATA_KEY + '_' + user.uid;
+      const cached = cacheGet(cacheKey);
+      if (cached) {
+        userData = cached;
+      } else {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (!snap.exists() || snap.data().disabled) {
+          await signOut(auth);
+          window.location.href = redirectTo + '?disabled=1';
+          return;
+        }
+        userData = snap.data();
+        cacheSet(cacheKey, userData);
       }
-      userData = snap.data();
     } catch (e) {
       console.error('[auth-guard] 讀取使用者失敗', e);
       window.location.href = redirectTo;
@@ -164,13 +187,6 @@ export async function authGuard(moduleKey, onReady, options = {}) {
 
 /**
  * 寫入系統操作日誌至 sys_oplogs
- *
- * @param {object} payload
- * @param {string} payload.editor  - 操作者姓名
- * @param {string} payload.role    - 操作者角色
- * @param {string} payload.module  - 功能模組（如 'hr'、'meeting'、'schedule'）
- * @param {string} payload.action  - 動作描述（如 '新增同仁'、'刪除請假'）
- * @param {string} [payload.detail] - 補充說明（對象、名稱等）
  */
 export async function writeOpLog({ editor, role, module: mod, action, detail = '' }) {
   try {

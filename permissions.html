@@ -502,6 +502,8 @@ window.savePermissions = async function(){
     btn.textContent = '✓ 已儲存';
     document.getElementById('saveStatus').textContent = '';
     toast('✅ 權限設定已儲存');
+    // 清除所有使用者的 permissions 快取，讓下次換頁重新讀取
+    try { sessionStorage.removeItem('lp_perm_v1'); } catch {}
     renderTable();
     setTimeout(() => {
       btn.textContent = '儲存變更';
