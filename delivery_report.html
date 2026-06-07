@@ -289,6 +289,7 @@ const EXCLUDE_STORES = ['梁平有限公司'];
 let cu=null, cuRole='', cuName='', cuOwnLocs=[];
 let centralStores=[];       // 全部央廚（type='central'）
 let myEditableStores=[];    // 我可編輯/回報的央廚清單
+let viewableStores=[];      // 我看得到的央廚清單（manager：自己的；其他：全部）
 let personnel=[];           // [{id, store, name, phone}]
 let allEmployees=[];        // hr/employees.list（在職+留職停薪）
 let tomorrowReports=[];     // [{id, store, name, phone, reporter, createdAt}]
@@ -356,6 +357,8 @@ async function loadCentralStores(){
   }else{
     myEditableStores=[...centralStores];
   }
+  // viewableStores：manager 只看自己的央廚；admin/consultant 看全部
+  viewableStores = cuRole==='manager' ? [...myEditableStores] : [...centralStores];
 }
 
 function setupPermissions(){
@@ -401,20 +404,19 @@ async function loadPersonnel(){
   try{
     const snap=await getDocs(collection(db,'delivery_personnel'));
     personnel=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(p=>centralStores.includes(p.store))
+      .filter(p=>viewableStores.includes(p.store))
       .sort((a,b)=>(a.store+a.name).localeCompare(b.store+b.name,'zh-TW'));
   }catch(e){console.error('loadPersonnel',e);personnel=[]}
 }
 
 function renderPersonnel(){
   const wrap=document.getElementById('personnelTableWrap');
-  if(!centralStores.length){
+  if(!viewableStores.length){
     wrap.innerHTML='<div class="empty">尚未設定央廚（請至「權限管理 → 店面類型」標記）</div>';
     return;
   }
-  // 按央廚分組顯示
   let html='<table class="contact-table"><thead><tr><th style="width:140px">央廚</th><th>姓名</th><th style="width:140px">手機</th><th style="width:120px;text-align:right">操作</th></tr></thead><tbody>';
-  centralStores.forEach(store=>{
+  viewableStores.forEach(store=>{
     const list=personnel.filter(p=>p.store===store);
     const canEdit=myEditableStores.includes(store);
     if(!list.length){
@@ -446,33 +448,35 @@ async function loadTomorrowReports(){
   try{
     const tDate=tomorrowStr();
     const snap=await getDocs(query(collection(db,'delivery_reports'),where('deliveryDate','==',tDate)));
-    tomorrowReports=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // manager 只看自己央廚的回報
+    tomorrowReports=cuRole==='manager'
+      ? all.filter(r=>viewableStores.some(s=>normStore(s)===normStore(r.store)))
+      : all;
   }catch(e){console.error('loadTomorrowReports',e);tomorrowReports=[]}
 }
 
 function renderTomorrowCards(){
   const grid=document.getElementById('cardsGrid');
-  if(!centralStores.length){
+  if(!viewableStores.length){
     grid.innerHTML='<div class="empty" style="grid-column:1/-1">尚未設定央廚</div>';
     document.getElementById('tmrCount').textContent='— / —';
     return;
   }
-  // 用 Map(store -> [reports]) 收集多筆
   const reportMap=new Map();
-  centralStores.forEach(s=>reportMap.set(normStore(s),[]));
+  viewableStores.forEach(s=>reportMap.set(normStore(s),[]));
   tomorrowReports.forEach(r=>{
     const k=normStore(r.store);
     if(reportMap.has(k)) reportMap.get(k).push(r);
   });
-  // 排序每店內按 createdAt asc
   reportMap.forEach(list=>list.sort((a,b)=>{
     const ta=a.createdAt?.toMillis?.()||0, tb=b.createdAt?.toMillis?.()||0;
     return ta-tb;
   }));
-  const doneCount=centralStores.filter(s=>reportMap.get(normStore(s)).length>0).length;
-  document.getElementById('tmrCount').textContent=`${doneCount} / ${centralStores.length} 已回報`;
+  const doneCount=viewableStores.filter(s=>reportMap.get(normStore(s)).length>0).length;
+  document.getElementById('tmrCount').textContent=`${doneCount} / ${viewableStores.length} 已回報`;
 
-  grid.innerHTML=centralStores.map(store=>{
+  grid.innerHTML=viewableStores.map(store=>{
     const list=reportMap.get(normStore(store));
     const canEdit=myEditableStores.includes(store);
     if(list.length){
@@ -517,7 +521,7 @@ function renderTomorrowCards(){
 async function loadHistory(){
   try{
     const days=parseInt(document.getElementById('rangeSel').value)||7;
-    const end=new Date();end.setDate(end.getDate()+1); // 包含明天
+    const end=new Date();end.setDate(end.getDate()+1);
     const start=new Date();start.setDate(start.getDate()-days+1);
     const startStr=`${start.getFullYear()}-${p2(start.getMonth()+1)}-${p2(start.getDate())}`;
     const endStr=`${end.getFullYear()}-${p2(end.getMonth()+1)}-${p2(end.getDate())}`;
@@ -527,7 +531,11 @@ async function loadHistory(){
       where('deliveryDate','<=',endStr),
       orderBy('deliveryDate','desc')
     ));
-    historyReports=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // manager 只看自己央廚的歷史
+    historyReports=cuRole==='manager'
+      ? all.filter(r=>viewableStores.some(s=>normStore(s)===normStore(r.store)))
+      : all;
   }catch(e){console.error('loadHistory',e);historyReports=[]}
 }
 
