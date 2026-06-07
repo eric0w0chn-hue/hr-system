@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>配送人員回報 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-hover:#1E2230;--accent-light:#F0F2F5;
+  --green:#1A9B4C;--green-bg:#E5F5EB;--green-border:#B4E1C2;
+  --orange:#C47A00;--orange-bg:#FFF4E0;--orange-border:#FDDFA0;
+  --red:#D33A3A;--red-bg:#FCEBEB;--red-border:#F7C8C8;
+  --blue:#2D6BF0;--blue-bg:#EAF0FF;--blue-border:#C3D4F7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:200;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.back-btn{font-size:12px;padding:5px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.back-btn:hover{background:rgba(255,255,255,.22)}
+.dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;margin:0}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff}
+@media(max-width:600px){.topbar{padding:0 10px}.topbar h1{font-size:14px}.back-btn{font-size:11px;padding:4px 9px}}
+
+/* ── Layout ── */
+.main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+
+/* ── Section ── */
+.section{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.section-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.section-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.section-body{padding:14px 16px}
+
+/* ── Buttons ── */
+.btn{font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s;border:none;height:36px}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
+.btn-sm{font-size:12px;padding:4px 10px;height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
+.btn-sm.btn-outline{border:1px solid var(--border);background:#fff;color:var(--text2)}
+.btn-sm.btn-outline:hover{background:var(--surface2)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
+
+/* ── Contact table ── */
+.contact-table{width:100%;border-collapse:collapse;font-size:13px}
+.contact-table th{text-align:left;padding:8px 10px;font-weight:600;color:var(--text2);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.contact-table td{padding:8px 10px;border-bottom:1px solid #ECEEF2;vertical-align:middle}
+.contact-table tr:last-child td{border-bottom:none}
+.store-pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;background:var(--accent-light);color:var(--accent);font-weight:500}
+.phone-cell{color:var(--text2);font-family:'SF Mono',Menlo,monospace}
+.row-actions{display:flex;gap:4px;justify-content:flex-end}
+
+/* ── Tomorrow cards ── */
+.tmr-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.tmr-count{font-size:11px;color:var(--text2);background:#fff;padding:3px 9px;border-radius:20px;border:1px solid var(--border)}
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:760px){.cards-grid{grid-template-columns:1fr}}
+.tcard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;border-left:4px solid var(--border2)}
+.tcard.done{border-left-color:var(--green)}
+.tcard.empty{background:#FFFBF0;border-color:var(--orange-border);border-left-color:var(--orange)}
+.tcard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tcard-store{font-size:13px;font-weight:600}
+.tcard-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.tcard-status.s-done{color:var(--green);background:var(--green-bg)}
+.tcard-status.s-empty{color:#8A5500;background:#FFF1D6}
+.tcard-name{font-size:18px;font-weight:700;margin-bottom:4px}
+.tcard-phone{font-size:12px;color:var(--text2);margin-bottom:8px;font-family:'SF Mono',Menlo,monospace}
+.tcard-phone a{color:inherit;text-decoration:none}
+.tcard-foot{font-size:11px;color:var(--text3);padding-top:8px;border-top:1px solid #ECEEF2;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.tcard.empty .tcard-foot{border-top-color:var(--orange-border);color:#8A5500}
+.tcard-empty-msg{font-size:14px;color:#8A5500;font-style:italic;padding:14px 0;text-align:center}
+
+/* ── History table ── */
+.history-table{width:100%;border-collapse:collapse;font-size:13px}
+.history-table th{text-align:left;padding:8px 10px;font-weight:600;color:var(--text2);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.history-table td{padding:8px 10px;border-bottom:1px solid #ECEEF2;vertical-align:middle}
+.history-table tr:last-child td{border-bottom:none}
+.history-table .col-date{white-space:nowrap}
+
+/* ── Range select ── */
+.range-select{font-size:12px;padding:5px 28px 5px 10px;border:1px solid var(--border);border-radius:7px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A6175' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 8px center;appearance:none;-webkit-appearance:none;color:var(--text);cursor:pointer;font-family:inherit;height:30px}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:30px 20px;color:var(--text3);font-size:13px}
+
+/* ── Loading ── */
+#loadingScreen{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:9999}
+.spinner{width:32px;height:32px;border:3px solid #E5E7ED;border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Overlay/Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:480px;margin:auto;animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:30px;height:30px;border-radius:8px;border:none;background:var(--surface2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.modal-body{padding:18px 22px}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.fr{margin-bottom:14px}
+.fr label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.fr input,.fr select{width:100%;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;height:38px}
+.fr input:focus,.fr select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
+.fr-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-hint{font-size:12px;color:var(--text2);background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:12px;line-height:1.5}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--accent);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:400;transition:transform .25s;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text3)">載入中…</div>
+</div>
+
+<div id="appWrap" style="display:none">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
+    <div class="dv"></div>
+    <h1>🚚 配送人員回報</h1>
+  </div>
+  <div class="topbar-right">
+    <span id="todayChip" style="font-size:11px;color:rgba(255,255,255,.6)"></span>
+    <span class="role-chip" id="roleChip"></span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── 區塊 A：配送人員聯絡簿 ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">📇 配送人員聯絡簿</div>
+      <button class="btn btn-outline" id="addPersonnelBtn" onclick="openPersonnelModal()" style="height:32px;font-size:12px;padding:5px 12px;display:none">＋ 新增聯絡人</button>
+    </div>
+    <div class="section-body" style="padding:0">
+      <div id="personnelTableWrap">
+        <div class="empty">載入中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 區塊 B：明日配送 ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">📋 明日配送人員 <span id="tmrDateLabel" style="font-size:13px;color:var(--text2);font-weight:500;margin-left:4px"></span></div>
+      <div class="tmr-meta">
+        <span class="tmr-count" id="tmrCount">— / —</span>
+        <button class="btn btn-primary" id="addReportBtn" onclick="openReportModal()" style="height:32px;font-size:12px;padding:5px 12px;display:none">＋ 新增回報</button>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="cards-grid" id="cardsGrid">
+        <div class="empty" style="grid-column:1/-1">載入中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 區塊 C：歷史回報 ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">🕘 歷史回報</div>
+      <select class="range-select" id="rangeSel" onchange="reloadHistory()">
+        <option value="7">近 7 天</option>
+        <option value="30">近 30 天</option>
+      </select>
+    </div>
+    <div class="section-body" style="padding:0">
+      <div id="historyWrap">
+        <div class="empty">載入中…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ── 聯絡人 Modal ── -->
+<div class="overlay" id="personnelOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="personnelModalTitle">新增聯絡人</div>
+      <button class="modal-close" onclick="closePersonnelModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fr">
+        <label>所屬央廚</label>
+        <select id="pmStore"></select>
+      </div>
+      <div class="fr">
+        <label>姓名</label>
+        <input type="text" id="pmName" placeholder="例如：王小明" maxlength="30">
+      </div>
+      <div class="fr">
+        <label>手機號碼</label>
+        <input type="text" id="pmPhone" placeholder="例如：0912-345-678" maxlength="20">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePersonnelModal()">取消</button>
+      <button class="btn btn-primary" id="pmSaveBtn" onclick="savePersonnel()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 回報 Modal ── -->
+<div class="overlay" id="reportOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">提交明日配送回報</div>
+      <button class="modal-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-hint" id="rmHint">回報日期為明天，同一央廚同日重複提交會覆蓋。</div>
+      <div class="fr">
+        <label>配送日期</label>
+        <input type="text" id="rmDate" disabled style="background:var(--surface2)">
+      </div>
+      <div class="fr">
+        <label>央廚</label>
+        <select id="rmStore" onchange="onReportStoreChange()"></select>
+      </div>
+      <div class="fr">
+        <label>配送人員</label>
+        <select id="rmPersonnel"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeReportModal()">取消</button>
+      <button class="btn btn-primary" id="rmSaveBtn" onclick="saveReport()">送出回報</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import {
+  doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+  collection, getDocs, query, where, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── Constants ──
+const EXCLUDE_STORES = ['梁平有限公司'];
+
+// ── State ──
+let cu=null, cuRole='', cuName='', cuOwnLocs=[];
+let centralStores=[];       // 全部央廚（type='central'）
+let myEditableStores=[];    // 我可編輯/回報的央廚清單
+let personnel=[];           // [{id, store, name, phone}]
+let tomorrowReports=[];     // [{id, store, name, phone, reporter, createdAt}]
+let historyReports=[];
+
+let editingPersonnelId=null;
+
+// ── Date helpers ──
+function p2(n){return String(n).padStart(2,'0')}
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`}
+function tomorrowStr(){const d=new Date();d.setDate(d.getDate()+1);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`}
+function dateDisp(s){
+  const [y,m,d]=s.split('-');
+  const w=['日','一','二','三','四','五','六'][new Date(s+'T00:00:00').getDay()];
+  return `${parseInt(m)}/${parseInt(d)}（週${w}）`;
+}
+function fmtTs(ts){
+  if(!ts) return '—';
+  const d=ts.toDate?ts.toDate():new Date(ts);
+  return d.toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// ── Utils ──
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function normStore(s){return String(s||'').replace(/鋪/g,'舖').trim()}
+function reportDocId(date,store){return `${date}_${store}`}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── Auth ──
+authGuard('delivery_report', async ({ user, role, locations, userData }) => {
+  cu=user; cuRole=role; cuName=userData.name||user.email;
+  // ownLocs：使用者原始所屬店面（用於 manager 的可編輯範圍判斷）
+  cuOwnLocs = Array.isArray(userData.locations)?userData.locations:[];
+
+  const roleMap={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
+  document.getElementById('roleChip').textContent=(roleMap[cuRole]||cuRole)+'　'+cuName;
+  const now=new Date();
+  document.getElementById('todayChip').textContent=now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+
+  await loadCentralStores();
+  setupPermissions();
+  document.getElementById('loadingScreen').style.display='none';
+  document.getElementById('appWrap').style.display='block';
+  await loadAndRender();
+});
+
+// ── 載入央廚清單（從 settings/permissions.locationTypes 篩 type='central'）──
+async function loadCentralStores(){
+  try{
+    const snap=await getDoc(doc(db,'settings','permissions'));
+    if(snap.exists()){
+      const types=snap.data().locationTypes||{};
+      centralStores=Object.entries(types)
+        .filter(([loc,t])=>t==='central' && !EXCLUDE_STORES.includes(loc))
+        .map(([loc])=>loc).sort();
+    }
+  }catch(e){console.error('loadCentralStores',e)}
+  // manager 可編輯：自己所屬且為央廚的；admin/consultant：全部央廚
+  if(cuRole==='manager'){
+    myEditableStores=cuOwnLocs.filter(l=>centralStores.includes(l));
+  }else{
+    myEditableStores=[...centralStores];
+  }
+}
+
+function setupPermissions(){
+  // 「新增聯絡人」按鈕：若無可編輯央廚則隱藏
+  const addP=document.getElementById('addPersonnelBtn');
+  addP.style.display = myEditableStores.length?'inline-flex':'none';
+  // 「新增回報」按鈕：同上
+  const addR=document.getElementById('addReportBtn');
+  addR.style.display = myEditableStores.length?'inline-flex':'none';
+  // 明日日期顯示
+  document.getElementById('tmrDateLabel').textContent='（'+dateDisp(tomorrowStr())+'）';
+}
+
+// ── 全頁載入 ──
+async function loadAndRender(){
+  await Promise.all([loadPersonnel(), loadTomorrowReports(), loadHistory()]);
+  renderPersonnel();
+  renderTomorrowCards();
+  renderHistory();
+}
+
+// ── Personnel ──
+async function loadPersonnel(){
+  try{
+    const snap=await getDocs(collection(db,'delivery_personnel'));
+    personnel=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(p=>centralStores.includes(p.store))
+      .sort((a,b)=>(a.store+a.name).localeCompare(b.store+b.name,'zh-TW'));
+  }catch(e){console.error('loadPersonnel',e);personnel=[]}
+}
+
+function renderPersonnel(){
+  const wrap=document.getElementById('personnelTableWrap');
+  if(!centralStores.length){
+    wrap.innerHTML='<div class="empty">尚未設定央廚（請至「權限管理 → 店面類型」標記）</div>';
+    return;
+  }
+  // 按央廚分組顯示
+  let html='<table class="contact-table"><thead><tr><th style="width:140px">央廚</th><th>姓名</th><th style="width:140px">手機</th><th style="width:120px;text-align:right">操作</th></tr></thead><tbody>';
+  centralStores.forEach(store=>{
+    const list=personnel.filter(p=>p.store===store);
+    const canEdit=myEditableStores.includes(store);
+    if(!list.length){
+      html+=`<tr><td><span class="store-pill">${esc(store)}</span></td><td colspan="2" style="color:var(--text3);font-style:italic">尚未建立聯絡人</td><td style="text-align:right">${canEdit?`<button class="btn-sm btn-outline" onclick="openPersonnelModal('${esc(store)}')">＋ 新增</button>`:''}</td></tr>`;
+    }else{
+      list.forEach((p,i)=>{
+        html+=`<tr>
+          <td>${i===0?`<span class="store-pill">${esc(store)}</span>`:''}</td>
+          <td>${esc(p.name)}</td>
+          <td class="phone-cell"><a href="tel:${esc(p.phone)}" style="color:inherit;text-decoration:none">${esc(p.phone||'—')}</a></td>
+          <td><div class="row-actions">${canEdit?`
+            <button class="btn-sm btn-outline" onclick="editPersonnel('${p.id}')">✎</button>
+            <button class="btn-sm btn-danger" onclick="deletePersonnel('${p.id}')">🗑</button>
+          `:''}</div></td>
+        </tr>`;
+      });
+    }
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+
+// ── Tomorrow Reports ──
+async function loadTomorrowReports(){
+  try{
+    const tDate=tomorrowStr();
+    const snap=await getDocs(query(collection(db,'delivery_reports'),where('deliveryDate','==',tDate)));
+    tomorrowReports=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.error('loadTomorrowReports',e);tomorrowReports=[]}
+}
+
+function renderTomorrowCards(){
+  const grid=document.getElementById('cardsGrid');
+  if(!centralStores.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1">尚未設定央廚</div>';
+    document.getElementById('tmrCount').textContent='— / —';
+    return;
+  }
+  const reportMap=new Map(tomorrowReports.map(r=>[normStore(r.store),r]));
+  const doneCount=centralStores.filter(s=>reportMap.has(normStore(s))).length;
+  document.getElementById('tmrCount').textContent=`${doneCount} / ${centralStores.length} 已回報`;
+
+  grid.innerHTML=centralStores.map(store=>{
+    const r=reportMap.get(normStore(store));
+    const canEdit=myEditableStores.includes(store);
+    if(r){
+      return `<div class="tcard done">
+        <div class="tcard-head">
+          <span class="tcard-store">${esc(store)}</span>
+          <span class="tcard-status s-done">✓ 已回報</span>
+        </div>
+        <div class="tcard-name">${esc(r.name)}</div>
+        <div class="tcard-phone">📞 <a href="tel:${esc(r.phone)}">${esc(r.phone||'—')}</a></div>
+        <div class="tcard-foot">
+          <span>${esc(r.reporter||'—')} · ${fmtTs(r.createdAt)}</span>
+          ${canEdit?`<button class="btn-sm btn-outline" onclick="openReportModal('${esc(store)}')">重新回報</button>`:''}
+        </div>
+      </div>`;
+    }else{
+      return `<div class="tcard empty">
+        <div class="tcard-head">
+          <span class="tcard-store">${esc(store)}</span>
+          <span class="tcard-status s-empty">⚠ 尚未回報</span>
+        </div>
+        <div class="tcard-empty-msg">— 等待回報 —</div>
+        <div class="tcard-foot">
+          <span>提醒：請及早回報明日配送人員</span>
+          ${canEdit?`<button class="btn-sm btn-outline" onclick="openReportModal('${esc(store)}')">＋ 立即回報</button>`:''}
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ── History ──
+async function loadHistory(){
+  try{
+    const days=parseInt(document.getElementById('rangeSel').value)||7;
+    const end=new Date();end.setDate(end.getDate()+1); // 包含明天
+    const start=new Date();start.setDate(start.getDate()-days+1);
+    const startStr=`${start.getFullYear()}-${p2(start.getMonth()+1)}-${p2(start.getDate())}`;
+    const endStr=`${end.getFullYear()}-${p2(end.getMonth()+1)}-${p2(end.getDate())}`;
+    const snap=await getDocs(query(
+      collection(db,'delivery_reports'),
+      where('deliveryDate','>=',startStr),
+      where('deliveryDate','<=',endStr),
+      orderBy('deliveryDate','desc')
+    ));
+    historyReports=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.error('loadHistory',e);historyReports=[]}
+}
+
+window.reloadHistory=async function(){
+  document.getElementById('historyWrap').innerHTML='<div class="empty">載入中…</div>';
+  await loadHistory();
+  renderHistory();
+};
+
+function renderHistory(){
+  const wrap=document.getElementById('historyWrap');
+  if(!historyReports.length){
+    wrap.innerHTML='<div class="empty">區間內尚無回報紀錄</div>';
+    return;
+  }
+  // 依日期 desc + store asc 排序
+  const rows=[...historyReports].sort((a,b)=>{
+    if(a.deliveryDate!==b.deliveryDate) return a.deliveryDate<b.deliveryDate?1:-1;
+    return (a.store||'').localeCompare(b.store||'','zh-TW');
+  });
+  let html='<table class="history-table"><thead><tr><th class="col-date">配送日</th><th style="width:120px">央廚</th><th>配送人員</th><th style="width:130px">手機</th><th style="width:120px">回報人</th><th style="width:130px">提交時間</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    html+=`<tr>
+      <td class="col-date">${dateDisp(r.deliveryDate)}</td>
+      <td><span class="store-pill">${esc(r.store)}</span></td>
+      <td>${esc(r.name)}</td>
+      <td class="phone-cell">${esc(r.phone||'—')}</td>
+      <td>${esc(r.reporter||'—')}</td>
+      <td style="color:var(--text3);font-size:12px">${fmtTs(r.createdAt)}</td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+
+// ── Personnel Modal ──
+window.openPersonnelModal=function(preStore){
+  editingPersonnelId=null;
+  document.getElementById('personnelModalTitle').textContent='新增聯絡人';
+  const sel=document.getElementById('pmStore');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
+  document.getElementById('pmName').value='';
+  document.getElementById('pmPhone').value='';
+  document.getElementById('personnelOverlay').classList.add('show');
+};
+window.closePersonnelModal=function(){
+  document.getElementById('personnelOverlay').classList.remove('show');
+  editingPersonnelId=null;
+};
+window.editPersonnel=function(id){
+  const p=personnel.find(x=>x.id===id);
+  if(!p) return;
+  if(!myEditableStores.includes(p.store)){toast('無權編輯此聯絡人');return}
+  editingPersonnelId=id;
+  document.getElementById('personnelModalTitle').textContent='編輯聯絡人';
+  const sel=document.getElementById('pmStore');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.value=p.store;
+  document.getElementById('pmName').value=p.name||'';
+  document.getElementById('pmPhone').value=p.phone||'';
+  document.getElementById('personnelOverlay').classList.add('show');
+};
+window.deletePersonnel=async function(id){
+  const p=personnel.find(x=>x.id===id);
+  if(!p) return;
+  if(!myEditableStores.includes(p.store)){toast('無權刪除此聯絡人');return}
+  if(!confirm(`確定刪除「${p.name}」？`)) return;
+  try{
+    await deleteDoc(doc(db,'delivery_personnel',id));
+    writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'刪除聯絡人',detail:`${p.name}（${p.store}）`});
+    toast('已刪除');
+    await loadPersonnel();renderPersonnel();
+  }catch(e){toast('刪除失敗：'+e.message)}
+};
+window.savePersonnel=async function(){
+  const store=document.getElementById('pmStore').value;
+  const name=document.getElementById('pmName').value.trim();
+  const phone=document.getElementById('pmPhone').value.trim();
+  if(!store){toast('請選擇央廚');return}
+  if(!name){toast('請輸入姓名');return}
+  if(!phone){toast('請輸入手機');return}
+  if(!myEditableStores.includes(store)){toast('無權新增此央廚的聯絡人');return}
+  const btn=document.getElementById('pmSaveBtn');btn.disabled=true;
+  try{
+    if(editingPersonnelId){
+      await updateDoc(doc(db,'delivery_personnel',editingPersonnelId),{
+        store,name,phone,updatedAt:serverTimestamp(),updatedBy:cuName
+      });
+      writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'編輯聯絡人',detail:`${name}（${store}）`});
+      toast('已更新');
+    }else{
+      await addDoc(collection(db,'delivery_personnel'),{
+        store,name,phone,createdAt:serverTimestamp(),createdBy:cuName
+      });
+      writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'新增聯絡人',detail:`${name}（${store}）`});
+      toast('已新增');
+    }
+    closePersonnelModal();
+    await loadPersonnel();renderPersonnel();
+    // 若回報 modal 開著且該店相同，同步刷新人選
+    if(document.getElementById('reportOverlay').classList.contains('show')) onReportStoreChange();
+  }catch(e){toast('儲存失敗：'+e.message)}
+  finally{btn.disabled=false}
+};
+
+// ── Report Modal ──
+window.openReportModal=function(preStore){
+  if(!myEditableStores.length){toast('無可回報的央廚');return}
+  document.getElementById('rmDate').value=dateDisp(tomorrowStr());
+  const sel=document.getElementById('rmStore');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
+  onReportStoreChange();
+  document.getElementById('reportOverlay').classList.add('show');
+};
+window.closeReportModal=function(){
+  document.getElementById('reportOverlay').classList.remove('show');
+};
+window.onReportStoreChange=function(){
+  const store=document.getElementById('rmStore').value;
+  const list=personnel.filter(p=>p.store===store);
+  const sel=document.getElementById('rmPersonnel');
+  if(!list.length){
+    sel.innerHTML='<option value="">（此央廚尚無聯絡人，請先至上方聯絡簿新增）</option>';
+  }else{
+    sel.innerHTML=list.map(p=>`<option value="${p.id}">${esc(p.name)}　${esc(p.phone)}</option>`).join('');
+  }
+};
+window.saveReport=async function(){
+  const store=document.getElementById('rmStore').value;
+  const personnelId=document.getElementById('rmPersonnel').value;
+  if(!store){toast('請選擇央廚');return}
+  if(!personnelId){toast('請選擇配送人員');return}
+  if(!myEditableStores.includes(store)){toast('無權回報此央廚');return}
+  const p=personnel.find(x=>x.id===personnelId);
+  if(!p){toast('找不到該人員資料');return}
+  const btn=document.getElementById('rmSaveBtn');btn.disabled=true;
+  try{
+    const date=tomorrowStr();
+    const docId=reportDocId(date,store);
+    await setDoc(doc(db,'delivery_reports',docId),{
+      deliveryDate:date,
+      store,
+      personnelId,
+      name:p.name,
+      phone:p.phone||'',
+      reporter:cuName,
+      reporterRole:cuRole,
+      createdAt:serverTimestamp()
+    });
+    writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'提交配送回報',detail:`${dateDisp(date)} ${store} → ${p.name}`});
+    toast('回報成功');
+    closeReportModal();
+    await Promise.all([loadTomorrowReports(),loadHistory()]);
+    renderTomorrowCards();renderHistory();
+  }catch(e){toast('送出失敗：'+e.message)}
+  finally{btn.disabled=false}
+};
+
+// ── 點 overlay 背景關閉 ──
+document.getElementById('personnelOverlay').addEventListener('click',e=>{
+  if(e.target.id==='personnelOverlay') closePersonnelModal();
+});
+document.getElementById('reportOverlay').addEventListener('click',e=>{
+  if(e.target.id==='reportOverlay') closeReportModal();
+});
+
+</script>
+</body>
+</html>
