@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="/hr-system/icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/hr-system/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/hr-system/icons/favicon-32.png">
+<link rel="manifest" href="/hr-system/manifest.json">
+<meta name="apple-mobile-web-app-title" content="鑫系統">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2D3142">
 <title>鑫系統 LIANGPING</title>
 <style>
 :root{
@@ -323,6 +331,7 @@ const ALL_MODULES=[
   {key:'account', icon:'🔑', name:'帳號管理',  desc:'帳號角色設定、店面權限管理、帳號停用',         page:'account.html',active:true,adminOnly:true},
   {key:'cctv',       icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
   {key:'delivery_report', icon:'🚚', name:'配送人員回報', desc:'央廚配送人員聯絡簿、每日回報明日配送人員', page:'delivery_report.html', active:true},
+  {key:'delivery_report', icon:'🚚', name:'配送人員回報', desc:'央廚配送人員聯絡簿、每日回報明日配送人員', page:'delivery_report.html', active:true},
   {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
   {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
 ];
@@ -427,9 +436,8 @@ function renderAll(role){
   const editToggleBtn = document.getElementById('editModeToggle');
   if(editToggleBtn) editToggleBtn.style.display = (isAdmin&&!inPreview)?'block':'none';
 
-  // 預設展開第一個群組
-  const firstGrp=document.querySelector('.sidebar-group');
-  if(firstGrp) firstGrp.classList.add('open');
+  // 預設全部收合（不自動展開）
+  document.querySelectorAll('#sidebarContent .sidebar-group').forEach(el=>el.classList.remove('open'));
   // 群組拖拉
   if(isAdmin&&!inPreview){ initGroupDrag(); initItemDrag(); }
 
