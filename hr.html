@@ -759,15 +759,18 @@ function render() {
     const visibleAll = (currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
       ? all.filter(r=>currentUserLocations.includes(r.workLocation))
       : all;
-    const total=visibleAll.length,
-          active=visibleAll.filter(r=>r.status==='在職').length,
-          stores=(currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
+    // 若有選擇特定店面，stats 只計算該店面
+    const statBase = sloc ? visibleAll.filter(r=>r.workLocation===sloc) : visibleAll;
+    const total=statBase.length,
+          active=statBase.filter(r=>r.status==='在職').length,
+          stores=sloc ? 1
+            : (currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
             ? currentUserLocations.length
             : new Set(all.map(r=>r.workLocation).filter(Boolean)).size;
     stats=`<div class="stats">
       <div class="sc"><div class="sl">同仁總數</div><div class="sn">${total}</div></div>
       <div class="sc"><div class="sl">正式在職</div><div class="sn">${active}</div></div>
-      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${visibleAll.filter(r=>r.status==='留職停薪').length}</div></div>
+      <div class="sc"><div class="sl">留職停薪</div><div class="sn">${statBase.filter(r=>r.status==='留職停薪').length}</div></div>
       <div class="sc"><div class="sl">現有店面數</div><div class="sn">${stores}</div></div>
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
