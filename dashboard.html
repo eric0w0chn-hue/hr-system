@@ -434,9 +434,7 @@ function renderAll(role){
   const editToggleBtn = document.getElementById('editModeToggle');
   if(editToggleBtn) editToggleBtn.style.display = (isAdmin&&!inPreview)?'block':'none';
 
-  // 預設展開第一個群組
-  const firstGrp=document.querySelector('.sidebar-group');
-  if(firstGrp) firstGrp.classList.add('open');
+  // 預設全部收合（不自動展開）
   // 群組拖拉
   if(isAdmin&&!inPreview){ initGroupDrag(); initItemDrag(); }
 
