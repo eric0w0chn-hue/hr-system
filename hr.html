@@ -533,7 +533,7 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sortField='';sortDir=1;currentPage=1;render(); }
+function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
@@ -545,7 +545,7 @@ function getList() {
     const q=sq.toLowerCase();
     const nm=(r.name+((tab==='interview'?r.location:r.workLocation)||'')+(r.email||'')).toLowerCase().includes(q);
     const st=!sf||r.status===sf;
-    const sl=!sloc||r.workLocation===sloc;
+    const sl=!sloc||(tab==='interview'?r.location:r.workLocation)===sloc;
     return nm&&st&&sl;
   });
   if(sortField){
