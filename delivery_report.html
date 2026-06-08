@@ -111,6 +111,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* ── Vehicle select ── */
 .new-plate-row{margin-top:-6px;margin-bottom:14px;display:none}
+.vehicle-manage-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px}
+.vehicle-manage-row:last-child{border-bottom:none}
+.vehicle-manage-name{font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.vehicle-manage-actions{display:flex;gap:6px;flex-shrink:0}
+.default-label{font-size:11px;padding:2px 8px;border-radius:20px;background:#F4F0FF;color:#6B3FC8;border:1px solid #DDD0F7;font-weight:500;white-space:nowrap}
+.default-label.active{background:#2D3142;color:#fff;border-color:#2D3142}
 
 /* ── Range select ── */
 .range-select{font-size:12px;padding:5px 28px 5px 10px;border:1px solid var(--border);border-radius:7px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A6175' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 8px center;appearance:none;-webkit-appearance:none;color:var(--text);cursor:pointer;font-family:inherit;height:30px}
@@ -154,8 +160,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .modal-hint{font-size:12px;color:var(--text2);background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:12px;line-height:1.5}
 
 /* ── Toast ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--accent);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:400;transition:transform .25s;box-shadow:0 4px 12px rgba(0,0,0,.18)}
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:400;box-shadow:0 4px 12px rgba(0,0,0,.18);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s,visibility .25s;white-space:nowrap}
+.toast.show{opacity:1;visibility:visible;pointer-events:auto}
 </style>
 </head>
 <body>
@@ -287,7 +293,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <select id="rmPersonnel"></select>
       </div>
       <div class="fr">
-        <label>配送車輛</label>
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          配送車輛
+          <button type="button" onclick="openVehicleManage()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0;font-family:inherit">⚙ 管理車牌</button>
+        </label>
         <select id="rmVehicle" onchange="onVehicleChange()"></select>
       </div>
       <div class="new-plate-row" id="newPlateRow">
@@ -302,6 +311,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ── 車牌管理 Modal ── -->
+<div class="overlay" id="vehicleManageOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">管理車牌選項</div>
+        <div id="vmStoreLabel" style="font-size:12px;color:var(--text2);margin-top:2px"></div>
+      </div>
+      <button class="modal-close" onclick="closeVehicleManage()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="vehicleManageList"></div>
+    </div>
+    <div class="modal-footer">
+      <div style="flex:1;display:flex;align-items:center;gap:8px">
+        <input type="text" id="vmNewPlate" placeholder="新增車牌" maxlength="15" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;height:34px">
+        <button class="btn btn-primary" style="height:34px;padding:0 14px;font-size:13px" onclick="vmAddPlate()">新增</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
@@ -320,7 +351,9 @@ let myEditableStores=[];    // 我可編輯/回報的央廚清單
 let viewableStores=[];      // 我看得到的央廚清單（manager：自己的；其他：全部）
 let personnel=[];           // [{id, store, name, phone}]
 let allEmployees=[];        // hr/employees.list（在職+留職停薪）
-let deliveryVehicles=[];    // 車牌清單（settings/delivery_vehicles.plates）
+let deliveryVehicles=[];    // 車牌清單
+let storeDefaults={};       // 各央廚預設車牌 { '新莊央廚': 'BPK8307', ... }
+let currentReportStore='';  // 目前回報中的央廚（供車牌管理使用）
 let tomorrowReports=[];     // [{id, store, name, phone, reporter, createdAt}]
 let historyReports=[];
 
@@ -431,27 +464,98 @@ function getEmployeesByStore(store){
 async function loadVehicles(){
   try{
     const snap=await getDoc(doc(db,'settings','delivery_vehicles'));
-    deliveryVehicles=snap.exists()?(snap.data().plates||[]):[];
+    if(snap.exists()){
+      deliveryVehicles=snap.data().plates||[];
+      storeDefaults=snap.data().storeDefaults||{};
+    }
     if(!deliveryVehicles.length) deliveryVehicles=['租賃車'];
-  }catch(e){console.error('loadVehicles',e);deliveryVehicles=['租賃車']}
+  }catch(e){console.error('loadVehicles',e);deliveryVehicles=['租賃車'];storeDefaults={}}
+}
+
+async function saveVehiclesDoc(){
+  await setDoc(doc(db,'settings','delivery_vehicles'),{
+    plates:deliveryVehicles,storeDefaults
+  });
 }
 
 async function addVehicle(plate){
   const clean=plate.trim().toUpperCase();
-  if(!clean) return;
-  if(deliveryVehicles.includes(clean)){toast('此車牌已存在');return}
+  if(!clean) return null;
+  if(deliveryVehicles.includes(clean)){toast('此車牌已存在');return null}
   deliveryVehicles=[...deliveryVehicles,clean];
-  try{
-    await setDoc(doc(db,'settings','delivery_vehicles'),{plates:deliveryVehicles});
-  }catch(e){console.error('addVehicle',e)}
+  try{await saveVehiclesDoc()}catch(e){console.error(e)}
+  return clean;
 }
 
-function renderVehicleSelect(selected){
-  const sel=document.getElementById('rmVehicle');
-  sel.innerHTML=deliveryVehicles.map(v=>`<option value="${esc(v)}"${v===selected?' selected':''}>${esc(v)}</option>`).join('')
-    +'<option value="__add__">＋ 自行輸入車牌…</option>';
-  sel.value=selected||deliveryVehicles[0]||'';
+function getOrderedVehicles(store){
+  const def=storeDefaults[store];
+  if(!def||!deliveryVehicles.includes(def)) return [...deliveryVehicles];
+  return [def,...deliveryVehicles.filter(v=>v!==def)];
 }
+
+function renderVehicleSelect(store,selected){
+  const sel=document.getElementById('rmVehicle');
+  const ordered=getOrderedVehicles(store||currentReportStore);
+  const pick=selected||(ordered[0]||'');
+  sel.innerHTML=ordered.map(v=>`<option value="${esc(v)}"${v===pick?' selected':''}>${esc(v)}</option>`).join('')
+    +'<option value="__add__">＋ 自行輸入車牌…</option>';
+  sel.value=pick;
+}
+
+// ── 車牌管理 Modal ──
+window.openVehicleManage=function(){
+  document.getElementById('vmStoreLabel').textContent=currentReportStore?`目前廚房：${currentReportStore}`:'';
+  document.getElementById('vmNewPlate').value='';
+  renderVehicleManageList();
+  document.getElementById('vehicleManageOverlay').classList.add('show');
+};
+window.closeVehicleManage=function(){
+  document.getElementById('vehicleManageOverlay').classList.remove('show');
+  renderVehicleSelect(currentReportStore);
+};
+
+function renderVehicleManageList(){
+  const store=currentReportStore;
+  const def=storeDefaults[store]||'';
+  const list=document.getElementById('vehicleManageList');
+  if(!deliveryVehicles.length){
+    list.innerHTML='<div class="empty" style="padding:20px">尚無車牌，請在下方新增</div>';
+    return;
+  }
+  list.innerHTML=deliveryVehicles.map(v=>`
+    <div class="vehicle-manage-row">
+      <div class="vehicle-manage-name">🚗 ${esc(v)}</div>
+      <div class="vehicle-manage-actions">
+        ${store?`<button class="default-label${v===def?' active':''}" onclick="vmSetDefault('${esc(v)}')">${v===def?'✓ 預設':'設為預設'}</button>`:''}
+        <button class="icon-btn danger" onclick="vmDelete('${esc(v)}')" title="刪除">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+window.vmSetDefault=async function(plate){
+  if(currentReportStore) storeDefaults[currentReportStore]=plate;
+  try{await saveVehiclesDoc()}catch(e){console.error(e)}
+  renderVehicleManageList();
+  toast(`已設為${currentReportStore||''}預設車輛`);
+};
+
+window.vmDelete=async function(plate){
+  if(!confirm(`確定刪除車牌「${plate}」？`)) return;
+  deliveryVehicles=deliveryVehicles.filter(v=>v!==plate);
+  // 清掉以此為預設的廚房
+  Object.keys(storeDefaults).forEach(s=>{if(storeDefaults[s]===plate) delete storeDefaults[s]});
+  try{await saveVehiclesDoc()}catch(e){console.error(e)}
+  renderVehicleManageList();
+  toast('已刪除');
+};
+
+window.vmAddPlate=async function(){
+  const input=document.getElementById('vmNewPlate');
+  const plate=input.value.trim().toUpperCase();
+  if(!plate){toast('請輸入車牌');return}
+  const result=await addVehicle(plate);
+  if(result){input.value='';renderVehicleManageList();toast('已新增：'+result)}
+};
 
 // ── 全頁載入 ──
 async function loadAndRender(){
@@ -773,8 +877,8 @@ window.openReportModal=function(preStore){
   const sel=document.getElementById('rmStore');
   sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
+  currentReportStore=sel.value;
   onReportStoreChange();
-  renderVehicleSelect();
   document.getElementById('newPlateRow').style.display='none';
   document.getElementById('rmNewPlate').value='';
   document.getElementById('reportOverlay').classList.add('show');
@@ -784,19 +888,20 @@ window.onVehicleChange=function(){
   document.getElementById('newPlateRow').style.display=(v==='__add__')?'block':'none';
   if(v==='__add__') document.getElementById('rmNewPlate').focus();
 };
-
 window.closeReportModal=function(){
   document.getElementById('reportOverlay').classList.remove('show');
 };
 window.onReportStoreChange=function(){
-  const store=document.getElementById('rmStore').value;
+  currentReportStore=document.getElementById('rmStore').value;
+  const store=currentReportStore;
   const list=personnel.filter(p=>p.store===store);
   const sel=document.getElementById('rmPersonnel');
   if(!list.length){
     sel.innerHTML='<option value="">（此央廚尚無聯絡人，請先至上方聯絡簿新增）</option>';
   }else{
-    sel.innerHTML=list.map(p=>`<option value="${p.id}">${esc(p.name)}　${esc(p.phone)}</option>`).join('');
+    sel.innerHTML=list.map(p=>`<option value="${p.id}">${esc(p.name)}　${fmtPhone(p.phone)}</option>`).join('');
   }
+  renderVehicleSelect(store);
 };
 window.saveReport=async function(){
   const store=document.getElementById('rmStore').value;
@@ -864,6 +969,9 @@ document.getElementById('personnelOverlay').addEventListener('click',e=>{
 });
 document.getElementById('reportOverlay').addEventListener('click',e=>{
   if(e.target.id==='reportOverlay') closeReportModal();
+});
+document.getElementById('vehicleManageOverlay').addEventListener('click',e=>{
+  if(e.target.id==='vehicleManageOverlay') closeVehicleManage();
 });
 
 </script>
