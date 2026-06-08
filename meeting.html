@@ -996,7 +996,7 @@ onAuthStateChanged(auth, async user => {
   const locs = userData.locations || [];
   cStore = locs.length ? locs[0] : (userData.workLocation || '');
 
-  document.getElementById('roleLabel').textContent =
+  try{var _rl=document.getElementById('roleChip');if(_rl)_rl.textContent=({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[currentRole]||currentRole||'—';}catch(e){}
     currentRole==='manager' ? `店長 ／ ${cStore||'未設定店面'}` :
     {admin:'管理員',consultant:'顧問'}[currentRole] || currentRole;
 

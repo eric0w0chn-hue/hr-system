@@ -369,7 +369,7 @@ authGuard('cctv', async ({ user, role, locations, userData }) => {
   const colorMap={admin:'background:#FFF4E0;color:#C47A00',consultant:'background:#F0EBFF;color:#6741D9',manager:'background:#E6FAF0;color:#087443',employee:'background:#E8EEFF;color:#3B5BDB'};
   const chip = document.getElementById('roleChip');
   chip.textContent = (roleMap[cuRole]||cuRole) + '　' + cuName;
-  chip.style.cssText = colorMap[cuRole]||'';
+  // colorMap inline style 已移除（統一由 .role-chip CSS 控制）
   // 顯示今日日期
   const now = new Date();
   document.getElementById('todayChip').textContent =
