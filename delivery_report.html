@@ -45,14 +45,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .btn-sm.btn-outline:hover{background:var(--surface2)}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
 
-/* ── Contact table ── */
-.contact-table{width:100%;border-collapse:collapse;font-size:13px}
-.contact-table th{text-align:left;padding:8px 10px;font-weight:600;color:var(--text2);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--border)}
-.contact-table td{padding:8px 10px;border-bottom:1px solid #ECEEF2;vertical-align:middle}
-.contact-table tr:last-child td{border-bottom:none}
-.store-pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;background:var(--accent-light);color:var(--accent);font-weight:500}
-.phone-cell{color:var(--text2);font-family:'SF Mono',Menlo,monospace}
-.row-actions{display:flex;gap:4px;justify-content:flex-end}
+/* ── Contact section toggle ── */
+.section-toggle{cursor:pointer;user-select:none}
+.section-toggle:hover{background:var(--surface2)}
+.section-chevron{font-size:11px;color:var(--text3);transition:transform .2s;display:inline-block}
+.section.collapsed .section-chevron{transform:rotate(-90deg)}
+.section-collapsible{overflow:hidden;max-height:2000px;transition:max-height .25s ease}
+.section.collapsed .section-collapsible{max-height:0}
+
+/* ── Contact cards (replaces table) ── */
+.store-group{border-bottom:1px solid var(--border)}
+.store-group:last-child{border-bottom:none}
+.store-group-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--accent-light);border-bottom:1px solid var(--border)}
+.store-group-label{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.3px;display:flex;align-items:center;gap:6px}
+.store-count-badge{font-size:11px;color:var(--text3);font-weight:400}
+.contact-card{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #ECEEF2;gap:10px}
+.contact-card:last-child{border-bottom:none}
+.contact-card-info{flex:1;min-width:0}
+.contact-card-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:5px}
+.call-btn{display:inline-flex;align-items:center;gap:5px;background:var(--blue-bg);color:var(--blue);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;text-decoration:none;border:1px solid var(--blue-border);transition:all .15s;white-space:nowrap}
+.call-btn:hover,.call-btn:active{background:#D3E5FF}
+.contact-card-actions{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;flex-shrink:0}
+.icon-btn:hover{background:var(--surface2)}
+.icon-btn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-bg)}
+.icon-btn.danger:hover{background:#FDD8D8}
+.store-group-empty{padding:12px 16px;color:var(--text3);font-size:13px;font-style:italic}
 
 /* ── Tomorrow cards ── */
 .tmr-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
@@ -96,18 +114,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .main{padding:14px 12px 60px}
   .section-header{padding:10px 12px}
   .section-body{padding:10px 12px}
-  .contact-table thead,.history-table thead{display:none}
-  .contact-table,.contact-table tbody,.contact-table tr,.contact-table td,
+  .store-group-header{padding:7px 12px}
+  .contact-card{padding:10px 12px}
+  .history-table thead{display:none}
   .history-table,.history-table tbody,.history-table tr,.history-table td{display:block;width:100%}
-  .contact-table tr,.history-table tr{padding:10px 12px;margin-bottom:8px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)}
-  .contact-table tr:last-child,.history-table tr:last-child{margin-bottom:0}
-  .contact-table td,.history-table td{padding:4px 0;border:none;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:32px}
-  .contact-table td:before,.history-table td:before{content:attr(data-label);font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0}
-  .contact-table td.no-label:before,.history-table td.no-label:before{content:''}
-  .row-actions{justify-content:flex-end}
+  .history-table tr{padding:10px 12px;margin-bottom:8px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)}
+  .history-table tr:last-child{margin-bottom:0}
+  .history-table td{padding:4px 0;border:none;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:32px}
+  .history-table td:before{content:attr(data-label);font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0}
   .btn-sm{min-height:32px;padding:6px 12px}
   .tcard-name{font-size:16px}
   .tcard-foot{font-size:11px}
+  .store-pill{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--accent-light);color:var(--accent);font-weight:500;display:inline-block}
 }
 
 /* ── Empty state ── */
@@ -164,12 +182,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="main">
 
   <!-- ── 區塊 A：配送人員聯絡簿 ── -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">📇 配送人員聯絡簿</div>
-      <button class="btn btn-outline" id="addPersonnelBtn" onclick="openPersonnelModal()" style="height:32px;font-size:12px;padding:5px 12px;display:none">＋ 新增聯絡人</button>
+  <div class="section collapsed" id="contactSection">
+    <div class="section-header section-toggle" onclick="toggleContactSection()">
+      <div class="section-title">📇 配送人員聯絡簿 <span id="contactSummary" style="font-size:12px;color:var(--text3);font-weight:400;margin-left:6px"></span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-outline" id="addPersonnelBtn" onclick="event.stopPropagation();openPersonnelModal()" style="height:30px;font-size:12px;padding:4px 10px;display:none">＋ 新增</button>
+        <span class="section-chevron" id="contactChevron">▼</span>
+      </div>
     </div>
-    <div class="section-body" style="padding:0">
+    <div class="section-body section-collapsible" style="padding:0" id="contactBody">
       <div id="personnelTableWrap">
         <div class="empty">載入中…</div>
       </div>
@@ -328,9 +349,16 @@ authGuard('delivery_report', async ({ user, role, locations, userData }) => {
   cuOwnLocs = Array.isArray(userData.locations)?userData.locations:[];
 
   const roleMap={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
-  document.getElementById('roleChip').textContent=(roleMap[cuRole]||cuRole)+'　'+cuName;
+  // 管理員不顯示姓名（避免手機版跨行）
+  const chipName = (cuRole==='admin') ? '' : ('　' + (userData.name||user.email));
+  document.getElementById('roleChip').textContent=(roleMap[cuRole]||cuRole)+chipName;
   const now=new Date();
-  document.getElementById('todayChip').textContent=now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+  // 手機版顯示精簡日期，桌機版顯示完整
+  const mobile=window.innerWidth<=600;
+  const dstr=mobile
+    ? `${now.getMonth()+1}/${now.getDate()}`
+    : `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+  document.getElementById('todayChip').textContent=dstr;
 
   await loadCentralStores();
   await loadEmployees();
@@ -409,39 +437,62 @@ async function loadPersonnel(){
   }catch(e){console.error('loadPersonnel',e);personnel=[]}
 }
 
+function fmtPhone(p){
+  // 格式化電話：09XXXXXXXX → 09XX-XXX-XXX
+  const d=(p||'').replace(/\D/g,'');
+  if(d.length===10&&d.startsWith('0')) return `${d.slice(0,4)}-${d.slice(4,7)}-${d.slice(7)}`;
+  return p||'—';
+}
+
 function renderPersonnel(){
   const wrap=document.getElementById('personnelTableWrap');
   if(!viewableStores.length){
     wrap.innerHTML='<div class="empty">尚未設定央廚（請至「權限管理 → 店面類型」標記）</div>';
+    updateContactSummary();
     return;
   }
-  let html='<table class="contact-table"><thead><tr><th style="width:140px">央廚</th><th>姓名</th><th style="width:140px">手機</th><th style="width:120px;text-align:right">操作</th></tr></thead><tbody>';
+  let html='';
   viewableStores.forEach(store=>{
     const list=personnel.filter(p=>p.store===store);
     const canEdit=myEditableStores.includes(store);
-    if(!list.length){
-      html+=`<tr>
-        <td data-label="央廚"><span class="store-pill">${esc(store)}</span></td>
-        <td data-label="姓名" colspan="2" style="color:var(--text3);font-style:italic">尚未建立聯絡人</td>
-        <td class="no-label" style="text-align:right">${canEdit?`<button class="btn-sm btn-outline" onclick="openPersonnelModal('${esc(store)}')">＋ 新增</button>`:''}</td>
-      </tr>`;
-    }else{
-      list.forEach((p,i)=>{
-        html+=`<tr>
-          <td data-label="央廚">${i===0?`<span class="store-pill">${esc(store)}</span>`:`<span class="store-pill" style="opacity:.5">${esc(store)}</span>`}</td>
-          <td data-label="姓名">${esc(p.name)}</td>
-          <td data-label="手機" class="phone-cell"><a href="tel:${esc(p.phone)}" style="color:inherit;text-decoration:none">${esc(p.phone||'—')}</a></td>
-          <td class="no-label"><div class="row-actions">${canEdit?`
-            <button class="btn-sm btn-outline" onclick="editPersonnel('${p.id}')">✎ 編輯</button>
-            <button class="btn-sm btn-danger" onclick="deletePersonnel('${p.id}')">🗑 刪除</button>
-          `:''}</div></td>
-        </tr>`;
+    html+=`<div class="store-group">
+      <div class="store-group-header">
+        <div class="store-group-label">🏭 ${esc(store)} <span class="store-count-badge">${list.length?list.length+'人':'尚無聯絡人'}</span></div>
+        ${canEdit&&!list.length?`<button class="btn-sm btn-outline" style="height:26px;font-size:11px;padding:3px 10px" onclick="openPersonnelModal('${esc(store)}')">＋ 新增</button>`:''}
+      </div>`;
+    if(list.length){
+      list.forEach(p=>{
+        const tel=p.phone?(p.phone.replace(/\D/g,'')):'';
+        html+=`<div class="contact-card">
+          <div class="contact-card-info">
+            <div class="contact-card-name">${esc(p.name)}</div>
+            ${tel?`<a href="tel:${tel}" class="call-btn">📞 ${fmtPhone(p.phone)}</a>`:`<span style="font-size:12px;color:var(--text3)">— 無電話 —</span>`}
+          </div>
+          ${canEdit?`<div class="contact-card-actions">
+            <button class="icon-btn" onclick="editPersonnel('${p.id}')" title="編輯">✎</button>
+            <button class="icon-btn danger" onclick="deletePersonnel('${p.id}')" title="刪除">🗑</button>
+          </div>`:''}
+        </div>`;
       });
+    }else{
+      html+=`<div class="store-group-empty">尚未建立聯絡人</div>`;
     }
+    html+='</div>';
   });
-  html+='</tbody></table>';
   wrap.innerHTML=html;
+  updateContactSummary();
 }
+
+function updateContactSummary(){
+  const total=personnel.length;
+  const summary=document.getElementById('contactSummary');
+  if(summary) summary.textContent=total?`（共 ${total} 人）`:'';
+}
+
+window.toggleContactSection=function(){
+  const sec=document.getElementById('contactSection');
+  sec.classList.toggle('collapsed');
+};
 
 // ── Tomorrow Reports ──
 async function loadTomorrowReports(){
@@ -672,8 +723,7 @@ window.savePersonnel=async function(){
     closePersonnelModal();
     await loadPersonnel();renderPersonnel();
     // 若回報 modal 開著且該店相同，同步刷新人選
-    if(document.getElementById('reportOverlay').classList.contains('show')) onReportStoreChange();
-  }catch(e){toast('儲存失敗：'+e.message)}
+    if(document.getElementById('reportOverlay').classList.contains('show')) onReportStoreChange();  }catch(e){toast('儲存失敗：'+e.message)}
   finally{btn.disabled=false}
 };
 
