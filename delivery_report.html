@@ -99,29 +99,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .tcard-row-phone a{color:inherit;text-decoration:none}
 .tcard-row-del{flex-shrink:0}
 
-/* ── History table ── */
-.history-table{width:100%;border-collapse:collapse;font-size:13px}
-.history-table th{text-align:left;padding:8px 10px;font-weight:600;color:var(--text2);font-size:12px;background:var(--surface2);border-bottom:1px solid var(--border)}
-.history-table td{padding:8px 10px;border-bottom:1px solid #ECEEF2;vertical-align:middle}
-.history-table tr:last-child td{border-bottom:none}
-.history-table .col-date{white-space:nowrap}
+/* ── History cards ── */
+.history-card{padding:12px 16px;border-bottom:1px solid #ECEEF2}
+.history-card:last-child{border-bottom:none}
+.history-card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.history-date{font-size:12px;color:var(--text2);font-weight:500}
+.history-card-person{font-size:16px;font-weight:700;color:var(--text);margin-bottom:5px}
+.history-card-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.history-card-meta{font-size:11px;color:var(--text3);margin-top:8px;padding-top:7px;border-top:1px solid #ECEEF2}
+.vehicle-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border-radius:20px;background:#F4F0FF;color:#6B3FC8;border:1px solid #DDD0F7;font-weight:500}
+
+/* ── Vehicle select ── */
+.new-plate-row{margin-top:-6px;margin-bottom:14px;display:none}
 
 /* ── Range select ── */
 .range-select{font-size:12px;padding:5px 28px 5px 10px;border:1px solid var(--border);border-radius:7px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A6175' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 8px center;appearance:none;-webkit-appearance:none;color:var(--text);cursor:pointer;font-family:inherit;height:30px}
 
-/* ── RWD：手機版表格轉卡片 ── */
+/* ── RWD ── */
 @media(max-width:600px){
   .main{padding:14px 12px 60px}
   .section-header{padding:10px 12px}
   .section-body{padding:10px 12px}
   .store-group-header{padding:7px 12px}
   .contact-card{padding:10px 12px}
-  .history-table thead{display:none}
-  .history-table,.history-table tbody,.history-table tr,.history-table td{display:block;width:100%}
-  .history-table tr{padding:10px 12px;margin-bottom:8px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)}
-  .history-table tr:last-child{margin-bottom:0}
-  .history-table td{padding:4px 0;border:none;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:32px}
-  .history-table td:before{content:attr(data-label);font-size:11px;color:var(--text2);font-weight:600;flex-shrink:0}
   .btn-sm{min-height:32px;padding:6px 12px}
   .tcard-name{font-size:16px}
   .tcard-foot{font-size:11px}
@@ -286,6 +286,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <label>配送人員</label>
         <select id="rmPersonnel"></select>
       </div>
+      <div class="fr">
+        <label>配送車輛</label>
+        <select id="rmVehicle" onchange="onVehicleChange()"></select>
+      </div>
+      <div class="new-plate-row" id="newPlateRow">
+        <input type="text" id="rmNewPlate" placeholder="輸入車牌（例如：ABC-1234）" maxlength="15" style="width:100%;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeReportModal()">取消</button>
@@ -299,7 +306,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import {
-  doc, getDoc, addDoc, updateDoc, deleteDoc,
+  doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -313,6 +320,7 @@ let myEditableStores=[];    // 我可編輯/回報的央廚清單
 let viewableStores=[];      // 我看得到的央廚清單（manager：自己的；其他：全部）
 let personnel=[];           // [{id, store, name, phone}]
 let allEmployees=[];        // hr/employees.list（在職+留職停薪）
+let deliveryVehicles=[];    // 車牌清單（settings/delivery_vehicles.plates）
 let tomorrowReports=[];     // [{id, store, name, phone, reporter, createdAt}]
 let historyReports=[];
 
@@ -361,7 +369,7 @@ authGuard('delivery_report', async ({ user, role, locations, userData }) => {
   document.getElementById('todayChip').textContent=dstr;
 
   await loadCentralStores();
-  await loadEmployees();
+  await Promise.all([loadEmployees(), loadVehicles()]);
   setupPermissions();
   document.getElementById('loadingScreen').style.display='none';
   document.getElementById('appWrap').style.display='block';
@@ -417,6 +425,32 @@ function getEmployeesByStore(store){
   return allEmployees
     .filter(e=>e.workLocation===store)
     .sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+}
+
+// ── 載入車牌清單 ──
+async function loadVehicles(){
+  try{
+    const snap=await getDoc(doc(db,'settings','delivery_vehicles'));
+    deliveryVehicles=snap.exists()?(snap.data().plates||[]):[];
+    if(!deliveryVehicles.length) deliveryVehicles=['租賃車'];
+  }catch(e){console.error('loadVehicles',e);deliveryVehicles=['租賃車']}
+}
+
+async function addVehicle(plate){
+  const clean=plate.trim().toUpperCase();
+  if(!clean) return;
+  if(deliveryVehicles.includes(clean)){toast('此車牌已存在');return}
+  deliveryVehicles=[...deliveryVehicles,clean];
+  try{
+    await setDoc(doc(db,'settings','delivery_vehicles'),{plates:deliveryVehicles});
+  }catch(e){console.error('addVehicle',e)}
+}
+
+function renderVehicleSelect(selected){
+  const sel=document.getElementById('rmVehicle');
+  sel.innerHTML=deliveryVehicles.map(v=>`<option value="${esc(v)}"${v===selected?' selected':''}>${esc(v)}</option>`).join('')
+    +'<option value="__add__">＋ 自行輸入車牌…</option>';
+  sel.value=selected||deliveryVehicles[0]||'';
 }
 
 // ── 全頁載入 ──
@@ -602,7 +636,6 @@ function renderHistory(){
     wrap.innerHTML='<div class="empty">區間內尚無回報紀錄</div>';
     return;
   }
-  // 依日期 desc + store asc + createdAt asc 排序
   const rows=[...historyReports].sort((a,b)=>{
     if(a.deliveryDate!==b.deliveryDate) return a.deliveryDate<b.deliveryDate?1:-1;
     const sc=(a.store||'').localeCompare(b.store||'','zh-TW');
@@ -610,18 +643,24 @@ function renderHistory(){
     const ta=a.createdAt?.toMillis?.()||0, tb=b.createdAt?.toMillis?.()||0;
     return ta-tb;
   });
-  let html='<table class="history-table"><thead><tr><th class="col-date">配送日</th><th style="width:120px">央廚</th><th>配送人員</th><th style="width:130px">手機</th><th style="width:120px">回報人</th><th style="width:130px">提交時間</th></tr></thead><tbody>';
+  let html='<div>';
   rows.forEach(r=>{
-    html+=`<tr>
-      <td data-label="配送日" class="col-date">${dateDisp(r.deliveryDate)}</td>
-      <td data-label="央廚"><span class="store-pill">${esc(r.store)}</span></td>
-      <td data-label="配送人員">${esc(r.name)}</td>
-      <td data-label="手機" class="phone-cell">${esc(r.phone||'—')}</td>
-      <td data-label="回報人">${esc(r.reporter||'—')}</td>
-      <td data-label="提交時間" style="color:var(--text3);font-size:12px">${fmtTs(r.createdAt)}</td>
-    </tr>`;
+    const tel=(r.phone||'').replace(/\D/g,'');
+    const vehicleHtml=r.vehicle?`<span class="vehicle-badge">🚗 ${esc(r.vehicle)}</span>`:'';
+    html+=`<div class="history-card">
+      <div class="history-card-top">
+        <span class="store-pill">${esc(r.store)}</span>
+        <span class="history-date">${dateDisp(r.deliveryDate)}</span>
+      </div>
+      <div class="history-card-person">${esc(r.name)}</div>
+      <div class="history-card-row">
+        ${tel?`<a href="tel:${tel}" class="call-btn" style="font-size:12px;padding:4px 10px">📞 ${fmtPhone(r.phone)}</a>`:`<span style="font-size:12px;color:var(--text3)">無電話</span>`}
+        ${vehicleHtml}
+      </div>
+      <div class="history-card-meta">回報：${esc(r.reporter||'—')} · ${fmtTs(r.createdAt)}</div>
+    </div>`;
   });
-  html+='</tbody></table>';
+  html+='</div>';
   wrap.innerHTML=html;
 }
 
@@ -735,8 +774,17 @@ window.openReportModal=function(preStore){
   sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
   onReportStoreChange();
+  renderVehicleSelect();
+  document.getElementById('newPlateRow').style.display='none';
+  document.getElementById('rmNewPlate').value='';
   document.getElementById('reportOverlay').classList.add('show');
 };
+window.onVehicleChange=function(){
+  const v=document.getElementById('rmVehicle').value;
+  document.getElementById('newPlateRow').style.display=(v==='__add__')?'block':'none';
+  if(v==='__add__') document.getElementById('rmNewPlate').focus();
+};
+
 window.closeReportModal=function(){
   document.getElementById('reportOverlay').classList.remove('show');
 };
@@ -758,7 +806,17 @@ window.saveReport=async function(){
   if(!myEditableStores.includes(store)){toast('無權回報此央廚');return}
   const p=personnel.find(x=>x.id===personnelId);
   if(!p){toast('找不到該人員資料');return}
-  // 檢查當天同店是否已有相同姓名
+
+  // 車輛
+  let vehicleVal=document.getElementById('rmVehicle').value;
+  if(vehicleVal==='__add__'){
+    const newPlate=document.getElementById('rmNewPlate').value.trim().toUpperCase();
+    if(!newPlate){toast('請輸入車牌號碼');return}
+    await addVehicle(newPlate);
+    vehicleVal=newPlate;
+  }
+
+  // 重複確認
   const date=tomorrowStr();
   const dup=tomorrowReports.find(r=>r.store===store && r.name===p.name);
   if(dup){
@@ -772,11 +830,12 @@ window.saveReport=async function(){
       personnelId,
       name:p.name,
       phone:p.phone||'',
+      vehicle:vehicleVal||'',
       reporter:cuName,
       reporterRole:cuRole,
       createdAt:serverTimestamp()
     });
-    writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'提交配送回報',detail:`${dateDisp(date)} ${store} → ${p.name}`});
+    writeOpLog({editor:cuName,role:cuRole,module:'delivery_report',action:'提交配送回報',detail:`${dateDisp(date)} ${store} → ${p.name}（${vehicleVal}）`});
     toast('回報成功');
     closeReportModal();
     await Promise.all([loadTomorrowReports(),loadHistory()]);
