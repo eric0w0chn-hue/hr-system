@@ -33,37 +33,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* ── Filter Bar ── */
 .filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.filter-bar select,.filter-bar input{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none}
+.filter-bar select,.filter-bar input{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;min-height:36px}
 .filter-bar select:focus,.filter-bar input:focus{border-color:var(--accent)}
-.filter-label{font-size:12px;color:var(--text2);white-space:nowrap}
+.filter-label{font-size:12px;color:var(--text2);white-space:nowrap;font-weight:500}
+.filter-divider{width:1px;height:20px;background:var(--border);flex-shrink:0}
 
 /* ── Buttons ── */
 .btn{font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s;border:none;min-height:36px}
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
-.btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}.btn-success:hover{background:#D0F0DD}
-.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-danger:hover{background:#FDD8D8}
 .btn-sm{font-size:12px;padding:4px 10px;min-height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
 .btn-sm.btn-outline{border:1px solid var(--border);background:#fff;color:var(--text2)}.btn-sm.btn-outline:hover{background:var(--surface2)}
 .btn-sm.btn-primary{background:var(--accent);color:#fff}
-.btn-sm.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
-.btn-sm.btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+
+/* ── Store Tabs ── */
+.store-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.store-tab{font-size:12px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.store-tab:hover{border-color:var(--accent);color:var(--accent)}
+.store-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.store-tab .tab-count{font-size:10px;opacity:.75}
+.store-ot-badge{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.store-ot-badge.ot2{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+
+/* ── OT Settings Panel ── */
+.ot-settings-panel{background:#fff;border:1px solid var(--yellow-border);border-radius:12px;padding:14px 16px;margin-bottom:14px;background:var(--yellow-bg)}
+.ot-settings-title{font-size:12px;font-weight:700;color:#92640A;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ot-settings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.ot-store-item{background:#fff;border:1px solid var(--yellow-border);border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ot-store-name{font-size:12px;color:var(--text);font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ot-select{font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;-webkit-appearance:none;appearance:none;min-height:28px;cursor:pointer}
+.ot-select:focus{border-color:var(--accent);outline:none}
 
 /* ── Employee List ── */
-.emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:20px}
+.emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:20px}
 .emp-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s;position:relative}
 .emp-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.07)}
 .emp-card.active{border-color:var(--accent);background:var(--accent-light);box-shadow:0 2px 8px rgba(45,49,66,.12)}
 .emp-name{font-size:15px;font-weight:600;margin-bottom:4px}
 .emp-meta{font-size:12px;color:var(--text2);display:flex;gap:8px;flex-wrap:wrap}
 .emp-salary-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--accent-light);color:var(--accent)}
-.emp-status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
 
 /* ── Salary Sheet ── */
 .salary-sheet{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .sheet-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface2)}
 .sheet-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
-.sheet-body{padding:0}
 
 /* ── Summary Row ── */
 .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)}
@@ -79,8 +92,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── Formula Breakdown ── */
 .formula-section{padding:14px 16px;border-bottom:1px solid var(--border)}
 .formula-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px}
-.formula-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-@media(max-width:600px){.formula-grid{grid-template-columns:1fr 1fr}}
+.formula-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:700px){.formula-grid{grid-template-columns:repeat(2,1fr)}}
 .formula-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
 .formula-item-label{font-size:11px;color:var(--text3);margin-bottom:3px}
 .formula-item-value{font-size:14px;font-weight:600;color:var(--text)}
@@ -91,30 +104,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* ── Daily Records ── */
 .daily-section{padding:14px 16px}
-.daily-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.daily-grid{display:flex;flex-direction:column;gap:6px}
-.daily-row{display:grid;grid-template-columns:52px 1fr 100px 90px 90px;gap:6px;align-items:center;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;transition:background .1s}
+.daily-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.daily-header{display:grid;grid-template-columns:52px 1fr 90px 90px 90px 90px;gap:6px;padding:5px 10px;font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.3px}
+.daily-row{display:grid;grid-template-columns:52px 1fr 90px 90px 90px 90px;gap:6px;align-items:center;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:4px;transition:background .1s}
 .daily-row:hover{background:#EDEEF3}
 .daily-row.weekend{background:#FFF8F8;border-color:#FDDADA}
-.daily-row.holiday{background:#FFF8F8;border-color:#FDDADA}
-.daily-row.no-shift{opacity:.55}
-.day-num{font-size:13px;font-weight:600;color:var(--text);text-align:center}
-.day-name{font-size:10px;color:var(--text3);text-align:center}
+.daily-row.no-shift{opacity:.5}
+@media(max-width:700px){
+  .daily-header{display:none}
+  .daily-row{grid-template-columns:42px 1fr 80px 70px;gap:4px;padding:7px 8px}
+  .daily-row .col-ot2,.daily-row .col-ot2-label{display:none}
+}
 .day-date-cell{text-align:center}
-.day-shift{font-size:12px;color:var(--text2)}
-.day-hours{font-size:12px;color:var(--text);font-weight:500;text-align:right}
+.day-num{font-size:13px;font-weight:600;color:var(--text)}
+.day-name{font-size:10px;color:var(--text3)}
+.day-shift{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .day-type-select{font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;width:100%;-webkit-appearance:none;appearance:none;min-height:30px;text-align:center}
 .day-type-select.absent{border-color:var(--red-border);background:var(--red-bg);color:var(--red)}
 .day-type-select.sick{border-color:var(--orange-border);background:var(--orange-bg);color:var(--orange)}
 .day-type-select.annual{border-color:var(--green-border);background:var(--green-bg);color:var(--green)}
-.day-type-select.normal{border-color:var(--border);background:#fff;color:var(--text)}
-.day-ot{font-size:12px;text-align:right;color:var(--text2)}
-.day-ot input{width:60px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;text-align:right;-webkit-appearance:none;appearance:none;min-height:30px}
-.day-ot input:focus{border-color:var(--accent);outline:none}
-@media(max-width:600px){
-  .daily-row{grid-template-columns:42px 1fr 80px 80px;gap:4px;padding:7px 8px}
-  .daily-row .day-ot{display:none}
-}
+.ot-input-wrap{position:relative;display:flex;align-items:center}
+.ot-input-wrap input{width:100%;font-size:12px;padding:4px 24px 4px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;text-align:right;-webkit-appearance:none;appearance:none;min-height:30px}
+.ot-input-wrap input:focus{border-color:var(--accent);outline:none}
+.ot-input-wrap input.auto-filled{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
+.ot-input-wrap input.ot2-input{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.ot-unit{position:absolute;right:6px;font-size:10px;color:var(--text3);pointer-events:none}
 
 /* ── Deductions ── */
 .deduct-section{padding:14px 16px;border-top:1px solid var(--border)}
@@ -131,19 +145,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .netpay-value{font-size:24px;font-weight:800;color:#fff;letter-spacing:.5px}
 @media(max-width:500px){.netpay-value{font-size:20px}}
 
-/* ── Adj items ── */
-.adj-section{padding:0 16px 14px}
-.adj-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
-.adj-name{flex:1;font-size:12px;color:var(--text)}
-.adj-amount{font-size:13px;font-weight:600;min-width:80px;text-align:right}
-.adj-amount.pos{color:var(--green)}
-.adj-amount.neg{color:var(--red)}
-
-/* ── Empty / Loading ── */
-.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
-.empty-icon{font-size:32px;margin-bottom:8px}
-.loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
-
 /* ── Toast ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -157,17 +158,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .fr{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
 .fr label{font-size:12px;color:var(--text2);font-weight:500}
 .fr input,.fr select,.fr textarea{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;color:var(--text);-webkit-appearance:none;appearance:none;min-height:38px}
-.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:var(--accent);outline:none}
 .mf{display:flex;gap:8px;margin-top:16px}
 .mf button{flex:1}
 
-/* ── Misc ── */
+/* ── Empty / Loading ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:32px;margin-bottom:8px}
+.loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
 .badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .badge-green{background:var(--green-bg);color:var(--green)}
-.badge-orange{background:var(--orange-bg);color:var(--orange)}
-.badge-red{background:var(--red-bg);color:var(--red)}
-.badge-gray{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
-.section-divider{height:1px;background:var(--border);margin:0}
 </style>
 </head>
 <body>
@@ -193,356 +192,442 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import {
-  doc, getDoc, setDoc, collection, getDocs, query, where
+  doc, getDoc, setDoc, getDocs, collection
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── 頁面狀態 ──
-let currentUserName = '', currentRole = '', currentUid = '';
-let employees = [];     // 來自 hr/employees
-let allShifts = {};     // 來自 schedules/{yyyy-mm}_{location}
-let salaryRecords = {}; // 來自 salary_records/{empId}_{yyyy-mm}
-let selectedEmpId = null;
-let viewYear = new Date().getFullYear();
-let viewMonth = new Date().getMonth() + 1;
-let isSaving = false;
+let currentUserName='', currentRole='', currentUid='';
+let userData_raw={};
+let employees=[];       // 全部在職同仁
+let allStores=[];       // 全部店面清單
+let viewableStores=[];  // 當前角色可見店面
+let storeOtConfig={};   // { '店名': 1 | 2 }  每間店固定加班時數
+let selectedStore=null;
+let selectedEmpId=null;
+let viewYear=new Date().getFullYear();
+let viewMonth=new Date().getMonth()+1;
+let isSaving=false;
+let showOtSettings=false;
 
-const roleNames = {admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
+const roleNames={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
 
-// ── 台灣勞健保費用表（2024年度）──
-// 勞保被保險人自負額（含就業保險）
-// 健保被保險人自負額（含補充保費另行計算）
-const LABOR_TABLE = [
-  {grade:26400, labor:388, health:372},
-  {grade:27600, labor:405, health:390},
-  {grade:28800, labor:423, health:407},
-  {grade:30300, labor:445, health:427},
-  {grade:31800, labor:467, health:448},
-  {grade:33300, labor:489, health:470},
-  {grade:34800, labor:511, health:491},
-  {grade:36300, labor:533, health:512},
-  {grade:38200, labor:561, health:538},
-  {grade:40100, labor:589, health:565},
-  {grade:42000, labor:617, health:591},
-  {grade:43900, labor:644, health:617},
-  {grade:45800, labor:673, health:645},
-  {grade:48200, labor:708, health:678},
-  {grade:50600, labor:743, health:712},
-  {grade:53000, labor:778, health:745},
-  {grade:55400, labor:814, health:780},
-  {grade:57800, labor:849, health:813},
-  {grade:60800, labor:892, health:855},
-  {grade:63800, labor:937, health:897},
-  {grade:66800, labor:981, health:940},
-  {grade:69800, labor:1025, health:982},
-  {grade:72800, labor:1069, health:1024},
-  {grade:76500, labor:1123, health:1077},
+// ── 2024 勞健保費率表 ──
+const LABOR_TABLE=[
+  {grade:26400,labor:388,health:372},{grade:27600,labor:405,health:390},
+  {grade:28800,labor:423,health:407},{grade:30300,labor:445,health:427},
+  {grade:31800,labor:467,health:448},{grade:33300,labor:489,health:470},
+  {grade:34800,labor:511,health:491},{grade:36300,labor:533,health:512},
+  {grade:38200,labor:561,health:538},{grade:40100,labor:589,health:565},
+  {grade:42000,labor:617,health:591},{grade:43900,labor:644,health:617},
+  {grade:45800,labor:673,health:645},{grade:48200,labor:708,health:678},
+  {grade:50600,labor:743,health:712},{grade:53000,labor:778,health:745},
+  {grade:55400,labor:814,health:780},{grade:57800,labor:849,health:813},
+  {grade:60800,labor:892,health:855},{grade:63800,labor:937,health:897},
+  {grade:66800,labor:981,health:940},{grade:69800,labor:1025,health:982},
+  {grade:72800,labor:1069,health:1024},{grade:76500,labor:1123,health:1077},
 ];
-
-function getInsuranceFromGrade(grade) {
-  if (!grade) return {labor:0, health:0};
-  const g = Number(grade);
-  // 找最接近的級距
-  let best = LABOR_TABLE[0];
-  for (const row of LABOR_TABLE) {
-    if (row.grade <= g) best = row;
-  }
-  return {labor: best.labor, health: best.health};
+function getInsuranceFromGrade(grade){
+  if(!grade)return{labor:0,health:0};
+  const g=Number(grade);
+  let best=LABOR_TABLE[0];
+  for(const row of LABOR_TABLE){if(row.grade<=g)best=row;}
+  return{labor:best.labor,health:best.health};
 }
 
 // ── authGuard ──
-authGuard('salary', ({ user, uid, role, userData }) => {
-  currentUid = uid;
-  currentRole = role;
-  currentUserName = userData.name || user.email;
-  document.getElementById('roleChip').textContent = roleNames[role] || role;
-  init();
+authGuard('salary',({user,uid,role,locations,userData})=>{
+  currentUid=uid; currentRole=role;
+  currentUserName=userData.name||user.email;
+  userData_raw=userData;
+  document.getElementById('roleChip').textContent=roleNames[role]||role;
+  init(locations, userData);
 });
 
-async function init() {
-  await Promise.all([loadEmployees()]);
+async function init(locations, userData){
+  await Promise.all([
+    loadEmployees(),
+    loadStores(locations, userData),
+    loadOtConfig(),
+  ]);
   renderMain();
 }
 
-// ── 載入員工資料（hr/employees）──
-async function loadEmployees() {
-  try {
-    const snap = await getDoc(doc(db, 'hr', 'employees'));
-    if (snap.exists()) {
-      const list = snap.data().list || [];
-      employees = list.filter(e => e.status === '在職' || !e.status);
+// ── 載入員工（hr/employees）──
+async function loadEmployees(){
+  try{
+    const snap=await getDoc(doc(db,'hr','employees'));
+    if(snap.exists()){
+      employees=(snap.data().list||[]).filter(e=>e.status==='在職'||!e.status);
     }
-  } catch(e) { console.error('loadEmployees', e); }
+  }catch(e){console.error(e);}
 }
 
-// ── 載入排班資料（schedules/{yyyy-mm}_{location}）──
-async function loadShiftsForEmp(empId, year, month) {
-  const emp = employees.find(e => String(e.id) === String(empId));
-  if (!emp || !emp.workLocation) return {};
-  const key = `${year}-${String(month).padStart(2,'0')}_${emp.workLocation}`;
-  try {
-    const snap = await getDoc(doc(db, 'schedules', key));
-    return snap.exists() ? (snap.data().shifts || {}) : {};
-  } catch(e) { return {}; }
+// ── 載入店面（依角色篩選）──
+async function loadStores(locations, userData){
+  try{
+    // 從 hr/settings 取全部店面
+    const hrSnap=await getDoc(doc(db,'hr','settings'));
+    allStores=hrSnap.exists()?(hrSnap.data().workLocations||[]).filter(Boolean).sort():[];
+
+    if(currentRole==='admin'||currentRole==='consultant'){
+      viewableStores=[...allStores];
+    } else {
+      // manager / employee：只看自己被指派的店面
+      const myLocs=Array.isArray(userData.locations)?userData.locations:[];
+      viewableStores=allStores.filter(s=>myLocs.includes(s));
+      if(!viewableStores.length) viewableStores=[...myLocs];
+    }
+    if(!selectedStore && viewableStores.length) selectedStore=viewableStores[0];
+  }catch(e){console.error(e);}
 }
 
-// ── 載入薪資記錄 ──
-async function loadSalaryRecord(empId, year, month) {
-  const key = `${empId}_${year}-${String(month).padStart(2,'0')}`;
-  try {
-    const snap = await getDoc(doc(db, 'salary_records', key));
-    return snap.exists() ? snap.data() : null;
-  } catch(e) { return null; }
+// ── 載入加班設定（salary_settings/store_ot）──
+async function loadOtConfig(){
+  try{
+    const snap=await getDoc(doc(db,'salary_settings','store_ot'));
+    storeOtConfig=snap.exists()?(snap.data().config||{}):{};
+  }catch(e){storeOtConfig={};}
 }
 
-// ── 儲存薪資記錄 ──
-async function saveSalaryRecord(empId, year, month, data) {
-  const key = `${empId}_${year}-${String(month).padStart(2,'0')}`;
-  try {
-    await setDoc(doc(db, 'salary_records', key), { ...data, updatedAt: new Date().toISOString(), updatedBy: currentUserName });
-    return true;
-  } catch(e) { console.error('saveSalaryRecord', e); return false; }
+// ── 儲存加班設定 ──
+async function saveOtConfig(){
+  try{
+    await setDoc(doc(db,'salary_settings','store_ot'),{config:storeOtConfig,updatedAt:new Date().toISOString(),updatedBy:currentUserName});
+    showToast('✓ 加班設定已儲存');
+    writeOpLog({editor:currentUserName,role:currentRole,module:'salary',action:'編輯加班設定',detail:'各店固定加班時數'});
+  }catch(e){showToast('⚠️ 儲存失敗');}
+}
+
+// ── 取得當店固定加班時數（預設 2）──
+function getStoreDefaultOt(storeName){
+  return storeOtConfig[storeName]??2;
 }
 
 // ── 薪資計算核心 ──
-function calcSalary(emp, record, shifts) {
-  // 目標薪資（從薪資歷程最新一筆）
-  const salHist = emp.salaryHistory || [];
-  const targetSalary = salHist.length > 0
-    ? Number(salHist.sort((a,b)=>b.date.localeCompare(a.date))[0].amount)
-    : (emp.salary || 0);
+function calcSalary(emp, record, shifts){
+  const salHist=(emp.salaryHistory||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const targetSalary=salHist.length>0?Number(salHist[0].amount):(emp.salary||0);
+  const BASE=29500;
+  const defaultOtPerDay=getStoreDefaultOt(emp.workLocation);
+  const days=getDaysInMonth(viewYear,viewMonth);
+  const dailyData=record?.dailyData||{};
 
-  const BASE = 29500; // 底薪固定
-
-  // 彈性補貼公式：ROUND(目標薪資 / (1 + 目標薪資/240)) - 底薪
-  // 正確解讀圖3：AJ33 = ROUND(AT33 / (1 + (AR33/240))) - AI33
-  // 即：彈性補貼 = ROUND(目標薪資 / (1 + 目標薪資/240)) - 底薪
-  // 換算：彈性補貼 ≈ 目標薪資 - (底薪 + 彈性補貼) 的比例分配
-  // 實際公式：let 時薪基礎 = (底薪+彈性補貼)/30/8
-  // 彈性補貼 x 使得 ROUND((底薪+x)/30/8 * 加班時數 * 倍率, 1) 正確
-  // 圖3公式：ROUND(AT33 / (1 + AR33/240), 1) - AI33
-  // 設 S=目標薪資, B=底薪
-  // 彈性補貼 F = ROUND(S / (1 + S/240), 1) - B... 這不對
-  // 重新解讀：AJ33=彈性補貼, AT33=目標薪資, AI33=底薪, AR33=月加班時數
-  // AJ33 = ROUND(AT33 / (1 + AR33/240)) - AI33
-  // 彈性補貼 = ROUND(目標薪資 / (1 + 月加班時數/240)) - 底薪
-
-  // 計算當月加班總時數（從每日記錄）
-  const dailyData = record?.dailyData || {};
-  let totalOtHours = 0;
-  const days = getDaysInMonth(year, month);
-  for (let d = 1; d <= days; d++) {
-    const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayRec = dailyData[key] || {};
-    totalOtHours += Number(dayRec.otHours || 0);
+  // 計算每日加班時數合計（1.34 固定 + 1.67 額外）
+  let totalOt134=0, totalOt167=0;
+  for(let d=1;d<=days;d++){
+    const ds=dateStr(viewYear,viewMonth,d);
+    const dayRec=dailyData[ds]||{};
+    const shift=getShiftForDay(shifts,emp,ds);
+    if(!shift)continue;
+    const type=dayRec.type||'normal';
+    if(type==='personal'||type==='absent'||type==='dayoff')continue;
+    // 固定加班時數（自動套用）
+    const autoOt=dayRec.autoOt!=null?Number(dayRec.autoOt):defaultOtPerDay;
+    totalOt134+=autoOt;
+    // 額外加班（1.67）
+    totalOt167+=Number(dayRec.ot167||0);
   }
 
   // 彈性補貼 = ROUND(目標薪資 / (1 + 月加班時數/240)) - 底薪
-  const elasticBonus = Math.round(targetSalary / (1 + totalOtHours / 240)) - BASE;
+  const totalOtForElastic=totalOt134+totalOt167;
+  const elasticBonus=Math.round(targetSalary/(1+totalOtForElastic/240))-BASE;
+  const hourlyBase=(BASE+elasticBonus)/30/8;
 
-  // 時薪基礎 = (底薪 + 彈性補貼) / 30 / 8
-  const hourlyBase = (BASE + elasticBonus) / 30 / 8;
+  // 加班費
+  const otPay134=Math.round(hourlyBase*totalOt134*1.34*10)/10;
+  const otPay167=Math.round(hourlyBase*totalOt167*1.67*10)/10;
+  const otPayTotal=otPay134+otPay167;
 
-  // 加班費 = ROUND((底薪+彈性補貼) / 30 / 8 * 月加班時數 * 倍率, 1)
-  // 倍率抓自記錄（預設 1.34，圖2 AR33=42小時、倍率=1.34）
-  const otRate = record?.otRate ?? 1.34;
-  const otPay = Math.round(hourlyBase * totalOtHours * otRate * 10) / 10;
-
-  // 出勤天數統計
-  let workDays = 0, sickDays = 0, personalDays = 0, abscentDays = 0, annualDays = 0;
-  for (let d = 1; d <= days; d++) {
-    const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayRec = dailyData[key] || {};
-    const hasShift = !!getShiftForDay(shifts, emp, key);
-    if (!hasShift) continue;
-    const type = dayRec.type || 'normal';
-    if (type === 'normal') workDays++;
-    else if (type === 'sick') { workDays++; sickDays++; }
-    else if (type === 'personal') { personalDays++; }
-    else if (type === 'absent') { abscentDays++; }
-    else if (type === 'annual') { annualDays++; }
-    else workDays++;
+  // 出勤統計
+  let workDays=0,sickDays=0,personalDays=0,absentDays=0,annualDays=0;
+  for(let d=1;d<=days;d++){
+    const ds=dateStr(viewYear,viewMonth,d);
+    const dayRec=dailyData[ds]||{};
+    if(!getShiftForDay(shifts,emp,ds))continue;
+    const type=dayRec.type||'normal';
+    if(type==='normal'||type==='sick')workDays++;
+    if(type==='sick')sickDays++;
+    if(type==='personal')personalDays++;
+    if(type==='absent')absentDays++;
+    if(type==='annual')annualDays++;
   }
 
-  // 實際出勤月數（足月=30日）
-  const scheduledDays = workDays + personalDays + abscentDays + annualDays;
-  // 事假扣薪（每天 = (底薪+彈性補貼)/30）
-  const personalDeduct = Math.round((BASE + elasticBonus) / 30 * personalDays);
-  // 曠職扣薪（3倍日薪）
-  const absentDeduct = Math.round((BASE + elasticBonus) / 30 * abscentDays * 3);
-  // 病假扣薪：超過5天才扣，每天扣一半
-  const sickDeductDays = Math.max(0, sickDays - 5);
-  const sickDeduct = Math.round((BASE + elasticBonus) / 30 * sickDeductDays * 0.5);
+  const personalDeduct=Math.round((BASE+elasticBonus)/30*personalDays);
+  const absentDeduct=Math.round((BASE+elasticBonus)/30*absentDays*3);
+  const sickDeduct=Math.round((BASE+elasticBonus)/30*Math.max(0,sickDays-5)*0.5);
+  const ins=getInsuranceFromGrade(emp.insurance?.grade||0);
+  const laborDeduct=record?.laborDeduct??ins.labor;
+  const healthDeduct=record?.healthDeduct??ins.health;
 
-  // 勞健保
-  const insGrade = emp.insurance?.grade || 0;
-  const ins = getInsuranceFromGrade(insGrade);
-  const laborDeduct = record?.laborDeduct ?? ins.labor;
-  const healthDeduct = record?.healthDeduct ?? ins.health;
+  const gross=BASE+elasticBonus+otPayTotal;
+  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+laborDeduct+healthDeduct;
+  const netPay=gross-totalDeduct;
 
-  // 應付薪資 = 底薪 + 彈性補貼 + 加班費 - 事假 - 曠職 - 病假 - 勞保 - 健保
-  const gross = BASE + elasticBonus + otPay;
-  const totalDeduct = personalDeduct + absentDeduct + sickDeduct + laborDeduct + healthDeduct;
-  const netPay = gross - totalDeduct;
-
-  return {
-    targetSalary, BASE, elasticBonus, hourlyBase,
-    totalOtHours, otRate, otPay, gross,
-    workDays, sickDays, personalDays, abscentDays, annualDays, scheduledDays,
-    personalDeduct, absentDeduct, sickDeduct,
-    laborDeduct, healthDeduct, totalDeduct, netPay,
-    insGrade
+  return{
+    targetSalary,BASE,elasticBonus,hourlyBase,
+    totalOt134,totalOt167,otPay134,otPay167,otPayTotal,
+    gross,workDays,sickDays,personalDays,absentDays,annualDays,
+    personalDeduct,absentDeduct,sickDeduct,
+    laborDeduct,healthDeduct,totalDeduct,netPay,
+    insGrade:emp.insurance?.grade||0,
+    defaultOtPerDay
   };
 }
 
-function getDaysInMonth(y, m) {
-  return new Date(y, m, 0).getDate();
+function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
+function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function getShiftForDay(shifts,emp,ds){
+  return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id));
 }
 
-function getShiftForDay(shifts, emp, dateStr) {
-  const arr = shifts[dateStr] || [];
-  return arr.find(s => String(s.empId) === String(emp.id));
+// ── 取得當店所有員工 ──
+function getStoreEmps(store){
+  return employees.filter(e=>e.workLocation===store);
 }
 
 // ── 渲染主畫面 ──
-let year = viewYear, month = viewMonth;
+function renderMain(){
+  const main=document.getElementById('mainArea');
+  if(!viewableStores.length){
+    main.innerHTML=`<div class="empty-state"><div class="empty-icon">🏪</div><div>沒有可見的店面</div></div>`;
+    return;
+  }
 
-function renderMain() {
-  const main = document.getElementById('mainArea');
-  const monthStr = `${year}年${month}月`;
+  // 店面 tabs
+  const tabsHtml=viewableStores.map(s=>{
+    const cnt=getStoreEmps(s).length;
+    const ot=getStoreDefaultOt(s);
+    const isActive=s===selectedStore;
+    return`<button class="store-tab${isActive?' active':''}" onclick="selectStore('${s}')">
+      ${s}
+      <span class="store-ot-badge${ot===2?' ot2':''}">+${ot}h/天</span>
+      <span class="tab-count">${cnt}人</span>
+    </button>`;
+  }).join('');
 
-  // 員工列表
-  const empCards = employees.length > 0
-    ? employees.map(e => {
-        const salHist = e.salaryHistory || [];
-        const target = salHist.length > 0
-          ? Number(salHist.sort((a,b)=>b.date.localeCompare(a.date))[0].amount)
-          : (e.salary || 0);
-        const isActive = String(e.id) === String(selectedEmpId);
-        return `<div class="emp-card${isActive?' active':''}" onclick="selectEmp('${e.id}')">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <div class="emp-name">${e.name || '—'}</div>
-            ${target ? `<span class="emp-salary-tag">目標 $${Number(target).toLocaleString()}</span>` : ''}
-          </div>
-          <div class="emp-meta">
-            <span>${e.workLocation || '—'}</span>
-            <span>${e.title || '—'}</span>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div class="empty-state"><div class="empty-icon">👥</div><div>尚無在職同仁資料</div></div>`;
+  // OT 設定面板（admin/consultant 才顯示）
+  let otSettingsHtml='';
+  if((currentRole==='admin'||currentRole==='consultant')&&showOtSettings){
+    const items=viewableStores.map(s=>{
+      const cur=getStoreDefaultOt(s);
+      return`<div class="ot-store-item">
+        <div class="ot-store-name" title="${s}">${s}</div>
+        <select class="ot-select" onchange="setStoreOt('${s}',Number(this.value))">
+          <option value="0"${cur===0?' selected':''}>無固定</option>
+          <option value="1"${cur===1?' selected':''}>+1h/天</option>
+          <option value="2"${cur===2?' selected':''}>+2h/天</option>
+        </select>
+      </div>`;
+    }).join('');
+    otSettingsHtml=`<div class="ot-settings-panel">
+      <div class="ot-settings-title">
+        <span>⚙️ 各店固定加班時數設定（每日出勤自動套用）</span>
+        <button class="btn-sm btn-primary" onclick="saveOtConfig()">儲存設定</button>
+      </div>
+      <div class="ot-settings-grid">${items}</div>
+    </div>`;
+  }
 
-  main.innerHTML = `
+  // 員工卡片（篩選當前店面）
+  const storeEmps=selectedStore?getStoreEmps(selectedStore):[];
+  const empCards=storeEmps.length>0
+    ?storeEmps.map(e=>{
+      const salHist=(e.salaryHistory||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      const target=salHist.length>0?Number(salHist[0].amount):(e.salary||0);
+      const isActive=String(e.id)===String(selectedEmpId);
+      return`<div class="emp-card${isActive?' active':''}" onclick="selectEmp(${e.id})">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div class="emp-name">${e.name||'—'}</div>
+          ${target?`<span class="emp-salary-tag">目標 $${Number(target).toLocaleString()}</span>`:''}
+        </div>
+        <div class="emp-meta">
+          <span>${e.title||'—'}</span>
+          ${e.insurance?.grade?`<span>投保 $${Number(e.insurance.grade).toLocaleString()}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')
+    :`<div class="empty-state"><div class="empty-icon">👥</div><div>此店面尚無在職同仁</div></div>`;
+
+  main.innerHTML=`
     <div class="filter-bar">
       <span class="filter-label">月份</span>
       <select id="yearSel" onchange="changeMonth()">
-        ${[2024,2025,2026,2027].map(y=>`<option value="${y}"${y===year?' selected':''}>${y}年</option>`).join('')}
+        ${[2024,2025,2026,2027].map(y=>`<option value="${y}"${y===viewYear?' selected':''}>${y}年</option>`).join('')}
       </select>
       <select id="monthSel" onchange="changeMonth()">
-        ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===month?' selected':''}>${m}月</option>`).join('')}
+        ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===viewMonth?' selected':''}>${m}月</option>`).join('')}
       </select>
-      <span style="font-size:12px;color:var(--text3);margin-left:auto">共 ${employees.length} 位在職同仁</span>
+      <div class="filter-divider"></div>
+      <span class="filter-label" style="color:var(--text3)">
+        ${selectedStore||'—'} · ${getStoreEmps(selectedStore||'').length} 位同仁
+      </span>
+      ${(currentRole==='admin'||currentRole==='consultant')?`<button class="btn btn-sm btn-outline" style="margin-left:auto" onclick="toggleOtSettings()">⚙️ 加班設定</button>`:''}
     </div>
+    ${otSettingsHtml}
+    <div class="store-tabs" id="storeTabs">${tabsHtml}</div>
     <div class="emp-list" id="empList">${empCards}</div>
     <div id="sheetArea"></div>
   `;
 
-  if (selectedEmpId) {
+  if(selectedEmpId&&storeEmps.find(e=>String(e.id)===String(selectedEmpId))){
     loadAndRenderSheet(selectedEmpId);
   }
 }
 
-window.changeMonth = function() {
-  year = Number(document.getElementById('yearSel').value);
-  month = Number(document.getElementById('monthSel').value);
-  selectedEmpId = null;
+// ── 切換店面 ──
+window.selectStore=function(store){
+  selectedStore=store;
+  selectedEmpId=null;
   renderMain();
 };
 
-window.selectEmp = async function(empId) {
-  selectedEmpId = empId;
-  // 重繪 emp cards active 狀態
-  document.querySelectorAll('.emp-card').forEach(el => {
-    el.classList.remove('active');
-  });
+// ── 切換月份 ──
+window.changeMonth=function(){
+  viewYear=Number(document.getElementById('yearSel').value);
+  viewMonth=Number(document.getElementById('monthSel').value);
+  selectedEmpId=null;
+  renderMain();
+};
+
+// ── 設定加班時數 ──
+window.setStoreOt=function(store,val){
+  storeOtConfig[store]=val;
+  // 更新 tab badge（即時預覽）
+  renderMain();
+};
+
+// ── 顯示/隱藏 OT 設定面板 ──
+window.toggleOtSettings=function(){
+  showOtSettings=!showOtSettings;
+  renderMain();
+};
+window.saveOtConfig=saveOtConfig;
+
+// ── 選擇同仁 ──
+window.selectEmp=async function(empId){
+  selectedEmpId=empId;
+  document.querySelectorAll('.emp-card').forEach(el=>el.classList.remove('active'));
   event.currentTarget.classList.add('active');
-  document.getElementById('sheetArea').innerHTML = '<div class="loading-text">載入薪資資料中…</div>';
+  document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入薪資資料中…</div>';
   await loadAndRenderSheet(empId);
 };
 
-async function loadAndRenderSheet(empId) {
-  const emp = employees.find(e => String(e.id) === String(empId));
-  if (!emp) return;
-
-  const [shifts, existingRecord] = await Promise.all([
-    loadShiftsForEmp(empId, year, month),
-    loadSalaryRecord(empId, year, month)
+// ── 載入並渲染薪資單 ──
+async function loadAndRenderSheet(empId){
+  const emp=employees.find(e=>String(e.id)===String(empId));
+  if(!emp)return;
+  const [shifts,existing]=await Promise.all([
+    loadShifts(empId,viewYear,viewMonth),
+    loadSalaryRecord(empId,viewYear,viewMonth)
   ]);
-
-  const record = existingRecord || { dailyData: {} };
-  const calc = calcSalary(emp, record, shifts);
-
-  renderSheet(emp, record, shifts, calc);
+  const record=existing||{dailyData:{}};
+  const calc=calcSalary(emp,record,shifts);
+  renderSheet(emp,record,shifts,calc);
 }
 
-function renderSheet(emp, record, shifts, calc) {
-  const days = getDaysInMonth(year, month);
-  const DAY_NAMES = ['日','一','二','三','四','五','六'];
-  const TYPE_OPTIONS = [
-    {val:'normal', label:'正常'},
-    {val:'sick',   label:'病假'},
-    {val:'personal',label:'事假'},
-    {val:'annual', label:'特休'},
-    {val:'absent', label:'曠職'},
-    {val:'dayoff', label:'公休'},
+async function loadShifts(empId,year,month){
+  const emp=employees.find(e=>String(e.id)===String(empId));
+  if(!emp||!emp.workLocation)return{};
+  const key=`${year}-${String(month).padStart(2,'0')}_${emp.workLocation}`;
+  try{
+    const snap=await getDoc(doc(db,'schedules',key));
+    return snap.exists()?(snap.data().shifts||{}):{};
+  }catch(e){return{};}
+}
+async function loadSalaryRecord(empId,year,month){
+  const key=`${empId}_${year}-${String(month).padStart(2,'0')}`;
+  try{
+    const snap=await getDoc(doc(db,'salary_records',key));
+    return snap.exists()?snap.data():null;
+  }catch(e){return null;}
+}
+async function saveSalaryRecord(empId,year,month,data){
+  const key=`${empId}_${year}-${String(month).padStart(2,'0')}`;
+  try{
+    await setDoc(doc(db,'salary_records',key),{...data,updatedAt:new Date().toISOString(),updatedBy:currentUserName});
+    return true;
+  }catch(e){return false;}
+}
+
+// ── 渲染薪資單 ──
+function renderSheet(emp,record,shifts,calc){
+  const days=getDaysInMonth(viewYear,viewMonth);
+  const DAY=['日','一','二','三','四','五','六'];
+  const TYPES=[
+    {val:'normal',label:'正常'},{val:'sick',label:'病假'},
+    {val:'personal',label:'事假'},{val:'annual',label:'特休'},
+    {val:'absent',label:'曠職'},{val:'dayoff',label:'公休'},
   ];
+  const dailyData=record?.dailyData||{};
+  const defaultOt=calc.defaultOtPerDay;
 
-  // 每日列
-  let dailyRows = '';
-  for (let d = 1; d <= days; d++) {
-    const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow = new Date(dateStr).getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const shift = getShiftForDay(shifts, emp, dateStr);
-    const dayRec = (record.dailyData || {})[dateStr] || {};
-    const type = dayRec.type || 'normal';
-    const otHours = dayRec.otHours || '';
-    const noShift = !shift && !isWeekend;
+  let rows='';
+  for(let d=1;d<=days;d++){
+    const ds=dateStr(viewYear,viewMonth,d);
+    const dow=new Date(ds).getDay();
+    const isWknd=dow===0||dow===6;
+    const shift=getShiftForDay(shifts,emp,ds);
+    const dayRec=dailyData[ds]||{};
+    const type=dayRec.type||'normal';
+    const noShift=!shift;
+    const hasWork=shift&&type!=='personal'&&type!=='absent'&&type!=='dayoff';
 
-    // 班次描述
-    let shiftDesc = '';
-    if (shift) shiftDesc = `${shift.startTime||''}-${shift.endTime||''}`;
-    else if (isWeekend) shiftDesc = `<span style="color:#E05252">休</span>`;
-    else shiftDesc = '<span style="color:var(--text3)">未排班</span>';
+    // 固定加班時數
+    const autoOt=dayRec.autoOt!=null?Number(dayRec.autoOt):defaultOt;
+    // 額外加班
+    const ot167=dayRec.ot167||'';
 
-    // select 樣式
-    const selClass = type === 'absent' ? 'absent' : type === 'sick' ? 'sick' : type === 'annual' ? 'annual' : 'normal';
+    let shiftDesc='';
+    if(shift)shiftDesc=`${shift.startTime||''}-${shift.endTime||''}`;
+    else if(isWknd)shiftDesc=`<span style="color:#E05252">休</span>`;
+    else shiftDesc=`<span style="color:var(--text3)">未排班</span>`;
 
-    dailyRows += `<div class="daily-row${isWeekend?' weekend':''}${!shift&&!isWeekend?' no-shift':''}">
+    const selClass=type==='absent'?'absent':type==='sick'?'sick':type==='annual'?'annual':'normal';
+
+    rows+=`<div class="daily-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}">
       <div class="day-date-cell">
         <div class="day-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div>
-        <div class="day-name">${DAY_NAMES[dow]}</div>
+        <div class="day-name">${DAY[dow]}</div>
       </div>
       <div class="day-shift">${shiftDesc}</div>
-      <select class="day-type-select ${selClass}" data-date="${dateStr}" onchange="updateDayType(this)" ${!shift&&!isWeekend?'disabled':''}>
-        ${TYPE_OPTIONS.map(o=>`<option value="${o.val}"${o.val===type?' selected':''}>${o.label}</option>`).join('')}
+      <select class="day-type-select ${selClass}" data-date="${ds}" onchange="updateDayType(this)" ${noShift?'disabled':''}>
+        ${TYPES.map(o=>`<option value="${o.val}"${o.val===type?' selected':''}>${o.label}</option>`).join('')}
       </select>
-      <div class="day-ot">
-        <input type="number" min="0" max="24" step="0.5" placeholder="加班時數" value="${otHours}"
-          data-date="${dateStr}" onchange="updateDayOt(this)" ${!shift?'disabled':''}>
+      <div class="ot-input-wrap">
+        <input type="number" min="0" max="24" step="0.5"
+          value="${hasWork?autoOt:''}"
+          class="${hasWork?'auto-filled':''}"
+          placeholder="—"
+          data-date="${ds}" data-field="autoOt"
+          onchange="updateDayOtField(this,'autoOt')"
+          ${noShift||type==='dayoff'?'disabled':''}>
+        <span class="ot-unit">h</span>
       </div>
-      <div style="font-size:11px;color:var(--text3);text-align:right">
-        ${otHours ? `+${otHours}h` : ''}
+      <div class="ot-input-wrap col-ot2">
+        <input type="number" min="0" max="24" step="0.5"
+          value="${ot167}"
+          class="ot2-input"
+          placeholder="—"
+          data-date="${ds}" data-field="ot167"
+          onchange="updateDayOtField(this,'ot167')"
+          ${noShift||!hasWork?'disabled':''}>
+        <span class="ot-unit">h</span>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-align:right">
+        ${hasWork?`<div style="color:var(--orange);font-weight:500">${autoOt}h×1.34</div>`:''}
+        ${ot167?`<div style="color:var(--red);font-weight:500">${ot167}h×1.67</div>`:''}
       </div>
     </div>`;
   }
 
-  document.getElementById('sheetArea').innerHTML = `
+  document.getElementById('sheetArea').innerHTML=`
     <div class="salary-sheet">
       <div class="sheet-header">
-        <div class="sheet-title">💰 ${emp.name} — ${year}年${month}月薪資</div>
+        <div class="sheet-title">💰 ${emp.name} — ${viewYear}年${viewMonth}月</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge badge-${calc.netPay > 0 ? 'green' : 'red'}">實領 $${Number(Math.round(calc.netPay)).toLocaleString()}</span>
+          <span class="badge badge-green">實領 $${Math.round(calc.netPay).toLocaleString()}</span>
           <button class="btn btn-sm btn-primary" onclick="saveCurrentSheet()">💾 儲存</button>
+          <button class="btn-sm btn-outline" onclick="exportSlip()">📄 薪資單</button>
         </div>
       </div>
 
@@ -557,8 +642,8 @@ function renderSheet(emp, record, shifts, calc) {
           <div class="summary-value blue">$${Math.round(calc.elasticBonus).toLocaleString()}</div>
         </div>
         <div class="summary-cell">
-          <div class="summary-label">加班費</div>
-          <div class="summary-value green">$${Math.round(calc.otPay).toLocaleString()}</div>
+          <div class="summary-label">加班費合計</div>
+          <div class="summary-value green">$${Math.round(calc.otPayTotal).toLocaleString()}</div>
         </div>
         <div class="summary-cell">
           <div class="summary-label">目標薪資</div>
@@ -576,43 +661,32 @@ function renderSheet(emp, record, shifts, calc) {
             <div class="formula-item-sub">(底薪+彈性補貼)÷30÷8</div>
           </div>
           <div class="formula-item">
-            <div class="formula-item-label">本月加班時數</div>
-            <div class="formula-item-value">${calc.totalOtHours} h</div>
-            <div class="formula-item-sub">加班時數合計</div>
+            <div class="formula-item-label">固定加班（1.34倍）</div>
+            <div class="formula-item-value" style="color:var(--orange)">${calc.totalOt134}h → $${Math.round(calc.otPay134).toLocaleString()}</div>
+            <div class="formula-item-sub">每出勤日 +${defaultOt}h</div>
           </div>
           <div class="formula-item">
-            <div class="formula-item-label">加班倍率</div>
-            <div class="formula-item-value">
-              <input type="number" step="0.01" min="1" max="3" value="${calc.otRate}" id="otRateInput"
-                onchange="updateOtRate(this.value)"
-                style="width:70px;font-size:14px;font-weight:600;padding:3px 6px;border:1px solid var(--border);border-radius:6px;text-align:center">
-            </div>
-            <div class="formula-item-sub">可調整倍率</div>
+            <div class="formula-item-label">額外加班（1.67倍）</div>
+            <div class="formula-item-value" style="color:var(--red)">${calc.totalOt167}h → $${Math.round(calc.otPay167).toLocaleString()}</div>
+            <div class="formula-item-sub">超過固定時數的部分</div>
+          </div>
+          <div class="formula-item">
+            <div class="formula-item-label">店面固定設定</div>
+            <div class="formula-item-value">+${defaultOt}h / 出勤日</div>
+            <div class="formula-item-sub">${emp.workLocation}</div>
           </div>
         </div>
         <div class="formula-eq">
-          <span>加班費</span>
-          <span class="op">=</span>
-          <span>ROUND(</span>
-          <span class="val">$${(calc.BASE + Math.round(calc.elasticBonus)).toLocaleString()}</span>
-          <span class="op">÷ 30 ÷ 8 ×</span>
-          <span class="val">${calc.totalOtHours}h</span>
+          <span>加班費</span><span class="op">=</span>
+          <span class="val">$${calc.hourlyBase.toFixed(2)}</span>
           <span class="op">×</span>
-          <span class="val">${calc.otRate}</span>
-          <span>) =</span>
-          <span class="val" style="color:var(--green)">$${Math.round(calc.otPay).toLocaleString()}</span>
-        </div>
-        <div class="formula-eq" style="margin-top:6px">
-          <span>彈性補貼</span>
-          <span class="op">=</span>
-          <span>ROUND(</span>
-          <span class="val">$${calc.targetSalary.toLocaleString()}</span>
-          <span class="op">÷ (1 +</span>
-          <span class="val">${calc.totalOtHours}</span>
-          <span class="op">÷ 240)) −</span>
-          <span class="val">$${calc.BASE.toLocaleString()}</span>
-          <span>) =</span>
-          <span class="val" style="color:var(--blue)">$${Math.round(calc.elasticBonus).toLocaleString()}</span>
+          <span class="val">${calc.totalOt134}h</span>
+          <span class="op">×1.34 +</span>
+          <span class="val">${calc.hourlyBase.toFixed(2)}</span>
+          <span class="op">×</span>
+          <span class="val">${calc.totalOt167}h</span>
+          <span class="op">×1.67 =</span>
+          <span class="val" style="color:var(--green)">$${Math.round(calc.otPayTotal).toLocaleString()}</span>
         </div>
       </div>
 
@@ -621,10 +695,18 @@ function renderSheet(emp, record, shifts, calc) {
         <div class="daily-title">
           <span>📅 每日出勤記錄</span>
           <span style="font-size:11px;color:var(--text3)">
-            出勤 ${calc.workDays}天 ｜ 事假 ${calc.personalDays}天 ｜ 病假 ${calc.sickDays}天 ｜ 曠職 ${calc.abscentDays}天 ｜ 特休 ${calc.annualDays}天
+            出勤 ${calc.workDays} ｜ 事假 ${calc.personalDays} ｜ 病假 ${calc.sickDays} ｜ 曠職 ${calc.absentDays} ｜ 特休 ${calc.annualDays}
           </span>
         </div>
-        <div class="daily-grid" id="dailyGrid">${dailyRows}</div>
+        <div class="daily-header">
+          <div style="text-align:center">日期</div>
+          <div>班次</div>
+          <div>出勤狀態</div>
+          <div style="text-align:right">固定OT (×1.34)</div>
+          <div style="text-align:right" class="col-ot2">額外OT (×1.67)</div>
+          <div></div>
+        </div>
+        <div id="dailyGrid">${rows}</div>
       </div>
 
       <!-- 扣項 -->
@@ -632,197 +714,166 @@ function renderSheet(emp, record, shifts, calc) {
         <div class="formula-title">➖ 扣項明細</div>
         <div class="deduct-grid">
           <div class="deduct-item">
-            <div class="deduct-label">事假扣薪<span style="font-size:10px;color:var(--text3)">（${calc.personalDays}天）</span></div>
+            <div class="deduct-label">事假扣薪（${calc.personalDays}天）</div>
             <div style="font-size:13px;font-weight:600;color:var(--red)">−$${calc.personalDeduct.toLocaleString()}</div>
           </div>
           <div class="deduct-item">
-            <div class="deduct-label">曠職扣薪<span style="font-size:10px;color:var(--text3)">（${calc.abscentDays}天）</span></div>
+            <div class="deduct-label">曠職扣薪（${calc.absentDays}天×3）</div>
             <div style="font-size:13px;font-weight:600;color:var(--red)">−$${calc.absentDeduct.toLocaleString()}</div>
           </div>
           <div class="deduct-item">
-            <div class="deduct-label">病假扣薪<span style="font-size:10px;color:var(--text3)">（超過5天部分）</span></div>
+            <div class="deduct-label">病假扣薪（超5天部分）</div>
             <div style="font-size:13px;font-weight:600;color:var(--red)">−$${calc.sickDeduct.toLocaleString()}</div>
           </div>
           <div class="deduct-item">
             <div class="deduct-label">勞保自負額</div>
-            <input class="deduct-input" type="number" id="laborInput" value="${calc.laborDeduct}"
-              onchange="updateDeduct('labor', this.value)" placeholder="0">
+            <input class="deduct-input" type="number" id="laborInput" value="${calc.laborDeduct}" onchange="updateDeduct('labor',this.value)">
           </div>
           <div class="deduct-item">
             <div class="deduct-label">健保自負額</div>
-            <input class="deduct-input" type="number" id="healthInput" value="${calc.healthDeduct}"
-              onchange="updateDeduct('health', this.value)" placeholder="0">
+            <input class="deduct-input" type="number" id="healthInput" value="${calc.healthDeduct}" onchange="updateDeduct('health',this.value)">
           </div>
-          ${calc.insGrade ? `<div class="deduct-item" style="background:var(--blue-bg);border-color:var(--blue-border)">
-            <div class="deduct-label" style="color:var(--blue)">投保級距參考</div>
+          ${calc.insGrade?`<div class="deduct-item" style="background:var(--blue-bg);border-color:var(--blue-border)">
+            <div class="deduct-label" style="color:var(--blue)">投保級距</div>
             <div style="font-size:12px;font-weight:600;color:var(--blue)">$${Number(calc.insGrade).toLocaleString()}</div>
-          </div>` : ''}
+          </div>`:''}
         </div>
       </div>
 
-      <!-- 實領薪資 -->
+      <!-- 實領 -->
       <div class="netpay-bar">
         <div>
           <div class="netpay-label">本月實領薪資</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">
-            $${(calc.BASE+Math.round(calc.elasticBonus)).toLocaleString()} 底+彈 + $${Math.round(calc.otPay).toLocaleString()} 加班 − $${calc.totalDeduct.toLocaleString()} 扣項
+            $${(calc.BASE+Math.round(calc.elasticBonus)).toLocaleString()} 底+彈 ＋ $${Math.round(calc.otPayTotal).toLocaleString()} 加班 − $${calc.totalDeduct.toLocaleString()} 扣項
           </div>
         </div>
         <div class="netpay-value" id="netPayDisplay">$${Math.round(calc.netPay).toLocaleString()}</div>
       </div>
-
       <div style="padding:0 16px 16px;display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn btn-outline" onclick="exportSalarySlip()">📄 匯出薪資單</button>
-        <button class="btn btn-primary" onclick="saveCurrentSheet()">💾 儲存薪資紀錄</button>
+        <button class="btn btn-primary" onclick="saveCurrentSheet()">💾 儲存薪資記錄</button>
       </div>
     </div>
   `;
 }
 
-// ── 更新每日出勤類型 ──
-window.updateDayType = async function(el) {
-  el.className = 'day-type-select';
-  const typeClass = el.value==='absent'?'absent':el.value==='sick'?'sick':el.value==='annual'?'annual':'normal';
-  el.classList.add(typeClass);
-  await autoSave(el.dataset.date, 'type', el.value);
+// ── 更新出勤狀態 ──
+window.updateDayType=async function(el){
+  const type=el.value;
+  el.className='day-type-select';
+  el.classList.add(type==='absent'?'absent':type==='sick'?'sick':type==='annual'?'annual':'normal');
+  const ds=el.dataset.date;
+  await patchDayRecord(ds,'type',type);
+  // 如果改成非出勤，清空加班自動填
+  await refreshSheet();
 };
 
-// ── 更新加班時數 ──
-window.updateDayOt = async function(el) {
-  await autoSave(el.dataset.date, 'otHours', Number(el.value));
-};
-
-// ── 更新加班倍率 ──
-window.updateOtRate = async function(val) {
-  const emp = employees.find(e => String(e.id) === String(selectedEmpId));
-  if (!emp) return;
-  const existing = await loadSalaryRecord(selectedEmpId, year, month);
-  const record = existing || { dailyData: {} };
-  record.otRate = Number(val);
-  await saveSalaryRecord(selectedEmpId, year, month, record);
-  refreshCalc();
+// ── 更新加班時數欄位 ──
+window.updateDayOtField=async function(el,field){
+  await patchDayRecord(el.dataset.date,field,Number(el.value)||0);
+  await refreshSheet();
 };
 
 // ── 更新勞健保扣項 ──
-window.updateDeduct = async function(type, val) {
-  const emp = employees.find(e => String(e.id) === String(selectedEmpId));
-  if (!emp) return;
-  const existing = await loadSalaryRecord(selectedEmpId, year, month);
-  const record = existing || { dailyData: {} };
-  if (type === 'labor') record.laborDeduct = Number(val);
-  else record.healthDeduct = Number(val);
-  await saveSalaryRecord(selectedEmpId, year, month, record);
-  refreshCalc();
+window.updateDeduct=async function(type,val){
+  const rec=await loadSalaryRecord(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(type==='labor')rec.laborDeduct=Number(val);
+  else rec.healthDeduct=Number(val);
+  await saveSalaryRecord(selectedEmpId,viewYear,viewMonth,rec);
+  await refreshSheet();
 };
 
-// ── 自動儲存單日出勤 ──
-async function autoSave(dateStr, field, value) {
-  if (!selectedEmpId) return;
-  const existing = await loadSalaryRecord(selectedEmpId, year, month);
-  const record = existing || { dailyData: {} };
-  if (!record.dailyData) record.dailyData = {};
-  if (!record.dailyData[dateStr]) record.dailyData[dateStr] = {};
-  record.dailyData[dateStr][field] = value;
-  await saveSalaryRecord(selectedEmpId, year, month, record);
-  refreshCalc();
+// ── patch 單日記錄 ──
+async function patchDayRecord(ds,field,value){
+  if(!selectedEmpId)return;
+  const rec=await loadSalaryRecord(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.dailyData)rec.dailyData={};
+  if(!rec.dailyData[ds])rec.dailyData[ds]={};
+  rec.dailyData[ds][field]=value;
+  await saveSalaryRecord(selectedEmpId,viewYear,viewMonth,rec);
 }
 
-// ── 重新計算並更新顯示（不重繪整個 sheet）──
-async function refreshCalc() {
-  const emp = employees.find(e => String(e.id) === String(selectedEmpId));
-  if (!emp) return;
-  const [shifts, record] = await Promise.all([
-    loadShiftsForEmp(selectedEmpId, year, month),
-    loadSalaryRecord(selectedEmpId, year, month)
+// ── 重新計算並更新數字（不重繪整個 sheet）──
+async function refreshSheet(){
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  if(!emp)return;
+  const [shifts,rec]=await Promise.all([
+    loadShifts(selectedEmpId,viewYear,viewMonth),
+    loadSalaryRecord(selectedEmpId,viewYear,viewMonth)
   ]);
-  const calc = calcSalary(emp, record || {dailyData:{}}, shifts);
-  // 更新數字顯示
-  const netEl = document.getElementById('netPayDisplay');
-  if (netEl) netEl.textContent = `$${Math.round(calc.netPay).toLocaleString()}`;
+  const calc=calcSalary(emp,rec||{dailyData:{}},shifts);
+  const el=document.getElementById('netPayDisplay');
+  if(el)el.textContent=`$${Math.round(calc.netPay).toLocaleString()}`;
 }
 
 // ── 手動全量儲存 ──
-window.saveCurrentSheet = async function() {
-  if (!selectedEmpId || isSaving) return;
-  isSaving = true;
-  showToast('儲存中…');
-  const emp = employees.find(e => String(e.id) === String(selectedEmpId));
-  const existing = await loadSalaryRecord(selectedEmpId, year, month);
-  const record = existing || { dailyData: {} };
-  const shifts = await loadShiftsForEmp(selectedEmpId, year, month);
-  const calc = calcSalary(emp, record, shifts);
-  record.snapshot = {
-    targetSalary: calc.targetSalary,
-    BASE: calc.BASE,
-    elasticBonus: Math.round(calc.elasticBonus),
-    otPay: Math.round(calc.otPay),
-    netPay: Math.round(calc.netPay),
-    totalOtHours: calc.totalOtHours,
-    otRate: calc.otRate,
-    savedAt: new Date().toISOString()
-  };
-  const ok = await saveSalaryRecord(selectedEmpId, year, month, record);
-  if (ok) {
-    writeOpLog({ editor: currentUserName, role: currentRole, module: 'salary', action: '儲存薪資', detail: `${emp.name} ${year}年${month}月` });
+window.saveCurrentSheet=async function(){
+  if(!selectedEmpId||isSaving)return;
+  isSaving=true;showToast('儲存中…');
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  const [shifts,rec]=await Promise.all([
+    loadShifts(selectedEmpId,viewYear,viewMonth),
+    loadSalaryRecord(selectedEmpId,viewYear,viewMonth)
+  ]);
+  const record=rec||{dailyData:{}};
+  const calc=calcSalary(emp,record,shifts);
+  record.snapshot={...calc,savedAt:new Date().toISOString()};
+  const ok=await saveSalaryRecord(selectedEmpId,viewYear,viewMonth,record);
+  if(ok){
+    writeOpLog({editor:currentUserName,role:currentRole,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});
     showToast('✓ 薪資記錄已儲存');
-  } else {
-    showToast('⚠️ 儲存失敗，請重試');
-  }
-  isSaving = false;
+  }else showToast('⚠️ 儲存失敗');
+  isSaving=false;
 };
 
-// ── 匯出薪資單（列印）──
-window.exportSalarySlip = async function() {
-  const emp = employees.find(e => String(e.id) === String(selectedEmpId));
-  if (!emp) return;
-  const [shifts, record] = await Promise.all([
-    loadShiftsForEmp(selectedEmpId, year, month),
-    loadSalaryRecord(selectedEmpId, year, month)
+// ── 匯出薪資單 ──
+window.exportSlip=async function(){
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  if(!emp)return;
+  const [shifts,rec]=await Promise.all([
+    loadShifts(selectedEmpId,viewYear,viewMonth),
+    loadSalaryRecord(selectedEmpId,viewYear,viewMonth)
   ]);
-  const calc = calcSalary(emp, record || {dailyData:{}}, shifts);
-
-  const w = window.open('','_blank');
+  const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+  const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>薪資單 ${emp.name} ${year}年${month}月</title>
-  <style>
-    body{font-family:Arial,sans-serif;max-width:600px;margin:30px auto;font-size:14px;color:#1a1a1a}
-    h2{font-size:18px;margin-bottom:4px}.sub{font-size:12px;color:#666;margin-bottom:20px}
-    table{width:100%;border-collapse:collapse;margin-bottom:16px}
-    td{padding:8px 12px;border-bottom:1px solid #eee}
-    td:last-child{text-align:right;font-weight:500}
-    .section-head{background:#f5f5f5;font-weight:700;font-size:12px;color:#555;letter-spacing:.5px;padding:6px 12px}
-    .total-row td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
-    .red{color:#D33A3A}.green{color:#1A9B4C}
-    @media print{body{margin:0}}
-  </style></head><body>
-  <h2>薪　資　單</h2>
-  <div class="sub">${emp.name}｜${year}年${month}月份｜${emp.workLocation||''}</div>
-  <table>
-    <tr><td class="section-head" colspan="2">加項</td></tr>
-    <tr><td>底薪</td><td>$${calc.BASE.toLocaleString()}</td></tr>
-    <tr><td>彈性補貼</td><td>$${Math.round(calc.elasticBonus).toLocaleString()}</td></tr>
-    <tr><td>加班費（${calc.totalOtHours}h × ${calc.otRate}倍）</td><td>$${Math.round(calc.otPay).toLocaleString()}</td></tr>
-    <tr><td class="section-head" colspan="2">扣項</td></tr>
-    <tr><td>事假扣薪（${calc.personalDays}天）</td><td class="red">−$${calc.personalDeduct.toLocaleString()}</td></tr>
-    <tr><td>病假扣薪（超5天部分）</td><td class="red">−$${calc.sickDeduct.toLocaleString()}</td></tr>
-    <tr><td>曠職扣薪（${calc.abscentDays}天）</td><td class="red">−$${calc.absentDeduct.toLocaleString()}</td></tr>
-    <tr><td>勞保自負額</td><td class="red">−$${calc.laborDeduct.toLocaleString()}</td></tr>
-    <tr><td>健保自負額</td><td class="red">−$${calc.healthDeduct.toLocaleString()}</td></tr>
-    <tr class="total-row"><td>本月實領薪資</td><td class="green">$${Math.round(calc.netPay).toLocaleString()}</td></tr>
-  </table>
-  <div style="font-size:11px;color:#999;margin-top:12px">本薪資單由梁平鑫系統自動產生，如有疑問請洽管理員。</div>
-  <script>window.print();<\/script></body></html>`);
+<title>薪資單 ${emp.name} ${viewYear}年${viewMonth}月</title>
+<style>body{font-family:Arial,sans-serif;max-width:580px;margin:30px auto;font-size:14px;color:#1a1a1a}
+h2{font-size:18px}.sub{font-size:12px;color:#666;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+td{padding:8px 12px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
+.sh{background:#f5f5f5;font-weight:700;font-size:12px;color:#555;padding:6px 12px}
+.tot td{font-weight:700;font-size:16px;background:#f0f4ff;border-top:2px solid #2D3142}
+.red{color:#D33A3A}.green{color:#1A9B4C}
+@media print{body{margin:0}}</style></head><body>
+<h2>薪　資　單</h2>
+<div class="sub">${emp.name}｜${viewYear}年${viewMonth}月份｜${emp.workLocation||''}</div>
+<table>
+<tr><td class="sh" colspan="2">加項</td></tr>
+<tr><td>底薪</td><td>$${c.BASE.toLocaleString()}</td></tr>
+<tr><td>彈性補貼</td><td>$${Math.round(c.elasticBonus).toLocaleString()}</td></tr>
+<tr><td>加班費 1.34倍（${c.totalOt134}h）</td><td>$${Math.round(c.otPay134).toLocaleString()}</td></tr>
+<tr><td>加班費 1.67倍（${c.totalOt167}h）</td><td>$${Math.round(c.otPay167).toLocaleString()}</td></tr>
+<tr><td class="sh" colspan="2">扣項</td></tr>
+<tr><td>事假（${c.personalDays}天）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>
+<tr><td>病假超5天部分</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>
+<tr><td>曠職（${c.absentDays}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>
+<tr><td>勞保自負額</td><td class="red">−$${c.laborDeduct.toLocaleString()}</td></tr>
+<tr><td>健保自負額</td><td class="red">−$${c.healthDeduct.toLocaleString()}</td></tr>
+<tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
+</table>
+<div style="font-size:11px;color:#999;margin-top:12px">本薪資單由梁平鑫系統自動產生。</div>
+<script>window.print();<\/script></body></html>`);
   w.document.close();
 };
 
 // ── Toast ──
-function showToast(msg, duration=2000) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), duration);
+function showToast(msg,d=2000){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);
 }
-window.showToast = showToast;
+window.showToast=showToast;
 </script>
 </body>
 </html>
