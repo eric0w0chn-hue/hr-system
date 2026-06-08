@@ -19,7 +19,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
-/* ── Topbar ── */
 .topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:200;gap:8px}
 .topbar-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;overflow:hidden}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -30,29 +29,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;white-space:nowrap}
 @media(max-width:600px){.topbar{padding:0 10px}.topbar h1{font-size:14px}.back-btn{font-size:11px;padding:0 9px;min-height:38px}}
 
-/* ── Layout ── */
 .main{max-width:1100px;margin:0 auto;padding:18px 16px 80px}
 
-/* ── Filter Bar ── */
 .filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.filter-bar select,.filter-bar input{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;min-height:36px;cursor:pointer}
+.filter-bar select{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;min-height:36px;cursor:pointer}
 .filter-bar select:focus{border-color:var(--accent)}
 .fl{font-size:12px;color:var(--text2);white-space:nowrap;font-weight:500}
 .fdv{width:1px;height:20px;background:var(--border);flex-shrink:0}
 
-/* ── Locked Banner ── */
-.locked-banner{background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--orange);font-weight:500}
+.locked-banner{border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
 
-/* ── Buttons ── */
 .btn{font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;transition:all .15s;border:none;min-height:36px}
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
 .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
 .btn-sm{font-size:12px;padding:4px 10px;min-height:28px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500;font-family:inherit;border:none;transition:all .15s}
 .btn-sm.p{background:var(--accent);color:#fff}
 .btn-sm.o{border:1px solid var(--border);background:#fff;color:var(--text2)}.btn-sm.o:hover{background:var(--surface2)}
-.btn-sm.d{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
 
-/* ── OT Settings Panel ── */
 .ot-panel{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .ot-panel-title{font-size:12px;font-weight:700;color:#92640A;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
 .ot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
@@ -60,21 +53,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .ot-item-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ot-sel{font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:28px;cursor:pointer}
 
-/* ── Employee List ── */
-.emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:16px}
+.emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-bottom:16px}
 .emp-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s}
 .emp-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.07)}
 .emp-card.active{border-color:var(--accent);background:var(--accent-light)}
-.emp-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.emp-name{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
 .emp-meta{font-size:11px;color:var(--text2);display:flex;gap:8px;flex-wrap:wrap}
 .emp-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--accent-light);color:var(--accent)}
+.partial-flag{font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
 
-/* ── Salary Sheet ── */
-.salary-sheet{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.salary-sheet{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;scroll-margin-top:70px}
 .sheet-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface2)}
 .sheet-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
 
-/* ── Summary Row ── */
 .sum-row{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
 @media(max-width:700px){.sum-row{grid-template-columns:repeat(2,1fr)}}
 .sum-cell{padding:12px 14px;border-right:1px solid var(--border);text-align:center}
@@ -83,9 +74,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sum-val{font-size:17px;font-weight:700}
 .c-green{color:var(--green)}.c-red{color:var(--red)}.c-blue{color:var(--blue)}.c-orange{color:var(--orange)}
 
-/* ── Formula Section ── */
 .fml-sec{padding:12px 16px;border-bottom:1px solid var(--border)}
-.sec-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.sec-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
 .fml-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
@@ -93,120 +83,101 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .fi-val{font-size:13px;font-weight:600}
 .fi-sub{font-size:10px;color:var(--text3);margin-top:2px}
 .eq-bar{font-size:12px;color:var(--text2);padding:8px 10px;background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:7px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:6px}
-.eq-bar .v{font-weight:700;color:var(--text);font-size:13px}
-.eq-bar .op{color:var(--text3)}
+.eq-bar .v{font-weight:700;color:var(--text);font-size:13px}.eq-bar .op{color:var(--text3)}
 
-/* ── Daily Section ── */
+/* 不足月驗算盒 */
+.partial-box{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--orange-bg)}
+.partial-box .sec-title{color:var(--orange)}
+.partial-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.partial-item{background:#fff;border:1px solid var(--orange-border);border-radius:8px;padding:9px 11px}
+.partial-item label{font-size:10px;color:var(--text3);display:block;margin-bottom:4px}
+.partial-item input{font-size:14px;font-weight:600;padding:4px 7px;border:1px solid var(--border);border-radius:6px;width:100%;font-family:inherit;text-align:right;-webkit-appearance:none;appearance:none;min-height:32px}
+.partial-item input:focus{border-color:var(--orange);outline:none}
+.partial-item .readonly-val{font-size:15px;font-weight:700;color:var(--text)}
+.verify-line{margin-top:10px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.verify-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.verify-no{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
 .daily-sec{padding:12px 16px}
-.daily-hd-row{display:grid;grid-template-columns:46px minmax(0,1fr) 88px 78px 78px 60px;gap:4px;padding:3px 8px;font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.3px}
-.d-row{display:grid;grid-template-columns:46px minmax(0,1fr) 88px 78px 78px 60px;gap:4px;align-items:center;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:3px}
+.half-toggle{display:flex;gap:6px;margin-bottom:10px}
+.half-btn{flex:1;font-size:13px;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s}
+.half-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.daily-hd-row{display:grid;grid-template-columns:46px minmax(0,1fr) 86px 70px 70px 60px;gap:4px;padding:3px 8px;font-size:10px;color:var(--text3);font-weight:600}
+.d-row{display:grid;grid-template-columns:46px minmax(0,1fr) 86px 70px 70px 60px;gap:4px;align-items:center;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:3px}
 .d-row:hover{background:#EDEEF3}
 .d-row.weekend{background:#FFF8F8;border-color:#FDDADA}
-.d-row.no-shift{opacity:.5}
-.d-row.locked{pointer-events:none;opacity:.75}
+.d-row.no-shift{opacity:.55}
+.d-row.out-employ{opacity:.35;pointer-events:none}
+.d-row.locked{pointer-events:none;opacity:.7}
 @media(max-width:700px){
   .daily-hd-row{display:none}
-  .d-row{grid-template-columns:40px minmax(0,1fr) 80px 64px;gap:3px;padding:6px 7px}
-  .d-row .col-ot2,.d-row .col-latemin{display:none}
+  .d-row{grid-template-columns:40px minmax(0,1fr) 78px 58px;gap:3px;padding:6px 7px}
+  .d-row .col-ot2,.d-row .col-late{display:none}
 }
-.d-date{text-align:center}
-.d-num{font-size:12px;font-weight:700}
-.d-wday{font-size:10px;color:var(--text3)}
+.d-date{text-align:center}.d-num{font-size:12px;font-weight:700}.d-wday{font-size:10px;color:var(--text3)}
 .d-shift{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* type select */
 .type-sel{font-size:11px;padding:3px 4px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;width:100%;-webkit-appearance:none;appearance:none;min-height:28px;cursor:pointer;color:var(--text)}
 .type-sel.t-absent,.type-sel.t-careLeave{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 .type-sel.t-sick,.type-sel.t-physio{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
 .type-sel.t-annual,.type-sel.t-wed,.type-sel.t-funeral,.type-sel.t-redEnvelope{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
-.type-sel.t-halfLeave{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple)}
-/* ot inputs */
-.ot-wrap{position:relative;display:flex;align-items:center}
-.ot-wrap input{width:100%;font-size:11px;padding:3px 18px 3px 5px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;text-align:right;min-height:28px;-webkit-appearance:none;appearance:none}
-.ot-wrap input:focus{border-color:var(--accent);outline:none}
-.ot-wrap input.auto-ot{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
-.ot-wrap input.extra-ot{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
-.ot-wrap input:disabled{opacity:.45;cursor:not-allowed}
-.ot-unit{position:absolute;right:4px;font-size:9px;color:var(--text3);pointer-events:none}
-/* late input */
-.late-wrap{position:relative;display:flex;align-items:center}
-.late-wrap input{width:100%;font-size:11px;padding:3px 16px 3px 5px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;text-align:right;min-height:28px;-webkit-appearance:none;appearance:none}
-.late-wrap input:focus{border-color:var(--accent);outline:none}
-.late-wrap input.has-late{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
-.late-wrap input:disabled{opacity:.45;cursor:not-allowed}
-.late-unit{position:absolute;right:4px;font-size:9px;color:var(--text3);pointer-events:none}
+.ipt-wrap{position:relative;display:flex;align-items:center}
+.ipt-wrap input{width:100%;font-size:11px;padding:3px 16px 3px 5px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;text-align:right;min-height:28px;-webkit-appearance:none;appearance:none}
+.ipt-wrap input:focus{border-color:var(--accent);outline:none}
+.ipt-wrap input.fill-orange{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
+.ipt-wrap input.fill-red{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+.ipt-wrap input:disabled{opacity:.4;cursor:not-allowed;background:#F0F0F0}
+.ipt-unit{position:absolute;right:4px;font-size:9px;color:var(--text3);pointer-events:none}
 
-/* ── Half-Leave Row (special case sub-row) ── */
-.half-sub{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px 0 0 46px}
-@media(max-width:700px){.half-sub{padding:4px 0 0 40px;grid-template-columns:1fr}}
-.half-sub-item{display:flex;align-items:center;gap:6px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px}
-.half-sub-lbl{font-size:11px;color:var(--purple);font-weight:500;white-space:nowrap}
-.half-sub-input{flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none;max-width:80px}
-.half-sub-input:focus{outline:none;border-color:var(--purple)}
+/* 子欄：請假出勤時數 / 未排班臨時加班 */
+.sub-row{grid-column:1/-1;display:flex;gap:6px;padding:4px 0 0 46px;flex-wrap:wrap}
+@media(max-width:700px){.sub-row{padding:4px 0 0 40px}}
+.sub-leave{display:flex;align-items:center;gap:5px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--purple);font-weight:500}
+.sub-leave input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
+.sub-temp{display:flex;align-items:center;gap:5px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--blue);font-weight:500}
+.sub-temp input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--blue-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
+.sub-temp select{font-size:11px;padding:3px 5px;border:1px solid var(--blue-border);border-radius:5px;background:#fff;font-family:inherit;min-height:26px;-webkit-appearance:none;appearance:none}
 
-/* ── Temp OT row ── */
-.temp-ot-row{grid-column:1/-1;display:flex;gap:6px;padding:4px 0 0 46px;flex-wrap:wrap}
-@media(max-width:700px){.temp-ot-row{padding:4px 0 0 40px}}
-.temp-ot-item{display:flex;align-items:center;gap:5px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--blue);font-weight:500}
-.temp-ot-item input,.temp-ot-item select{font-size:11px;padding:3px 5px;border:1px solid var(--blue-border);border-radius:5px;background:#fff;font-family:inherit;min-height:26px;-webkit-appearance:none;appearance:none}
-.temp-ot-item input{width:60px;text-align:right}
-.temp-ot-item select{width:72px}
-
-/* ── Deduction Section ── */
-.ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
-.ded-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-@media(max-width:500px){.ded-grid{grid-template-columns:1fr}}
-.ded-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:6px}
-.ded-lbl{font-size:12px;color:var(--text2);flex:1}
-.ded-val{font-size:13px;font-weight:600;color:var(--red);white-space:nowrap}
-.ded-input{font-size:13px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;width:90px;text-align:right;min-height:30px;-webkit-appearance:none;appearance:none}
-.ded-input:focus{border-color:var(--accent);outline:none}
-.ded-sub{font-size:10px;color:var(--text3);margin-top:1px}
 .ins-section{padding:12px 16px;border-top:1px solid var(--border)}
 .ins-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:7px}
 .ins-item{padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px}
-.ins-item-lbl{font-size:11px;color:var(--text3);margin-bottom:4px}
-.ins-item-val{font-size:13px;font-weight:600;color:var(--text)}
+.ins-item-lbl{font-size:11px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:6px}
 .ins-item-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.ins-sel{font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:28px;cursor:pointer}
+.ins-item-val{font-size:13px;font-weight:600}
+.ins-sel{font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:26px;cursor:pointer}
 .ins-sel:focus{border-color:var(--accent);outline:none}
+.ded-input{font-size:13px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;width:80px;text-align:right;min-height:30px;-webkit-appearance:none;appearance:none}
+.ded-input:focus{border-color:var(--accent);outline:none}
 .prepay-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .prepay-new{background:var(--green-bg);color:var(--green)}
 .prepay-quit{background:var(--orange-bg);color:var(--orange)}
 
-/* ── Addition Section ── */
-.add-sec{padding:12px 16px;border-top:1px solid var(--border)}
-.add-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-@media(max-width:500px){.add-grid{grid-template-columns:1fr}}
-.add-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;gap:6px}
-.add-lbl{font-size:12px;color:var(--green);flex:1}
-.add-input{font-size:13px;padding:4px 7px;border:1px solid var(--green-border);border-radius:6px;background:#fff;font-family:inherit;width:90px;text-align:right;min-height:30px;-webkit-appearance:none;appearance:none}
-.add-input:focus{border-color:var(--green);outline:none}
-.add-val{font-size:13px;font-weight:600;color:var(--green);white-space:nowrap}
+.ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
+.ded-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+@media(max-width:700px){.ded-grid{grid-template-columns:1fr}}
+.ded-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:6px}
+.ded-lbl{font-size:12px;color:var(--text2);flex:1}
+.ded-sub{font-size:10px;color:var(--text3);margin-top:1px}
+.ded-val{font-size:13px;font-weight:600;color:var(--red);white-space:nowrap}
 
-/* ── Net Pay ── */
+.add-sec{padding:12px 16px;border-top:1px solid var(--border)}
+.add-list{display:flex;flex-direction:column;gap:7px;margin-bottom:8px}
+.add-item{display:flex;align-items:center;gap:7px;padding:9px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px}
+.add-item .add-name{flex:1;font-size:12px;color:var(--green);font-weight:500}
+.add-item .add-name-input{flex:1;font-size:12px;padding:4px 7px;border:1px solid var(--green-border);border-radius:6px;background:#fff;font-family:inherit;min-height:30px}
+.add-item input.add-amt{font-size:13px;padding:4px 7px;border:1px solid var(--green-border);border-radius:6px;background:#fff;font-family:inherit;width:90px;text-align:right;min-height:30px;-webkit-appearance:none;appearance:none}
+.add-item .add-days{font-size:13px;padding:4px 7px;border:1px solid var(--green-border);border-radius:6px;background:#fff;font-family:inherit;width:64px;text-align:right;min-height:30px;-webkit-appearance:none;appearance:none}
+.add-val{font-size:13px;font-weight:600;color:var(--green);white-space:nowrap;min-width:70px;text-align:right}
+.add-del{font-size:11px;color:var(--red);cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid var(--red-border);background:#fff}
+
 .netpay-bar{margin:12px 16px;padding:14px 16px;background:linear-gradient(135deg,#2D3142 0%,#404563 100%);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .np-lbl{font-size:13px;color:rgba(255,255,255,.75);font-weight:500}
 .np-val{font-size:24px;font-weight:800;color:#fff}
 @media(max-width:500px){.np-val{font-size:20px}}
 
-/* ── Toast ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-/* ── Modal ── */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:flex-end;justify-content:center}
-@media(min-width:600px){.overlay{align-items:center}}
-.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:440px;padding:20px 18px 32px;max-height:85vh;overflow-y:auto}
-@media(min-width:600px){.modal{border-radius:14px;max-height:80vh}}
-.modal-title{font-size:15px;font-weight:700;margin-bottom:14px}
-.fr{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.fr label{font-size:12px;color:var(--text2);font-weight:500}
-.fr input,.fr select{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;color:var(--text);-webkit-appearance:none;appearance:none;min-height:38px}
-.mf{display:flex;gap:8px;margin-top:14px}
-.mf button{flex:1}
 .badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .badge-g{background:var(--green-bg);color:var(--green)}
-.badge-r{background:var(--red-bg);color:var(--red)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
 .loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
 </style>
@@ -224,47 +195,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   </div>
 </div>
 
-<div class="main" id="mainArea">
-  <div class="loading-text">載入中…</div>
-</div>
+<div class="main" id="mainArea"><div class="loading-text">載入中…</div></div>
 
 <div class="toast" id="toast"></div>
-<div id="modalArea"></div>
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ─────────────────────────────────────────
-// 狀態
-// ─────────────────────────────────────────
 let CU={name:'',role:'',uid:''};
 let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
 let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
-let isSaving=false, showOtPanel=false;
+let isSaving=false, showOtPanel=false, halfView='first'; // first=上半月 second=下半月
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
+const BASE_FULL=29500;
 
-// 假別定義
-// pay: 'full'=全薪, 'half'=半薪, 'none'=不計薪, 'partial'=部分（半假用）
-// ot: true=計加班, false=不計加班
-const LEAVE_TYPES = {
-  normal:     {label:'正常',         pay:'full',    ot:true,  color:'normal'},
-  sick:       {label:'病假',         pay:'half',    ot:false, color:'sick'},
-  physio:     {label:'生理假',       pay:'half',    ot:false, color:'sick'},
-  personal:   {label:'事假',         pay:'none',    ot:false, color:'absent'},
-  absent:     {label:'曠職',         pay:'absent',  ot:false, color:'absent'},
-  careLeave:  {label:'家庭照顧假',   pay:'none',    ot:false, color:'absent'},
-  annual:     {label:'特休假',       pay:'full',    ot:false, color:'annual'},
-  wed:        {label:'婚假',         pay:'full',    ot:false, color:'annual'},
-  funeral:    {label:'喪假',         pay:'full',    ot:false, color:'annual'},
-  redEnvelope:{label:'紅字假(全薪)', pay:'full',    ot:false, color:'annual'},
-  halfLeave:  {label:'半日假/彈性',  pay:'partial', ot:'partial', color:'halfLeave'},
-  dayoff:     {label:'公休/休假',    pay:'none',    ot:false, color:'normal'},
+// 店名正規化（鋪→舖）
+function normStore(s){return String(s||'').replace(/鋪/g,'舖').trim();}
+
+// 假別：pay=full/half/none, ot=是否計加班
+const LEAVE_TYPES={
+  normal:     {label:'正常',       pay:'full', ot:true },
+  sick:       {label:'病假',       pay:'half', ot:false, cls:'sick'},
+  physio:     {label:'生理假',     pay:'half', ot:false, cls:'physio'},
+  personal:   {label:'事假',       pay:'none', ot:false, cls:'absent'},
+  absent:     {label:'曠職',       pay:'none', ot:false, cls:'absent'},
+  careLeave:  {label:'家庭照顧假', pay:'none', ot:false, cls:'careLeave'},
+  annual:     {label:'特休假',     pay:'full', ot:false, cls:'annual'},
+  wed:        {label:'婚假',       pay:'full', ot:false, cls:'wed'},
+  funeral:    {label:'喪假',       pay:'full', ot:false, cls:'funeral'},
+  redEnvelope:{label:'紅字假',     pay:'full', ot:false, cls:'redEnvelope'},
+  dayoff:     {label:'公休',       pay:'none', ot:false },
 };
 
-// ── 勞健保費率表（2024）──
 const LABOR_TABLE=[
   {grade:26400,labor:388,health:372},{grade:27600,labor:405,health:390},
   {grade:28800,labor:423,health:407},{grade:30300,labor:445,health:427},
@@ -279,367 +244,340 @@ const LABOR_TABLE=[
   {grade:66800,labor:981,health:940},{grade:69800,labor:1025,health:982},
   {grade:72800,labor:1069,health:1024},{grade:76500,labor:1123,health:1077},
 ];
-// 自提退休金比例（依投保薪資）→ 用 labor_insured_salary（通常與投保級距相同）
-// 6% / 5% / 4% / 3% / 2% / 1%
-const PENSION_RATES=[0,0.01,0.02,0.03,0.04,0.05,0.06];
-// 健保眷屬加保係數：每多1位眷屬多 health * 係數
-const HEALTH_DEPENDENT_RATIO = 0.3; // 每位眷屬 = 被保險人健保費 × 0.3（大約值，可依實際費率表調整）
-
+const HEALTH_DEP_RATIO=1; // 每位眷屬 = 1 份被保險人健保費（可調）
 function insFromGrade(grade){
   if(!grade)return{labor:0,health:0};
-  const g=Number(grade);
-  let best=LABOR_TABLE[0];
+  const g=Number(grade);let best=LABOR_TABLE[0];
   for(const r of LABOR_TABLE)if(r.grade<=g)best=r;
   return{labor:best.labor,health:best.health};
 }
 
-// ── 月份是否已鎖定 ──
-function isMonthLocked(y,m){
-  const now=new Date();
-  // 上個月（含）之前 → 鎖定（非 admin 無法改）
-  const cutY=now.getFullYear(), cutM=now.getMonth()+1;
-  if(y<cutY)return true;
-  if(y===cutY&&m<cutM)return true;
-  return false;
-}
-function canEdit(){
-  const locked=isMonthLocked(viewYear,viewMonth);
-  if(!locked)return true;
-  return CU.role==='admin'; // admin 無論何時都能改
+// 取員工欄位（多重 fallback）
+function getHireDate(e){return e.hireDate||e.startDate||e.onboardDate||e.到職日||e.entryDate||null;}
+function getLeaveDate(e){return e.leaveDate||e.resignDate||e.離職日||e.quitDate||null;}
+function getInsGrade(e){return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);}
+function getTarget(e){
+  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  if(h.length>0)return Number(h[0].amount);
+  return Number(e.salary||e.targetSalary||0);
 }
 
-// ─────────────────────────────────────────
-// authGuard
-// ─────────────────────────────────────────
+function isMonthLocked(y,m){
+  const now=new Date();const cy=now.getFullYear(),cm=now.getMonth()+1;
+  if(y<cy)return true;if(y===cy&&m<cm)return true;return false;
+}
+
+// 計算當月在職天數（30天制）：依到職/離職日，與當月交集
+function calcEmployedDays(emp,y,m){
+  const dim=getDaysInMonth(y,m);
+  const monthStart=new Date(y,m-1,1), monthEnd=new Date(y,m-1,dim);
+  let s=monthStart, e=monthEnd, partial=false;
+  const hd=getHireDate(emp), ld=getLeaveDate(emp);
+  if(hd){const d=new Date(hd); if(d>monthEnd) return {days:0,partial:true,inEmploy:()=>false};
+    if(d>monthStart){s=d;partial=true;}}
+  if(ld){const d=new Date(ld); if(d<monthStart) return {days:0,partial:true,inEmploy:()=>false};
+    if(d<monthEnd){e=d;partial=true;}}
+  // 30天制：在職日數 = 交集天數，但若整月在職則視為30
+  const dayCount=Math.round((e-s)/86400000)+1;
+  const employedDays = partial ? dayCount : 30;
+  const sN=s.getDate(), eN=e.getDate();
+  return {
+    days:employedDays, partial,
+    inEmploy:(dayNum)=>{
+      if(partial){return dayNum>=sN&&dayNum<=eN;}
+      return true;
+    }
+  };
+}
+
 authGuard('salary',({user,uid,role,locations,userData})=>{
-  CU={name:userData.name||user.email, role:role, uid:uid};
+  CU={name:userData.name||user.email,role,uid};
   document.getElementById('roleChip').textContent=ROLE_NAMES[role]||role;
   init(locations,userData);
 });
 
 async function init(locations,userData){
-  await Promise.all([loadEmployees(), loadStores(locations,userData), loadOtConfig()]);
+  await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig()]);
   renderMain();
 }
-
 async function loadEmployees(){
-  try{
-    const s=await getDoc(doc(db,'hr','employees'));
+  try{const s=await getDoc(doc(db,'hr','employees'));
     if(s.exists())employees=(s.data().list||[]).filter(e=>e.status==='在職'||!e.status);
   }catch(e){console.error(e);}
 }
 async function loadStores(locations,userData){
-  try{
-    const s=await getDoc(doc(db,'hr','settings'));
+  try{const s=await getDoc(doc(db,'hr','settings'));
     allStores=s.exists()?(s.data().workLocations||[]).filter(Boolean).sort():[];
-    if(CU.role==='admin'||CU.role==='consultant'){
-      viewableStores=[...allStores];
-    }else{
-      const my=Array.isArray(userData.locations)?userData.locations:[];
-      viewableStores=allStores.filter(x=>my.includes(x));
-      if(!viewableStores.length)viewableStores=[...my];
-    }
+    if(CU.role==='admin'||CU.role==='consultant'){viewableStores=[...allStores];}
+    else{const my=Array.isArray(userData.locations)?userData.locations:[];
+      viewableStores=allStores.filter(x=>my.some(l=>normStore(l)===normStore(x)));
+      if(!viewableStores.length)viewableStores=[...my];}
     if(!selectedStore&&viewableStores.length)selectedStore=viewableStores[0];
   }catch(e){console.error(e);}
 }
 async function loadOtConfig(){
-  try{
-    const s=await getDoc(doc(db,'salary_settings','store_ot'));
-    storeOtConfig=s.exists()?(s.data().config||{}):{};
-  }catch(e){storeOtConfig={};}
+  try{const s=await getDoc(doc(db,'salary_settings','store_ot'));
+    storeOtConfig=s.exists()?(s.data().config||{}):{};}catch(e){storeOtConfig={};}
 }
 async function saveOtConfig(){
-  try{
-    await setDoc(doc(db,'salary_settings','store_ot'),{config:storeOtConfig,updatedAt:new Date().toISOString(),updatedBy:CU.name});
+  try{await setDoc(doc(db,'salary_settings','store_ot'),{config:storeOtConfig,updatedAt:new Date().toISOString(),updatedBy:CU.name});
     showToast('✓ 加班設定已儲存');
     writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'編輯加班設定',detail:'各店固定加班時數'});
   }catch(e){showToast('⚠️ 儲存失敗');}
 }
-function getDefOt(store){return storeOtConfig[store]??2;}
+function getDefOt(store){return storeOtConfig[normStore(store)]??storeOtConfig[store]??2;}
 
-// ── Firestore record ──
 async function loadRec(empId,y,m){
   const k=`${empId}_${y}-${String(m).padStart(2,'0')}`;
-  try{const s=await getDoc(doc(db,'salary_records',k));return s.exists()?s.data():null;}
-  catch(e){return null;}
+  try{const s=await getDoc(doc(db,'salary_records',k));return s.exists()?s.data():null;}catch(e){return null;}
 }
 async function saveRec(empId,y,m,data){
   const k=`${empId}_${y}-${String(m).padStart(2,'0')}`;
-  try{await setDoc(doc(db,'salary_records',k),{...data,updatedAt:new Date().toISOString(),updatedBy:CU.name});return true;}
-  catch(e){return false;}
+  try{await setDoc(doc(db,'salary_records',k),{...data,updatedAt:new Date().toISOString(),updatedBy:CU.name});return true;}catch(e){return false;}
 }
 async function loadShifts(empId,y,m){
   const emp=employees.find(e=>String(e.id)===String(empId));
   if(!emp||!emp.workLocation)return{};
-  const k=`${y}-${String(m).padStart(2,'0')}_${emp.workLocation}`;
-  try{const s=await getDoc(doc(db,'schedules',k));return s.exists()?(s.data().shifts||{}):{};} catch(e){return{};}
+  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  // 嘗試多種店名變體
+  const variants=[emp.workLocation, normStore(emp.workLocation), String(emp.workLocation).replace(/舖/g,'鋪')];
+  for(const loc of [...new Set(variants)]){
+    try{const s=await getDoc(doc(db,'schedules',`${ym}_${loc}`));
+      if(s.exists())return s.data().shifts||{};}catch(e){}
+  }
+  return {};
 }
 
-// ─────────────────────────────────────────
-// 薪資計算核心
-// ─────────────────────────────────────────
-function calcSalary(emp, rec, shifts){
-  const salHist=(emp.salaryHistory||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const targetSalary=salHist.length>0?Number(salHist[0].amount):(emp.salary||0);
-  const BASE=29500;
-  const defOt=getDefOt(emp.workLocation);
+// ─── 計算核心 ───
+function calcSalary(emp,rec,shifts){
+  const target=getTarget(emp);
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
+  const defOt=getDefOt(emp.workLocation);
+  const emp2=calcEmployedDays(emp,viewYear,viewMonth);
+  const isPartial=emp2.partial&&emp2.days<30;
 
-  // 日薪基礎（算出前先知道彈性補貼需要總加班時數，因此迭代）
-  // 先用 defOt×出勤天數 估算，最終用實際值
-  let totalOt134=0, totalOt167=0, totalTempOt={};
-
-  // 出勤統計
-  let workDays=0,sickDays=0,personalMins=0,absentDays=0,annualDays=0;
-  let redDays=0; // 紅字全薪天數
-  let halfLeaveDays=0; // 每天半假消耗（以天為單位分之一，精確到小時）
+  // 統計
+  let fixedOtHours=0;     // 固定加班時數（計入目標等式）
+  let extraOtHours=0;     // 額外 1.67 時數
+  let tempOtSegs={};      // 未排班臨時加班 {rate:hours}
+  let personalMins=0;     // 事假+遲到（分鐘）
+  let absentDays=0;       // 曠職天數
+  let sickHours=0;        // 病假/生理假（小時，半薪）
+  let workDays=0;
 
   for(let d=1;d<=days;d++){
+    if(!emp2.inEmploy(d))continue;
     const ds=dateStr(viewYear,viewMonth,d);
     const shift=getShift(shifts,emp,ds);
-    if(!shift)continue;
     const r=dd[ds]||{};
     const type=r.type||'normal';
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
 
+    // 未排班日臨時加班
+    if(!shift){
+      if(r.tempOt&&Number(r.tempOt)>0){
+        const rate=Number(r.tempOtRate||1.34);
+        tempOtSegs[rate]=(tempOtSegs[rate]||0)+Number(r.tempOt);
+      }
+      continue;
+    }
     if(type==='dayoff')continue;
 
-    if(type==='halfLeave'){
-      // 半假：r.workedHours（實際出勤小時）、r.leaveHours（請假小時）
-      const worked=Number(r.workedHours||0);
-      const leave=Number(r.leaveHours||0);
-      const leaveType=r.halfLeaveType||'personal';
-      // 是否算加班：只有出勤超過8小時的部分才算加班
-      const realOt=Math.max(0,worked-8);
-      totalOt134+=Math.min(realOt,defOt);
-      totalOt167+=Math.max(0,realOt-defOt);
-      // 根據半假類型計扣薪（後面再處理）
-      halfLeaveDays+=leave/8; // 換算成天數
-      workDays+=worked/8;
-    } else if(type==='normal'){
+    if(type==='normal'){
+      // 是否部分出勤（worked<8 表示中途請假，但 type 仍 normal 表示全天上班）
+      const worked=r.workedHours!=null?Number(r.workedHours):8+defOt; // 預設足時
       workDays++;
-      const autoOt=r.autoOt!=null?Number(r.autoOt):defOt;
-      totalOt134+=autoOt;
-      totalOt167+=Number(r.ot167||0);
-    } else if(lt.ot===false){
-      // 全假類型
-      if(type==='sick'||type==='physio')sickDays++;
-      else if(type==='personal'||type==='careLeave'){
-        personalMins+=480; // 全天 = 480分鐘
+      if(worked>=8){
+        // 固定加班 = min(worked-8, defOt) 取店設定；超出部分另計？預設用店設定
+        fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
+        extraOtHours+=Number(r.ot167||0);
+      } else {
+        // 不足8小時（純 normal 但提早走，無假別）→ 視為事假補足
+        personalMins+=(8-worked)*60;
       }
-      else if(type==='absent')absentDays++;
-      else if(type==='redEnvelope')redDays++;
-      else workDays++; // annual/wed/funeral 全薪
-    }
-    // 遲到分鐘額外扣
-    if(r.lateMins&&Number(r.lateMins)>0&&type==='normal'){
-      // 10分鐘為單位，1-9分不扣，10起算
-      const lm=Number(r.lateMins);
-      const deductMins=Math.floor(lm/10)*10;
-      personalMins+=deductMins;
-    }
-    // 臨時加班
-    if(r.tempOt&&Number(r.tempOt)>0){
-      const tRate=r.tempOtRate||1.34;
-      if(!totalTempOt[tRate])totalTempOt[tRate]=0;
-      totalTempOt[tRate]+=Number(r.tempOt);
+      // 遲到
+      if(r.lateMins&&Number(r.lateMins)>0){
+        const lm=Number(r.lateMins);personalMins+=Math.floor(lm/10)*10;
+      }
+    } else {
+      // 請假日：worked = 當天實際上班時數
+      const worked=Number(r.workedHours||0);
+      if(worked>=8){
+        // 上滿8小時還有加班 → 8全薪 + 加班，假別失效
+        workDays++;
+        fixedOtHours+=Math.max(0,worked-8);
+      } else {
+        // 部分出勤 + 請假
+        const leaveH=8-worked;
+        if(worked>0)workDays+=worked/8;
+        if(lt.pay==='none'){
+          if(type==='absent')absentDays+=leaveH/8;
+          else personalMins+=leaveH*60;
+        } else if(lt.pay==='half'){
+          sickHours+=leaveH;
+        }
+        // full（婚喪特休紅字）：不扣
+      }
     }
   }
 
-  // 彈性補貼（用總加班時數）
-  const totalOtAll=totalOt134+totalOt167+Object.values(totalTempOt).reduce((a,b)=>a+b,0);
-  const elasticBonus=Math.round(targetSalary/(1+totalOtAll/240))-BASE;
-  const hourlyBase=(BASE+elasticBonus)/30/8;
-  const dailyBase=(BASE+elasticBonus)/30;
+  // 加權時數（只用固定加班，決定彈性補貼）
+  const W=fixedOtHours*1.34;
+
+  // 彈性補貼
+  let elastic, base;
+  if(isPartial){
+    base=Math.round(BASE_FULL/30*emp2.days);
+    elastic=rec?.elasticManual!=null?Number(rec.elasticManual):0; // 手動
+  } else {
+    base=BASE_FULL;
+    elastic=Math.round(target/(1+W/240))-BASE_FULL;
+  }
+
+  // 時薪基礎（一律用足月底薪+彈性）
+  const hourly=(BASE_FULL+elastic)/30/8;
+  const dailyBase=(base+elastic)/30; // 扣項用實得日薪
 
   // 加班費
-  const otPay134=Math.round(hourlyBase*totalOt134*1.34*10)/10;
-  const otPay167=Math.round(hourlyBase*totalOt167*1.67*10)/10;
-  let tempOtPay=0;
-  for(const [rate,hrs] of Object.entries(totalTempOt)){
-    tempOtPay+=Math.round(hourlyBase*hrs*Number(rate)*10)/10;
+  const fixedOtPay=Math.round(hourly*fixedOtHours*1.34*10)/10;
+  const extraOtPay=Math.round(hourly*extraOtHours*1.67*10)/10;
+  let tempOtPay=0;const tempOtList=[];
+  for(const[rate,hrs]of Object.entries(tempOtSegs)){
+    const p=Math.round(hourly*hrs*Number(rate)*10)/10;tempOtPay+=p;
+    tempOtList.push({rate:Number(rate),hrs,pay:p});
   }
-  const otPayTotal=otPay134+otPay167+tempOtPay;
+  const otPayTotal=fixedOtPay+extraOtPay+tempOtPay;
 
-  // 扣項計算
-  // 事假（分鐘→小時→換算日薪）
+  // 扣項
   const personalDeduct=Math.round(dailyBase/8*(personalMins/60));
-  // 曠職（3倍日薪）
-  const absentDeduct=Math.round(dailyBase*absentDays*3);
-  // 病假（5天內免扣，超出半薪）
-  const sickDeductDays=Math.max(0,sickDays-5);
-  const sickDeduct=Math.round(dailyBase*sickDeductDays*0.5);
+  const absentDeduct=Math.round(dailyBase*absentDays);
+  const sickDeduct=Math.round(dailyBase/8*sickHours*0.5);
 
-  // 勞保健保
-  const ins=insFromGrade(emp.insurance?.grade||0);
+  // 勞健保
+  const ins=insFromGrade(getInsGrade(emp));
   const laborBase=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;
-  // 自提退休金
   const pensionRate=rec?.pensionRate??0;
-  const pensionAmt=pensionRate>0?Math.round((emp.insurance?.grade||BASE)*pensionRate):0;
-  // 眷屬加保
+  const pensionAmt=pensionRate>0?Math.round(getInsGrade(emp)*pensionRate):0;
   const dependents=rec?.dependents??0;
-  const healthDeductTotal=healthBase+Math.round(healthBase*(dependents*HEALTH_DEPENDENT_RATIO));
-  // 是否新人（不扣勞健保）或預扣離職
-  const insMode=rec?.insMode||'normal'; // 'normal'|'new'|'quit_prepay'
-  const finalLaborDeduct=insMode==='new'?0:laborBase;
-  const finalHealthDeduct=insMode==='new'?0:healthDeductTotal;
-  // 離職預扣：在扣項備註顯示，金額照扣
-  const quitPrepay=insMode==='quit_prepay'?(laborBase+healthDeductTotal):0; // 已含在上方
+  const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO);
+  const insMode=rec?.insMode||'normal';
+  const finalLabor=insMode==='new'?0:laborBase;
+  const finalHealth=insMode==='new'?0:healthTotal;
 
   // 加項
-  const annualComp=rec?.annualComp??0; // 特休補薪（手動填未用天數）
-  const autoAnnualComp=annualComp>0?Math.round(targetSalary/30*annualComp):0;
-  const redComp=rec?.redComp??0; // 紅字補薪天數
+  const annualComp=rec?.annualComp??0;
+  const autoAnnualComp=annualComp>0?Math.round(target/30*annualComp):0;
+  const redComp=rec?.redComp??0;
   const autoRedComp=redComp>0?Math.round(dailyBase*redComp):0;
-  const extraBonus=rec?.extraBonus??0; // 其他加項
+  const customAdds=rec?.customAdds||[]; // [{name, amount}]
+  const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
 
-  const gross=BASE+elasticBonus+otPayTotal;
-  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLaborDeduct+finalHealthDeduct+pensionAmt;
-  const totalAdd=autoAnnualComp+autoRedComp+extraBonus;
+  const gross=base+elastic+otPayTotal;
+  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLabor+finalHealth+pensionAmt;
+  const totalAdd=autoAnnualComp+autoRedComp+customAddTotal;
   const netPay=gross-totalDeduct+totalAdd;
 
+  // 不足月驗算目標
+  const proratedTarget=isPartial?Math.round(target/30*emp2.days):target;
+  const verifySum=base+elastic+fixedOtPay; // 應≈proratedTarget
+
   return{
-    targetSalary,BASE,elasticBonus,hourlyBase,dailyBase,defOt,
-    totalOt134,totalOt167,totalTempOt,
-    otPay134,otPay167,tempOtPay,otPayTotal,
-    workDays,sickDays,personalMins,absentDays,annualDays,redDays,halfLeaveDays,
+    target,proratedTarget,isPartial,employedDays:emp2.days,base,elastic,hourly,dailyBase,defOt,
+    fixedOtHours,extraOtHours,tempOtSegs,tempOtList,W,
+    fixedOtPay,extraOtPay,tempOtPay,otPayTotal,
+    workDays,personalMins,absentDays,sickHours,
     personalDeduct,absentDeduct,sickDeduct,
-    laborBase,healthBase,healthDeductTotal,finalLaborDeduct,finalHealthDeduct,
-    pensionRate,pensionAmt,dependents,insMode,quitPrepay,
-    annualComp,autoAnnualComp,redComp,autoRedComp,extraBonus,
-    totalDeduct,totalAdd,gross,netPay,
-    insGrade:emp.insurance?.grade||0
+    laborBase,healthBase,healthTotal,finalLabor,finalHealth,
+    pensionRate,pensionAmt,dependents,insMode,
+    annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
+    gross,totalDeduct,totalAdd,netPay,verifySum,
+    insGrade:getInsGrade(emp),elasticManual:rec?.elasticManual
   };
 }
 
 function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
 function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id));}
-function storeEmps(store){return employees.filter(e=>e.workLocation===store);}
-function fmtMin(mins){const h=Math.floor(Math.abs(mins)/60),m=Math.abs(mins)%60;return`${h>0?h+'h':''}${m>0?m+'m':''}`||'0';}
+function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name));}
+function storeEmps(store){return employees.filter(e=>normStore(e.workLocation)===normStore(store));}
+function fmtMin(mins){mins=Math.round(mins);if(mins===0)return'0';const h=Math.floor(mins/60),m=mins%60;return`${h>0?h+'時':''}${m>0?m+'分':''}`||'0';}
 
-// ─────────────────────────────────────────
-// 渲染主畫面
-// ─────────────────────────────────────────
+// ─── 主畫面 ───
 function renderMain(){
   const main=document.getElementById('mainArea');
-  if(!viewableStores.length){
-    main.innerHTML=`<div class="empty-state"><div style="font-size:32px">🏪</div><div>沒有可見的店面</div></div>`;
-    return;
-  }
+  if(!viewableStores.length){main.innerHTML=`<div class="empty-state"><div style="font-size:32px">🏪</div><div>沒有可見的店面</div></div>`;return;}
   const locked=isMonthLocked(viewYear,viewMonth);
   const lockedBanner=locked&&CU.role!=='admin'
     ?`<div class="locked-banner">🔒 ${viewYear}年${viewMonth}月已鎖定，僅管理員可修改</div>`
     :locked&&CU.role==='admin'
-    ?`<div class="locked-banner" style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">🔓 管理員模式：鎖定月份可修改</div>`
-    :'';
+    ?`<div class="locked-banner" style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">🔓 管理員模式：鎖定月份可修改</div>`:'';
 
-  // OT 面板
   let otPanelHtml='';
   if((CU.role==='admin'||CU.role==='consultant')&&showOtPanel){
-    otPanelHtml=`<div class="ot-panel">
-      <div class="ot-panel-title">
-        <span>⚙️ 各店固定加班時數設定</span>
-        <button class="btn-sm p" onclick="doSaveOtConfig()">儲存</button>
-      </div>
-      <div class="ot-grid">
-        ${viewableStores.map(s=>`<div class="ot-item">
-          <div class="ot-item-name" title="${s}">${s}</div>
-          <select class="ot-sel" onchange="setStoreOt('${s}',Number(this.value))">
-            <option value="0"${getDefOt(s)===0?' selected':''}>無固定</option>
-            <option value="1"${getDefOt(s)===1?' selected':''}>+1h</option>
-            <option value="2"${getDefOt(s)===2?' selected':''}>+2h</option>
-          </select>
-        </div>`).join('')}
-      </div>
-    </div>`;
+    otPanelHtml=`<div class="ot-panel"><div class="ot-panel-title"><span>⚙️ 各店固定加班時數設定</span><button class="btn-sm p" onclick="doSaveOtConfig()">儲存</button></div>
+    <div class="ot-grid">${viewableStores.map(s=>`<div class="ot-item"><div class="ot-item-name" title="${s}">${s}</div>
+    <select class="ot-sel" onchange="setStoreOt('${s}',Number(this.value))">
+    <option value="0"${getDefOt(s)===0?' selected':''}>無固定</option>
+    <option value="1"${getDefOt(s)===1?' selected':''}>+1h</option>
+    <option value="2"${getDefOt(s)===2?' selected':''}>+2h</option></select></div>`).join('')}</div></div>`;
   }
 
-  // 員工清單
   const curEmps=selectedStore?storeEmps(selectedStore):[];
-  const empCards=curEmps.length>0
-    ?curEmps.map(e=>{
-        const sh=(e.salaryHistory||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-        const tgt=sh.length>0?Number(sh[0].amount):(e.salary||0);
-        const act=String(e.id)===String(selectedEmpId);
-        return`<div class="emp-card${act?' active':''}" onclick="selEmp(${e.id})">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <div class="emp-name">${e.name||'—'}</div>
-            ${tgt?`<span class="emp-tag">目標 $${Number(tgt).toLocaleString()}</span>`:''}
-          </div>
-          <div class="emp-meta">
-            <span>${e.title||'—'}</span>
-            ${e.insurance?.grade?`<span>投保 $${Number(e.insurance.grade).toLocaleString()}</span>`:''}
-          </div>
-        </div>`;
-      }).join('')
-    :`<div class="empty-state"><div style="font-size:28px">👥</div><div style="margin-top:8px">此店面尚無在職同仁</div></div>`;
+  const empCards=curEmps.length>0?curEmps.map(e=>{
+    const tgt=getTarget(e);
+    const e2=calcEmployedDays(e,viewYear,viewMonth);
+    const partial=e2.partial&&e2.days<30&&e2.days>0;
+    const notYet=e2.days===0;
+    const act=String(e.id)===String(selectedEmpId);
+    return`<div class="emp-card${act?' active':''}" onclick="selEmp(${e.id})">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="emp-name">${e.name||'—'}${partial?'<span class="partial-flag">不足月</span>':''}${notYet?'<span class="partial-flag">未在職</span>':''}</div>
+        ${tgt?`<span class="emp-tag">目標 $${Number(tgt).toLocaleString()}</span>`:''}</div>
+      <div class="emp-meta"><span>${e.title||'—'}</span>${getInsGrade(e)?`<span>投保 $${getInsGrade(e).toLocaleString()}</span>`:''}</div></div>`;
+  }).join(''):`<div class="empty-state"><div style="font-size:28px">👥</div><div style="margin-top:8px">此店面尚無在職同仁</div></div>`;
 
   main.innerHTML=`
     <div class="filter-bar">
       <span class="fl">月份</span>
-      <select id="yearSel" onchange="chgMonth()">
-        ${[2024,2025,2026,2027].map(y=>`<option value="${y}"${y===viewYear?' selected':''}>${y}年</option>`).join('')}
-      </select>
-      <select id="monthSel" onchange="chgMonth()">
-        ${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===viewMonth?' selected':''}>${m}月</option>`).join('')}
-      </select>
+      <select id="yearSel" onchange="chgMonth()">${[2024,2025,2026,2027].map(y=>`<option value="${y}"${y===viewYear?' selected':''}>${y}年</option>`).join('')}</select>
+      <select id="monthSel" onchange="chgMonth()">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}"${m===viewMonth?' selected':''}>${m}月</option>`).join('')}</select>
       <div class="fdv"></div>
       <span class="fl">店面</span>
-      <select id="storeSel" onchange="chgStore(this.value)" style="max-width:200px">
-        ${viewableStores.map(s=>{
-          const cnt=storeEmps(s).length;
-          const ot=getDefOt(s);
-          return`<option value="${s}"${s===selectedStore?' selected':''}>${s}（${cnt}人 +${ot}h/天）</option>`;
-        }).join('')}
-      </select>
+      <select id="storeSel" onchange="chgStore(this.value)" style="max-width:220px">
+      ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${s}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
       ${(CU.role==='admin'||CU.role==='consultant')?`<button class="btn-sm o" style="margin-left:auto" onclick="toggleOtPanel()">⚙️ 加班設定</button>`:''}
     </div>
-    ${lockedBanner}
-    ${otPanelHtml}
-    <div class="emp-list" id="empList">${empCards}</div>
-    <div id="sheetArea"></div>
-  `;
+    ${lockedBanner}${otPanelHtml}
+    <div class="emp-list">${empCards}</div>
+    <div id="sheetArea"></div>`;
 
-  if(selectedEmpId&&curEmps.find(e=>String(e.id)===String(selectedEmpId))){
-    loadAndRender(selectedEmpId);
-  }
+  if(selectedEmpId&&curEmps.find(e=>String(e.id)===String(selectedEmpId)))loadAndRender(selectedEmpId,false);
 }
 
-window.chgMonth=function(){
-  viewYear=Number(document.getElementById('yearSel').value);
-  viewMonth=Number(document.getElementById('monthSel').value);
-  selectedEmpId=null;renderMain();
-};
-window.chgStore=function(s){
-  selectedStore=s;selectedEmpId=null;renderMain();
-};
-window.setStoreOt=function(s,v){storeOtConfig[s]=v;renderMain();};
+window.chgMonth=function(){viewYear=+document.getElementById('yearSel').value;viewMonth=+document.getElementById('monthSel').value;selectedEmpId=null;renderMain();};
+window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
+window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
 window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
 
 window.selEmp=async function(empId){
-  selectedEmpId=empId;
+  selectedEmpId=empId;halfView='first';
   document.querySelectorAll('.emp-card').forEach(el=>el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  if(event&&event.currentTarget)event.currentTarget.classList.add('active');
   document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入中…</div>';
-  await loadAndRender(empId);
+  await loadAndRender(empId,true);
 };
 
-async function loadAndRender(empId){
-  const emp=employees.find(e=>String(e.id)===String(empId));
-  if(!emp)return;
+async function loadAndRender(empId,doScroll){
+  const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(empId,viewYear,viewMonth),loadRec(empId,viewYear,viewMonth)]);
   const record=rec||{dailyData:{}};
-  const calc=calcSalary(emp,record,shifts);
-  renderSheet(emp,record,shifts,calc);
+  renderSheet(emp,record,shifts,calcSalary(emp,record,shifts));
+  if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
-// ─────────────────────────────────────────
-// 渲染薪資單
-// ─────────────────────────────────────────
+// ─── 薪資單 ───
 function renderSheet(emp,rec,shifts,c){
   const days=getDaysInMonth(viewYear,viewMonth);
   const WD=['日','一','二','三','四','五','六'];
@@ -647,12 +585,15 @@ function renderSheet(emp,rec,shifts,c){
   const dis=locked?'disabled':'';
   const dd=rec?.dailyData||{};
   const defOt=c.defOt;
-
-  // 假別 options
+  const emp2=calcEmployedDays(emp,viewYear,viewMonth);
   const typeOpts=Object.entries(LEAVE_TYPES).map(([v,t])=>`<option value="${v}">${t.label}</option>`).join('');
 
+  // 半月範圍
+  const startD=halfView==='first'?1:16;
+  const endD=halfView==='first'?15:days;
+
   let rows='';
-  for(let d=1;d<=days;d++){
+  for(let d=startD;d<=endD;d++){
     const ds=dateStr(viewYear,viewMonth,d);
     const dow=new Date(ds).getDay();
     const isWknd=dow===0||dow===6;
@@ -660,155 +601,96 @@ function renderSheet(emp,rec,shifts,c){
     const r=dd[ds]||{};
     const type=r.type||'normal';
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
+    const inEmp=emp2.inEmploy(d);
     const noShift=!shift;
 
-    // shift 顯示
-    let shiftTxt='';
-    if(shift) shiftTxt=`${shift.startTime||''}-${shift.endTime||''}`;
-    else if(isWknd) shiftTxt=`<span style="color:#E05252">休</span>`;
-    else shiftTxt=`<span style="color:var(--text3)">未排班</span>`;
+    let shiftTxt = shift?`${shift.startTime||''}-${shift.endTime||''}`
+      : isWknd?`<span style="color:#E05252">休</span>`
+      : `<span style="color:var(--text3)">未排班</span>`;
 
-    // 加班（只有 normal 或 halfLeave 的 workedHours>8 才計）
-    const hasOt=type==='normal'&&shift;
+    const hasFixedOt=type==='normal'&&shift&&inEmp;
     const autoOt=r.autoOt!=null?Number(r.autoOt):defOt;
     const ot167=r.ot167||'';
-    // 遲到
     const lateMins=r.lateMins||'';
-    // 臨時加班
-    const tempOt=r.tempOt||'';
-    const tempOtRate=r.tempOtRate||1.34;
+    const selCls=`type-sel${lt.cls?' t-'+lt.cls:''}`;
 
-    // select css class
-    const selCls=`type-sel t-${lt.color}`;
-
-    // 半假子欄
-    let halfSubRow='';
-    if(type==='halfLeave'){
-      const wh=r.workedHours||'';
-      const lh=r.leaveHours||'';
-      const hlt=r.halfLeaveType||'personal';
-      const hltOpts=Object.entries(LEAVE_TYPES)
-        .filter(([k])=>k!=='normal'&&k!=='halfLeave'&&k!=='dayoff')
-        .map(([v,t])=>`<option value="${v}"${hlt===v?' selected':''}>${t.label}</option>`).join('');
-      halfSubRow=`<div class="half-sub">
-        <div class="half-sub-item">
-          <span class="half-sub-lbl">出勤</span>
-          <input class="half-sub-input" type="number" min="0" max="24" step="0.5"
-            value="${wh}" placeholder="時" data-date="${ds}" data-field="workedHours"
-            onchange="patchDay(this.dataset.date,'workedHours',+this.value)" ${dis}>
-          <span style="font-size:10px;color:var(--purple)">h</span>
-        </div>
-        <div class="half-sub-item">
-          <span class="half-sub-lbl">假別</span>
-          <select style="font-size:11px;padding:3px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;min-height:26px" 
-            data-date="${ds}" data-field="halfLeaveType" onchange="patchDay(this.dataset.date,'halfLeaveType',this.value)" ${dis}>
-            ${hltOpts}
-          </select>
-          <span class="half-sub-lbl" style="margin:0 2px">請</span>
-          <input class="half-sub-input" type="number" min="0" max="24" step="0.5"
-            value="${lh}" placeholder="時" data-date="${ds}" data-field="leaveHours"
-            onchange="patchDay(this.dataset.date,'leaveHours',+this.value)" ${dis}>
-          <span style="font-size:10px;color:var(--purple)">h</span>
-        </div>
-      </div>`;
+    // 請假出勤時數子欄（請假且非全薪/或需要部分出勤時）
+    let subRow='';
+    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'){
+      const wh=r.workedHours!=null?r.workedHours:'';
+      subRow=`<div class="sub-row"><div class="sub-leave">
+        <span>當天實際上班</span>
+        <input type="number" min="0" max="24" step="0.5" value="${wh}" placeholder="0"
+          data-date="${ds}" onchange="patchDay('${ds}','workedHours',this.value===''?null:+this.value)" ${dis}>
+        <span>小時（其餘${LEAVE_TYPES[type].label}）</span>
+      </div></div>`;
+    }
+    // 未排班日臨時加班子欄
+    let tempRow='';
+    if(noShift&&inEmp&&r.hasTempOt){
+      const t=r.tempOt||'',tr=r.tempOtRate||1.34;
+      tempRow=`<div class="sub-row"><div class="sub-temp">
+        <span>臨時加班</span>
+        <input type="number" min="0" max="24" step="0.5" value="${t}" placeholder="時" data-date="${ds}" onchange="patchDay('${ds}','tempOt',+this.value)" ${dis}>
+        <span>h ×</span>
+        <select data-date="${ds}" onchange="patchDay('${ds}','tempOtRate',+this.value)" ${dis}>
+          <option value="1.34"${tr==1.34?' selected':''}>1.34</option>
+          <option value="1.67"${tr==1.67?' selected':''}>1.67</option>
+          <option value="2"${tr==2?' selected':''}>2.0</option>
+        </select></div></div>`;
     }
 
-    // 臨時加班子欄
-    let tempOtRow='';
-    if(r.hasTempOt){
-      tempOtRow=`<div class="temp-ot-row">
-        <div class="temp-ot-item">
-          <span>臨時加班</span>
-          <input type="number" min="0" max="24" step="0.5" value="${tempOt}"
-            placeholder="時" data-date="${ds}" data-field="tempOt"
-            onchange="patchDay(this.dataset.date,'tempOt',+this.value)" ${dis}>
-          <span>h ×</span>
-          <select data-date="${ds}" data-field="tempOtRate" 
-            onchange="patchDay(this.dataset.date,'tempOtRate',+this.value)" ${dis}>
-            <option value="1.34"${tempOtRate===1.34||tempOtRate==='1.34'?' selected':''}>1.34</option>
-            <option value="1.67"${tempOtRate===1.67||tempOtRate==='1.67'?' selected':''}>1.67</option>
-            <option value="2.00"${tempOtRate===2.00||tempOtRate==='2.00'?' selected':''}>2.00</option>
-          </select>
-        </div>
-      </div>`;
-    }
-
-    rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${locked?' locked':''}">
-      <div class="d-date">
-        <div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div>
-        <div class="d-wday">${WD[dow]}</div>
-      </div>
+    rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
+      <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
       <div class="d-shift">${shiftTxt}</div>
-      <select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift?'disabled':dis}>
+      <select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select>
-      <div class="ot-wrap">
-        <input type="number" min="0" max="24" step="0.5"
-          value="${hasOt?autoOt:''}"
-          class="${hasOt?'auto-ot':''}"
-          placeholder="—"
-          title="固定加班 ×1.34"
-          data-date="${ds}" data-field="autoOt"
-          onchange="patchDay(this.dataset.date,'autoOt',+this.value)"
-          ${!hasOt||dis?'disabled':''}>
-        <span class="ot-unit">h</span>
-      </div>
-      <div class="ot-wrap col-ot2">
-        <input type="number" min="0" max="24" step="0.5"
-          value="${ot167}"
-          class="${ot167?'extra-ot':''}"
-          placeholder="—"
-          title="額外加班 ×1.67"
-          data-date="${ds}" data-field="ot167"
-          onchange="patchDay(this.dataset.date,'ot167',+this.value)"
-          ${!hasOt||dis?'disabled':''}>
-        <span class="ot-unit">h</span>
-      </div>
-      <div class="late-wrap col-latemin">
-        <input type="number" min="0" max="480" step="1"
-          value="${lateMins}"
-          class="${lateMins?'has-late':''}"
-          placeholder="—"
-          title="遲到分鐘"
-          data-date="${ds}" data-field="lateMins"
-          onchange="patchDay(this.dataset.date,'lateMins',+this.value)"
-          ${!shift||type!=='normal'||dis?'disabled':''}>
-        <span class="late-unit">分</span>
-      </div>
-      <button class="btn-sm o" style="font-size:10px;padding:2px 6px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}"
-        onclick="toggleTempOt('${ds}')" ${!shift||dis?'disabled':''}>+OT</button>
-      ${halfSubRow}${tempOtRow}
-    </div>`;
+      <div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${hasFixedOt?autoOt:''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34"
+        data-date="${ds}" onchange="patchDay('${ds}','autoOt',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div>
+      <div class="ipt-wrap col-ot2"><input type="number" min="0" max="24" step="0.5" value="${ot167}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67"
+        data-date="${ds}" onchange="patchDay('${ds}','ot167',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div>
+      <div class="ipt-wrap col-late"><input type="number" min="0" max="480" step="1" value="${lateMins}" class="${lateMins?'fill-red':''}" placeholder="—" title="遲到分鐘"
+        data-date="${ds}" onchange="patchDay('${ds}','lateMins',+this.value)" ${!shift||type!=='normal'||!inEmp||dis?'disabled':''}><span class="ipt-unit">分</span></div>
+      ${noShift&&inEmp?`<button class="btn-sm o" style="font-size:10px;padding:2px 5px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}" onclick="toggleTempOt('${ds}')" ${dis}>加班</button>`:'<div></div>'}
+      ${subRow}${tempRow}</div>`;
   }
 
-  // 勞健保模式選項
+  // 不足月驗算盒
+  let partialBox='';
+  if(c.isPartial){
+    const diff=c.proratedTarget-c.verifySum;
+    const ok=Math.abs(diff)<=2;
+    partialBox=`<div class="partial-box">
+      <div class="sec-title">📝 不足月薪資（在職 ${c.employedDays} 天 / 30）— 請手動調整彈性補貼直到驗算相符</div>
+      <div class="partial-grid">
+        <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
+        <div class="partial-item"><label>彈性補貼（手動輸入）</label>
+          <input type="number" id="elasticManualInp" value="${c.elasticManual??0}" onchange="patchRec('elasticManual',+this.value)" ${dis}></div>
+        <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
+        <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
+      </div>
+      <div class="verify-line ${ok?'verify-ok':'verify-no'}">
+        <span>${ok?'✓ 驗算相符':'⚠ 尚未相符'}：底薪 $${c.base.toLocaleString()} + 彈性 $${Math.round(c.elastic).toLocaleString()} + 加班 $${Math.round(c.fixedOtPay).toLocaleString()} = $${Math.round(c.verifySum).toLocaleString()}</span>
+        <span>${ok?'':`差額 $${diff.toLocaleString()}`}</span>
+      </div></div>`;
+  }
+
   const insModeLabel={normal:'正常',new:'新人（首月免扣）',quit_prepay:'離職預扣次月'};
-  const insSelect=`<select class="ins-sel" id="insModeSelect" onchange="patchRec('insMode',this.value)" ${dis}>
-    ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}
-  </select>`;
+  const insModeTag=c.insMode==='new'?`<span class="prepay-tag prepay-new">首月免扣</span>`:c.insMode==='quit_prepay'?`<span class="prepay-tag prepay-quit">預扣次月</span>`:'';
 
-  // 自提退休金選項
-  const pensionSelect=`<select class="ins-sel" id="pensionSel" onchange="patchRec('pensionRate',+this.value)" ${dis}>
-    <option value="0"${c.pensionRate===0?' selected':''}>不自提</option>
-    ${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===(p/100)?' selected':''}>${p}%</option>`).join('')}
-  </select>`;
-
-  // 眷屬數
-  const depSelect=`<select class="ins-sel" id="depSel" onchange="patchRec('dependents',+this.value)" ${dis}>
-    ${[0,1,2,3,4,5].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>+${n}人</option>`).join('')}
-  </select>`;
-
-  // insMode 標籤
-  const insModeTag=c.insMode==='new'
-    ?`<span class="prepay-tag prepay-new">首月免扣</span>`
-    :c.insMode==='quit_prepay'
-    ?`<span class="prepay-tag prepay-quit">預扣次月費用</span>`
-    :'';
+  // 自訂加項
+  const customAddRows=(c.customAdds||[]).map((a,i)=>`<div class="add-item">
+    <input class="add-name-input" value="${a.name||''}" placeholder="加項名目" onchange="updCustomAdd(${i},'name',this.value)" ${dis}>
+    <input class="add-amt" type="number" value="${a.amount||''}" placeholder="金額" onchange="updCustomAdd(${i},'amount',+this.value)" ${dis}>
+    <span class="add-val">+$${Number(a.amount||0).toLocaleString()}</span>
+    ${!locked?`<span class="add-del" onclick="delCustomAdd(${i})">刪</span>`:''}
+  </div>`).join('');
 
   document.getElementById('sheetArea').innerHTML=`
-    <div class="salary-sheet">
+    <div class="salary-sheet" id="salarySheet">
       <div class="sheet-hd">
-        <div class="sheet-title">💰 ${emp.name} — ${viewYear}年${viewMonth}月 ${locked?'🔒':''}</div>
+        <div class="sheet-title">💰 ${emp.name} — ${viewYear}年${viewMonth}月 ${c.isPartial?'<span class="partial-flag">不足月</span>':''}${locked?'🔒':''}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge badge-g">實領 $${Math.round(c.netPay).toLocaleString()}</span>
           ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
@@ -816,283 +698,209 @@ function renderSheet(emp,rec,shifts,c){
         </div>
       </div>
 
-      <!-- 摘要 -->
       <div class="sum-row">
-        <div class="sum-cell"><div class="sum-lbl">底薪</div><div class="sum-val">$${c.BASE.toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">彈性補貼</div><div class="sum-val c-blue">$${Math.round(c.elasticBonus).toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">底薪</div><div class="sum-val">$${c.base.toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">彈性補貼${c.isPartial?'(手動)':''}</div><div class="sum-val c-blue">$${Math.round(c.elastic).toLocaleString()}</div></div>
         <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">目標薪資</div><div class="sum-val">$${c.targetSalary.toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">目標薪資</div><div class="sum-val">$${c.target.toLocaleString()}</div></div>
       </div>
 
-      <!-- 公式 -->
+      ${partialBox}
+
       <div class="fml-sec">
-        <div class="sec-title">📐 計算公式</div>
+        <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
         <div class="fml-grid">
-          <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourlyBase.toFixed(2)}</div><div class="fi-sub">(底+彈)÷30÷8</div></div>
-          <div class="fml-item"><div class="fi-lbl">固定OT ×1.34（${c.defOt}h/出勤）</div><div class="fi-val c-orange">${c.totalOt134}h → $${Math.round(c.otPay134).toLocaleString()}</div></div>
-          <div class="fml-item"><div class="fi-lbl">額外OT ×1.67</div><div class="fi-val c-red">${c.totalOt167}h → $${Math.round(c.otPay167).toLocaleString()}</div></div>
-          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${Object.entries(c.totalTempOt).map(([r,h])=>`${h}h×${r}`).join(' + ')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
+          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${Math.round(c.extraOtPay).toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
         </div>
         <div class="eq-bar">
-          <span>出勤</span><span class="v">${c.workDays}天</span>
-          <span class="op">｜</span>
-          <span>事/遲</span><span class="v">${fmtMin(Math.round(c.personalMins))}</span>
-          <span class="op">｜</span>
-          <span>病</span><span class="v">${c.sickDays}天</span>
-          <span class="op">｜</span>
-          <span>曠</span><span class="v">${c.absentDays}天</span>
-          <span class="op">｜</span>
-          <span>淨實領</span><span class="v c-green">$${Math.round(c.netPay).toLocaleString()}</span>
+          <span>出勤</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
+          <span>事假/遲到</span><span class="v">${fmtMin(c.personalMins)}</span><span class="op">｜</span>
+          <span>病假</span><span class="v">${fmtMin(c.sickHours*60)}</span><span class="op">｜</span>
+          <span>曠職</span><span class="v">${Math.round(c.absentDays*10)/10}天</span>
         </div>
       </div>
 
-      <!-- 每日記錄 -->
       <div class="daily-sec">
-        <div class="sec-title" style="margin-bottom:6px">
-          📅 每日出勤
-          <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">橘=固定OT(×1.34) 紅=額外OT(×1.67) 藍=臨時OT 紅字=遲到</span>
+        <div class="sec-title" style="margin-bottom:8px">📅 每日出勤
+          <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">正常日自動帶入固定加班，只需處理請假/異常</span></div>
+        <div class="half-toggle">
+          <button class="half-btn${halfView==='first'?' active':''}" onclick="setHalf('first')">上半月 (1–15)</button>
+          <button class="half-btn${halfView==='second'?' active':''}" onclick="setHalf('second')">下半月 (16–${days})</button>
         </div>
-        <div class="daily-hd-row">
-          <div style="text-align:center">日期</div><div>班次</div><div>假別</div>
-          <div style="text-align:right">固定OT</div>
-          <div style="text-align:right" class="col-ot2">額外OT</div>
-          <div style="text-align:right" class="col-latemin">遲到</div>
-        </div>
+        <div class="daily-hd-row"><div style="text-align:center">日期</div><div>班次</div><div>假別</div>
+          <div style="text-align:right">固定加班</div><div style="text-align:right" class="col-ot2">額外加班</div><div style="text-align:right" class="col-late">遲到</div></div>
         <div id="dailyGrid">${rows}</div>
       </div>
 
-      <!-- 勞健保設定 -->
       <div class="ins-section">
         <div class="sec-title">🛡️ 勞健保 ${insModeTag}</div>
         <div class="ins-grid">
-          <div class="ins-item">
-            <div class="ins-item-lbl">繳費狀態</div>
-            <div class="ins-item-row">${insSelect}</div>
-          </div>
-          <div class="ins-item">
-            <div class="ins-item-lbl">勞保自負額</div>
-            <div class="ins-item-row">
-              <div class="ins-item-val c-red">−$${c.finalLaborDeduct.toLocaleString()}</div>
-              <input class="ded-input" type="number" id="laborInp" value="${c.laborBase}"
-                onchange="patchRec('laborDeduct',+this.value)" ${dis} style="width:80px">
-            </div>
-            ${c.insMode==='new'?`<div style="font-size:10px;color:var(--green);margin-top:3px">首月免扣（已歸零）</div>`:''}
-          </div>
-          <div class="ins-item">
-            <div class="ins-item-lbl">健保自負額 ${depSelect}</div>
-            <div class="ins-item-row">
-              <div class="ins-item-val c-red">−$${c.finalHealthDeduct.toLocaleString()}</div>
-              <input class="ded-input" type="number" id="healthInp" value="${c.healthBase}"
-                onchange="patchRec('healthDeduct',+this.value)" ${dis} style="width:80px">
-            </div>
-            ${c.dependents>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">含眷屬 ${c.dependents}人：+$${(c.healthDeductTotal-c.healthBase).toLocaleString()}</div>`:''}
-          </div>
-          <div class="ins-item">
-            <div class="ins-item-lbl">自提退休金 ${pensionSelect}</div>
-            <div class="ins-item-row">
-              <div class="ins-item-val c-red">−$${c.pensionAmt.toLocaleString()}</div>
-              ${c.insGrade?`<div style="font-size:10px;color:var(--text3)">級距 $${Number(c.insGrade).toLocaleString()}</div>`:''}
-            </div>
-          </div>
+          <div class="ins-item"><div class="ins-item-lbl">繳費狀態</div>
+            <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis} style="width:100%">
+              ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}</select></div>
+          <div class="ins-item"><div class="ins-item-lbl">勞保自負額</div>
+            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.finalLabor.toLocaleString()}</div>
+            <input class="ded-input" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
+            ${c.insMode==='new'?`<div style="font-size:10px;color:var(--green);margin-top:3px">首月免扣已歸零</div>`:''}</div>
+          <div class="ins-item"><div class="ins-item-lbl">健保自負額
+            <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select></div>
+            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.finalHealth.toLocaleString()}</div>
+            <input class="ded-input" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}></div>
+            ${c.dependents>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">含眷屬${c.dependents}人 +$${(c.finalHealth-c.healthBase).toLocaleString()}</div>`:''}</div>
+          <div class="ins-item"><div class="ins-item-lbl">自提退休金
+            <select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${dis}><option value="0"${c.pensionRate===0?' selected':''}>不提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
+            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.pensionAmt.toLocaleString()}</div>${c.insGrade?`<div style="font-size:10px;color:var(--text3)">級距$${c.insGrade.toLocaleString()}</div>`:''}</div></div>
         </div>
-        ${c.insMode==='quit_prepay'?`<div style="font-size:11px;color:var(--orange);margin-top:8px;padding:7px 10px;background:var(--orange-bg);border-radius:7px;border:1px solid var(--orange-border)">
-          ⚠️ 離職預扣：已含次月勞保 $${c.laborBase.toLocaleString()} + 健保 $${c.healthDeductTotal.toLocaleString()}，隔月無薪資可扣故本月先行扣除。</div>`:''}
+        ${c.insMode==='quit_prepay'?`<div style="font-size:11px;color:var(--orange);margin-top:8px;padding:7px 10px;background:var(--orange-bg);border-radius:7px;border:1px solid var(--orange-border)">⚠️ 離職預扣：本月已先扣次月勞保 $${c.laborBase.toLocaleString()} + 健保 $${c.healthTotal.toLocaleString()}（隔月無薪資可扣，故提前扣除）</div>`:''}
       </div>
 
-      <!-- 扣項 -->
       <div class="ded-sec">
         <div class="sec-title">➖ 扣項明細</div>
         <div class="ded-grid">
-          <div class="ded-item">
-            <div class="ded-lbl">事假/遲到扣薪<div class="ded-sub">${fmtMin(Math.round(c.personalMins))}</div></div>
-            <div class="ded-val">−$${c.personalDeduct.toLocaleString()}</div>
-          </div>
-          <div class="ded-item">
-            <div class="ded-lbl">曠職扣薪<div class="ded-sub">${c.absentDays}天×3倍日薪</div></div>
-            <div class="ded-val">−$${c.absentDeduct.toLocaleString()}</div>
-          </div>
-          <div class="ded-item">
-            <div class="ded-lbl">病假扣薪<div class="ded-sub">超5天：${Math.max(0,c.sickDays-5)}天×半薪</div></div>
-            <div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div>
-          </div>
+          <div class="ded-item"><div class="ded-lbl">事假<div class="ded-sub">${fmtMin(c.personalMins)}（含遲到）</div></div><div class="ded-val">−$${c.personalDeduct.toLocaleString()}</div></div>
+          <div class="ded-item"><div class="ded-lbl">病假<div class="ded-sub">${fmtMin(c.sickHours*60)} × 半薪</div></div><div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div></div>
+          <div class="ded-item"><div class="ded-lbl">曠職<div class="ded-sub">${Math.round(c.absentDays*10)/10}天</div></div><div class="ded-val">−$${c.absentDeduct.toLocaleString()}</div></div>
         </div>
       </div>
 
-      <!-- 加項 -->
       <div class="add-sec">
         <div class="sec-title">➕ 加項</div>
-        <div class="add-grid">
+        <div class="add-list">
           <div class="add-item">
-            <div class="add-lbl">
-              特休補薪<div style="font-size:10px;opacity:.7">目標薪資÷30×未放天數</div>
-              <input class="add-input" type="number" min="0" step="0.5"
-                value="${c.annualComp}" placeholder="天數"
-                onchange="patchRec('annualComp',+this.value)" ${dis}
-                style="margin-top:4px;width:80px;border-color:var(--green-border)">
-            </div>
-            <div class="add-val">+$${c.autoAnnualComp.toLocaleString()}</div>
+            <span class="add-name">特休補薪 <span style="font-size:10px;opacity:.7">目標÷30×天數</span></span>
+            <input class="add-days" type="number" min="0" step="0.5" value="${c.annualComp}" placeholder="天" onchange="patchRec('annualComp',+this.value)" ${dis}>
+            <span class="add-val">+$${c.autoAnnualComp.toLocaleString()}</span>
           </div>
           <div class="add-item">
-            <div class="add-lbl">
-              紅字補薪<div style="font-size:10px;opacity:.7">日薪×未放天數（全薪）</div>
-              <input class="add-input" type="number" min="0" step="0.5"
-                value="${c.redComp}" placeholder="天數"
-                onchange="patchRec('redComp',+this.value)" ${dis}
-                style="margin-top:4px;width:80px;border-color:var(--green-border)">
-            </div>
-            <div class="add-val">+$${c.autoRedComp.toLocaleString()}</div>
+            <span class="add-name">紅字補薪 <span style="font-size:10px;opacity:.7">日薪×天數</span></span>
+            <input class="add-days" type="number" min="0" step="0.5" value="${c.redComp}" placeholder="天" onchange="patchRec('redComp',+this.value)" ${dis}>
+            <span class="add-val">+$${c.autoRedComp.toLocaleString()}</span>
           </div>
-          <div class="add-item">
-            <div class="add-lbl">其他加項<div style="font-size:10px;opacity:.7">手動輸入金額</div></div>
-            <input class="add-input" type="number" min="0"
-              value="${c.extraBonus}" placeholder="0"
-              onchange="patchRec('extraBonus',+this.value)" ${dis}>
-          </div>
+          ${customAddRows}
         </div>
+        ${!locked?`<button class="btn-sm o" onclick="addCustomAdd()">+ 新增其他加項</button>`:''}
       </div>
 
-      <!-- 實領 -->
       <div class="netpay-bar">
-        <div>
-          <div class="np-lbl">本月實領薪資</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">
-            $${(c.BASE+Math.round(c.elasticBonus)).toLocaleString()} 底+彈
-            ＋$${Math.round(c.otPayTotal).toLocaleString()} 加班
-            ＋$${c.totalAdd.toLocaleString()} 加項
-            −$${c.totalDeduct.toLocaleString()} 扣項
-          </div>
-        </div>
+        <div><div class="np-lbl">本月實領薪資</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">$${(c.base+Math.round(c.elastic)).toLocaleString()} 底+彈 ＋$${Math.round(c.otPayTotal).toLocaleString()} 加班 ＋$${c.totalAdd.toLocaleString()} 加項 −$${c.totalDeduct.toLocaleString()} 扣項</div></div>
         <div class="np-val" id="npDisp">$${Math.round(c.netPay).toLocaleString()}</div>
       </div>
       <div style="padding:0 16px 14px;display:flex;justify-content:flex-end;gap:8px">
         ${!locked?`<button class="btn btn-primary" onclick="saveSheet()">💾 儲存薪資記錄</button>`:''}
         <button class="btn btn-outline" onclick="exportSlip()">📄 匯出薪資單</button>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-// ─────────────────────────────────────────
-// 事件處理
-// ─────────────────────────────────────────
+window.setHalf=function(h){halfView=h;refreshSheet();};
 window.updType=async function(el){
   const type=el.value;
-  // 更新 select 樣式
-  el.className=`type-sel t-${(LEAVE_TYPES[type]||LEAVE_TYPES.normal).color}`;
+  el.className=`type-sel${LEAVE_TYPES[type]?.cls?' t-'+LEAVE_TYPES[type].cls:''}`;
   await patchDay(el.dataset.date,'type',type);
-  // 重繪（因為半假需要子欄）
   await refreshSheet();
 };
-
 window.patchDay=async function(ds,field,value){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData)rec.dailyData={};
-  if(!rec.dailyData[ds])rec.dailyData[ds]={};
+  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
   rec.dailyData[ds][field]=value;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  await refreshNum();
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshNum();
 };
-
 window.patchRec=async function(field,value){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  rec[field]=value;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  await refreshNum();
+  rec[field]=value;await saveRec(selectedEmpId,viewYear,viewMonth,rec);
+  if(field==='elasticManual'||field==='dependents'||field==='insMode')await refreshSheet();else await refreshNum();
 };
-
 window.toggleTempOt=async function(ds){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData)rec.dailyData={};
-  if(!rec.dailyData[ds])rec.dailyData[ds]={};
+  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
   rec.dailyData[ds].hasTempOt=!rec.dailyData[ds].hasTempOt;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  await refreshSheet();
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+window.addCustomAdd=async function(){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.customAdds)rec.customAdds=[];rec.customAdds.push({name:'',amount:0});
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+window.updCustomAdd=async function(i,field,val){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.customAdds||!rec.customAdds[i])return;
+  rec.customAdds[i][field]=val;await saveRec(selectedEmpId,viewYear,viewMonth,rec);
+  if(field==='amount')await refreshSheet();else await refreshNum();
+};
+window.delCustomAdd=async function(i){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.customAdds)return;rec.customAdds.splice(i,1);
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
 };
 
 async function refreshNum(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  if(!emp)return;
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
   const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-  const el=document.getElementById('npDisp');
-  if(el)el.textContent=`$${Math.round(c.netPay).toLocaleString()}`;
+  const el=document.getElementById('npDisp');if(el)el.textContent=`$${Math.round(c.netPay).toLocaleString()}`;
 }
-
 async function refreshSheet(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  if(!emp)return;
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
   renderSheet(emp,rec||{dailyData:{}},shifts,calcSalary(emp,rec||{dailyData:{}},shifts));
 }
 
 window.saveSheet=async function(){
-  if(!selectedEmpId||isSaving)return;
-  isSaving=true;showToast('儲存中…');
+  if(!selectedEmpId||isSaving)return;isSaving=true;showToast('儲存中…');
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
-  const record=rec||{dailyData:{}};
-  const c=calcSalary(emp,record,shifts);
-  record.snapshot={...c,savedAt:new Date().toISOString()};
+  const record=rec||{dailyData:{}};const c=calcSalary(emp,record,shifts);
+  record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,record);
-  if(ok){
-    writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});
-    showToast('✓ 已儲存');
-  }else showToast('⚠️ 儲存失敗');
+  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存');}else showToast('⚠️ 儲存失敗');
   isSaving=false;
 };
 
 window.exportSlip=async function(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  if(!emp)return;
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
   const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-  const insLabel={normal:'正常',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
+  const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
+  const customRows=(c.customAdds||[]).filter(a=>a.amount>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>薪資單 ${emp.name} ${viewYear}年${viewMonth}月</title>
-<style>body{font-family:Arial,sans-serif;max-width:580px;margin:30px auto;font-size:13px;color:#1a1a1a}
-h2{font-size:17px}.sub{font-size:11px;color:#666;margin-bottom:16px}
-table{width:100%;border-collapse:collapse;margin-bottom:12px}
-td{padding:7px 10px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
-.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}
-.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
-.red{color:#D33A3A}.green{color:#1A9B4C}.gray{color:#888}
-@media print{body{margin:0}}</style></head><body>
-<h2>薪　資　單</h2>
-<div class="sub">${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${insLabel?'｜'+insLabel:''}</div>
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>薪資單 ${emp.name} ${viewYear}年${viewMonth}月</title>
+<style>body{font-family:Arial,sans-serif;max-width:580px;margin:30px auto;font-size:13px;color:#1a1a1a}h2{font-size:17px}.sub{font-size:11px;color:#666;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;margin-bottom:12px}td{padding:7px 10px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
+.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
+.red{color:#D33A3A}.green{color:#1A9B4C}@media print{body{margin:0}}</style></head><body>
+<h2>薪　資　單</h2><div class="sub">${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}</div>
 <table>
 <tr><td class="sh" colspan="2">加項</td></tr>
-<tr><td>底薪</td><td>$${c.BASE.toLocaleString()}</td></tr>
-<tr><td>彈性補貼</td><td>$${Math.round(c.elasticBonus).toLocaleString()}</td></tr>
-<tr><td>加班費 ×1.34（${c.totalOt134}h）</td><td>$${Math.round(c.otPay134).toLocaleString()}</td></tr>
-<tr><td>加班費 ×1.67（${c.totalOt167}h）</td><td>$${Math.round(c.otPay167).toLocaleString()}</td></tr>
+<tr><td>底薪</td><td>$${c.base.toLocaleString()}</td></tr>
+<tr><td>彈性補貼</td><td>$${Math.round(c.elastic).toLocaleString()}</td></tr>
+<tr><td>加班費 ×1.34（${c.fixedOtHours}h）</td><td>$${Math.round(c.fixedOtPay).toLocaleString()}</td></tr>
+${c.extraOtPay>0?`<tr><td>額外加班 ×1.67（${c.extraOtHours}h）</td><td>$${Math.round(c.extraOtPay).toLocaleString()}</td></tr>`:''}
 ${c.tempOtPay>0?`<tr><td>臨時加班</td><td>$${Math.round(c.tempOtPay).toLocaleString()}</td></tr>`:''}
 ${c.autoAnnualComp>0?`<tr><td>特休補薪（${c.annualComp}天）</td><td>$${c.autoAnnualComp.toLocaleString()}</td></tr>`:''}
 ${c.autoRedComp>0?`<tr><td>紅字補薪（${c.redComp}天）</td><td>$${c.autoRedComp.toLocaleString()}</td></tr>`:''}
-${c.extraBonus>0?`<tr><td>其他加項</td><td>$${c.extraBonus.toLocaleString()}</td></tr>`:''}
+${customRows}
 <tr><td class="sh" colspan="2">扣項</td></tr>
-<tr><td>事假/遲到（${fmtMin(Math.round(c.personalMins))}）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>
-<tr><td>病假超5天（${Math.max(0,c.sickDays-5)}天）</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>
-<tr><td>曠職（${c.absentDays}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>
-<tr><td>勞保自負${c.insMode==='new'?' (首月免扣)':''}</td><td class="red">−$${c.finalLaborDeduct.toLocaleString()}</td></tr>
-<tr><td>健保自負${c.dependents>0?'（含眷屬'+c.dependents+'人）':''}${c.insMode==='new'?' (首月免扣)':''}</td><td class="red">−$${c.finalHealthDeduct.toLocaleString()}</td></tr>
+<tr><td>事假（${fmtMin(c.personalMins)}）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>
+<tr><td>病假（${fmtMin(c.sickHours*60)}）</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>
+<tr><td>曠職（${Math.round(c.absentDays*10)/10}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>
+<tr><td>勞保自負${c.insMode==='new'?'(免扣)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
+<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:11px;color:#C47A00">※ 已含次月離職預扣費用</td></tr>`:''}
+${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※已含次月離職預扣費用</td></tr>`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
-</table>
-<div style="font-size:10px;color:#999;margin-top:10px">本薪資單由梁平鑫系統自動產生。</div>
+</table><div style="font-size:10px;color:#999">本薪資單由梁平鑫系統自動產生。</div>
 <script>window.print();<\/script></body></html>`);
   w.document.close();
 };
 
-function showToast(msg,d=2000){
-  const el=document.getElementById('toast');
-  el.textContent=msg;el.classList.add('show');
-  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);
-}
+function showToast(msg,d=2000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);}
 window.showToast=showToast;
 </script>
 </body>
