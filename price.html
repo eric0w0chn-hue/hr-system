@@ -41,12 +41,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .store-filter-row label{font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap}
 .store-filter-sel{flex:1;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;outline:none;cursor:pointer;min-height:40px}
 .store-filter-sel:focus{border-color:var(--accent)}
+/* 無叫貨 */
+.no-order-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);margin-top:8px}
+.no-order-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text);font-weight:500;user-select:none}
+.no-order-row input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
+.no-order-hint{font-size:12px;color:var(--text3);margin-left:auto}
+/* 歷史 no-order badge */
+.no-order-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;padding:3px 10px;font-weight:600}
 /* missing banner */
 .missing-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none}
 .missing-banner.show{display:block}
 .missing-title{font-size:13px;font-weight:600;color:var(--yellow);margin-bottom:8px}
 .missing-tags{display:flex;gap:6px;flex-wrap:wrap}
 .missing-tag{font-size:12px;padding:3px 10px;background:rgba(196,122,0,.1);color:var(--yellow);border-radius:20px;border:1px solid var(--yellow-border)}
+
 /* missing banner */
 .missing-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none}
 .missing-banner.show{display:block}
@@ -213,7 +221,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .report-table th,.report-table td{padding:8px 10px;font-size:12px}
 
 
-  /* missing banner */
+  
+/* missing banner */
   .missing-title{font-size:12px}
   .missing-tag{font-size:12px;padding:4px 10px;min-height:30px;display:inline-flex;align-items:center}
 }
@@ -295,7 +304,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
           <div id="vendorBlocks"></div>
           <button class="add-item-btn" style="margin-bottom:14px" onclick="addVendorBlock()">＋ 新增廠商</button>
 
-          <div class="fr" style="margin-top:4px">
+          <!-- 無叫貨需求 -->
+          <div class="no-order-row">
+            <label>
+              <input type="checkbox" id="noOrderChk" onchange="toggleNoOrder(this.checked)">
+              今日無叫貨需求
+            </label>
+            <span class="no-order-hint" id="noOrderHint"></span>
+          </div>
+
+          <div class="fr" style="margin-top:4px" id="noteRow">
             <label>備註</label>
             <input type="text" id="f-note" class="inp" placeholder="選填">
           </div>
@@ -336,7 +354,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
+import { authGuard, db } from './auth-guard.js';
 import { doc, getDoc, setDoc, getDocs, collection, query, where, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let cu=null,cRole='',cName='',cStore='';
@@ -531,6 +549,8 @@ window.addItemRow=function(bid,item='',qty='',unit='公斤',price=''){
 window.clearForm=function(){
   document.getElementById('vendorBlocks').innerHTML='';
   document.getElementById('f-note').value='';
+  const chk=document.getElementById('noOrderChk');
+  if(chk){chk.checked=false;toggleNoOrder(false);}
   vbCount=0;
   addVendorBlock();
 };
@@ -560,31 +580,64 @@ async function checkTodayReport(store){
 }
 
 // ══ 送出回報（支援多廠商） ══
+window.toggleNoOrder=function(checked){
+  const blocks=document.getElementById('vendorBlocks');
+  const addVendorBtn=document.querySelector('.add-item-btn[onclick="addVendorBlock()"]');
+  const noteRow=document.getElementById('noteRow');
+  const hint=document.getElementById('noOrderHint');
+  if(checked){
+    blocks.style.opacity='.35';blocks.style.pointerEvents='none';
+    if(addVendorBtn){addVendorBtn.style.opacity='.35';addVendorBtn.style.pointerEvents='none';}
+    noteRow.style.display='none';
+    hint.textContent='✓ 勾選後直接送出即可';
+  } else {
+    blocks.style.opacity='';blocks.style.pointerEvents='';
+    if(addVendorBtn){addVendorBtn.style.opacity='';addVendorBtn.style.pointerEvents='';}
+    noteRow.style.display='';
+    hint.textContent='';
+  }
+};
+
 window.submitReport=async function(){
+  const noOrder=document.getElementById('noOrderChk')?.checked;
   const note=document.getElementById('f-note').value.trim();
-  // 店長 storeRow 隱藏，直接用 cStore；admin/consultant 用 select
   const store = (cRole==='manager') ? cStore : document.getElementById('f-store').value;
-  const blocks=getVendorBlocks();
   if(!store){toast('請選擇店面');return;}
-  if(!blocks.length){toast('請至少填寫一個廠商');return;}
-  if(blocks.some(b=>!b.items.length)){toast('每個廠商至少需要一個品項');return;}
   const btn=document.getElementById('submitBtn');
   btn.disabled=true;btn.textContent='送出中...';
   try{
-    for(const block of blocks){
-      const{vendor,items}=block;
+    if(noOrder){
+      // 無叫貨：寫一筆 noOrder:true 的記錄
       const snap=await getDocs(query(collection(db,'price_reports'),
         where('date','==',todayStr),where('uid','==',cu.uid),
-        where('store','==',store),where('vendor','==',vendor)));
-      const data={uid:cu.uid,editorName:cName,store,date:todayStr,vendor,items,note,updatedAt:serverTimestamp()};
+        where('store','==',store),where('noOrder','==',true)));
+      const data={uid:cu.uid,editorName:cName,store,date:todayStr,noOrder:true,items:[],vendor:'',note:'',updatedAt:serverTimestamp()};
       if(!snap.empty){
         await setDoc(snap.docs[0].ref,{...data},{merge:true});
       } else {
         await addDoc(collection(db,'price_reports'),{...data,createdAt:serverTimestamp()});
       }
+      toast('✅ 已送出（今日無叫貨需求）');
+      document.getElementById('noOrderChk').checked=false;
+      toggleNoOrder(false);
+    } else {
+      const blocks=getVendorBlocks();
+      if(!blocks.length){toast('請至少填寫一個廠商');btn.disabled=false;btn.textContent='📤 送出回報';return;}
+      if(blocks.some(b=>!b.items.length)){toast('每個廠商至少需要一個品項');btn.disabled=false;btn.textContent='📤 送出回報';return;}
+      for(const block of blocks){
+        const{vendor,items}=block;
+        const snap=await getDocs(query(collection(db,'price_reports'),
+          where('date','==',todayStr),where('uid','==',cu.uid),
+          where('store','==',store),where('vendor','==',vendor)));
+        const data={uid:cu.uid,editorName:cName,store,date:todayStr,vendor,items,note,updatedAt:serverTimestamp()};
+        if(!snap.empty){
+          await setDoc(snap.docs[0].ref,{...data},{merge:true});
+        } else {
+          await addDoc(collection(db,'price_reports'),{...data,createdAt:serverTimestamp()});
+        }
+      }
+      toast(`✅ 已送出 ${blocks.length} 筆廠商回報`);
     }
-    toast(`✅ 已送出 ${blocks.length} 筆廠商回報`);
-    writeOpLog({ editor:cName, role:cRole, module:'price', action:'送出物價回報', detail:`${store} ${todayStr}，${blocks.length}筆` });
     await loadReports();
   }catch(e){toast('❌ 送出失敗：'+e.message);}
   finally{btn.disabled=false;btn.textContent='📤 送出回報';}
@@ -656,7 +709,12 @@ function renderReports(){
         </div>
         <div style="font-size:11px;color:var(--text3)">${fmtTime(reports[0]?.createdAt)}</div>
       </div>
-      ${reports.map(r=>`
+      ${reports.map(r=>r.noOrder?`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span class="no-order-badge">✓ 今日無叫貨需求</span>
+          ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'
+            ?`<button class="btn btn-danger" style="font-size:10px;padding:1px 7px" onclick="deleteReport('${r.id}')">刪除</button>`:''}
+        </div>`:`
         <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">廠商：${r.vendor||'—'}
             ${(r.uid===cu?.uid&&r.date===todayStr)||cRole==='admin'
@@ -680,7 +738,6 @@ function renderReports(){
 window.deleteReport=async function(id){
   if(!confirm('確定刪除此回報？'))return;
   await deleteDoc(doc(db,'price_reports',id));
-  writeOpLog({ editor:cName, role:cRole, module:'price', action:'刪除物價回報', detail:id });
   toast('已刪除');
   await loadReports();await loadSummary();
 };
