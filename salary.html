@@ -122,8 +122,55 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .d-row{grid-template-columns:40px minmax(0,1fr) 78px 58px;gap:3px;padding:6px 7px}
   .d-row .col-ot2,.d-row .col-late{display:none}
 }
+/* ── 手機版：每日出勤改為卡片式，所有欄位清楚標示 ── */
+@media(max-width:600px){
+  .d-row{
+    display:flex !important;flex-direction:column;gap:8px;
+    padding:11px 13px;margin-bottom:8px;border-radius:10px;
+    background:#fff;border:1px solid var(--border);align-items:stretch;
+  }
+  .d-row.weekend{background:#FFF8F8}
+  /* header：日期 + 班次 同一行 */
+  .d-row .d-date{display:flex;align-items:baseline;gap:6px;text-align:left;order:0;flex:0 0 auto}
+  .d-row .d-num{font-size:17px}.d-row .d-wday{font-size:13px;color:var(--text3)}
+  .d-row .d-shift{font-size:13px;color:var(--text2);order:1;flex:1;justify-content:flex-end;text-align:right;display:flex;align-items:center}
+  /* 每個欄位：標籤在上、輸入在下 */
+  .d-row .d-field{display:flex !important;flex-direction:column;gap:4px}
+  .d-row .d-field[data-label]::before{
+    content:attr(data-label);font-size:11px;color:var(--text2);font-weight:600;
+  }
+  .d-row .col-ot2,.d-row .col-late{display:flex !important}
+  /* 三個加班/遲到欄在手機橫向並排，較緊湊 */
+  .d-row .d-field[data-label="固定加班"],
+  .d-row .d-field[data-label="額外加班"],
+  .d-row .d-field[data-label="遲到"]{
+    flex:1;min-width:0;
+  }
+  .d-row .d-field[data-label="固定加班"]{order:3}
+  .d-row .d-field[data-label="額外加班"]{order:4}
+  .d-row .d-field[data-label="遲到"]{order:5}
+  .d-row .d-field[data-label="假別"]{order:2;width:100%}
+  /* 用 flex-wrap 讓三欄並排 */
+  .d-row{flex-wrap:wrap}
+  .d-row .d-field[data-label="固定加班"],
+  .d-row .d-field[data-label="額外加班"],
+  .d-row .d-field[data-label="遲到"]{flex:1 1 28%}
+  .d-row .ipt-wrap input{font-size:15px;min-height:42px;padding:8px 22px 8px 10px;text-align:left}
+  .d-row .ipt-unit{font-size:11px;right:8px}
+  .d-row .type-sel{font-size:15px;min-height:44px;padding:8px 10px}
+  .d-row .d-tempbtn{order:2;align-self:flex-start;font-size:13px !important;padding:8px 18px !important;min-height:40px !important}
+  .d-row .d-spacer{display:none}
+  .d-row .sub-row{order:6;width:100%;padding-left:0;margin-top:2px}
+  .d-row .sub-leave,.d-row .sub-temp{font-size:13px;padding:8px 10px}
+  .d-row .sub-leave input,.d-row .sub-temp input{font-size:14px;min-height:36px;width:64px}
+  .d-row .sub-temp select{font-size:14px;min-height:36px}
+  /* 最小化未排班列維持單行 */
+  .d-row.d-min{flex-direction:row;align-items:center;gap:10px;padding:12px 13px}
+  .d-row.d-min .d-date{order:0}.d-row.d-min .d-min-label{order:1;font-size:13px}
+}
 .d-date{text-align:center}.d-num{font-size:12px;font-weight:700}.d-wday{font-size:10px;color:var(--text3)}
 .d-shift{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-field{display:contents}.d-field>.d-flabel{display:none}.d-spacer{}
 .type-sel{font-size:11px;padding:3px 4px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;width:100%;-webkit-appearance:none;appearance:none;min-height:28px;cursor:pointer;color:var(--text)}
 .type-sel.t-absent,.type-sel.t-careLeave{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
 .type-sel.t-sick,.type-sel.t-physio{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
@@ -216,6 +263,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 @media(max-width:500px){.np-val{font-size:20px}}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
+
+/* ═══════════ 手機版整體優化：各區塊獨立卡片、層次分明 ═══════════ */
+@media(max-width:600px){
+  .main{padding:12px 10px 80px}
+  .filter-bar{padding:12px 14px;gap:8px}
+  .filter-bar select{flex:1;min-width:0}
+  /* 員工清單：單欄、加大觸控 */
+  .emp-list{grid-template-columns:1fr;gap:8px}
+  .emp-card{padding:14px 16px}
+  .emp-name{font-size:15px}
+  /* 主容器去掉外框，讓內部區塊各自成卡片 */
+  .salary-sheet{background:transparent;border:none;border-radius:0;overflow:visible;margin-bottom:0}
+  /* sheet 標題列 */
+  .sheet-hd{background:var(--accent);border-radius:12px;border:none;padding:14px 16px;margin-bottom:10px;position:sticky;top:60px;z-index:50}
+  .sheet-hd .sheet-title{color:#fff;font-size:15px}
+  .sheet-hd .badge{font-size:11px;padding:3px 9px}
+  /* 摘要：2×2 卡片 */
+  .sum-row{border:none;gap:8px;margin-bottom:10px;background:transparent}
+  .sum-cell{background:#fff;border:1px solid var(--border);border-radius:12px;border-right:1px solid var(--border);padding:14px 12px}
+  .sum-lbl{font-size:11px;margin-bottom:4px}
+  .sum-val{font-size:19px}
+  /* 各功能區塊 → 獨立白卡 */
+  .fml-sec,.daily-sec,.ins-section,.ded-sec,.add-sec,.partial-box{
+    background:#fff;border:1px solid var(--border);border-radius:12px;
+    border-top:1px solid var(--border) !important;border-bottom:none;
+    padding:14px 14px;margin-bottom:10px;
+  }
+  .partial-box{background:var(--orange-bg);border-color:var(--orange-border)}
+  /* 區塊標題更醒目 */
+  .sec-title{font-size:14px;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px dashed var(--border)}
+  /* 公式格子 2 欄、加大 */
+  .fml-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .fml-item{padding:11px 12px}.fi-val{font-size:14px}
+  .eq-bar{font-size:12px;line-height:1.6}
+  /* 半月切換鈕加大 */
+  .half-btn{padding:11px;font-size:14px}
+  /* 勞健保表格：改直式堆疊 */
+  .ins-headbar{flex-direction:column;gap:8px}
+  .ins-head-cell{width:100%}
+  .ins-grid{grid-template-columns:1fr}
+  /* 扣項 / 加項 單欄堆疊 */
+  .ded-grid{grid-template-columns:1fr;gap:8px}
+  .ded-item{padding:12px 14px}
+  .ded-lbl{font-size:13px}.ded-val{font-size:15px}
+  .add-item{padding:12px 14px;flex-wrap:wrap}
+  .add-name{font-size:13px;min-width:100%}
+  .add-days,.add-amt{flex:1}
+  /* 不足月驗算 */
+  .partial-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .verify-line{flex-direction:column;align-items:flex-start;gap:4px}
+  /* 實領薪資列固定在底部更醒目 */
+  .netpay-bar{margin:10px 0;padding:16px;border-radius:14px}
+  .np-val{font-size:26px}
+}
 /* 薪資單 overlay */
 .slip-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:flex-end;justify-content:center}
 @media(min-width:600px){.slip-overlay{align-items:center}}
@@ -820,16 +921,16 @@ function renderSheet(emp,rec,shifts,c){
     rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
       <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
       <div class="d-shift">${shiftTxt}${noShift&&inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
-      <select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
+      <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
-      </select>
-      <div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${hasFixedOt?autoOt:''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34"
-        data-date="${ds}" onchange="patchDay('${ds}','autoOt',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div>
-      <div class="ipt-wrap col-ot2"><input type="number" min="0" max="24" step="0.5" value="${ot167}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67"
-        data-date="${ds}" onchange="patchDay('${ds}','ot167',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div>
-      <div class="ipt-wrap col-late"><input type="number" min="0" max="480" step="1" value="${lateMins}" class="${lateMins?'fill-red':''}" placeholder="—" title="遲到分鐘"
-        data-date="${ds}" onchange="patchDay('${ds}','lateMins',+this.value)" ${!shift||type!=='normal'||!inEmp||dis?'disabled':''}><span class="ipt-unit">分</span></div>
-      ${noShift&&inEmp?`<button class="btn-sm o" style="font-size:10px;padding:2px 5px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}" onclick="toggleTempOt('${ds}')" ${dis}>加班</button>`:'<div></div>'}
+      </select></div>
+      <div class="d-field" data-label="固定加班"><div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${hasFixedOt?autoOt:''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34"
+        data-date="${ds}" onchange="patchDay('${ds}','autoOt',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div></div>
+      <div class="d-field col-ot2" data-label="額外加班"><div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${ot167}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67"
+        data-date="${ds}" onchange="patchDay('${ds}','ot167',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div></div>
+      <div class="d-field col-late" data-label="遲到"><div class="ipt-wrap"><input type="number" min="0" max="480" step="1" value="${lateMins}" class="${lateMins?'fill-red':''}" placeholder="—" title="遲到分鐘"
+        data-date="${ds}" onchange="patchDay('${ds}','lateMins',+this.value)" ${!shift||type!=='normal'||!inEmp||dis?'disabled':''}><span class="ipt-unit">分</span></div></div>
+      ${noShift&&inEmp?`<button class="btn-sm o d-tempbtn" style="font-size:10px;padding:2px 5px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}" onclick="toggleTempOt('${ds}')" ${dis}>加班</button>`:'<div class="d-spacer"></div>'}
       ${subRow}${tempRow}</div>`;
   }
 
