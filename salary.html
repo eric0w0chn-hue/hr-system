@@ -107,6 +107,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .d-row:hover{background:#EDEEF3}
 .d-row.weekend{background:#FFF8F8;border-color:#FDDADA}
 .d-row.no-shift{opacity:.55}
+.d-row.d-min{grid-template-columns:46px 1fr;cursor:pointer;opacity:.7;padding:5px 8px}
+.d-row.d-min:hover{opacity:1;background:#EDEEF3}
+@media(max-width:700px){.d-row.d-min{grid-template-columns:40px 1fr}}
+.d-min-label{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:8px}
+.d-min-hint{font-size:10px;color:var(--blue)}
+.d-collapse{font-size:10px;color:var(--text3);cursor:pointer;text-decoration:underline;margin-left:4px}
+.d-collapse:hover{color:var(--accent)}
 .d-row.out-employ{opacity:.35;pointer-events:none}
 .d-row.locked{pointer-events:none;opacity:.7}
 @media(max-width:700px){
@@ -168,6 +175,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .ins-banner{font-size:11px;margin-top:8px;padding:8px 12px;border-radius:8px;line-height:1.5}
 .ins-banner-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
 .ins-banner-o{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.employ-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.employ-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--text2)}
+.employ-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.employ-item label{font-size:10px;color:var(--text3);display:block;margin-bottom:4px}
+.employ-item input{font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;width:100%;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:34px;background:#fff}
+.employ-item input:focus{border-color:var(--accent);outline:none}
+.employ-note{font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5}
 @media(max-width:600px){.ins-trow{grid-template-columns:1fr;gap:5px}.ins-tval{text-align:left}.ins-thead{display:none}}
 
 .ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
@@ -227,7 +241,7 @@ let CU={name:'',role:'',uid:''};
 let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
 let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
-let isSaving=false, showOtPanel=false, halfView='first'; // first=上半月 second=下半月
+let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false; // first=上半月 second=下半月
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
 const BASE_FULL=29500;
@@ -302,27 +316,32 @@ function isMonthLocked(y,m){
   if(y<cy)return true;if(y===cy&&m<cm)return true;return false;
 }
 
-// 計算當月在職天數（30天制）：依到職/離職日，與當月交集
-function calcEmployedDays(emp,y,m){
+// 計算當月在職天數（30天制）：rec 可手動覆蓋到職/離職日，否則用 HR 資料
+function calcEmployedDays(emp,y,m,rec){
   const dim=getDaysInMonth(y,m);
   const monthStart=new Date(y,m-1,1), monthEnd=new Date(y,m-1,dim);
   let s=monthStart, e=monthEnd, partial=false;
-  const hd=getHireDate(emp), ld=getLeaveDate(emp);
-  if(hd){const d=new Date(hd); if(d>monthEnd) return {days:0,partial:true,inEmploy:()=>false};
+  // 優先用手動設定（rec.hireOverride / rec.leaveOverride），否則 HR 欄位
+  const hd=(rec&&rec.hireOverride)||getHireDate(emp);
+  const ld=(rec&&rec.leaveOverride)||getLeaveDate(emp);
+  if(hd){const d=new Date(hd); if(d>monthEnd) return {days:0,partial:true,empty:true,inEmploy:()=>false,hireDate:hd,leaveDate:ld};
     if(d>monthStart){s=d;partial=true;}}
-  if(ld){const d=new Date(ld); if(d<monthStart) return {days:0,partial:true,inEmploy:()=>false};
+  if(ld){const d=new Date(ld); if(d<monthStart) return {days:0,partial:true,empty:true,inEmploy:()=>false,hireDate:hd,leaveDate:ld};
     if(d<monthEnd){e=d;partial=true;}}
-  // 30天制：在職日數 = 交集天數，但若整月在職則視為30
   const dayCount=Math.round((e-s)/86400000)+1;
   const employedDays = partial ? dayCount : 30;
   const sN=s.getDate(), eN=e.getDate();
   return {
-    days:employedDays, partial,
-    inEmploy:(dayNum)=>{
-      if(partial){return dayNum>=sN&&dayNum<=eN;}
-      return true;
-    }
+    days:employedDays, partial, hireDate:hd, leaveDate:ld,
+    lastWorkDayNum:eN, firstWorkDayNum:sN,
+    inEmploy:(dayNum)=>partial?(dayNum>=sN&&dayNum<=eN):true
   };
+}
+// 退保日：預設離職日次日（可由 rec.unenrollOverride 覆蓋）
+function getUnenrollDate(emp,rec,leaveDate){
+  if(rec&&rec.unenrollOverride)return new Date(rec.unenrollOverride);
+  if(!leaveDate)return null;
+  const d=new Date(leaveDate);d.setDate(d.getDate()+1);return d; // 預設離職次日退保
 }
 
 authGuard('salary',({user,uid,role,locations,userData})=>{
@@ -389,7 +408,7 @@ function calcSalary(emp,rec,shifts){
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
   const defOt=getDefOt(emp.workLocation);
-  const emp2=calcEmployedDays(emp,viewYear,viewMonth);
+  const emp2=calcEmployedDays(emp,viewYear,viewMonth,rec);
   const isPartial=emp2.partial&&emp2.days<30;
 
   // 統計
@@ -488,15 +507,60 @@ function calcSalary(emp,rec,shifts){
 
   // 勞健保
   const ins=insFromGrade(getInsGrade(emp));
-  const laborBase=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;
-  const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;
+  const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自負
+  const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
   const pensionRate=rec?.pensionRate??0;
   const pensionAmt=pensionRate>0?Math.round(getInsGrade(emp)*pensionRate):0;
   const dependents=rec?.dependents??0;
-  const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO);
+  const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷整月健保
   const insMode=rec?.insMode||'normal';
-  const finalLabor=insMode==='new'?0:laborBase;
-  const finalHealth=insMode==='new'?0:healthTotal;
+
+  // ── 勞保：按「在保天數」計算（不足月）──
+  // 在保天數 = 退保日 − 到職日(或月初)。退保日預設離職次日，故離職日當天仍在保。
+  const dim2=getDaysInMonth(viewYear,viewMonth);
+  let laborInMonth=laborMonthly; // 預設整月
+  let laborInsuredDays=dim2;
+  let healthCharged=true;        // 健保是否扣（非足月時依退保日）
+  let unenrollDate=null;
+  if(isPartial){
+    // 在保起日
+    const monthStart=new Date(viewYear,viewMonth-1,1);
+    const startD=emp2.hireDate&&new Date(emp2.hireDate)>monthStart?new Date(emp2.hireDate):monthStart;
+    // 退保日（離職者才有）
+    unenrollDate=getUnenrollDate(emp,rec,emp2.leaveDate);
+    const monthEnd=new Date(viewYear,viewMonth-1,dim2);
+    let endInsured=monthEnd;
+    if(unenrollDate){
+      // 在保到「退保日前一天」；退保日落在當月內才縮短
+      const ub=new Date(unenrollDate);ub.setDate(ub.getDate()-1);
+      if(ub<monthEnd)endInsured=ub;
+    }
+    laborInsuredDays=Math.max(0,Math.round((endInsured-startD)/86400000)+1);
+    laborInMonth=Math.round(laborMonthly/dim2*laborInsuredDays);
+    // ── 健保：只要退保日不是當月最後一天 → 不扣；退保=當月最後一天才扣整月 ──
+    if(unenrollDate){
+      const uYM=unenrollDate.getFullYear()===viewYear&&(unenrollDate.getMonth()+1)===viewMonth;
+      // 退保日在當月：若退保日 != 當月最後一天 → 不扣健保
+      if(uYM){healthCharged=(unenrollDate.getDate()===dim2);}
+      else {healthCharged=true;} // 退保日已跨到次月 → 當月整月在保，扣
+    } else {
+      healthCharged=true; // 純到職不足月（無離職），健保照扣整月
+    }
+  }
+
+  // ── 三種模式 ──
+  let finalLabor, finalHealth;
+  if(insMode==='new'){
+    finalLabor=0; finalHealth=0; // 新人首月免扣
+  } else if(insMode==='quit_prepay'){
+    // 離職預扣：本月一份 + 預扣次月一份 = ×2（用整月費用）
+    finalLabor=laborMonthly*2;
+    finalHealth=healthTotal*2;
+  } else {
+    finalLabor=isPartial?laborInMonth:laborMonthly;
+    finalHealth=isPartial?(healthCharged?healthTotal:0):healthTotal;
+  }
+  const laborBase=laborMonthly; // 顯示用整月基準
 
   // 加項
   const annualComp=rec?.annualComp??0;
@@ -523,6 +587,9 @@ function calcSalary(emp,rec,shifts){
     personalDates,sickDates,absentDates,
     personalDeduct,absentDeduct,sickDeduct,
     laborBase,healthBase,healthTotal,finalLabor,finalHealth,
+    laborInsuredDays,healthCharged,laborInMonth,
+    hireDate:emp2.hireDate,leaveDate:emp2.leaveDate,
+    unenrollDate:unenrollDate?dateStr(unenrollDate.getFullYear(),unenrollDate.getMonth()+1,unenrollDate.getDate()):null,
     pensionRate,pensionAmt,dependents,insMode,
     annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
     gross,totalDeduct,totalAdd,netPay,verifySum,
@@ -535,6 +602,7 @@ function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).pad
 function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name));}
 function storeEmps(store){return employees.filter(e=>normStore(e.workLocation)===normStore(store));}
 function fmtMin(mins){mins=Math.round(mins);if(mins===0)return'0';const h=Math.floor(mins/60),m=mins%60;return`${h>0?h+'時':''}${m>0?m+'分':''}`||'0';}
+function toDateInput(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return'';return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
 
 // ─── 主畫面 ───
 function renderMain(){
@@ -559,7 +627,7 @@ function renderMain(){
   const curEmps=selectedStore?storeEmps(selectedStore):[];
   const empCards=curEmps.length>0?curEmps.map(e=>{
     const tgt=getTarget(e);
-    const e2=calcEmployedDays(e,viewYear,viewMonth);
+    const e2=calcEmployedDays(e,viewYear,viewMonth,null);
     const partial=e2.partial&&e2.days<30&&e2.days>0;
     const notYet=e2.days===0;
     const act=String(e.id)===String(selectedEmpId);
@@ -618,7 +686,7 @@ function renderSheet(emp,rec,shifts,c){
   const dis=locked?'disabled':'';
   const dd=rec?.dailyData||{};
   const defOt=c.defOt;
-  const emp2=calcEmployedDays(emp,viewYear,viewMonth);
+  const emp2=calcEmployedDays(emp,viewYear,viewMonth,rec);
   const typeOpts=Object.entries(LEAVE_TYPES).map(([v,t])=>`<option value="${v}">${t.label}</option>`).join('');
 
   // 半月範圍
@@ -679,9 +747,19 @@ function renderSheet(emp,rec,shifts,c){
       </div>`;
     }
 
+    // ── 未排班日：預設最小化，點開才顯示完整列 ──
+    const isExpanded=r.expanded||r.hasTempOt; // 有臨時加班時自動展開
+    if(noShift&&inEmp&&!isExpanded){
+      rows+=`<div class="d-row d-min${isWknd?' weekend':''}${locked?' locked':''}" onclick="${locked?'':`expandDay('${ds}')`}">
+        <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text3)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
+        <div class="d-min-label">未排班<span class="d-min-hint">${locked?'':'點擊展開'}</span></div>
+      </div>`;
+      continue;
+    }
+
     rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
       <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
-      <div class="d-shift">${shiftTxt}</div>
+      <div class="d-shift">${shiftTxt}${noShift&&inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
       <select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select>
@@ -784,13 +862,26 @@ function renderSheet(emp,rec,shifts,c){
               ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}</select></div>
         </div>
 
+        <div class="employ-box">
+          <div class="employ-head">
+            <span>📆 在職日期設定 ${c.isPartial?'<span class="partial-flag">不足月</span>':'<span style="font-size:10px;color:var(--text3)">（足月，留空即可）</span>'}</span>
+            <button class="btn-sm o" onclick="toggleEmployBox()">${employBoxOpen?'收合':'展開設定'}</button>
+          </div>
+          ${employBoxOpen?`<div class="employ-grid">
+            <div class="employ-item"><label>到職日</label><input type="date" value="${(c.hireDate&&toDateInput(c.hireDate))||''}" onchange="patchRec('hireOverride',this.value||null)" ${dis}></div>
+            <div class="employ-item"><label>離職日</label><input type="date" value="${(c.leaveDate&&toDateInput(c.leaveDate))||''}" onchange="patchRec('leaveOverride',this.value||null)" ${dis}></div>
+            <div class="employ-item"><label>退保日 <span style="color:var(--text3)">（預設離職次日）</span></label><input type="date" value="${c.unenrollDate?toDateInput(c.unenrollDate):''}" onchange="patchRec('unenrollOverride',this.value||null)" ${dis}></div>
+          </div>
+          <div class="employ-note">手動設定後即覆蓋 HR 資料；退保日比離職日晚 1 天會多 1 天勞保。健保只有當月最後一天退保才扣整月。</div>`:''}
+        </div>
+
         <div class="ins-table">
           <div class="ins-trow ins-thead"><div>項目</div><div style="text-align:center">設定</div><div style="text-align:right">本月實扣</div></div>
 
           <div class="ins-trow">
-            <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負</div></div>
-            <div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">建議 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
-            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}</div>
+            <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
+            <div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
+            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">本月+次月 ×2</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
@@ -799,7 +890,7 @@ function renderSheet(emp,rec,shifts,c){
               <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
               <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
             </div>
-            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.dependents>0?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:''}</div>
+            <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">本月+次月 ×2</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
@@ -810,7 +901,7 @@ function renderSheet(emp,rec,shifts,c){
         </div>
 
         ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
-        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣：隔月無薪資可扣，故本月先扣次月勞保 $${c.laborBase.toLocaleString()} + 健保 $${c.healthTotal.toLocaleString()}。薪資單會註明。</div>`:''}
+        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣：本月一份 + 預扣次月一份（共 ×2）。勞保 $${c.laborBase.toLocaleString()}×2 + 健保 $${c.healthTotal.toLocaleString()}×2，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。隔月無薪資可扣故提前扣除，薪資單會註明。</div>`:''}
       </div>
 
       <div class="ded-sec">
@@ -853,6 +944,21 @@ function renderSheet(emp,rec,shifts,c){
 }
 
 window.setHalf=function(h){halfView=h;refreshSheet();};
+window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;refreshSheet();};
+window.expandDay=async function(ds){
+  if(!selectedEmpId)return;
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
+  rec.dailyData[ds].expanded=true;
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+window.collapseDay=async function(ds){
+  if(!selectedEmpId)return;
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  if(!rec.dailyData||!rec.dailyData[ds])return;
+  rec.dailyData[ds].expanded=false;
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
 window.updType=async function(el){
   const type=el.value;
   el.className=`type-sel${LEAVE_TYPES[type]?.cls?' t-'+LEAVE_TYPES[type].cls:''}`;
@@ -969,10 +1075,10 @@ ${customRows}
 <tr><td>事假（${fmtMin(c.personalMins)}）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>
 <tr><td>病假（${fmtMin(c.sickHours*60)}）</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>
 <tr><td>曠職（${Math.round(c.absentDays*10)/10}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>
-<tr><td>勞保自負${c.insMode==='new'?'(免扣)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
-<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
+<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
+<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※已含次月離職預扣費用</td></tr>`:''}
+${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※離職預扣：本月一份+次月一份（勞保健保各×2），隔月無薪資可扣故提前扣除</td></tr>`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table><div style="font-size:10px;color:#999">本薪資單由梁平鑫系統自動產生。</div>
 <script>window.print();<\/script></body></html>`);
