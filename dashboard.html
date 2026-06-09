@@ -624,6 +624,17 @@ onAuthStateChanged(auth,async user=>{
             VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='price');
           }
         }catch(_){}
+        // delivery_report 只有央廚（type='central'）才顯示
+        // 若使用者所屬店面全部都是門市，則隱藏卡片
+        try{
+          const permSnap=await getDoc(doc(db,'settings','permissions'));
+          const locTypes=(permSnap.exists()?permSnap.data().locationTypes:null)||{};
+          const userLocs=data.locations||[];
+          const hasCentral=userLocs.some(l=>locTypes[l]==='central');
+          if(!hasCentral){
+            VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='delivery_report');
+          }
+        }catch(_){}
       }
       await loadGroupsFromFirestore();
       renderAll(role);
