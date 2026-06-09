@@ -40,6 +40,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .role-employee{background:#E8EEFF;color:#3B5BDB}
 .btn-logout{font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.18);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .btn-logout:hover{background:rgba(255,255,255,.2)}
+.btn-ann-mgr{width:32px;height:32px;border-radius:7px;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.15);font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-ann-mgr:hover{background:rgba(255,255,255,.22)}
 .preview-bar{display:flex;gap:2px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:3px;flex-shrink:0}
 .preview-btn{font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,.6);font-family:inherit;font-weight:500;transition:all .15s;white-space:nowrap}
 .preview-btn:hover{background:rgba(255,255,255,.12);color:#fff}
@@ -188,6 +190,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .hero-desc{font-size:13px}
 }
 
+/* ── 公告橫幅 ── */
+.announce-bar{display:none;align-items:center;gap:10px;background:linear-gradient(90deg,#1a1e2e,#2d3142);border-bottom:1px solid rgba(255,255,255,.08);padding:0 20px;height:38px;overflow:hidden;flex-shrink:0;position:fixed;top:var(--topbar-h);left:0;right:0;z-index:190}
+.announce-bar.show{display:flex}
+.announce-icon{font-size:14px;flex-shrink:0;opacity:.9}
+.announce-track{flex:1;overflow:hidden;position:relative;height:100%}
+.announce-text{display:inline-block;white-space:nowrap;font-size:12px;color:rgba(255,255,255,.88);font-weight:500;letter-spacing:.2px;animation:marqueeScroll 18s linear infinite;position:absolute;top:50%;transform:translateY(-50%)}
+@keyframes marqueeScroll{0%{left:100%}100%{left:-100%}}
+.announce-close{flex-shrink:0;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:14px;padding:4px 6px;border-radius:4px;line-height:1;transition:color .15s}
+.announce-close:hover{color:rgba(255,255,255,.8)}
+.announce-edit-btn{flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+.announce-edit-btn:hover{background:rgba(255,255,255,.16);color:#fff}
+/* 公告管理 Modal */
+.ann-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);z-index:600;display:none;align-items:center;justify-content:center}
+.ann-overlay.show{display:flex}
+.ann-modal{background:var(--surface);border-radius:16px;padding:24px;width:min(460px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.2);animation:popIn .18s ease}
+.ann-modal h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.ann-lbl{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.ann-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;color:var(--text);background:var(--surface2);resize:vertical;min-height:80px;transition:border .15s}
+.ann-input:focus{border-color:var(--accent)}
+.ann-toggle-row{display:flex;align-items:center;gap:10px;margin:14px 0}
+.ann-toggle-lbl{font-size:13px;color:var(--text2);flex:1}
+.ann-toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.ann-toggle input{opacity:0;width:0;height:0;position:absolute}
+.ann-slider{position:absolute;inset:0;background:#ccc;border-radius:22px;cursor:pointer;transition:.2s}
+.ann-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.ann-toggle input:checked+.ann-slider{background:var(--accent)}
+.ann-toggle input:checked+.ann-slider::before{transform:translateX(18px)}
+.ann-speed-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.ann-speed-row select{padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none}
+.ann-btn-row{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+@media(max-width:600px){.announce-bar{padding:0 12px;height:34px}.announce-text{font-size:11px}.ann-modal{border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;border-radius:16px 16px 0 0}.ann-overlay{align-items:flex-end}}
+
 /* ── Loading ── */
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
@@ -239,7 +273,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <div class="user-name" id="userName">—</div>
         <div id="roleLabel"></div>
       </div>
+      <button class="btn-ann-mgr" id="annMgrBtn" style="display:none" onclick="openAnnModal()" title="公告管理">📢</button>
       <button class="btn-logout" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <!-- 公告橫幅 -->
+  <div class="announce-bar" id="announceBar">
+    <span class="announce-icon">📢</span>
+    <div class="announce-track">
+      <span class="announce-text" id="announceText"></span>
+    </div>
+    <button class="announce-edit-btn" id="announceEditBtn" style="display:none" onclick="openAnnModal()">✎ 編輯公告</button>
+    <button class="announce-close" id="announceClose" onclick="dismissAnnounce()" title="關閉">✕</button>
+  </div>
+
+  <!-- 公告管理 Modal -->
+  <div class="ann-overlay" id="annOverlay" onclick="if(event.target===this)closeAnnModal()">
+    <div class="ann-modal">
+      <h3>📢 公告管理</h3>
+      <div class="ann-lbl">公告內容</div>
+      <textarea class="ann-input" id="annText" placeholder="輸入要顯示的公告文字..."></textarea>
+      <div class="ann-toggle-row">
+        <span class="ann-toggle-lbl">啟用公告橫幅</span>
+        <label class="ann-toggle"><input type="checkbox" id="annActive"><span class="ann-slider"></span></label>
+      </div>
+      <div class="ann-speed-row">
+        <span style="font-size:12px;color:var(--text3)">跑馬燈速度</span>
+        <select id="annSpeed">
+          <option value="28">較慢</option>
+          <option value="18" selected>正常</option>
+          <option value="10">較快</option>
+          <option value="6">很快</option>
+        </select>
+      </div>
+      <div class="ann-btn-row">
+        <button class="btn-ghost" onclick="closeAnnModal()">取消</button>
+        <button class="btn-primary" onclick="saveAnnounce()">儲存公告</button>
+      </div>
     </div>
   </div>
 
@@ -597,6 +668,7 @@ onAuthStateChanged(auth,async user=>{
       _currentUid=user.uid;
       await loadGroupsFromFirestore();
       renderAll('employee');
+      loadAnnounce('employee');
     } else {
       const data=snap.data();
       if(data.disabled){await signOut(auth);window.location.href='/hr-system/index.html?disabled=1';return;}
@@ -612,6 +684,8 @@ onAuthStateChanged(auth,async user=>{
       if(role==='admin'){
         document.getElementById('previewBar').style.display='flex';
         document.querySelector('.preview-btn.p-admin').classList.add('active');
+        const annBtn = document.getElementById('annMgrBtn');
+        if(annBtn) annBtn.style.display='flex';
       }
       if(role!=='admin'){
         try{
@@ -638,8 +712,7 @@ onAuthStateChanged(auth,async user=>{
       }
       await loadGroupsFromFirestore();
       renderAll(role);
-    }
-  }catch(e){
+      loadAnnounce(role);
     console.error('renderAll error:', e);
     try{ renderAll('employee'); }catch(_){}
   } finally {
@@ -656,6 +729,89 @@ onAuthStateChanged(auth,async user=>{
 });
 window.goTo=function(page){window.location.href=page;};
 window.doLogout=async function(){if(!confirm('確定要登出嗎？'))return;await signOut(auth);window.location.href='/hr-system/index.html';};
+
+// ── 公告橫幅 ──
+let _annDismissedKey = 'ann_dismissed_v1';
+
+function _adjustAnnLayout(visible){
+  const h = visible ? 38 : 0;
+  const mw = document.querySelector('.main-wrap');
+  const sb = document.getElementById('sidebar');
+  if(mw) mw.style.paddingTop = `calc(var(--topbar-h) + ${h}px)`;
+  if(sb) sb.style.top = `calc(var(--topbar-h) + ${h}px)`;
+}
+
+async function loadAnnounce(role){
+  try{
+    const snap = await getDoc(doc(db,'settings','announcement'));
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(!d.active || !d.text) return;
+    // 用內容hash做session key，避免新公告被舊的dismiss擋住
+    const hash = btoa(unescape(encodeURIComponent(d.text))).slice(0,16);
+    const dismissed = sessionStorage.getItem(_annDismissedKey);
+    if(dismissed === hash) return;
+    const bar = document.getElementById('announceBar');
+    const textEl = document.getElementById('announceText');
+    textEl.textContent = d.text;
+    const speed = d.speed || 18;
+    textEl.style.animationDuration = speed + 's';
+    bar.classList.add('show');
+    _adjustAnnLayout(true);
+    // admin 才顯示編輯按鈕
+    const editBtn = document.getElementById('announceEditBtn');
+    if(editBtn) editBtn.style.display = (role==='admin') ? 'inline-block' : 'none';
+    bar.dataset.hash = hash;
+  }catch(e){ console.warn('loadAnnounce error:', e); }
+}
+
+window.dismissAnnounce = function(){
+  const bar = document.getElementById('announceBar');
+  const hash = bar.dataset.hash || '';
+  if(hash) sessionStorage.setItem(_annDismissedKey, hash);
+  bar.classList.remove('show');
+  _adjustAnnLayout(false);
+};
+
+window.openAnnModal = async function(){
+  try{
+    const snap = await getDoc(doc(db,'settings','announcement'));
+    const d = snap.exists() ? snap.data() : {};
+    document.getElementById('annText').value = d.text || '';
+    document.getElementById('annActive').checked = !!d.active;
+    document.getElementById('annSpeed').value = String(d.speed || 18);
+  }catch(_){}
+  const ov = document.getElementById('annOverlay');
+  ov.style.display = 'flex';
+  requestAnimationFrame(()=>ov.classList.add('show'));
+};
+window.closeAnnModal = function(){
+  const ov = document.getElementById('annOverlay');
+  ov.classList.remove('show');
+  setTimeout(()=>ov.style.display='none', 200);
+};
+window.saveAnnounce = async function(){
+  const text = document.getElementById('annText').value.trim();
+  const active = document.getElementById('annActive').checked;
+  const speed = parseInt(document.getElementById('annSpeed').value) || 18;
+  try{
+    await setDoc(doc(db,'settings','announcement'),{ text, active, speed, updatedAt: new Date().toISOString() });
+    closeAnnModal();
+    // 清掉 dismiss，讓新公告立即顯示
+    sessionStorage.removeItem(_annDismissedKey);
+    const bar = document.getElementById('announceBar');
+    bar.classList.remove('show');
+    _adjustAnnLayout(false);
+    if(active && text){
+      const hash = btoa(unescape(encodeURIComponent(text))).slice(0,16);
+      bar.dataset.hash = hash;
+      document.getElementById('announceText').textContent = text;
+      document.getElementById('announceText').style.animationDuration = speed + 's';
+      bar.classList.add('show');
+      _adjustAnnLayout(true);
+    }
+  }catch(e){ alert('儲存失敗：' + e.message); }
+};
 
 // ── 細項拖拉排序（ADMIN）──
 function initItemDrag(){
