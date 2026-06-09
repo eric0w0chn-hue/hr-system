@@ -33,6 +33,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .main{max-width:1100px;margin:0 auto;padding:18px 16px 80px}
 
 .filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.emp-picker-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.emp-picker-bar select{flex:1;min-width:160px;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;min-height:42px;cursor:pointer;font-weight:600}
+.emp-picker-bar select:focus{border-color:var(--accent)}
+.emp-picker-bar select:disabled{opacity:.5}
+.emp-count{font-size:12px;color:var(--text3);white-space:nowrap}
 .filter-bar select{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:none;appearance:none;min-height:36px;cursor:pointer}
 .filter-bar select:focus{border-color:var(--accent)}
 .fl{font-size:12px;color:var(--text2);white-space:nowrap;font-weight:500}
@@ -267,12 +272,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ═══════════ 手機版整體優化：各區塊獨立卡片、層次分明 ═══════════ */
 @media(max-width:600px){
   .main{padding:12px 10px 80px}
-  .filter-bar{padding:12px 14px;gap:8px}
-  .filter-bar select{flex:1;min-width:0}
-  /* 員工清單：單欄、加大觸控 */
-  .emp-list{grid-template-columns:1fr;gap:8px}
-  .emp-card{padding:14px 16px}
-  .emp-name{font-size:15px}
+  /* 篩選列：標籤+選單成組，自動換行不擠 */
+  .filter-bar{padding:12px 14px;gap:8px 10px}
+  .filter-bar .fl{font-size:13px;width:100%;margin-bottom:-2px}
+  .filter-bar #yearSel,.filter-bar #monthSel{flex:1;min-width:0;font-size:14px;min-height:42px;padding:9px 10px}
+  .filter-bar .fdv{display:none}
+  .filter-bar #storeSel{flex:1 1 100%;max-width:none !important;font-size:14px;min-height:42px;padding:9px 12px;margin-top:4px}
+  .filter-bar .btn-sm.o{flex:1 1 100%;margin-left:0 !important;justify-content:center;min-height:40px;font-size:13px;margin-top:4px}
+  /* 同仁選擇列 */
+  .emp-picker-bar{padding:12px 14px;gap:8px}
+  .emp-picker-bar .fl{width:100%;font-size:13px}
+  .emp-picker-bar select{flex:1 1 100%;min-height:46px;font-size:15px}
+  .emp-count{width:100%;text-align:right}
   /* 主容器去掉外框，讓內部區塊各自成卡片 */
   .salary-sheet{background:transparent;border:none;border-radius:0;overflow:visible;margin-bottom:0}
   /* sheet 標題列 */
@@ -349,7 +360,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <div class="topbar">
   <div class="topbar-left">
-    <button class="back-btn" onclick="history.back()">← 返回</button>
+    <button class="back-btn" onclick="goBack()">← 返回</button>
     <div class="dv"></div>
     <h1>💰 薪資計算</h1>
   </div>
@@ -784,18 +795,14 @@ function renderMain(){
   }
 
   const curEmps=selectedStore?storeEmps(selectedStore):[];
-  const empCards=curEmps.length>0?curEmps.map(e=>{
+  // 員工下拉選項
+  const empOpts=curEmps.length>0?curEmps.map(e=>{
     const tgt=getTarget(e);
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
-    const partial=e2.partial&&e2.days<30&&e2.days>0;
-    const notYet=e2.days===0;
+    const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
     const act=String(e.id)===String(selectedEmpId);
-    return`<div class="emp-card${act?' active':''}" onclick="selEmp(${e.id})">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div class="emp-name">${e.name||'—'}${partial?'<span class="partial-flag">不足月</span>':''}${notYet?'<span class="partial-flag">未在職</span>':''}</div>
-        ${tgt?`<span class="emp-tag">目標 $${Number(tgt).toLocaleString()}</span>`:''}</div>
-      <div class="emp-meta"><span>${e.title||'—'}</span>${getInsGrade(e)?`<span>投保 $${getInsGrade(e).toLocaleString()}</span>`:''}</div></div>`;
-  }).join(''):`<div class="empty-state"><div style="font-size:28px">👥</div><div style="margin-top:8px">此店面尚無在職同仁</div></div>`;
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}</option>`;
+  }).join(''):'';
 
   main.innerHTML=`
     <div class="filter-bar">
@@ -808,8 +815,15 @@ function renderMain(){
       ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${s}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
       ${(CU.role==='admin'||CU.role==='consultant')?`<button class="btn-sm o" style="margin-left:auto" onclick="toggleOtPanel()">⚙️ 加班設定</button>`:''}
     </div>
+    <div class="emp-picker-bar">
+      <span class="fl">選擇同仁</span>
+      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'}>
+        <option value="">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</option>
+        ${empOpts}
+      </select>
+      <span class="emp-count">共 ${curEmps.length} 位</span>
+    </div>
     ${lockedBanner}${otPanelHtml}
-    <div class="emp-list">${empCards}</div>
     <div id="sheetArea"></div>`;
 
   if(selectedEmpId&&curEmps.find(e=>String(e.id)===String(selectedEmpId)))loadAndRender(selectedEmpId,false);
@@ -821,13 +835,13 @@ window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
 window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
 
-window.selEmp=async function(empId){
+window.selEmpFromSel=async function(empId){
+  if(!empId){selectedEmpId=null;document.getElementById('sheetArea').innerHTML='';return;}
   selectedEmpId=empId;halfView='first';
-  document.querySelectorAll('.emp-card').forEach(el=>el.classList.remove('active'));
-  if(event&&event.currentTarget)event.currentTarget.classList.add('active');
   document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入中…</div>';
   await loadAndRender(empId,true);
 };
+window.selEmp=window.selEmpFromSel; // 相容
 
 async function loadAndRender(empId,doScroll){
   const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
@@ -1272,6 +1286,11 @@ window.saveJpg=async function(filename){
 
 function showToast(msg,d=2000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);}
 window.showToast=showToast;
+window.goBack=function(){
+  // 有上一頁且來自同站就 back，否則導回主選單
+  if(document.referrer&&document.referrer.includes(location.host))history.back();
+  else location.href='dashboard.html';
+};
 </script>
 </body>
 </html>
