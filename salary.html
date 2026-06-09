@@ -53,6 +53,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .btn-sm.o{border:1px solid var(--border);background:#fff;color:var(--text2)}.btn-sm.o:hover{background:var(--surface2)}
 
 .ot-panel{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+/* 系統設定面板 */
+.sys-panel{background:#fff;border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:14px}
+.sys-panel-title{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sys-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sys-field{flex:1;min-width:140px}
+.sys-field label{font-size:11px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px}
+.sys-inp{width:100%;font-size:16px;font-weight:700;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:42px}
+.sys-inp:focus{border-color:var(--accent);outline:none}
+.sys-rate-head{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sys-rate-wrap{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+.sys-rate-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.sys-rate-tbl th{position:sticky;top:0;background:var(--surface2);font-size:11px;color:var(--text2);font-weight:600;padding:8px 6px;text-align:left}
+.sys-rate-tbl td{padding:4px 6px;border-bottom:1px solid var(--border)}
+.rate-inp{width:100%;font-size:13px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:32px}
+.rate-inp:focus{border-color:var(--accent);outline:none}
+.rate-del{color:var(--red);cursor:pointer;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block}
+.rate-del:hover{background:var(--red-bg)}
+.sys-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5}
 .ot-panel-title{font-size:12px;font-weight:700;color:#92640A;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
 .ot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .ot-item{background:#fff;border:1px solid var(--yellow-border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -114,7 +132,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .d-row.weekend{background:#FFF8F8;border-color:#FDDADA}
 .d-row.no-shift{opacity:.55}
 .d-row.d-min{grid-template-columns:46px 1fr;cursor:pointer;opacity:.7;padding:5px 8px}
-.d-row.d-min:hover{opacity:1;background:#EDEEF3}
+.d-row.d-min{grid-template-columns:46px 120px 1fr auto;align-items:center;opacity:1;padding:9px 10px;gap:8px}
+.d-row.d-min:hover{background:#EDEEF3}
+.d-row.d-min.has-data{background:#fff;border-color:var(--accent-light)}
+.d-min-shift{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-min-summary{font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.d-sum-muted{color:var(--text3);font-size:12px}
+.d-sum-extra{color:var(--text2);font-size:11px}
+.d-sum-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.d-sum-tag.t-gray{background:var(--surface2);color:var(--text2)}
+.d-sum-tag.t-blue{background:var(--blue-bg);color:var(--blue)}
+.d-sum-tag.t-sick,.d-sum-tag.t-physio{background:var(--orange-bg);color:var(--orange)}
+.d-sum-tag.t-absent,.d-sum-tag.t-careLeave{background:var(--red-bg);color:var(--red)}
+.d-sum-tag.t-annual,.d-sum-tag.t-wed,.d-sum-tag.t-funeral,.d-sum-tag.t-redEnvelope{background:var(--green-bg);color:var(--green)}
+.d-min-hint{font-size:13px;color:var(--blue);font-weight:600;justify-self:end;padding:0 4px}
 @media(max-width:700px){.d-row.d-min{grid-template-columns:40px 1fr}}
 .d-min-label{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:8px}
 .d-min-hint{font-size:10px;color:var(--blue)}
@@ -169,9 +200,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .d-row .sub-leave,.d-row .sub-temp{font-size:13px;padding:8px 10px}
   .d-row .sub-leave input,.d-row .sub-temp input{font-size:14px;min-height:36px;width:64px}
   .d-row .sub-temp select{font-size:14px;min-height:36px}
-  /* 最小化未排班列維持單行 */
-  .d-row.d-min{flex-direction:row;align-items:center;gap:10px;padding:12px 13px}
-  .d-row.d-min .d-date{order:0}.d-row.d-min .d-min-label{order:1;font-size:13px}
+  /* 最小化列：手機改為日期+班次+摘要 */
+  .d-row.d-min{display:grid !important;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:12px 13px}
+  .d-row.d-min .d-date{order:0}
+  .d-row.d-min .d-min-shift{order:1;font-size:12px}
+  .d-row.d-min .d-min-summary{order:2;grid-column:1/-1;font-size:13px}
+  .d-row.d-min .d-min-hint{order:1;font-size:16px}
 }
 .d-date{text-align:center}.d-num{font-size:12px;font-weight:700}.d-wday{font-size:10px;color:var(--text3)}
 .d-shift{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -382,12 +416,12 @@ let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
 let locationTypes={}; // 各店類型 central/store
 let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
-let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false;
+let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false, showSysPanel=false;
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
-const BASE_FULL=29500;
+let BASE_FULL=29500; // 可由 salary_settings/config 覆蓋（僅ADMIN設定）
 const MEAL_PER_DAY=100; // 央廚每排一天班的餐費補助
 
 // 店名正規化（鋪→舖）
@@ -409,8 +443,8 @@ const LEAVE_TYPES={
 };
 
 // 115年(2026) 勞健保級距表：labor=員工勞保自負, health=員工健保自負(本人), pension6=公司勞退6%(參考)
-const INS_YEAR=2026;
-const LABOR_TABLE=[
+let INS_YEAR=2026;
+let LABOR_TABLE=[
   {grade:1500,labor:277,health:458},{grade:3000,labor:277,health:458},{grade:4500,labor:277,health:458},
   {grade:6000,labor:277,health:458},{grade:7500,labor:277,health:458},{grade:8700,labor:277,health:458},
   {grade:9900,labor:277,health:458},{grade:11100,labor:277,health:458},{grade:12540,labor:313,health:458},
@@ -448,10 +482,34 @@ function insFromGrade(grade){
 // 取員工欄位（多重 fallback）
 function getHireDate(e){return e.hireDate||e.startDate||e.onboardDate||e.到職日||e.entryDate||null;}
 function getLeaveDate(e){return e.leaveDate||e.resignDate||e.離職日||e.quitDate||null;}
-function getInsGrade(e){return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);}
-function getTarget(e){
+function getInsGrade(e,y,m){
+  // 6月薪資繳的是5月費用 → 抓「上個月最後一天」之前最新的投保級距
+  const hist=e.insurance?.gradeHistory;
+  if(y&&m&&Array.isArray(hist)&&hist.length){
+    // 上個月
+    let py=y, pm=m-1; if(pm<1){pm=12;py=y-1;}
+    const cutoff=`${py}-${String(pm).padStart(2,'0')}-${String(getDaysInMonth(py,pm)).padStart(2,'0')}`;
+    const sorted=hist.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const valid=sorted.find(r=>String(r.date)<=cutoff);
+    if(valid)return Number(valid.grade);
+    // 沒有上月(含)以前的紀錄 → 取最早一筆
+    return Number(sorted[sorted.length-1].grade);
+  }
+  return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);
+}
+function getTarget(e,y,m){
   const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  if(h.length>0)return Number(h[0].amount);
+  if(h.length>0){
+    // 依當月抓：取 date <= 當月最後一天 的最新一筆
+    if(y&&m){
+      const cutoff=`${y}-${String(m).padStart(2,'0')}-${String(getDaysInMonth(y,m)).padStart(2,'0')}`;
+      const valid=h.find(r=>String(r.date)<=cutoff);
+      if(valid)return Number(valid.amount);
+      // 若全部都晚於當月（資料都比當月新），取最早一筆當起薪
+      return Number(h[h.length-1].amount);
+    }
+    return Number(h[0].amount);
+  }
   return Number(e.salary||e.targetSalary||0);
 }
 
@@ -495,8 +553,26 @@ authGuard('salary',({user,uid,role,locations,userData})=>{
 });
 
 async function init(locations,userData){
-  await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes()]);
+  await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes(),loadConfig()]);
   renderMain();
+}
+// 載入系統設定（底薪 + 費率表），僅 ADMIN 可改
+async function loadConfig(){
+  try{const s=await getDoc(doc(db,'salary_settings','config'));
+    if(s.exists()){
+      const d=s.data();
+      if(d.baseSalary>0)BASE_FULL=Number(d.baseSalary);
+      if(d.insYear)INS_YEAR=Number(d.insYear);
+      if(Array.isArray(d.rates)&&d.rates.length)LABOR_TABLE=d.rates;
+    }
+  }catch(e){console.error('loadConfig',e);}
+}
+async function saveConfig(){
+  try{
+    await setDoc(doc(db,'salary_settings','config'),{baseSalary:BASE_FULL,insYear:INS_YEAR,rates:LABOR_TABLE,updatedAt:new Date().toISOString(),updatedBy:CU.name});
+    showToast('✓ 系統設定已儲存');
+    writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'編輯系統設定',detail:`底薪$${BASE_FULL} / ${INS_YEAR}年費率`});
+  }catch(e){showToast('⚠️ 儲存失敗');}
 }
 async function loadLocTypes(){
   try{const s=await getDoc(doc(db,'settings','permissions'));
@@ -560,7 +636,7 @@ async function loadShifts(empId,y,m){
 
 // ─── 計算核心 ───
 function calcSalary(emp,rec,shifts){
-  const target=getTarget(emp);
+  const target=getTarget(emp,viewYear,viewMonth);
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
   const defOt=getDefOt(emp.workLocation);
@@ -670,7 +746,7 @@ function calcSalary(emp,rec,shifts){
   const sickDeduct=Math.round(dailyBase/8*sickHours*0.5);
 
   // 勞健保
-  const insGrade=(rec&&rec.gradeOverride)||getInsGrade(emp);
+  const insGrade=(rec&&rec.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自負
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
@@ -794,10 +870,45 @@ function renderMain(){
     <option value="2"${getDefOt(s)===2?' selected':''}>+2h</option></select></div>`).join('')}</div></div>`;
   }
 
+  // 系統設定面板（僅 ADMIN）：底薪 + 投保費率表
+  let sysPanelHtml='';
+  if(CU.role==='admin'&&showSysPanel){
+    const rateRows=LABOR_TABLE.map((r,i)=>`<tr>
+      <td><input type="number" value="${r.grade}" onchange="updRate(${i},'grade',+this.value)" class="rate-inp"></td>
+      <td><input type="number" value="${r.labor}" onchange="updRate(${i},'labor',+this.value)" class="rate-inp"></td>
+      <td><input type="number" value="${r.health}" onchange="updRate(${i},'health',+this.value)" class="rate-inp"></td>
+      <td><span class="rate-del" onclick="delRate(${i})">×</span></td>
+    </tr>`).join('');
+    sysPanelHtml=`<div class="sys-panel">
+      <div class="sys-panel-title"><span>🔧 系統設定（僅管理員）</span><button class="btn-sm p" onclick="doSaveConfig()">儲存全部設定</button></div>
+      <div class="sys-row">
+        <div class="sys-field">
+          <label>底薪（每年可能調整）</label>
+          <input type="number" value="${BASE_FULL}" onchange="setBaseSalary(+this.value)" class="sys-inp">
+        </div>
+        <div class="sys-field">
+          <label>費率年度</label>
+          <input type="number" value="${INS_YEAR}" onchange="setInsYear(+this.value)" class="sys-inp">
+        </div>
+      </div>
+      <div class="sys-rate-head">
+        <span>📊 投保級距費率表（${LABOR_TABLE.length} 級）— 每年公告調整時直接改這裡，不需動程式碼</span>
+        <button class="btn-sm o" onclick="addRate()">+ 新增級距</button>
+      </div>
+      <div class="sys-rate-wrap">
+        <table class="sys-rate-tbl">
+          <thead><tr><th>投保級距</th><th>勞保自負</th><th>健保自負(本人)</th><th></th></tr></thead>
+          <tbody>${rateRows}</tbody>
+        </table>
+      </div>
+      <div class="sys-note">提示：級距金額由小到大排列。系統會依員工投保金額自動對應最接近的級距費率。儲存後立即生效。</div>
+    </div>`;
+  }
+
   const curEmps=selectedStore?storeEmps(selectedStore):[];
   // 員工下拉選項
   const empOpts=curEmps.length>0?curEmps.map(e=>{
-    const tgt=getTarget(e);
+    const tgt=getTarget(e,viewYear,viewMonth);
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
     const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
     const act=String(e.id)===String(selectedEmpId);
@@ -814,6 +925,7 @@ function renderMain(){
       <select id="storeSel" onchange="chgStore(this.value)" style="max-width:220px">
       ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${s}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
       ${(CU.role==='admin'||CU.role==='consultant')?`<button class="btn-sm o" style="margin-left:auto" onclick="toggleOtPanel()">⚙️ 加班設定</button>`:''}
+      ${CU.role==='admin'?`<button class="btn-sm o" onclick="toggleSysPanel()">🔧 系統設定</button>`:''}
     </div>
     <div class="emp-picker-bar">
       <span class="fl">選擇同仁</span>
@@ -823,7 +935,7 @@ function renderMain(){
       </select>
       <span class="emp-count">共 ${curEmps.length} 位</span>
     </div>
-    ${lockedBanner}${otPanelHtml}
+    ${lockedBanner}${otPanelHtml}${sysPanelHtml}
     <div id="sheetArea"></div>`;
 
   if(selectedEmpId&&curEmps.find(e=>String(e.id)===String(selectedEmpId)))loadAndRender(selectedEmpId,false);
@@ -834,6 +946,13 @@ window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
 window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
 window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
+window.toggleSysPanel=function(){showSysPanel=!showSysPanel;renderMain();};
+window.setBaseSalary=function(v){if(v>0)BASE_FULL=v;};
+window.setInsYear=function(v){if(v>0)INS_YEAR=v;};
+window.updRate=function(i,field,v){if(LABOR_TABLE[i])LABOR_TABLE[i][field]=v;};
+window.addRate=function(){LABOR_TABLE.push({grade:0,labor:0,health:0});LABOR_TABLE.sort((a,b)=>a.grade-b.grade);renderMain();};
+window.delRate=function(i){LABOR_TABLE.splice(i,1);renderMain();};
+window.doSaveConfig=function(){LABOR_TABLE.sort((a,b)=>a.grade-b.grade);saveConfig();renderMain();};
 
 window.selEmpFromSel=async function(empId){
   if(!empId){selectedEmpId=null;document.getElementById('sheetArea').innerHTML='';return;}
@@ -922,19 +1041,39 @@ function renderSheet(emp,rec,shifts,c){
       </div>`;
     }
 
-    // ── 未排班日：預設最小化，點開才顯示完整列 ──
-    const isExpanded=r.expanded||r.hasTempOt; // 有臨時加班時自動展開
-    if(noShift&&inEmp&&!isExpanded){
-      rows+=`<div class="d-row d-min${isWknd?' weekend':''}${locked?' locked':''}" onclick="${locked?'':`expandDay('${ds}')`}">
-        <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text3)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
-        <div class="d-min-label">未排班<span class="d-min-hint">${locked?'':'點擊展開'}</span></div>
+    // ── 全部預設收起，點開才填寫 ──
+    // 已填過資料（非預設）的日子顯示摘要；展開狀態存 r.expanded
+    const hasData = (type!=='normal') || r.ot167>0 || r.lateMins>0 || r.workedHours!=null
+      || r.hasTempOt || (r.autoOt!=null && r.autoOt!==defOt);
+    const isExpanded = r.expanded;
+    if(!isExpanded){
+      // 收起列摘要
+      let summary='';
+      if(noShift){
+        summary = hasData ? `<span class="d-sum-tag t-blue">臨時加班</span>` : `<span class="d-sum-muted">未排班</span>`;
+      } else if(type!=='normal'){
+        summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${r.workedHours}h）`:''}</span>`;
+      } else {
+        // 正常班
+        const parts=[];
+        if(r.ot167>0)parts.push(`額外+${r.ot167}h`);
+        if(r.lateMins>0)parts.push(`遲到${r.lateMins}分`);
+        summary = parts.length
+          ? `<span class="d-sum-tag t-gray">正常</span><span class="d-sum-extra">${parts.join('、')}</span>`
+          : `<span class="d-sum-muted">正常出勤</span>`;
+      }
+      rows+=`<div class="d-row d-min${isWknd?' weekend':''}${!inEmp?' out-employ':''}${locked?' locked':''}${hasData?' has-data':''}" onclick="${locked||!inEmp?'':`expandDay('${ds}')`}">
+        <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
+        <div class="d-min-shift">${shift?`${shift.startTime||''}-${shift.endTime||''}`:'<span style="color:var(--text3)">未排班</span>'}</div>
+        <div class="d-min-summary">${summary}</div>
+        ${locked||!inEmp?'':`<span class="d-min-hint">${hasData?'✎':'＋'}</span>`}
       </div>`;
       continue;
     }
 
     rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
       <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
-      <div class="d-shift">${shiftTxt}${noShift&&inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
+      <div class="d-shift">${shiftTxt}${inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
       <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select></div>
@@ -1155,7 +1294,7 @@ function dayRec(ds){
 window.applyInsSuggest=function(){
   if(!currentRec)return;
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  const insGrade=(currentRec.gradeOverride)||getInsGrade(emp);
+  const insGrade=(currentRec.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const ins=insFromGrade(insGrade);
   currentRec.laborDeduct=null; currentRec.healthDeduct=null;
   persist();showToast(`✓ 已套用 ${INS_YEAR} 建議值（勞保 $${ins.labor} / 健保 $${ins.health}）`);rerender();
