@@ -713,6 +713,8 @@ onAuthStateChanged(auth,async user=>{
       await loadGroupsFromFirestore();
       renderAll(role);
       loadAnnounce(role);
+    }
+  }catch(e){
     console.error('renderAll error:', e);
     try{ renderAll('employee'); }catch(_){}
   } finally {
