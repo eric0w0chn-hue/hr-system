@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投保級距匯入工具 — 鑫系統</title>
+<style>
+:root{--bg:#ECEEF2;--surface:#fff;--border:#DDE1E9;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;
+--accent:#2D3142;--green:#1A9B4C;--green-bg:#E5F5EB;--green-border:#B4E1C2;--red:#D33A3A;--red-bg:#FCEBEB;--red-border:#F7C8C8;
+--orange:#C47A00;--orange-bg:#FFF4E0;--orange-border:#FDDFA0;--blue:#2D6BF0;--blue-bg:#EAF0FF;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:200}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.back-btn{font-size:12px;padding:8px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit}
+.main{max-width:900px;margin:0 auto;padding:18px 16px 60px}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:10px}
+.btn{font-size:14px;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:600;border:none;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#1E2230}
+.btn-success{background:var(--green);color:#fff}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.sum-box{padding:14px;border-radius:10px;text-align:center}
+.sum-box .n{font-size:24px;font-weight:800}
+.sum-box .l{font-size:12px;margin-top:2px}
+.sum-match{background:var(--green-bg);border:1px solid var(--green-border)}.sum-match .n{color:var(--green)}
+.sum-update{background:var(--blue-bg);border:1px solid #C3D4F7}.sum-update .n{color:var(--blue)}
+.sum-miss{background:var(--red-bg);border:1px solid var(--red-border)}.sum-miss .n{color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;background:#F4F5F8;color:var(--text2);font-size:11px;font-weight:600;position:sticky;top:60px}
+td{padding:8px 10px;border-bottom:1px solid #eee}
+.tbl-wrap{max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+.tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.tag-new{background:var(--green-bg);color:var(--green)}
+.tag-chg{background:var(--blue-bg);color:var(--blue)}
+.tag-same{background:#F4F5F8;color:var(--text3)}
+.tag-miss{background:var(--red-bg);color:var(--red)}
+.loading{text-align:center;padding:30px;color:var(--text3)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:.25s;z-index:999;pointer-events:none}
+.toast.show{opacity:1}
+.warn{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;line-height:1.5}
+.miss-names{font-size:12px;color:var(--red);line-height:1.7;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>📥 投保級距匯入工具</h1>
+  <button class="back-btn" onclick="history.back()">← 返回</button>
+</div>
+<div class="main" id="main"><div class="loading">連線中…</div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+// ── 匯入資料（從 Excel）──
+const IMPORT_DATA = [{"name": "吳世輝", "grade": 40100}, {"name": "郭泰麟", "grade": 40100}, {"name": "陳昭雄", "grade": 40100}, {"name": "吳麗凰", "grade": 42000}, {"name": "陳彩碧", "grade": 42000}, {"name": "阮懷穎", "grade": 42000}, {"name": "郭士豪", "grade": 42000}, {"name": "陳柏宇", "grade": 40100}, {"name": "許文子", "grade": 40100}, {"name": "高鈺鑫", "grade": 40100}, {"name": "郭貞伶", "grade": 40100}, {"name": "林郁雯", "grade": 40100}, {"name": "紀宗緯", "grade": 40100}, {"name": "許德能", "grade": 40100}, {"name": "鄭恩閎", "grade": 40100}, {"name": "呂冠儁", "grade": 40100}, {"name": "林智勇", "grade": 40100}, {"name": "張淑月", "grade": 42000}, {"name": "潘建邦", "grade": 42000}, {"name": "張勝傑", "grade": 42000}, {"name": "黃彥智", "grade": 40100}, {"name": "楊皓宇", "grade": 40100}, {"name": "王連萍", "grade": 40100}, {"name": "楊俊隆", "grade": 40100}, {"name": "曾韋勳", "grade": 40100}, {"name": "文祥軒", "grade": 40100}, {"name": "蘇寬毅", "grade": 40100}, {"name": "陳啟源", "grade": 40100}, {"name": "李佳瑋", "grade": 40100}, {"name": "蔣逸弘", "grade": 40100}, {"name": "吳堅智", "grade": 40100}, {"name": "林柏宇", "grade": 40100}, {"name": "李子奇", "grade": 42000}, {"name": "王竣煌", "grade": 40100}, {"name": "張程勛", "grade": 40100}, {"name": "林辰諺", "grade": 40100}, {"name": "林沛槿", "grade": 40100}, {"name": "蕭瑞騰", "grade": 40100}, {"name": "呂化鵬", "grade": 40100}, {"name": "王政丞", "grade": 40100}, {"name": "邱志吉", "grade": 40100}, {"name": "許凱翔", "grade": 40100}, {"name": "李睿哲", "grade": 40100}, {"name": "吳冠廷", "grade": 40100}, {"name": "曾韋智", "grade": 40100}, {"name": "李思理", "grade": 38200}, {"name": "陳思樺", "grade": 38200}, {"name": "鐘冠穎", "grade": 38200}, {"name": "徐玟瑄", "grade": 38200}, {"name": "許寧恩", "grade": 40100}, {"name": "黃耀弘", "grade": 40100}, {"name": "伍怡萩", "grade": 40100}, {"name": "林成洋", "grade": 38200}, {"name": "郭峰宇", "grade": 38200}, {"name": "巫聿煒", "grade": 38200}, {"name": "李嬌玲", "grade": 38200}, {"name": "易佩萱", "grade": 38200}, {"name": "林楷倫", "grade": 38200}, {"name": "翁瑞宏", "grade": 38200}, {"name": "黃雯瑜", "grade": 38200}, {"name": "曾子芹", "grade": 40100}, {"name": "任易軒", "grade": 40100}, {"name": "陳怡璇", "grade": 40100}, {"name": "胡家斌", "grade": 40100}, {"name": "黃士豪", "grade": 40100}, {"name": "蕭綵瑩", "grade": 40100}, {"name": "詹雅欣", "grade": 38200}, {"name": "林鈺嘉", "grade": 38200}, {"name": "張慧玲", "grade": 38200}, {"name": "許紘賓", "grade": 38200}, {"name": "黃昶瑋", "grade": 38200}, {"name": "羅麗琴", "grade": 40100}, {"name": "林美貞", "grade": 40100}, {"name": "廖畢凱", "grade": 42000}, {"name": "黃祺峯", "grade": 40100}, {"name": "洪韡芳", "grade": 40100}, {"name": "鍾競儀", "grade": 40100}, {"name": "薛蔭霆", "grade": 38200}, {"name": "許文瑜", "grade": 40100}, {"name": "郭書菱", "grade": 40100}, {"name": "張美鳳", "grade": 38200}, {"name": "賴欣美", "grade": 38200}, {"name": "朱婉琳", "grade": 38200}, {"name": "林豐源", "grade": 38200}, {"name": "李奕詮", "grade": 40100}, {"name": "李姿嫻", "grade": 40100}, {"name": "葉玟君", "grade": 40100}, {"name": "黃敏", "grade": 38200}, {"name": "鄒宗達", "grade": 38200}, {"name": "李亞逸", "grade": 38200}, {"name": "賴正忠", "grade": 38200}, {"name": "陳彥瑋", "grade": 38200}, {"name": "許嘉文", "grade": 38200}, {"name": "汪建偉", "grade": 38200}, {"name": "侯靖軒", "grade": 40100}, {"name": "廖書嫺", "grade": 40100}, {"name": "許皓青", "grade": 40100}, {"name": "胡瀞文", "grade": 38200}, {"name": "蔡佩玲", "grade": 38200}, {"name": "侯文曇", "grade": 38200}, {"name": "黃馨葦", "grade": 38200}, {"name": "阮玉莊", "grade": 38200}, {"name": "張景棠", "grade": 40100}, {"name": "陳譽升", "grade": 40100}, {"name": "陳沛芸", "grade": 42000}, {"name": "黃士齊", "grade": 40100}, {"name": "陳雅珍", "grade": 38200}, {"name": "王怡鈞", "grade": 40100}, {"name": "徐子晴", "grade": 38200}, {"name": "顏立人", "grade": 38200}, {"name": "於承翰", "grade": 38200}, {"name": "楊喻涵", "grade": 38200}, {"name": "鍾昊諺", "grade": 40100}, {"name": "張以婕", "grade": 40100}, {"name": "孫嘉璟", "grade": 38200}, {"name": "蔡偉群", "grade": 38200}, {"name": "楊家宜", "grade": 38200}, {"name": "陳寬瑋", "grade": 38200}, {"name": "吳嘉城", "grade": 38200}, {"name": "劉思成", "grade": 38200}, {"name": "方緯甄", "grade": 40100}, {"name": "林郁祥", "grade": 40100}, {"name": "郭俊良", "grade": 38200}, {"name": "吳家瑋", "grade": 38200}, {"name": "魏旭良", "grade": 38200}, {"name": "蔡佳樺", "grade": 38200}, {"name": "陳慧雯", "grade": 38200}, {"name": "許伯暐", "grade": 38200}, {"name": "黃思媛", "grade": 40100}, {"name": "林雅雯", "grade": 40100}, {"name": "李佳臻", "grade": 40100}, {"name": "黃國長", "grade": 40100}, {"name": "郝于嬅", "grade": 40100}, {"name": "林彗筑", "grade": 40100}, {"name": "喬福康", "grade": 40100}];
+
+// 店名正規化
+function normName(s){return String(s||"").replace(/\s/g,"").trim();}
+
+let employees=[], preview=[], currentUserName="";
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){document.getElementById("main").innerHTML=`<div class="card"><div class="loading">⚠️ 尚未登入。請先從系統登入後再開啟此頁。</div></div>`;return;}
+  currentUserName=user.email;
+  await loadEmployees();
+  buildPreview();
+  render();
+});
+
+async function loadEmployees(){
+  try{
+    const snap=await getDoc(doc(db,"hr","employees"));
+    employees=snap.exists()?(snap.data().list||[]):[];
+  }catch(e){console.error(e);employees=[];}
+}
+
+function buildPreview(){
+  preview=IMPORT_DATA.map(row=>{
+    const emp=employees.find(e=>normName(e.name)===normName(row.name));
+    if(!emp)return {name:row.name,grade:row.grade,status:"miss",emp:null,oldGrade:null};
+    const oldGrade=emp.insurance?.grade||"";
+    let status;
+    if(!oldGrade)status="new";
+    else if(String(oldGrade)===String(row.grade))status="same";
+    else status="chg";
+    return {name:row.name,grade:row.grade,status,emp,oldGrade};
+  });
+}
+
+function render(){
+  const matched=preview.filter(p=>p.status!=="miss");
+  const willUpdate=preview.filter(p=>p.status==="new"||p.status==="chg");
+  const miss=preview.filter(p=>p.status==="miss");
+  const same=preview.filter(p=>p.status==="same");
+
+  document.getElementById("main").innerHTML=`
+    <div class="card">
+      <h2>📋 比對結果預覽</h2>
+      <div class="warn">系統已讀取 <b>${employees.length}</b> 位在職員工，匯入檔共 <b>${IMPORT_DATA.length}</b> 筆。以下為比對結果，確認無誤後點下方按鈕寫入。已相同的級距不會重複寫入。</div>
+      <div class="summary">
+        <div class="sum-box sum-match"><div class="n">${matched.length}</div><div class="l">姓名比對成功</div></div>
+        <div class="sum-box sum-update"><div class="n">${willUpdate.length}</div><div class="l">將更新級距</div></div>
+        <div class="sum-box sum-miss"><div class="n">${miss.length}</div><div class="l">找不到員工</div></div>
+      </div>
+      ${miss.length?`<div class="warn" style="background:var(--red-bg);border-color:var(--red-border);color:var(--red)">
+        ⚠️ 以下 ${miss.length} 人在系統中找不到對應姓名（可能離職、姓名不一致或尚未建檔），不會寫入：
+        <div class="miss-names">${miss.map(m=>m.name).join("、")}</div></div>`:""}
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-success" id="writeBtn" onclick="doImport()" ${willUpdate.length?"":"disabled"}>✓ 確認寫入 ${willUpdate.length} 筆級距</button>
+        <button class="btn btn-outline" onclick="location.reload()">重新整理</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>姓名</th><th>原級距</th><th>新級距</th><th>狀態</th></tr></thead>
+          <tbody>
+            ${preview.map(p=>`<tr>
+              <td>${p.name}</td>
+              <td>${p.oldGrade?"$"+Number(p.oldGrade).toLocaleString():"—"}</td>
+              <td>${p.status==="miss"?"—":"$"+Number(p.grade).toLocaleString()}</td>
+              <td>${
+                p.status==="new"?`<span class="tag tag-new">新增</span>`:
+                p.status==="chg"?`<span class="tag tag-chg">變更</span>`:
+                p.status==="same"?`<span class="tag tag-same">已相同</span>`:
+                `<span class="tag tag-miss">找不到</span>`
+              }</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+window.doImport=async function(){
+  const willUpdate=preview.filter(p=>p.status==="new"||p.status==="chg");
+  if(!willUpdate.length)return;
+  if(!confirm(`確定要寫入 ${willUpdate.length} 筆投保級距嗎？此操作會更新 HR 員工資料。`))return;
+  const btn=document.getElementById("writeBtn");btn.disabled=true;btn.textContent="寫入中…";
+  const today=new Date().toLocaleDateString("zh-TW",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Taipei"});
+  let cnt=0;
+  for(const p of willUpdate){
+    const emp=p.emp;
+    if(!emp.insurance)emp.insurance={grade:"",dependents:[],gradeHistory:[]};
+    if(!emp.insurance.gradeHistory)emp.insurance.gradeHistory=[];
+    emp.insurance.gradeHistory.unshift({grade:String(p.grade),date:today});
+    emp.insurance.grade=String(p.grade);
+    cnt++;
+  }
+  try{
+    await setDoc(doc(db,"hr","employees"),{list:employees},{merge:true});
+    showToast(`✓ 成功寫入 ${cnt} 筆投保級距`);
+    // 重新比對
+    buildPreview();render();
+  }catch(e){console.error(e);showToast("⚠️ 寫入失敗："+e.message);btn.disabled=false;btn.textContent="重試";}
+};
+
+function showToast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2500);}
+</script>
+</body>
+</html>
