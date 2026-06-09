@@ -209,6 +209,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 @media(max-width:500px){.np-val{font-size:20px}}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
+/* 薪資單 overlay */
+.slip-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:600px){.slip-overlay{align-items:center}}
+.slip-modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:600px){.slip-modal{border-radius:14px;max-height:85vh}}
+.slip-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0}
+.slip-body{padding:20px 18px;overflow-y:auto;color:#1a1a1a}
+.slip-body table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.slip-body td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px}
+.slip-body td:last-child{text-align:right;font-weight:500}
+.slip-body .sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}
+.slip-body .tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
+.slip-body .red{color:#D33A3A}.slip-body .green{color:#1A9B4C}
+@media print{
+  body.printing-slip>*{display:none!important}
+  body.printing-slip .slip-overlay{display:block!important;position:static;background:#fff}
+  body.printing-slip .slip-modal{max-height:none;box-shadow:none}
+  body.printing-slip .slip-bar{display:none!important}
+}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .badge-g{background:var(--green-bg);color:var(--green)}
@@ -506,11 +525,12 @@ function calcSalary(emp,rec,shifts){
   const sickDeduct=Math.round(dailyBase/8*sickHours*0.5);
 
   // 勞健保
-  const ins=insFromGrade(getInsGrade(emp));
+  const insGrade=(rec&&rec.gradeOverride)||getInsGrade(emp);
+  const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自負
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
   const pensionRate=rec?.pensionRate??0;
-  const pensionAmt=pensionRate>0?Math.round(getInsGrade(emp)*pensionRate):0;
+  const pensionAmt=pensionRate>0?Math.round(insGrade*pensionRate):0;
   const dependents=rec?.dependents??0;
   const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷整月健保
   const insMode=rec?.insMode||'normal';
@@ -593,7 +613,7 @@ function calcSalary(emp,rec,shifts){
     pensionRate,pensionAmt,dependents,insMode,
     annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
     gross,totalDeduct,totalAdd,netPay,verifySum,
-    insGrade:getInsGrade(emp),insMatched:ins.matched,elasticManual:rec?.elasticManual
+    insGrade,insMatched:ins.matched,gradeOverride:rec?.gradeOverride,elasticManual:rec?.elasticManual
   };
 }
 
@@ -856,10 +876,16 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sec-title">🛡️ 勞健保 <span style="font-weight:400;color:var(--text3);font-size:10px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋</span> ${insModeTag}</div>
 
         <div class="ins-headbar">
-          <div class="ins-head-cell"><span class="ins-head-lbl">投保級距</span><span class="ins-head-val">$${c.insGrade?c.insGrade.toLocaleString():'—'}</span>${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}</div>
+          <div class="ins-head-cell">
+            <span class="ins-head-lbl">投保級距</span>
+            ${c.insGrade?`<span class="ins-head-val">$${c.insGrade.toLocaleString()}</span>${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}`
+              :`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ 未抓到級距</span>
+              <input class="ded-input" style="width:90px" type="number" placeholder="手動輸入" value="${c.gradeOverride||''}" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>`}
+          </div>
           <div class="ins-head-cell"><span class="ins-head-lbl">繳費狀態</span>
             <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis}>
               ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}</select></div>
+          ${!locked?`<button class="btn-sm o" onclick="applyInsSuggest()" title="依${INS_YEAR}年度級距重設勞健保">↻ 套用${INS_YEAR}建議值</button>`:''}
         </div>
 
         <div class="employ-box">
@@ -945,6 +971,18 @@ function renderSheet(emp,rec,shifts,c){
 
 window.setHalf=function(h){halfView=h;refreshSheet();};
 window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;refreshSheet();};
+window.applyInsSuggest=async function(){
+  if(!selectedEmpId)return;
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  const insGrade=(rec.gradeOverride)||getInsGrade(emp);
+  const ins=insFromGrade(insGrade);
+  // 設為 null 表示「未手動覆蓋」，取值時回退到建議值
+  rec.laborDeduct=null; rec.healthDeduct=null;
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);
+  showToast(`✓ 已套用 ${INS_YEAR} 建議值（勞保 $${ins.labor} / 健保 $${ins.health}）`);
+  await refreshSheet();
+};
 window.expandDay=async function(ds){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
@@ -1054,14 +1092,8 @@ window.exportSlip=async function(){
   const c=calcSalary(emp,rec||{dailyData:{}},shifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>a.amount>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>薪資單 ${emp.name} ${viewYear}年${viewMonth}月</title>
-<style>body{font-family:Arial,sans-serif;max-width:580px;margin:30px auto;font-size:13px;color:#1a1a1a}h2{font-size:17px}.sub{font-size:11px;color:#666;margin-bottom:16px}
-table{width:100%;border-collapse:collapse;margin-bottom:12px}td{padding:7px 10px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
-.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
-.red{color:#D33A3A}.green{color:#1A9B4C}@media print{body{margin:0}}</style></head><body>
-<h2>薪　資　單</h2><div class="sub">${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}</div>
-<table>
+
+  const slipHtml=`<table>
 <tr><td class="sh" colspan="2">加項</td></tr>
 <tr><td>底薪</td><td>$${c.base.toLocaleString()}</td></tr>
 <tr><td>彈性補貼</td><td>$${Math.round(c.elastic).toLocaleString()}</td></tr>
@@ -1078,11 +1110,49 @@ ${customRows}
 <tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
 <tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※離職預扣：本月一份+次月一份（勞保健保各×2），隔月無薪資可扣故提前扣除</td></tr>`:''}
+${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※離職預扣：本月一份+次月一份（勞保健保各×2）</td></tr>`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
-</table><div style="font-size:10px;color:#999">本薪資單由梁平鑫系統自動產生。</div>
-<script>window.print();<\/script></body></html>`);
-  w.document.close();
+</table>`;
+
+  const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
+
+  // 同頁 overlay（手機相容，不依賴 window.open）
+  const ov=document.createElement('div');
+  ov.className='slip-overlay';
+  ov.innerHTML=`<div class="slip-modal">
+    <div class="slip-bar">
+      <button class="btn-sm o" onclick="this.closest('.slip-overlay').remove()">✕ 關閉</button>
+      <span style="font-size:13px;font-weight:700">薪資單</span>
+      <button class="btn-sm p" onclick="printSlip()">🖨️ 列印 / 存PDF</button>
+    </div>
+    <div class="slip-body" id="slipBody">
+      <h2 style="font-size:17px;margin-bottom:4px">薪　資　單</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:14px">${sub}</div>
+      ${slipHtml}
+      <div style="font-size:10px;color:#999;margin-top:10px">本薪資單由梁平鑫系統自動產生。</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+};
+
+window.printSlip=function(){
+  const body=document.getElementById('slipBody');if(!body)return;
+  const win=window.open('','_blank');
+  if(win){
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>薪資單</title>
+<style>body{font-family:Arial,sans-serif;max-width:580px;margin:24px auto;font-size:13px;color:#1a1a1a}h2{font-size:17px}
+table{width:100%;border-collapse:collapse;margin-bottom:12px}td{padding:7px 10px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
+.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
+.red{color:#D33A3A}.green{color:#1A9B4C}@media print{body{margin:0}}</style></head><body>${body.innerHTML}
+<script>setTimeout(()=>window.print(),300);<\/script></body></html>`);
+    win.document.close();
+  } else {
+    // 彈窗被擋（手機常見）→ 直接列印當前頁，用 CSS 只顯示薪資單
+    document.body.classList.add('printing-slip');
+    window.print();
+    setTimeout(()=>document.body.classList.remove('printing-slip'),500);
+  }
 };
 
 function showToast(msg,d=2000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);}
