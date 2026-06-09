@@ -150,6 +150,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .prepay-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .prepay-new{background:var(--green-bg);color:var(--green)}
 .prepay-quit{background:var(--orange-bg);color:var(--orange)}
+/* 勞健保新版 */
+.ins-headbar{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ins-head-cell{flex:1;min-width:140px;background:var(--accent-light);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ins-head-lbl{font-size:11px;color:var(--text3)}
+.ins-head-val{font-size:15px;font-weight:700;color:var(--accent)}
+.ins-head-note{font-size:10px;color:var(--text3)}
+.ins-table{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ins-trow{display:grid;grid-template-columns:1.1fr 1.6fr 1fr;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border)}
+.ins-trow:last-child{border-bottom:none}
+.ins-thead{background:var(--surface2);font-size:10px;color:var(--text3);font-weight:600;padding:6px 12px}
+.ins-tname{font-size:13px;font-weight:600;color:var(--text)}
+.ins-tnote{font-size:10px;color:var(--text3);font-weight:400;margin-top:1px}
+.ins-tval{font-size:14px;font-weight:700;color:var(--red);text-align:right}
+.ins-tval.strike{text-decoration:line-through;color:var(--text3)}
+.ins-auto{font-size:10px;color:var(--green);white-space:nowrap}
+.ins-banner{font-size:11px;margin-top:8px;padding:8px 12px;border-radius:8px;line-height:1.5}
+.ins-banner-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.ins-banner-o{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+@media(max-width:600px){.ins-trow{grid-template-columns:1fr;gap:5px}.ins-tval{text-align:left}.ins-thead{display:none}}
 
 .ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
 .ded-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
@@ -157,6 +176,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .ded-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:6px}
 .ded-lbl{font-size:12px;color:var(--text2);flex:1}
 .ded-sub{font-size:10px;color:var(--text3);margin-top:1px}
+.ded-dates{font-size:10px;color:var(--red);margin-top:3px;line-height:1.4}
 .ded-val{font-size:13px;font-weight:600;color:var(--red);white-space:nowrap}
 
 .add-sec{padding:12px 16px;border-top:1px solid var(--border)}
@@ -230,26 +250,41 @@ const LEAVE_TYPES={
   dayoff:     {label:'公休',       pay:'none', ot:false },
 };
 
+// 115年(2026) 勞健保級距表：labor=員工勞保自負, health=員工健保自負(本人), pension6=公司勞退6%(參考)
+const INS_YEAR=2026;
 const LABOR_TABLE=[
-  {grade:26400,labor:388,health:372},{grade:27600,labor:405,health:390},
-  {grade:28800,labor:423,health:407},{grade:30300,labor:445,health:427},
-  {grade:31800,labor:467,health:448},{grade:33300,labor:489,health:470},
-  {grade:34800,labor:511,health:491},{grade:36300,labor:533,health:512},
-  {grade:38200,labor:561,health:538},{grade:40100,labor:589,health:565},
-  {grade:42000,labor:617,health:591},{grade:43900,labor:644,health:617},
-  {grade:45800,labor:673,health:645},{grade:48200,labor:708,health:678},
-  {grade:50600,labor:743,health:712},{grade:53000,labor:778,health:745},
-  {grade:55400,labor:814,health:780},{grade:57800,labor:849,health:813},
-  {grade:60800,labor:892,health:855},{grade:63800,labor:937,health:897},
-  {grade:66800,labor:981,health:940},{grade:69800,labor:1025,health:982},
-  {grade:72800,labor:1069,health:1024},{grade:76500,labor:1123,health:1077},
+  {grade:1500,labor:277,health:458},{grade:3000,labor:277,health:458},{grade:4500,labor:277,health:458},
+  {grade:6000,labor:277,health:458},{grade:7500,labor:277,health:458},{grade:8700,labor:277,health:458},
+  {grade:9900,labor:277,health:458},{grade:11100,labor:277,health:458},{grade:12540,labor:313,health:458},
+  {grade:13500,labor:338,health:458},{grade:15840,labor:396,health:458},{grade:16500,labor:413,health:458},
+  {grade:17280,labor:432,health:458},{grade:17880,labor:447,health:458},{grade:19047,labor:476,health:458},
+  {grade:20008,labor:500,health:458},{grade:21009,labor:525,health:458},{grade:22000,labor:550,health:458},
+  {grade:23100,labor:577,health:458},{grade:24000,labor:600,health:458},{grade:25250,labor:632,health:458},
+  {grade:26400,labor:660,health:458},{grade:27600,labor:690,health:458},{grade:28590,labor:715,health:458},
+  {grade:29500,labor:738,health:458},{grade:30300,labor:758,health:470},{grade:31800,labor:795,health:493},
+  {grade:33300,labor:833,health:516},{grade:34800,labor:870,health:540},{grade:36300,labor:908,health:563},
+  {grade:38200,labor:955,health:592},{grade:40100,labor:1002,health:622},{grade:42000,labor:1050,health:651},
+  {grade:43900,labor:1098,health:681},{grade:45800,labor:1145,health:710},{grade:48200,labor:1145,health:748},
+  {grade:50600,labor:1145,health:785},{grade:53000,labor:1145,health:822},{grade:55400,labor:1145,health:859},
+  {grade:57800,labor:1145,health:896},{grade:60800,labor:1145,health:943},{grade:63800,labor:1145,health:990},
+  {grade:66800,labor:1145,health:1036},{grade:69800,labor:1145,health:1083},{grade:72800,labor:1145,health:1129},
+  {grade:76500,labor:1145,health:1187},{grade:80200,labor:1145,health:1244},{grade:83900,labor:1145,health:1301},
+  {grade:87600,labor:1145,health:1359},{grade:92100,labor:1145,health:1428},{grade:96600,labor:1145,health:1498},
+  {grade:101100,labor:1145,health:1568},{grade:105600,labor:1145,health:1638},{grade:110100,labor:1145,health:1708},
+  {grade:115500,labor:1145,health:1791},{grade:120900,labor:1145,health:1875},{grade:126300,labor:1145,health:1959},
+  {grade:131700,labor:1145,health:2043},{grade:137100,labor:1145,health:2126},{grade:142500,labor:1145,health:2210},
+  {grade:147900,labor:1145,health:2294},{grade:150000,labor:1145,health:2327},
 ];
-const HEALTH_DEP_RATIO=1; // 每位眷屬 = 1 份被保險人健保費（可調）
+const HEALTH_DEP_RATIO=1; // 每位眷屬 = 1 份本人健保費
 function insFromGrade(grade){
-  if(!grade)return{labor:0,health:0};
+  if(!grade)return{labor:0,health:0,matched:0};
   const g=Number(grade);let best=LABOR_TABLE[0];
-  for(const r of LABOR_TABLE)if(r.grade<=g)best=r;
-  return{labor:best.labor,health:best.health};
+  // 取「大於等於投保金額」的最接近級距（投保金額應落在某一級）
+  for(const r of LABOR_TABLE){if(r.grade<=g)best=r;}
+  // 若有完全相等的級距優先
+  const exact=LABOR_TABLE.find(r=>r.grade===g);
+  if(exact)best=exact;
+  return{labor:best.labor,health:best.health,matched:best.grade};
 }
 
 // 取員工欄位（多重 fallback）
@@ -365,6 +400,7 @@ function calcSalary(emp,rec,shifts){
   let absentDays=0;       // 曠職天數
   let sickHours=0;        // 病假/生理假（小時，半薪）
   let workDays=0;
+  let personalDates=[], sickDates=[], absentDates=[]; // 扣項日期提示
 
   for(let d=1;d<=days;d++){
     if(!emp2.inEmploy(d))continue;
@@ -374,50 +410,46 @@ function calcSalary(emp,rec,shifts){
     const type=r.type||'normal';
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
 
-    // 未排班日臨時加班
+    // 未排班日臨時加班（支援多段費率）
     if(!shift){
-      if(r.tempOt&&Number(r.tempOt)>0){
-        const rate=Number(r.tempOtRate||1.34);
-        tempOtSegs[rate]=(tempOtSegs[rate]||0)+Number(r.tempOt);
+      const segs=Array.isArray(r.tempSegs)?r.tempSegs:(r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[]);
+      for(const sg of segs){
+        if(sg.h>0){const rate=Number(sg.rate||1.34);tempOtSegs[rate]=(tempOtSegs[rate]||0)+Number(sg.h);}
       }
       continue;
     }
     if(type==='dayoff')continue;
 
     if(type==='normal'){
-      // 是否部分出勤（worked<8 表示中途請假，但 type 仍 normal 表示全天上班）
       const worked=r.workedHours!=null?Number(r.workedHours):8+defOt; // 預設足時
       workDays++;
       if(worked>=8){
-        // 固定加班 = min(worked-8, defOt) 取店設定；超出部分另計？預設用店設定
         fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
         extraOtHours+=Number(r.ot167||0);
       } else {
-        // 不足8小時（純 normal 但提早走，無假別）→ 視為事假補足
         personalMins+=(8-worked)*60;
+        personalDates.push(`${d}日(早退${8-worked}h)`);
       }
       // 遲到
       if(r.lateMins&&Number(r.lateMins)>0){
-        const lm=Number(r.lateMins);personalMins+=Math.floor(lm/10)*10;
+        const lm=Number(r.lateMins);const dm=Math.floor(lm/10)*10;
+        if(dm>0){personalMins+=dm;personalDates.push(`${d}日(遲到${lm}分)`);}
       }
     } else {
-      // 請假日：worked = 當天實際上班時數
       const worked=Number(r.workedHours||0);
       if(worked>=8){
-        // 上滿8小時還有加班 → 8全薪 + 加班，假別失效
         workDays++;
         fixedOtHours+=Math.max(0,worked-8);
       } else {
-        // 部分出勤 + 請假
         const leaveH=8-worked;
         if(worked>0)workDays+=worked/8;
+        const wh=worked>0?`(上班${worked}h)`:'';
         if(lt.pay==='none'){
-          if(type==='absent')absentDays+=leaveH/8;
-          else personalMins+=leaveH*60;
+          if(type==='absent'){absentDays+=leaveH/8;absentDates.push(`${d}日${wh}`);}
+          else {personalMins+=leaveH*60;personalDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);}
         } else if(lt.pay==='half'){
-          sickHours+=leaveH;
+          sickHours+=leaveH;sickDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);
         }
-        // full（婚喪特休紅字）：不扣
       }
     }
   }
@@ -488,12 +520,13 @@ function calcSalary(emp,rec,shifts){
     fixedOtHours,extraOtHours,tempOtSegs,tempOtList,W,
     fixedOtPay,extraOtPay,tempOtPay,otPayTotal,
     workDays,personalMins,absentDays,sickHours,
+    personalDates,sickDates,absentDates,
     personalDeduct,absentDeduct,sickDeduct,
     laborBase,healthBase,healthTotal,finalLabor,finalHealth,
     pensionRate,pensionAmt,dependents,insMode,
     annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
     gross,totalDeduct,totalAdd,netPay,verifySum,
-    insGrade:getInsGrade(emp),elasticManual:rec?.elasticManual
+    insGrade:getInsGrade(emp),insMatched:ins.matched,elasticManual:rec?.elasticManual
   };
 }
 
@@ -605,7 +638,6 @@ function renderSheet(emp,rec,shifts,c){
     const noShift=!shift;
 
     let shiftTxt = shift?`${shift.startTime||''}-${shift.endTime||''}`
-      : isWknd?`<span style="color:#E05252">休</span>`
       : `<span style="color:var(--text3)">未排班</span>`;
 
     const hasFixedOt=type==='normal'&&shift&&inEmp;
@@ -625,19 +657,26 @@ function renderSheet(emp,rec,shifts,c){
         <span>小時（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
     }
-    // 未排班日臨時加班子欄
+    // 未排班日臨時加班子欄（多段費率）
     let tempRow='';
     if(noShift&&inEmp&&r.hasTempOt){
-      const t=r.tempOt||'',tr=r.tempOtRate||1.34;
-      tempRow=`<div class="sub-row"><div class="sub-temp">
-        <span>臨時加班</span>
-        <input type="number" min="0" max="24" step="0.5" value="${t}" placeholder="時" data-date="${ds}" onchange="patchDay('${ds}','tempOt',+this.value)" ${dis}>
+      const segs=Array.isArray(r.tempSegs)?r.tempSegs:(r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[{h:'',rate:1.34}]);
+      const segHtml=segs.map((sg,si)=>`<div class="sub-temp">
+        <span>第${si+1}段</span>
+        <input type="number" min="0" max="24" step="0.5" value="${sg.h||''}" placeholder="時" data-date="${ds}" onchange="updTempSeg('${ds}',${si},'h',+this.value)" ${dis}>
         <span>h ×</span>
-        <select data-date="${ds}" onchange="patchDay('${ds}','tempOtRate',+this.value)" ${dis}>
-          <option value="1.34"${tr==1.34?' selected':''}>1.34</option>
-          <option value="1.67"${tr==1.67?' selected':''}>1.67</option>
-          <option value="2"${tr==2?' selected':''}>2.0</option>
-        </select></div></div>`;
+        <select data-date="${ds}" onchange="updTempSeg('${ds}',${si},'rate',+this.value)" ${dis}>
+          <option value="1"${sg.rate==1?' selected':''}>1.0</option>
+          <option value="1.34"${sg.rate==1.34?' selected':''}>1.34</option>
+          <option value="1.67"${sg.rate==1.67?' selected':''}>1.67</option>
+          <option value="2"${sg.rate==2?' selected':''}>2.0</option>
+        </select>
+        ${segs.length>1&&!locked?`<span class="add-del" style="padding:1px 5px" onclick="delTempSeg('${ds}',${si})">×</span>`:''}
+      </div>`).join('');
+      tempRow=`<div class="sub-row" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${segHtml}</div>
+        ${!locked?`<button class="btn-sm o" style="font-size:10px;padding:2px 8px;min-height:24px;color:var(--blue);border-color:var(--blue-border)" onclick="addTempSeg('${ds}')">+ 加一段費率</button>`:''}
+      </div>`;
     }
 
     rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
@@ -736,33 +775,50 @@ function renderSheet(emp,rec,shifts,c){
       </div>
 
       <div class="ins-section">
-        <div class="sec-title">🛡️ 勞健保 ${insModeTag}</div>
-        <div class="ins-grid">
-          <div class="ins-item"><div class="ins-item-lbl">繳費狀態</div>
-            <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis} style="width:100%">
+        <div class="sec-title">🛡️ 勞健保 <span style="font-weight:400;color:var(--text3);font-size:10px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋</span> ${insModeTag}</div>
+
+        <div class="ins-headbar">
+          <div class="ins-head-cell"><span class="ins-head-lbl">投保級距</span><span class="ins-head-val">$${c.insGrade?c.insGrade.toLocaleString():'—'}</span>${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}</div>
+          <div class="ins-head-cell"><span class="ins-head-lbl">繳費狀態</span>
+            <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis}>
               ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}</select></div>
-          <div class="ins-item"><div class="ins-item-lbl">勞保自負額</div>
-            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.finalLabor.toLocaleString()}</div>
-            <input class="ded-input" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
-            ${c.insMode==='new'?`<div style="font-size:10px;color:var(--green);margin-top:3px">首月免扣已歸零</div>`:''}</div>
-          <div class="ins-item"><div class="ins-item-lbl">健保自負額
-            <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select></div>
-            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.finalHealth.toLocaleString()}</div>
-            <input class="ded-input" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}></div>
-            ${c.dependents>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">含眷屬${c.dependents}人 +$${(c.finalHealth-c.healthBase).toLocaleString()}</div>`:''}</div>
-          <div class="ins-item"><div class="ins-item-lbl">自提退休金
-            <select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${dis}><option value="0"${c.pensionRate===0?' selected':''}>不提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
-            <div class="ins-item-row"><div class="ins-item-val c-red">−$${c.pensionAmt.toLocaleString()}</div>${c.insGrade?`<div style="font-size:10px;color:var(--text3)">級距$${c.insGrade.toLocaleString()}</div>`:''}</div></div>
         </div>
-        ${c.insMode==='quit_prepay'?`<div style="font-size:11px;color:var(--orange);margin-top:8px;padding:7px 10px;background:var(--orange-bg);border-radius:7px;border:1px solid var(--orange-border)">⚠️ 離職預扣：本月已先扣次月勞保 $${c.laborBase.toLocaleString()} + 健保 $${c.healthTotal.toLocaleString()}（隔月無薪資可扣，故提前扣除）</div>`:''}
+
+        <div class="ins-table">
+          <div class="ins-trow ins-thead"><div>項目</div><div style="text-align:center">設定</div><div style="text-align:right">本月實扣</div></div>
+
+          <div class="ins-trow">
+            <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負</div></div>
+            <div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">建議 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
+            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}</div>
+          </div>
+
+          <div class="ins-trow">
+            <div class="ins-tname">健保<div class="ins-tnote">本人 + 眷屬加保</div></div>
+            <div style="display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
+              <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
+              <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
+            </div>
+            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.dependents>0?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:''}</div>
+          </div>
+
+          <div class="ins-trow">
+            <div class="ins-tname">自提退休金<div class="ins-tnote">投保級距 × 自提%</div></div>
+            <div style="text-align:center"><select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${dis}><option value="0"${c.pensionRate===0?' selected':''}>不自提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
+            <div class="ins-tval">−$${c.pensionAmt.toLocaleString()}</div>
+          </div>
+        </div>
+
+        ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
+        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣：隔月無薪資可扣，故本月先扣次月勞保 $${c.laborBase.toLocaleString()} + 健保 $${c.healthTotal.toLocaleString()}。薪資單會註明。</div>`:''}
       </div>
 
       <div class="ded-sec">
         <div class="sec-title">➖ 扣項明細</div>
         <div class="ded-grid">
-          <div class="ded-item"><div class="ded-lbl">事假<div class="ded-sub">${fmtMin(c.personalMins)}（含遲到）</div></div><div class="ded-val">−$${c.personalDeduct.toLocaleString()}</div></div>
-          <div class="ded-item"><div class="ded-lbl">病假<div class="ded-sub">${fmtMin(c.sickHours*60)} × 半薪</div></div><div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div></div>
-          <div class="ded-item"><div class="ded-lbl">曠職<div class="ded-sub">${Math.round(c.absentDays*10)/10}天</div></div><div class="ded-val">−$${c.absentDeduct.toLocaleString()}</div></div>
+          <div class="ded-item"><div class="ded-lbl">事假<div class="ded-sub">${fmtMin(c.personalMins)}（含遲到）</div>${c.personalDates.length?`<div class="ded-dates">${c.personalDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.personalDeduct.toLocaleString()}</div></div>
+          <div class="ded-item"><div class="ded-lbl">病假<div class="ded-sub">${fmtMin(c.sickHours*60)} × 半薪</div>${c.sickDates.length?`<div class="ded-dates">${c.sickDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div></div>
+          <div class="ded-item"><div class="ded-lbl">曠職<div class="ded-sub">${Math.round(c.absentDays*10)/10}天</div>${c.absentDates.length?`<div class="ded-dates">${c.absentDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.absentDeduct.toLocaleString()}</div></div>
         </div>
       </div>
 
@@ -808,19 +864,41 @@ window.patchDay=async function(ds,field,value){
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
   if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
   rec.dailyData[ds][field]=value;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshNum();
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
 };
 window.patchRec=async function(field,value){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  rec[field]=value;await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  if(field==='elasticManual'||field==='dependents'||field==='insMode')await refreshSheet();else await refreshNum();
+  rec[field]=value;await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
 };
 window.toggleTempOt=async function(ds){
   if(!selectedEmpId)return;
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
   if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
-  rec.dailyData[ds].hasTempOt=!rec.dailyData[ds].hasTempOt;
+  const on=!rec.dailyData[ds].hasTempOt;
+  rec.dailyData[ds].hasTempOt=on;
+  if(on&&!Array.isArray(rec.dailyData[ds].tempSegs))rec.dailyData[ds].tempSegs=[{h:'',rate:1.34}];
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+function ensureSegs(rec,ds){
+  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
+  const r=rec.dailyData[ds];
+  if(!Array.isArray(r.tempSegs)){r.tempSegs=r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[{h:'',rate:1.34}];}
+  return r.tempSegs;
+}
+window.addTempSeg=async function(ds){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  const segs=ensureSegs(rec,ds);segs.push({h:'',rate:1.34});
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+window.updTempSeg=async function(ds,si,field,val){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  const segs=ensureSegs(rec,ds);if(!segs[si])return;segs[si][field]=val;
+  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+};
+window.delTempSeg=async function(ds,si){
+  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+  const segs=ensureSegs(rec,ds);segs.splice(si,1);if(!segs.length)segs.push({h:'',rate:1.34});
   await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
 };
 window.addCustomAdd=async function(){
@@ -831,8 +909,7 @@ window.addCustomAdd=async function(){
 window.updCustomAdd=async function(i,field,val){
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
   if(!rec.customAdds||!rec.customAdds[i])return;
-  rec.customAdds[i][field]=val;await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  if(field==='amount')await refreshSheet();else await refreshNum();
+  rec.customAdds[i][field]=val;await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
 };
 window.delCustomAdd=async function(i){
   const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
@@ -848,8 +925,10 @@ async function refreshNum(){
 }
 async function refreshSheet(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
+  const sy=window.scrollY; // 保留捲動位置，避免重繪跳動
   const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
   renderSheet(emp,rec||{dailyData:{}},shifts,calcSalary(emp,rec||{dailyData:{}},shifts));
+  window.scrollTo(0,sy);
 }
 
 window.saveSheet=async function(){
