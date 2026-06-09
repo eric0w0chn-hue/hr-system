@@ -185,6 +185,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 @media(max-width:600px){.ins-trow{grid-template-columns:1fr;gap:5px}.ins-tval{text-align:left}.ins-thead{display:none}}
 
 .ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
+.paid-leave-box{margin-top:10px;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px}
+.paid-leave-title{font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px}
+.paid-leave-list{display:flex;flex-direction:column;gap:4px}
+.paid-leave-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.paid-leave-label{font-weight:600;color:var(--green);min-width:60px}
+.paid-leave-dates{color:var(--text2)}
 .ded-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
 @media(max-width:700px){.ded-grid{grid-template-columns:1fr}}
 .ded-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:6px}
@@ -215,6 +221,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .slip-modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
 @media(min-width:600px){.slip-modal{border-radius:14px;max-height:85vh}}
 .slip-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0}
+.slip-close{background:#fff;color:var(--text);border:1px solid var(--border)}.slip-close:hover{background:var(--surface2)}
 .slip-body{padding:20px 18px;overflow-y:auto;color:#1a1a1a}
 .slip-body table{width:100%;border-collapse:collapse;margin-bottom:12px}
 .slip-body td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px}
@@ -260,7 +267,9 @@ let CU={name:'',role:'',uid:''};
 let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
 let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
-let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false; // first=上半月 second=下半月
+let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false;
+let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
+let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
 const BASE_FULL=29500;
@@ -439,6 +448,7 @@ function calcSalary(emp,rec,shifts){
   let sickHours=0;        // 病假/生理假（小時，半薪）
   let workDays=0;
   let personalDates=[], sickDates=[], absentDates=[]; // 扣項日期提示
+  let paidLeaves={}; // 全薪假別 {假別label: [日期]}
 
   for(let d=1;d<=days;d++){
     if(!emp2.inEmploy(d))continue;
@@ -487,6 +497,11 @@ function calcSalary(emp,rec,shifts){
           else {personalMins+=leaveH*60;personalDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);}
         } else if(lt.pay==='half'){
           sickHours+=leaveH;sickDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);
+        } else if(lt.pay==='full'){
+          // 全薪假別（特休/婚/喪/紅字）：不扣薪，但要呈現
+          const label=LEAVE_TYPES[type].label;
+          if(!paidLeaves[label])paidLeaves[label]=[];
+          paidLeaves[label].push(`${d}日${wh}`);
         }
       }
     }
@@ -604,7 +619,7 @@ function calcSalary(emp,rec,shifts){
     fixedOtHours,extraOtHours,tempOtSegs,tempOtList,W,
     fixedOtPay,extraOtPay,tempOtPay,otPayTotal,
     workDays,personalMins,absentDays,sickHours,
-    personalDates,sickDates,absentDates,
+    personalDates,sickDates,absentDates,paidLeaves,
     personalDeduct,absentDeduct,sickDeduct,
     laborBase,healthBase,healthTotal,finalLabor,finalHealth,
     laborInsuredDays,healthCharged,laborInMonth,
@@ -693,8 +708,10 @@ window.selEmp=async function(empId){
 async function loadAndRender(empId,doScroll){
   const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(empId,viewYear,viewMonth),loadRec(empId,viewYear,viewMonth)]);
-  const record=rec||{dailyData:{}};
-  renderSheet(emp,record,shifts,calcSalary(emp,record,shifts));
+  currentRec=rec||{dailyData:{}};
+  if(!currentRec.dailyData)currentRec.dailyData={};
+  curShifts=shifts;
+  renderSheet(emp,currentRec,shifts,calcSalary(emp,currentRec,shifts));
   if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
@@ -937,6 +954,12 @@ function renderSheet(emp,rec,shifts,c){
           <div class="ded-item"><div class="ded-lbl">病假<div class="ded-sub">${fmtMin(c.sickHours*60)} × 半薪</div>${c.sickDates.length?`<div class="ded-dates">${c.sickDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div></div>
           <div class="ded-item"><div class="ded-lbl">曠職<div class="ded-sub">${Math.round(c.absentDays*10)/10}天</div>${c.absentDates.length?`<div class="ded-dates">${c.absentDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.absentDeduct.toLocaleString()}</div></div>
         </div>
+        ${Object.keys(c.paidLeaves).length?`<div class="paid-leave-box">
+          <div class="paid-leave-title">📌 其他假別（全薪，不扣薪）</div>
+          <div class="paid-leave-list">
+            ${Object.entries(c.paidLeaves).map(([label,dates])=>`<div class="paid-leave-item"><span class="paid-leave-label">${label}</span><span class="paid-leave-dates">${dates.join('、')}</span></div>`).join('')}
+          </div>
+        </div>`:''}
       </div>
 
       <div class="add-sec">
@@ -969,117 +992,67 @@ function renderSheet(emp,rec,shifts,c){
     </div>`;
 }
 
-window.setHalf=function(h){halfView=h;refreshSheet();};
-window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;refreshSheet();};
-window.applyInsSuggest=async function(){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
+window.setHalf=function(h){halfView=h;rerender();};
+window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;rerender();};
+
+// 統一儲存：改記憶體 currentRec + 立即重繪 + 背景存 Firestore
+function persist(){ if(selectedEmpId&&currentRec) saveRec(selectedEmpId,viewYear,viewMonth,currentRec); }
+function rerender(){
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
+  const sy=window.scrollY;
+  renderSheet(emp,currentRec,curShifts,calcSalary(emp,currentRec,curShifts));
+  window.scrollTo(0,sy);
+}
+function dayRec(ds){
+  if(!currentRec.dailyData)currentRec.dailyData={};
+  if(!currentRec.dailyData[ds])currentRec.dailyData[ds]={};
+  return currentRec.dailyData[ds];
+}
+
+window.applyInsSuggest=function(){
+  if(!currentRec)return;
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  const insGrade=(rec.gradeOverride)||getInsGrade(emp);
+  const insGrade=(currentRec.gradeOverride)||getInsGrade(emp);
   const ins=insFromGrade(insGrade);
-  // 設為 null 表示「未手動覆蓋」，取值時回退到建議值
-  rec.laborDeduct=null; rec.healthDeduct=null;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);
-  showToast(`✓ 已套用 ${INS_YEAR} 建議值（勞保 $${ins.labor} / 健保 $${ins.health}）`);
-  await refreshSheet();
+  currentRec.laborDeduct=null; currentRec.healthDeduct=null;
+  persist();showToast(`✓ 已套用 ${INS_YEAR} 建議值（勞保 $${ins.labor} / 健保 $${ins.health}）`);rerender();
 };
-window.expandDay=async function(ds){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
-  rec.dailyData[ds].expanded=true;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+window.expandDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=true;persist();rerender();};
+window.collapseDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=false;persist();rerender();};
+window.updType=function(el){
+  if(!currentRec)return;
+  const type=el.value,ds=el.dataset.date;
+  const r=dayRec(ds);
+  r.type=type;
+  if(type==='normal'){delete r.workedHours;r.workedHours=null;} // 切回正常清掉請假時數
+  persist();rerender();
 };
-window.collapseDay=async function(ds){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData||!rec.dailyData[ds])return;
-  rec.dailyData[ds].expanded=false;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
+window.patchDay=function(ds,field,value){if(!currentRec)return;dayRec(ds)[field]=value;persist();rerender();};
+window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
+window.toggleTempOt=function(ds){
+  if(!currentRec)return;const r=dayRec(ds);
+  r.hasTempOt=!r.hasTempOt;
+  if(r.hasTempOt&&!Array.isArray(r.tempSegs))r.tempSegs=[{h:'',rate:1.34}];
+  persist();rerender();
 };
-window.updType=async function(el){
-  const type=el.value;
-  el.className=`type-sel${LEAVE_TYPES[type]?.cls?' t-'+LEAVE_TYPES[type].cls:''}`;
-  await patchDay(el.dataset.date,'type',type);
-  await refreshSheet();
-};
-window.patchDay=async function(ds,field,value){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
-  rec.dailyData[ds][field]=value;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.patchRec=async function(field,value){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  rec[field]=value;await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.toggleTempOt=async function(ds){
-  if(!selectedEmpId)return;
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
-  const on=!rec.dailyData[ds].hasTempOt;
-  rec.dailyData[ds].hasTempOt=on;
-  if(on&&!Array.isArray(rec.dailyData[ds].tempSegs))rec.dailyData[ds].tempSegs=[{h:'',rate:1.34}];
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-function ensureSegs(rec,ds){
-  if(!rec.dailyData)rec.dailyData={};if(!rec.dailyData[ds])rec.dailyData[ds]={};
-  const r=rec.dailyData[ds];
+function ensureSegs(ds){
+  const r=dayRec(ds);
   if(!Array.isArray(r.tempSegs)){r.tempSegs=r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[{h:'',rate:1.34}];}
   return r.tempSegs;
 }
-window.addTempSeg=async function(ds){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  const segs=ensureSegs(rec,ds);segs.push({h:'',rate:1.34});
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.updTempSeg=async function(ds,si,field,val){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  const segs=ensureSegs(rec,ds);if(!segs[si])return;segs[si][field]=val;
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.delTempSeg=async function(ds,si){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  const segs=ensureSegs(rec,ds);segs.splice(si,1);if(!segs.length)segs.push({h:'',rate:1.34});
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.addCustomAdd=async function(){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.customAdds)rec.customAdds=[];rec.customAdds.push({name:'',amount:0});
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.updCustomAdd=async function(i,field,val){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.customAdds||!rec.customAdds[i])return;
-  rec.customAdds[i][field]=val;await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
-window.delCustomAdd=async function(i){
-  const rec=await loadRec(selectedEmpId,viewYear,viewMonth)||{dailyData:{}};
-  if(!rec.customAdds)return;rec.customAdds.splice(i,1);
-  await saveRec(selectedEmpId,viewYear,viewMonth,rec);await refreshSheet();
-};
+window.addTempSeg=function(ds){if(!currentRec)return;ensureSegs(ds).push({h:'',rate:1.34});persist();rerender();};
+window.updTempSeg=function(ds,si,field,val){if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;s[si][field]=val;persist();rerender();};
+window.delTempSeg=function(ds,si){if(!currentRec)return;const s=ensureSegs(ds);s.splice(si,1);if(!s.length)s.push({h:'',rate:1.34});persist();rerender();};
+window.addCustomAdd=function(){if(!currentRec)return;if(!currentRec.customAdds)currentRec.customAdds=[];currentRec.customAdds.push({name:'',amount:0});persist();rerender();};
+window.updCustomAdd=function(i,field,val){if(!currentRec||!currentRec.customAdds||!currentRec.customAdds[i])return;currentRec.customAdds[i][field]=val;persist();rerender();};
+window.delCustomAdd=function(i){if(!currentRec||!currentRec.customAdds)return;currentRec.customAdds.splice(i,1);persist();rerender();};
 
-async function refreshNum(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
-  const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
-  const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-  const el=document.getElementById('npDisp');if(el)el.textContent=`$${Math.round(c.netPay).toLocaleString()}`;
-}
-async function refreshSheet(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
-  const sy=window.scrollY; // 保留捲動位置，避免重繪跳動
-  const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
-  renderSheet(emp,rec||{dailyData:{}},shifts,calcSalary(emp,rec||{dailyData:{}},shifts));
-  window.scrollTo(0,sy);
-}
+async function refreshSheet(){ rerender(); }
 
 window.saveSheet=async function(){
-  if(!selectedEmpId||isSaving)return;isSaving=true;showToast('儲存中…');
+  if(!selectedEmpId||isSaving||!currentRec)return;isSaving=true;showToast('儲存中…');
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
-  const record=rec||{dailyData:{}};const c=calcSalary(emp,record,shifts);
+  const record=currentRec;const c=calcSalary(emp,record,curShifts);
   record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,record);
   if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存');}else showToast('⚠️ 儲存失敗');
@@ -1087,9 +1060,8 @@ window.saveSheet=async function(){
 };
 
 window.exportSlip=async function(){
-  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp)return;
-  const[shifts,rec]=await Promise.all([loadShifts(selectedEmpId,viewYear,viewMonth),loadRec(selectedEmpId,viewYear,viewMonth)]);
-  const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
+  const c=calcSalary(emp,currentRec,curShifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>a.amount>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
 
@@ -1104,13 +1076,14 @@ ${c.autoAnnualComp>0?`<tr><td>特休補薪（${c.annualComp}天）</td><td>$${c.
 ${c.autoRedComp>0?`<tr><td>紅字補薪（${c.redComp}天）</td><td>$${c.autoRedComp.toLocaleString()}</td></tr>`:''}
 ${customRows}
 <tr><td class="sh" colspan="2">扣項</td></tr>
-<tr><td>事假（${fmtMin(c.personalMins)}）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>
-<tr><td>病假（${fmtMin(c.sickHours*60)}）</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>
-<tr><td>曠職（${Math.round(c.absentDays*10)/10}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>
+${c.personalDeduct>0?`<tr><td>事假（${fmtMin(c.personalMins)}）</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>`:''}
+${c.sickDeduct>0?`<tr><td>病假（${fmtMin(c.sickHours*60)}）</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>`:''}
+${c.absentDeduct>0?`<tr><td>曠職（${Math.round(c.absentDays*10)/10}天）</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>`:''}
 <tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
 <tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+預扣次月×2)':!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
 ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※離職預扣：本月一份+次月一份（勞保健保各×2）</td></tr>`:''}
+${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪，不扣薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}</td><td style="color:#1A9B4C;text-align:right">${dates.join('、')}</td></tr>`).join('')}`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table>`;
 
@@ -1121,9 +1094,9 @@ ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C4
   ov.className='slip-overlay';
   ov.innerHTML=`<div class="slip-modal">
     <div class="slip-bar">
-      <button class="btn-sm o" onclick="this.closest('.slip-overlay').remove()">✕ 關閉</button>
-      <span style="font-size:13px;font-weight:700">薪資單</span>
-      <button class="btn-sm p" onclick="printSlip()">🖨️ 列印 / 存PDF</button>
+      <button class="btn slip-close" onclick="closeSlip()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">薪資單</span>
+      <button class="btn btn-primary" onclick="printSlip()">📄 存成 PDF</button>
     </div>
     <div class="slip-body" id="slipBody">
       <h2 style="font-size:17px;margin-bottom:4px">薪　資　單</h2>
@@ -1133,26 +1106,20 @@ ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C4
     </div>
   </div>`;
   document.body.appendChild(ov);
-  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  ov.addEventListener('click',e=>{if(e.target===ov)closeSlip();});
+};
+
+window.closeSlip=function(){
+  document.body.classList.remove('printing-slip');
+  const ov=document.querySelector('.slip-overlay');if(ov)ov.remove();
 };
 
 window.printSlip=function(){
-  const body=document.getElementById('slipBody');if(!body)return;
-  const win=window.open('','_blank');
-  if(win){
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>薪資單</title>
-<style>body{font-family:Arial,sans-serif;max-width:580px;margin:24px auto;font-size:13px;color:#1a1a1a}h2{font-size:17px}
-table{width:100%;border-collapse:collapse;margin-bottom:12px}td{padding:7px 10px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:500}
-.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}
-.red{color:#D33A3A}.green{color:#1A9B4C}@media print{body{margin:0}}</style></head><body>${body.innerHTML}
-<script>setTimeout(()=>window.print(),300);<\/script></body></html>`);
-    win.document.close();
-  } else {
-    // 彈窗被擋（手機常見）→ 直接列印當前頁，用 CSS 只顯示薪資單
-    document.body.classList.add('printing-slip');
-    window.print();
-    setTimeout(()=>document.body.classList.remove('printing-slip'),500);
-  }
+  // 直接列印當前薪資單（CSS 只顯示 overlay），手機桌機一致，不開新分頁
+  document.body.classList.add('printing-slip');
+  const cleanup=()=>{document.body.classList.remove('printing-slip');window.removeEventListener('afterprint',cleanup);};
+  window.addEventListener('afterprint',cleanup);
+  setTimeout(()=>{window.print();setTimeout(cleanup,1500);},100);
 };
 
 function showToast(msg,d=2000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),d);}
