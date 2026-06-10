@@ -131,7 +131,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .readonly-notice.type-readonly{background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB}
 .readonly-notice.type-lock{background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00}
 
-
+/* 假單卡片 */
 .leave-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;transition:box-shadow .15s}
 .leave-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.07)}
 .leave-card.draggable{cursor:grab}
@@ -197,8 +197,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .emp-filter-btn { font-size: 10px; padding: 2px 8px; }
 
   /* Tab 按鈕 */
+  #tabShift, #tabLeave { font-size: 12px !important; padding: 6px 14px !important; }
 
-  
+  /* 假單卡片 */
+  .leave-card { flex-direction: column; gap: 8px; padding: 12px 14px; }
+  .backup-counts { gap: 8px; }
+
+  /* readonly notice */
+  .readonly-notice { font-size: 12px; padding: 8px 12px; }
 }
 
 @media (max-width: 480px) {
@@ -244,6 +250,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <button class="btn btn-primary" onclick="openAddModal()">＋ 新增排班</button>
       </div>
     </div>
+    <!-- Tab 切換 -->
+    <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:12px;width:fit-content">
+      <button id="tabShift" onclick="switchTab('shift')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit">📅 排班</button>
+      <button id="tabLeave" onclick="switchTab('leave')" style="font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit">🏖 假單申請</button>
+    </div>
     <div class="readonly-notice" id="readonlyNotice">👁 您目前為查看模式，無法編輯班表</div>
     <!-- 人員篩選列 -->
     <div id="empFilterBar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
@@ -273,6 +284,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     </div>
   </div>
 
+  <!-- 假單申請區塊 -->
+  <div id="leaveSection" style="display:none">
+    <div class="main">
+      <!-- 同仁：提交假單 -->
+      <div id="leaveSubmitBar" style="display:none;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openLeaveModal()" style="font-size:13px;padding:9px 18px">＋ 申請休假</button>
+      </div>
+
+      <!-- 管理員：審核 tabs -->
+      <div id="leaveAdminTabs" style="display:none;margin-bottom:12px;flex-direction:column;gap:10px">
+        <!-- 狀態篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">狀態：</span>
+          <button onclick="setLeaveFilter('pending')" id="lf-pending" class="btn" style="font-size:12px">⏳ 待審核 <span id="lf-pending-cnt" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
+          <button onclick="setLeaveFilter('approved')" id="lf-approved" class="btn" style="font-size:12px">✅ 已核准</button>
+          <button onclick="setLeaveFilter('rejected')" id="lf-rejected" class="btn" style="font-size:12px">❌ 已拒絕</button>
+          <button onclick="setLeaveFilter('all')" id="lf-all" class="btn" style="font-size:12px">全部</button>
+        </div>
+        <!-- 假別篩選 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">假別：</span>
+          <button onclick="setLeaveTypeFilter('all')" id="lt-all" class="btn" style="font-size:12px">全部</button>
+          <button onclick="setLeaveTypeFilter('vacation')" id="lt-vacation" class="btn" style="font-size:12px">🏖 次月休假</button>
+          <button onclick="setLeaveTypeFilter('special')" id="lt-special" class="btn" style="font-size:12px">📋 特殊假</button>
+          <span id="vacation-lock-info" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div id="drag-hint-leave" style="display:none;font-size:11px;color:var(--text3)">⠿ 拖拉可調整優先順序</div>
+      </div>
+
+      <div id="leaveList" style="display:flex;flex-direction:column;gap:10px">
+        <div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">載入中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modalArea"></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -1169,19 +1217,18 @@ onAuthStateChanged(auth,async user=>{
   }
 
   // 並行載入所有資料
-  try {
-    await Promise.all([
-      getDoc(doc(db,'hr','settings')).then(s=>{
-        if(s.exists()){
-          workLocations=s.data().workLocations||[];
-          if(s.data().locationCodes) locationCodes={...locationCodes,...s.data().locationCodes};
-        }
-      }),
-      getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
-      loadShiftTypes(),
-      loadHolidays(viewYear),
-    ]);
-  } catch(e) { console.error('初始載入失敗',e); }
+  await Promise.all([
+    getDoc(doc(db,'hr','settings')).then(s=>{
+      if(s.exists()){
+        workLocations=s.data().workLocations||[];
+        // Firestore 有設定就合併，沒有就保留寫死的預設值
+        if(s.data().locationCodes) locationCodes={...locationCodes,...s.data().locationCodes};
+      }
+    }),
+    getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
+    loadShiftTypes(),
+    loadHolidays(viewYear),
+  ]);
 
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:
@@ -1204,158 +1251,403 @@ onAuthStateChanged(auth,async user=>{
     }
   }
 
-  try { await loadShifts(); } catch(e) { console.error('loadShifts 失敗',e); }
+  await loadShifts();
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
 
-
 // ══════════════════════════════════════════════════════
-// ── 匯出 Excel（格式同薪資系統範本）──
-// ══════════════════════════════════════════════════════
-window.exportToExcel = async function() {
-  // 決定要撈的店面清單：永遠撈所有可管理的店面
-  const exportLocs = currentRole === 'admin'
-    ? workLocations
-    : (currentLocations.length ? currentLocations : (selectedLocation ? [selectedLocation] : []));
+let leaveRequests = [];
+let leaveFilter = 'all';
+let currentTab = 'shift';
 
-  if(!exportLocs.length){ showToast('無可匯出的店面，請先選擇店面'); return; }
+// ── Tab 切換 ──
+window.switchTab = function(tab) {
+  currentTab = tab;
+  const shiftSec = document.querySelector('.content-wrap')?.closest('.main')?.parentElement;
+  // 找到 content-wrap 的父層 main
+  const mainDivs = document.querySelectorAll('#app > .main, #app > div > .main');
+  document.getElementById('leaveSection').style.display = tab==='leave' ? 'block' : 'none';
 
-  showToast('匯出中，請稍候...');
+  // 排班區塊 toggle
+  const empFilterBar = document.getElementById('empFilterBar');
+  const calWrap = document.querySelector('.content-wrap');
+  const readonlyNotice = document.getElementById('readonlyNotice');
+  const toolbarBtns = document.getElementById('toolbarBtns');
+  const toolbar = document.querySelector('.toolbar');
 
-  const yearMonthKey = `${viewYear}-${String(viewMonth).padStart(2,'0')}`;
-  const toHMS = t => t ? (t.length===5 ? t+':00' : t) : '';
+  if(tab==='shift'){
+    if(calWrap) calWrap.style.display='flex';
+    if(toolbar) toolbar.style.display='flex';
+    // tab 樣式
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+  } else {
+    if(calWrap) calWrap.style.display='none';
+    if(toolbar) toolbar.style.display='none';
+    document.getElementById('tabShift').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--text2);font-family:inherit';
+    document.getElementById('tabLeave').style.cssText='font-size:13px;font-weight:600;padding:7px 20px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;font-family:inherit';
+    loadLeaveRequests();
+  }
+};
 
-  // 並行撈所有店面班表
-  // 並行撈所有店面班表
-  // 主店（currentUser 的 workLocation）→ 全員；其他跨店 → 只撈自己
-  const currentEmp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
-  const myEmpId = currentEmp.id ? String(currentEmp.id) : null;
-  const myWorkLocation = currentEmp.workLocation||'';
+let leaveTypeFilter = 'all'; // 'all' | 'vacation' | 'special'
 
-  const allLocShifts = await Promise.all(
-    exportLocs.map(async loc => {
-      try {
-        const snap = await getDoc(doc(db,'schedules',`${yearMonthKey}_${loc}`));
-        return { loc, shifts: snap.exists() ? (snap.data().shifts||{}) : {} };
-      } catch(e) { return { loc, shifts: {} }; }
-    })
-  );
+// ── 假單狀態篩選 ──
+window.setLeaveFilter = function(f) {
+  leaveFilter = f;
+  ['pending','approved','rejected','all'].forEach(k=>{
+    const btn = document.getElementById('lf-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  renderLeaveList();
+};
 
-  // 整合成平排列表
-  const rows = [];
-  for(const { loc, shifts: locShifts } of allLocShifts){
-    const locCode = locationCodes[loc]||'';
-    const locCell = locCode ? `${locCode} - ${loc}` : loc;
+// ── 假別篩選 ──
+window.setLeaveTypeFilter = function(f) {
+  leaveTypeFilter = f;
+  ['all','vacation','special'].forEach(k=>{
+    const btn = document.getElementById('lt-'+k);
+    if(btn) btn.style.cssText = k===f
+      ? 'font-size:12px;background:var(--accent);color:#fff;border-color:var(--accent)'
+      : 'font-size:12px';
+  });
+  // 拖拉提示只在待審核+休假篩選時顯示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display = (leaveFilter==='pending'&&f==='vacation')?'block':'none';
+  renderLeaveList();
+};
 
-    // 決定這間店要匯出哪些人
-    // admin → 全員；非admin → 主店全員，其他店只匯出自己
-    const isMainStore = currentRole==='admin' || loc===myWorkLocation;
+// ── 載入假單 ──
+async function loadLeaveRequests() {
+  try {
+    let q;
+    // 全部撈回後 client 端篩選，避免複合索引需求
+    q = query(collection(db,'leave_requests'), orderBy('createdAt','desc'));
+    const snaps = await getDocs(q);
+    let allReqs = snaps.docs.map(d=>({id:d.id,...d.data()}));
+    if(currentRole==='employee') {
+      allReqs = allReqs.filter(r=>r.uid===currentUser.uid);
+    } else {
+      // 管理員：待審核依 priority 排，其餘依時間排
+      allReqs.sort((a,b)=>{
+        if(a.status==='pending'&&b.status==='pending') return (a.priority||999)-(b.priority||999);
+        if(a.status==='pending') return -1;
+        if(b.status==='pending') return 1;
+        return 0;
+      });
+    }
+    leaveRequests = allReqs;
+    renderLeaveList();
+  } catch(e) {
+    document.getElementById('leaveList').innerHTML=`<div style="text-align:center;padding:40px;color:#e24b4a">載入失敗：${e.message}</div>`;
+  }
+}
 
-    for(const dateStr of Object.keys(locShifts).sort()){
-      for(const s of locShifts[dateStr]){
-        // 人員篩選（UI 篩選器）
-        if(filterEmpIds.size > 0 && !filterEmpIds.has(String(s.empId))) continue;
-        // 跨店只匯自己
-        if(!isMainStore && myEmpId && String(s.empId) !== myEmpId) continue;
+// ── 渲染假單列表 ──
+function renderLeaveList() {
+  const list = document.getElementById('leaveList');
+  const isAdmin = currentRole==='admin'||currentRole==='consultant'||currentRole==='manager';
 
-        const emp = allEmployees.find(e=>String(e.id)===String(s.empId))||{};
-        const empNo = emp.empNo||'';
-        const empName = s.empName||emp.name||'';
-        const empCell = empNo ? `${empNo}-${empName}` : empName;
-        rows.push({
-          locCell,
-          shiftType: '',
-          empCell,
-          date: dateStr.replace(/-/g, '/'),
-          startTime: toHMS(s.startTime),
-          endTime: toHMS(s.endTime),
-        });
-      }
+  // 顯示/隱藏 UI 元素
+  document.getElementById('leaveSubmitBar').style.display = currentRole==='employee' ? 'block' : 'none';
+  const adminTabs = document.getElementById('leaveAdminTabs');
+  adminTabs.style.display = isAdmin ? 'flex' : 'none';
+
+  // 更新待審核數量
+  const pendingCnt = leaveRequests.filter(r=>r.status==='pending').length;
+  const cntEl = document.getElementById('lf-pending-cnt');
+  if(cntEl) cntEl.textContent = pendingCnt;
+
+  // 鎖定狀態提示
+  const today = new Date();
+  const lockInfo = document.getElementById('vacation-lock-info');
+  if(lockInfo) {
+    const todayDay = today.getDate();
+    const nextMonth = today.getMonth()===11?1:today.getMonth()+2;
+    const nextYear = today.getMonth()===11?today.getFullYear()+1:today.getFullYear();
+    lockInfo.textContent = todayDay > 20
+      ? `（${nextYear}年${nextMonth}月休假申請已截止）`
+      : `（${nextYear}年${nextMonth}月申請截止：本月20號）`;
+  }
+
+  // 篩選
+  let filtered = leaveRequests;
+  if(isAdmin && leaveFilter!=='all') filtered = filtered.filter(r=>r.status===leaveFilter);
+  if(isAdmin && leaveTypeFilter==='vacation') filtered = filtered.filter(r=>r.leaveType==='休假');
+  if(isAdmin && leaveTypeFilter==='special')  filtered = filtered.filter(r=>r.leaveType!=='休假');
+
+  // 拖拉提示
+  const dragHint = document.getElementById('drag-hint-leave');
+  if(dragHint) dragHint.style.display=(leaveFilter==='pending'&&leaveTypeFilter==='vacation'&&isAdmin)?'block':'none';
+
+  if(!filtered.length) {
+    list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:12px">暫無假單記錄</div>';
+    return;
+  }
+
+  const statusLabel = {pending:'⏳ 待審核', approved:'✅ 已核准', rejected:'❌ 已拒絕'};
+  const statusClass = {pending:'lb-pending', approved:'lb-approved', rejected:'lb-rejected'};
+
+  list.innerHTML = filtered.map((r,i)=>{
+    const isPending = r.status==='pending';
+    const canDrag = isAdmin && leaveFilter==='pending';
+    const adminBtns = isAdmin && isPending ? `
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn" style="font-size:12px;background:#E6FAF0;color:#087443;border-color:#ADE8C4" onclick="reviewLeave('${r.id}','approved')">✅ 核准</button>
+        <button class="btn" style="font-size:12px;background:#FEE9E9;color:#C0392B;border-color:#FFBDBD" onclick="reviewLeave('${r.id}','rejected')">❌ 拒絕</button>
+        <button class="btn" style="font-size:12px;color:#C0392B" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : (isAdmin && !isPending ? `
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn" style="font-size:12px" onclick="deleteLeave('${r.id}')">🗑 刪除</button>
+      </div>` : '');
+
+    const empBtns = currentRole==='employee' && isPending ? `
+      <button class="btn" style="font-size:12px;color:#C0392B;margin-top:8px" onclick="cancelLeave('${r.id}')">撤回申請</button>` : '';
+
+    const priorityBadge = isAdmin && isPending ? `<div class="leave-priority">${i+1}</div>` : '';
+
+    return `<div class="leave-card${canDrag?' draggable':''}" data-id="${r.id}" ${canDrag?'draggable="true"':''}>
+      ${priorityBadge}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-weight:600;font-size:14px">${r.empName||'—'}</span>
+          <span class="leave-badge ${statusClass[r.status]||'lb-pending'}">${statusLabel[r.status]||r.status}</span>
+          <span style="font-size:11px;color:var(--text3)">${r.workLocation||''}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px">
+          📅 ${r.startDate} ${r.endDate&&r.endDate!==r.startDate?'～ '+r.endDate:''} &nbsp;|&nbsp; 🏷 ${r.leaveType||'休假'}
+          ${r.days ? `&nbsp;|&nbsp; ${r.days} 天` : ''}
+        </div>
+        ${r.reason?`<div style="font-size:12px;color:var(--text3)">備註：${r.reason}</div>`:''}
+        ${r.reviewNote?`<div style="font-size:12px;color:#3B5BDB;margin-top:4px">審核備注：${r.reviewNote}</div>`:''}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">申請時間：${r.createdAt?.toDate?r.createdAt.toDate().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):r.createdAt||'—'}</div>
+        ${adminBtns}${empBtns}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 拖拉排序（僅待審核、管理員）
+  if(isAdmin && leaveFilter==='pending') initLeaveDrag();
+}
+
+// ── 拖拉優先順序 ──
+function initLeaveDrag() {
+  const list = document.getElementById('leaveList');
+  let dragSrc = null;
+  list.querySelectorAll('.leave-card.draggable').forEach(card=>{
+    card.addEventListener('dragstart', e=>{ dragSrc=card; setTimeout(()=>card.classList.add('dragging'),0); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); savePriority(); });
+    card.addEventListener('dragover', e=>{ e.preventDefault(); if(card!==dragSrc){ list.querySelectorAll('.leave-card').forEach(c=>c.classList.remove('drag-over')); card.classList.add('drag-over'); } });
+    card.addEventListener('drop', e=>{ e.preventDefault(); if(dragSrc&&card!==dragSrc){ const cards=[...list.querySelectorAll('.leave-card')]; const si=cards.indexOf(dragSrc),ti=cards.indexOf(card); if(si<ti) list.insertBefore(dragSrc,card.nextSibling); else list.insertBefore(dragSrc,card); card.classList.remove('drag-over'); } });
+  });
+}
+
+async function savePriority() {
+  const cards = [...document.getElementById('leaveList').querySelectorAll('.leave-card')];
+  for(let i=0;i<cards.length;i++){
+    const id = cards[i].dataset.id;
+    if(id) await updateDoc(doc(db,'leave_requests',id),{priority:i+1}).catch(()=>{});
+  }
+  // 重新排序本地資料
+  const newOrder = cards.map(c=>c.dataset.id);
+  leaveRequests.sort((a,b)=>newOrder.indexOf(a.id)-newOrder.indexOf(b.id));
+}
+
+// ── 申請假單 Modal（同仁）──
+window.openLeaveModal = function() {
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const today2 = new Date();
+  const todayDay2 = today2.getDate();
+  const nextMonth2 = today2.getMonth()===11?1:today2.getMonth()+2;
+  const nextYear2  = today2.getMonth()===11?today2.getFullYear()+1:today2.getFullYear();
+  const nextMonthName = `${nextYear2} 年 ${nextMonth2} 月`;
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:480px">
+        <div class="modal-title">🏖 申請假單</div>
+        <div class="fr"><label>假別</label>
+          <select id="l-type" onchange="onLeaveTypeChange()">
+            <optgroup label="── 次月休假（20號前申請）">
+              <option value="休假">休假</option>
+            </optgroup>
+            <optgroup label="── 特殊假（隨時可申請）">
+              <option value="病假">病假</option>
+              <option value="事假">事假</option>
+              <option value="生理假">生理假</option>
+              <option value="婚假">婚假</option>
+              <option value="喪假">喪假</option>
+              <option value="其他">其他</option>
+            </optgroup>
+          </select>
+        </div>
+        <div id="leave-lock-notice" style="display:none;font-size:12px;background:#FFF4E0;border:1px solid #FDDFA0;color:#C47A00;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          🔒 次月休假申請截止日為每月 20 號，目前已超過截止日，如需申請請聯繫主管
+        </div>
+        <div id="leave-month-notice" style="display:none;font-size:12px;background:#EEF2FF;border:1px solid #BAC8FF;color:#3B5BDB;border-radius:8px;padding:8px 12px;margin-bottom:4px">
+          📅 次月休假：請選擇 <strong id="nextMonthLabel"></strong> 的休假日期
+        </div>
+        <div class="time-row">
+          <div class="fr"><label>開始日期</label><input type="date" id="l-start" onchange="onDateChange()"></div>
+          <div class="fr"><label>結束日期</label><input type="date" id="l-end" onchange="onDateChange()"></div>
+        </div>
+        <div id="leave-days-preview" style="display:none;font-size:12px;color:var(--text2);margin-top:-8px;margin-bottom:4px"></div>
+        <div class="fr"><label>備註（選填）</label><input type="text" id="l-reason" placeholder="假單事由"></div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="submitLeave()">送出申請</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(()=>{ if(typeof onLeaveTypeChange==="function") onLeaveTypeChange(); }, 50);
+};
+// ── 假別切換 ──
+window.onLeaveTypeChange = function() {
+  const type = document.getElementById('l-type').value;
+  const isVacation = type === '休假';
+  const lockNotice = document.getElementById('leave-lock-notice');
+  const monthNotice = document.getElementById('leave-month-notice');
+  const startInput = document.getElementById('l-start');
+  const endInput = document.getElementById('l-end');
+
+  const today = new Date();
+  const todayDay = today.getDate();
+  const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+  const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2,'0')}`;
+  const nextMonthLabel = `${nextYear} 年 ${nextMonth} 月`;
+
+  if(isVacation) {
+    if(todayDay > 20) {
+      lockNotice.style.display = 'block';
+      monthNotice.style.display = 'none';
+      startInput.disabled = true;
+      endInput.disabled = true;
+    } else {
+      lockNotice.style.display = 'none';
+      monthNotice.style.display = 'block';
+      document.getElementById('nextMonthLabel').textContent = nextMonthLabel;
+      // 限定只能選次月日期
+      startInput.min = nextMonthStr + '-01';
+      startInput.max = nextMonthStr + '-' + new Date(nextYear, nextMonth, 0).getDate();
+      endInput.min = startInput.min;
+      endInput.max = startInput.max;
+      startInput.disabled = false;
+      endInput.disabled = false;
+    }
+  } else {
+    lockNotice.style.display = 'none';
+    monthNotice.style.display = 'none';
+    startInput.min = '';
+    startInput.max = '';
+    endInput.min = '';
+    endInput.max = '';
+    startInput.disabled = false;
+    endInput.disabled = false;
+  }
+  onDateChange();
+};
+
+window.onDateChange = function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value;
+  const preview = document.getElementById('leave-days-preview');
+  if(start && end && end >= start) {
+    const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+    preview.textContent = `共 ${days} 天`;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+};
+
+window.submitLeave = async function() {
+  const start = document.getElementById('l-start').value;
+  const end   = document.getElementById('l-end').value || start;
+  const type  = document.getElementById('l-type').value;
+  const reason= document.getElementById('l-reason').value.trim();
+  if(!start){ showToast('請選擇日期'); return; }
+  if(end < start){ showToast('結束日期不能早於開始日期'); return; }
+
+  // 次月休假：再次確認是否超過 20 號
+  if(type === '休假') {
+    const todayDay = new Date().getDate();
+    if(todayDay > 20) { showToast('🔒 已超過申請截止日（20號）'); return; }
+
+    // 確認選的是次月
+    const today = new Date();
+    const nextMonth = today.getMonth() === 11 ? 1 : today.getMonth() + 2;
+    const nextYear  = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const startMonth = parseInt(start.slice(5,7));
+    const startYear  = parseInt(start.slice(0,4));
+    if(startYear !== nextYear || startMonth !== nextMonth) {
+      showToast('次月休假只能選擇次月的日期');
+      return;
     }
   }
 
-  // 依日期排序
-  rows.sort((a,b) => a.date.localeCompare(b.date));
+  const emp = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  const days = Math.round((new Date(end)-new Date(start))/(86400000))+1;
+  const isVacation = type === '休假';
+  const maxPri = leaveRequests.filter(r=>r.status==='pending'&&r.leaveType==='休假').length + 1;
 
-  if(!rows.length){ showToast('本月所有店面無排班資料可匯出'); return; }
-
-  // 建立 Workbook
-  const wb = XLSX.utils.book_new();
-  const wsData = [];
-
-  // 標題列（第一列）
-  wsData.push([
-    '排班編號\n(自動填寫，請勿更動)',
-    '上班地點\n(必填，格式必須正確)',
-    '值班班別\n(非必填，填寫則視為班別排班)',
-    '值班餐飲人員\n(必填，格式必須正確)',
-    '值班日期\n(必填，格式必須正確)',
-    '上班時間\n(若非班別班則必須填寫，格式必須正確)',
-    '下班時間\n(若非班別班則必須填寫，格式必須正確)',
-  ]);
-
-  // 資料列（含 A 欄公式）
-  rows.forEach((r, i) => {
-    const row = i + 2; // Excel 第2列起
-    const formula =
-      `CONCATENATE(` +
-      `IF(ISNUMBER(SEARCH("-",B${row})),TRIM(LEFT(B${row},SEARCH("-",B${row},1)-1)),B${row}),` +
-      `IF(ISNUMBER(SEARCH("-",C${row})),SUBSTITUTE(TRIM(LEFT(C${row},SEARCH("-",C${row},1)-1))," ",""),IF(C${row} = "","NOSHIFT",C${row})),` +
-      `IF(ISNUMBER(SEARCH("-",D${row})),TRIM(LEFT(D${row},SEARCH("-",D${row},1)-1)),D${row}),` +
-      `SUBSTITUTE(E${row},"/",""),` +
-      `IF(OR(F${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(F${row},":",""),(4))),` +
-      `IF(OR(G${row} = "",C${row} <> ""),"NN",LEFT(SUBSTITUTE(G${row},":",""),(4))))`;
-
-    wsData.push([
-      { f: formula },
-      r.locCell,
-      r.shiftType,
-      r.empCell,
-      r.date,
-      r.startTime,
-      r.endTime,
-    ]);
+  await addDoc(collection(db,'leave_requests'),{
+    uid: currentUser.uid,
+    empName: emp.name||'—',
+    workLocation: emp.workLocation||'—',
+    leaveType: type,
+    isVacation,
+    startDate: start,
+    endDate: end,
+    days,
+    reason,
+    status: 'pending',
+    priority: isVacation ? maxPri : 999,
+    createdAt: serverTimestamp(),
   });
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // 設定欄寬
-  ws['!cols'] = [
-    { wch: 35 }, // A
-    { wch: 22 }, // B
-    { wch: 20 }, // C
-    { wch: 20 }, // D
-    { wch: 14 }, // E
-    { wch: 14 }, // F
-    { wch: 14 }, // G
-  ];
-
-  // 設定列高（標題列）
-  ws['!rows'] = [{ hpt: 40 }];
-
-  // 標題列換行
-  ws['A1'].s = { alignment: { wrapText: true } };
-
-  XLSX.utils.book_append_sheet(wb, ws, '工作表1');
-
-  // 匯出檔名
-  let fileName;
-  if(filterEmpIds.size === 1){
-    const filteredEmpId = [...filterEmpIds][0];
-    const filteredEmp = allEmployees.find(e=>String(e.id)===String(filteredEmpId));
-    const empName = filteredEmp ? filteredEmp.name : filteredEmpId;
-    fileName = `${empName}_${viewYear}年${viewMonth}月.xlsx`;
-  } else if(currentRole==='admin'){
-    fileName = `${viewYear}年${viewMonth}月_全店班表.xlsx`;
-  } else {
-    fileName = `${exportLocs[0]}_${viewYear}年${viewMonth}月.xlsx`;
-  }
-  XLSX.writeFile(wb, fileName);
-  const scopeMsg = filterEmpIds.size===1 ? `（跨 ${exportLocs.length} 間店）` : `（${exportLocs.length} 間店 / 全員）`;
-  showToast(`✅ 已匯出 ${rows.length} 筆排班 ${scopeMsg}`);
+  const emp2 = allEmployees.find(e=>e.uid===currentUser.uid)||{};
+  writeOpLog({ editor:currentUserName, role:currentRole, module:'schedule', action:'申請請假', detail:`${emp2.name||'—'} ${type} ${start}～${end}` });
+  closeModal();
+  showToast('假單已送出，等待審核 ✓');
+  await loadLeaveRequests();
 };
 
+// ── 審核假單 ──
+window.reviewLeave = async function(id, status) {
+  const note = status==='rejected' ? prompt('拒絕原因（選填）：')||'' : '';
+  await updateDoc(doc(db,'leave_requests',id),{
+    status,
+    reviewNote: note,
+    reviewedBy: currentUser.uid,
+    reviewedAt: serverTimestamp(),
+  });
+  const lr = leaveRequests.find(r=>r.id===id);
+  writeOpLog({ editor:currentUserName, role:currentRole, module:'schedule', action:status==='approved'?'核准假單':'拒絕假單', detail:`${lr?.empName||'—'} ${lr?.leaveType||''} ${lr?.startDate||''}` });
+  showToast(status==='approved'?'已核准 ✓':'已拒絕');
+  await loadLeaveRequests();
+};
+
+// ── 同仁撤回 ──
+window.cancelLeave = async function(id) {
+  if(!confirm('確定要撤回這筆假單申請？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已撤回');
+  await loadLeaveRequests();
+};
+
+// ── 管理員刪除 ──
+window.deleteLeave = async function(id) {
+  if(!confirm('確定要刪除這筆假單記錄？')) return;
+  await deleteDoc(doc(db,'leave_requests',id));
+  showToast('已刪除');
+  await loadLeaveRequests();
+};
+
+// 初始設定待審核篩選
+window.addEventListener('DOMContentLoaded', ()=>setLeaveFilter('pending'));
 
 </script>
 </body>
