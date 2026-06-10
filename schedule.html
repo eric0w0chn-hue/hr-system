@@ -58,6 +58,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .holiday-name{font-size:9px;color:#E05252;display:block;margin-bottom:2px;font-weight:500}
 .day-num{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px;display:block}
 .shift-tag{font-size:11px;padding:3px 6px;border-radius:6px;margin-bottom:3px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:3px;transition:opacity .1s;line-height:1.4;min-width:0}
+.shift-tag.shift-annual{background:#E5F5EB!important;color:#1A9B4C!important;border:1px dashed #1A9B4C}
+.batch-kind-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .shift-tag:hover{opacity:.8}
 .shift-tag .emp-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .shift-tag .time{font-size:10px;opacity:.8;white-space:nowrap;flex-shrink:0}
@@ -344,6 +346,8 @@ let allEmployees=[],workLocations=[],shifts={},locationCodes={
 };
 let selectedLocation='';
 let shiftTypes=[]; // 自訂班別
+let pendingBatches=[]; // 待儲存的分批指派
+let batchKind='work';  // 目前這批類型 work/annual
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
 let isReadOnly=false; // 同仁唯讀模式
 let filterEmpIds=new Set(); // 人員複選篩選
@@ -627,9 +631,10 @@ function renderCalendar(){
       const c=getEmpColor(s.empId);
       const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
       const clickFn = isReadOnly ? '' : `onclick="openEditModal('${dateStr}',${idx})"`;
-      return `<div class="shift-tag ${c}" ${clickFn} style="${isReadOnly?'cursor:default':''}">
+      const isAnnual=s.kind==='annual';
+      return `<div class="shift-tag ${c}${isAnnual?' shift-annual':''}" ${clickFn} style="${isReadOnly?'cursor:default':''}">
         <span class="emp-name">${s.empName}</span>
-        <span class="time">${s.startTime}-${s.endTime}</span>
+        <span class="time">${isAnnual?'🌴 特休':`${s.startTime}-${s.endTime}`}</span>
         ${delBtn}
       </div>`;
     }).join('');
@@ -810,62 +815,115 @@ function shiftTypeButtons(onSelect){
 
 // ── 新增排班 Modal ──
 window.openAddModal=function(dateStr=''){
+  pendingBatches=[]; // 重置待儲存清單
   const empOptions=getEmpOptions();
-  // 產生本月日期格子
+  const calHtml=buildBatchCalendar(dateStr);
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:560px;max-width:96vw">
+        <div class="modal-title">📅 新增排班（可分批指派多種班別）</div>
+        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
+        <div class="fr">
+          <label>① 點選日期（可多選）</label>
+          ${calHtml}
+          <div style="font-size:11px;color:var(--text3);margin-top:6px" id="batchSelectedCount">已選 0 天</div>
+        </div>
+        <div class="fr">
+          <label>② 設定這批的類型</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button type="button" class="btn batch-kind-btn active" id="kindWork" onclick="setBatchKind('work')" style="flex:1">🕐 上班</button>
+            <button type="button" class="btn batch-kind-btn" id="kindAnnual" onclick="setBatchKind('annual')" style="flex:1">🌴 特休</button>
+          </div>
+          <div id="workFields">
+            <div style="margin-bottom:6px">${shiftTypeButtons('applyShiftType')}</div>
+            <div class="time-row">
+              <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
+              <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="18:00"></div>
+            </div>
+          </div>
+          <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" placeholder="例：支援、代班"></div>
+        </div>
+        <button type="button" class="btn btn-primary" style="width:100%;margin-bottom:10px" onclick="addBatch()">⊕ 加入這批（可繼續選下一批）</button>
+        <div id="pendingList"></div>
+        <div class="mf">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveAllBatches()">全部儲存</button>
+        </div>
+      </div>
+    </div>`;
+  if(dateStr) updateBatchCount();
+  renderPendingList();
+};
+
+// 產生批次月曆
+function buildBatchCalendar(dateStr){
   const daysInMonth=new Date(viewYear,viewMonth,0).getDate();
-  const today=new Date();
   let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px">';
-  // 週標題
-  ['一','二','三','四','五','六','日'].forEach(d=>{
-    calHtml+=`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3);padding:2px 0">${d}</div>`;
-  });
-  // 空格補位（週一起始）
-  let firstDow=new Date(viewYear,viewMonth-1,1).getDay();
-  firstDow=(firstDow+6)%7;
+  ['一','二','三','四','五','六','日'].forEach(d=>{calHtml+=`<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3);padding:2px 0">${d}</div>`;});
+  let firstDow=new Date(viewYear,viewMonth-1,1).getDay();firstDow=(firstDow+6)%7;
   for(let i=0;i<firstDow;i++) calHtml+='<div></div>';
-  // 日期格
   for(let d=1;d<=daysInMonth;d++){
     const ds=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow=new Date(viewYear,viewMonth-1,d).getDay();
-    const isSun=dow===0,isSat=dow===6;
     const isHol=!!twHolidays[ds];
-    const color=isHol||isSun?'#E05252':isSat?'#5B8EDB':'var(--text)';
+    const color=isHol||dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)';
     const preselect=ds===dateStr?'batch-day-sel':'';
     calHtml+=`<div class="batch-day ${preselect}" data-date="${ds}" onclick="toggleBatchDay(this)"
       style="text-align:center;padding:5px 2px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:${color};transition:all .1s">${d}</div>`;
   }
   calHtml+='</div>';
+  return calHtml;
+}
 
-  document.getElementById('modalArea').innerHTML=`
-    <div class="overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="width:520px">
-        <div class="modal-title">📅 新增排班（批次）</div>
-        <div class="fr"><label>同仁</label><select id="m-emp">${empOptions}</select></div>
-        <!-- 批次模式（預設開啟）-->
-        <input type="checkbox" id="batchToggle" checked style="display:none">
-        <div id="batch-mode">
-          <div class="fr">
-            <label>選擇日期（可多選）</label>
-            ${calHtml}
-            <div style="font-size:11px;color:var(--text3);margin-top:6px" id="batchSelectedCount">已選 0 天</div>
-          </div>
-        </div>
-        <div class="fr"><label>班別快選</label>${shiftTypeButtons('applyShiftType')}</div>
-        <div class="time-row">
-          <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
-          <div class="fr"><label>下班時間</label><input type="time" id="m-end" value="18:00"></div>
-        </div>
-        <div class="fr"><label>備註（選填）</label><input type="text" id="m-note" placeholder="例：支援、代班"></div>
-        <div class="mf">
-          <button class="btn" onclick="closeModal()">取消</button>
-          <button class="btn btn-primary" onclick="saveAdd()">儲存</button>
-        </div>
-      </div>
-    </div>`;
-
-  // 若有預選日期，更新計數
-  if(dateStr) updateBatchCount();
+// 切換這批類型（上班/特休）
+window.setBatchKind=function(kind){
+  batchKind=kind;
+  document.getElementById('kindWork').classList.toggle('active',kind==='work');
+  document.getElementById('kindAnnual').classList.toggle('active',kind==='annual');
+  document.getElementById('workFields').style.display=kind==='annual'?'none':'block';
 };
+
+// 把目前選取的日期+設定加入待儲存清單
+window.addBatch=function(){
+  const sel=[...document.querySelectorAll('.batch-day-sel')].map(el=>el.dataset.date);
+  if(!sel.length){showToast('請先點選日期');return;}
+  const note=document.getElementById('m-note').value.trim();
+  let item;
+  if(batchKind==='annual'){
+    item={kind:'annual',dates:sel,note};
+  } else {
+    const start=document.getElementById('m-start').value;
+    const end=document.getElementById('m-end').value;
+    if(!start||!end){showToast('請填寫上下班時間');return;}
+    item={kind:'work',dates:sel,start,end,note};
+  }
+  pendingBatches.push(item);
+  // 清空選取，方便選下一批
+  document.querySelectorAll('.batch-day-sel').forEach(el=>{el.classList.remove('batch-day-sel');el.style.background='';el.style.borderColor='var(--border)';
+    const dow=new Date(el.dataset.date).getDay();const isHol=!!twHolidays[el.dataset.date];
+    el.style.color=isHol||dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)';});
+  document.getElementById('m-note').value='';
+  updateBatchCount();renderPendingList();
+};
+
+window.removePending=function(i){pendingBatches.splice(i,1);renderPendingList();};
+
+function renderPendingList(){
+  const el=document.getElementById('pendingList');if(!el)return;
+  if(!pendingBatches.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;margin-bottom:6px">待儲存（${pendingBatches.length} 批）</div>
+    ${pendingBatches.map((b,i)=>{
+      const days=b.dates.map(d=>+d.slice(8,10)).sort((a,b)=>a-b).join('、');
+      const label=b.kind==='annual'?'🌴 特休':`🕐 ${b.start}-${b.end}`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span><b>${label}</b>　${b.dates.length}天（${days}號）${b.note?'　'+b.note:''}</span>
+        <span style="color:#C0392B;cursor:pointer;font-weight:700;padding:0 6px" onclick="removePending(${i})">×</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 
 window.toggleBatchMode=function(){
   const on=document.getElementById('batchToggle').checked;
@@ -1015,38 +1073,60 @@ function getEmpOptions(selectedId=''){
   }).join('');
 }
 
-window.saveAdd=async function(){
+window.saveAllBatches=async function(){
   const _lm=window._checkScheduleLock&&window._checkScheduleLock();
   if(_lm){showToast('🔒 '+_lm);return;}
   const sel=document.getElementById('m-emp');
   const empId=sel.value,empName=sel.options[sel.selectedIndex].dataset.name;
-  const startTime=document.getElementById('m-start').value;
-  const endTime=document.getElementById('m-end').value;
-  const note=document.getElementById('m-note').value.trim();
-  if(!empId||!startTime||!endTime){showToast('請填寫完整資料');return;}
+  if(!empId){showToast('請選擇同仁');return;}
+  // 若還有未加入的選取，提示先加入
+  const stillSel=[...document.querySelectorAll('.batch-day-sel')];
+  if(!pendingBatches.length&&!stillSel.length){showToast('請先選日期並加入');return;}
+  // 自動把尚未加入的選取也算進去（避免漏存）
+  if(stillSel.length){addBatch();}
+  if(!pendingBatches.length){showToast('沒有可儲存的項目');return;}
 
-  const isBatch=document.getElementById('batchToggle')?.checked;
-
-  let dates=[];
-  if(isBatch){
-    dates=[...document.querySelectorAll('.batch-day-sel')].map(el=>el.dataset.date);
-    if(!dates.length){showToast('請至少選擇一個日期');return;}
-  } else {
-    const date=document.getElementById('m-date').value;
-    if(!date){showToast('請選擇日期');return;}
-    dates=[date];
-  }
-
-  dates.forEach(date=>{
-    if(!shifts[date])shifts[date]=[];
-    shifts[date].push({empId,empName,startTime,endTime,note});
+  let totalDays=0;const annualDates=[];
+  pendingBatches.forEach(b=>{
+    b.dates.forEach(date=>{
+      if(!shifts[date])shifts[date]=[];
+      if(b.kind==='annual'){
+        shifts[date].push({empId,empName,kind:'annual',startTime:'',endTime:'',note:b.note||'特休'});
+        annualDates.push(date);
+      } else {
+        shifts[date].push({empId,empName,startTime:b.start,endTime:b.end,note:b.note||''});
+      }
+      totalDays++;
+    });
   });
 
   closeModal();renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');
   await saveShifts();
-  showToast(`已儲存 ${dates.length} 筆排班 ✓`);
+  // 特休同步到 hr 臨時特休
+  if(annualDates.length){await syncAnnualToHR(empId,annualDates,true);}
+  showToast(`已儲存 ${totalDays} 筆排班 ✓`);
 };
+
+// 特休日期同步到 hr/employees 的 extraLeave[年]
+async function syncAnnualToHR(empId,dates,add){
+  try{
+    const snap=await getDoc(doc(db,'hr','employees'));
+    if(!snap.exists())return;
+    const list=snap.data().list||[];
+    const emp=list.find(e=>String(e.id)===String(empId));
+    if(!emp)return;
+    if(!emp.extraLeave)emp.extraLeave={};
+    dates.forEach(ds=>{
+      const yr=new Date(ds).getFullYear();
+      if(!emp.extraLeave[yr])emp.extraLeave[yr]=[];
+      const arr=emp.extraLeave[yr];const idx=arr.indexOf(ds);
+      if(add){if(idx<0)arr.push(ds);}else{if(idx>=0)arr.splice(idx,1);}
+      arr.sort();
+    });
+    await setDoc(doc(db,'hr','employees'),{list},{merge:true});
+  }catch(e){console.error('syncAnnualToHR',e);}
+}
 
 window.saveEdit=async function(dateStr,idx){
   if(window._checkScheduleLock&&window._checkScheduleLock()){
@@ -1073,10 +1153,14 @@ window.deleteShift=async function(dateStr,idx){
   const _lm=window._checkScheduleLock&&window._checkScheduleLock();
   if(_lm){showToast('🔒 '+_lm);return;}
   if(!confirm('確定要刪除這筆排班？'))return;
+  const removed=shifts[dateStr][idx];
   shifts[dateStr].splice(idx,1);
   if(!shifts[dateStr].length)delete shifts[dateStr];
   renderCalendar();renderLegend();renderSidebar();
-  showToast('儲存中...');await saveShifts();showToast('已刪除 ✓');
+  showToast('儲存中...');await saveShifts();
+  // 若刪的是特休 → 同步移除 hr 臨時特休
+  if(removed&&removed.kind==='annual'&&removed.empId){await syncAnnualToHR(removed.empId,[dateStr],false);}
+  showToast('已刪除 ✓');
 };
 
 // ── 初始化 ──

@@ -192,6 +192,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .d-row .d-field[data-label="額外加班"],
   .d-row .d-field[data-label="遲到"]{flex:1 1 28%}
   .d-row .ipt-wrap input{font-size:15px;min-height:42px;padding:8px 22px 8px 10px;text-align:left}
+  .d-row .hm-wrap input.hm-h,.d-row .hm-wrap input.hm-m{width:46px;font-size:16px;min-height:44px}
+  .d-row .hm-wrap{justify-content:flex-start}
   .d-row .ipt-unit{font-size:11px;right:8px}
   .d-row .type-sel{font-size:15px;min-height:44px;padding:8px 10px}
   .d-row .d-tempbtn{order:2;align-self:flex-start;font-size:13px !important;padding:8px 18px !important;min-height:40px !important}
@@ -215,6 +217,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .type-sel.t-sick,.type-sel.t-physio{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
 .type-sel.t-annual,.type-sel.t-wed,.type-sel.t-funeral,.type-sel.t-redEnvelope{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
 .ipt-wrap{position:relative;display:flex;align-items:center}
+/* 時+分 雙格輸入 */
+.hm-wrap{display:flex;align-items:center;gap:2px}
+.hm-wrap input.hm-h,.hm-wrap input.hm-m{width:34px;text-align:center;font-size:13px;padding:5px 2px;border:1px solid var(--border);border-radius:6px;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:34px}
+.hm-wrap input.hm-h:focus,.hm-wrap input.hm-m:focus{border-color:var(--accent);outline:none}
+.hm-wrap input.fill-orange{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange);font-weight:600}
+.hm-wrap input.fill-red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);font-weight:600}
+.hm-wrap .hm-sep{font-size:10px;color:var(--text3)}
+.hm-wrap input::-webkit-outer-spin-button,.hm-wrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .ipt-wrap input{width:100%;font-size:11px;padding:3px 16px 3px 5px;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;text-align:right;min-height:28px;-webkit-appearance:none;appearance:none}
 .ipt-wrap input:focus{border-color:var(--accent);outline:none}
 .ipt-wrap input.fill-orange{background:var(--orange-bg);border-color:var(--orange-border);color:var(--orange)}
@@ -852,7 +862,7 @@ function calcSalary(emp,rec,shifts){
 
 function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
 function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name));}
+function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>(String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name))&&s.kind!=='annual');}
 // 取某員工 hr 臨時特休日期 Set（當年度）
 function getExtraLeaveSet(emp,y){
   const s=new Set();
@@ -889,6 +899,11 @@ function hoursToHM(hrs){
   if(m===0)return String(h);
   return `${h}:${String(m).padStart(2,'0')}`;
 }
+// 小時(數字) → 時部分 / 分部分
+function hPart(hrs){if(hrs==null||hrs===''||isNaN(hrs))return '';const t=Math.round(Number(hrs)*60);return Math.floor(t/60);}
+function mPart(hrs){if(hrs==null||hrs===''||isNaN(hrs))return '';const t=Math.round(Number(hrs)*60);return t%60;}
+// 時 + 分 → 小時(數字)
+function hmPartsToHours(h,m){const hh=Number(h)||0,mm=Number(m)||0;if(hh===0&&mm===0)return 0;return hh+mm/60;}
 function toDateInput(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return'';return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
 
 // ─── 主畫面 ───
@@ -1083,11 +1098,12 @@ function renderSheet(emp,rec,shifts,c){
     // 請假出勤時數子欄（請假且非全薪/或需要部分出勤時）
     let subRow='';
     if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'){
-      const wh=r.workedHours!=null?hoursToHM(r.workedHours):'';
       subRow=`<div class="sub-row"><div class="sub-leave">
         <span>當天實際上班</span>
-        <input type="text" inputmode="numeric" value="${wh}" placeholder="時:分"
-          data-date="${ds}" onchange="patchDayHM('${ds}','workedHours',this.value)" ${dis} style="width:62px">
+        <div class="hm-wrap">
+          <input type="number" min="0" max="23" inputmode="numeric" value="${r.workedHours!=null?hPart(r.workedHours):''}" class="hm-h" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','h',this.value)" ${dis}><span class="hm-sep">時</span>
+          <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
+        </div>
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
     }
@@ -1097,7 +1113,10 @@ function renderSheet(emp,rec,shifts,c){
       const segs=Array.isArray(r.tempSegs)?r.tempSegs:(r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[{h:'',rate:1.34}]);
       const segHtml=segs.map((sg,si)=>`<div class="sub-temp">
         <span>第${si+1}段</span>
-        <input type="text" inputmode="numeric" value="${sg.h?hoursToHM(sg.h):''}" placeholder="時:分" data-date="${ds}" onchange="updTempSegHM('${ds}',${si},this.value)" ${dis} style="width:62px">
+        <div class="hm-wrap">
+          <input type="number" min="0" max="23" inputmode="numeric" value="${sg.h?hPart(sg.h):''}" class="hm-h" placeholder="0" data-date="${ds}" onchange="updTempSegParts('${ds}',${si},'h',this.value)" ${dis}><span class="hm-sep">時</span>
+          <input type="number" min="0" max="59" inputmode="numeric" value="${sg.h?mPart(sg.h):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="updTempSegParts('${ds}',${si},'m',this.value)" ${dis}><span class="hm-sep">分</span>
+        </div>
         <span>×</span>
         <select data-date="${ds}" onchange="updTempSeg('${ds}',${si},'rate',+this.value)" ${dis}>
           <option value="1"${sg.rate==1?' selected':''}>1.0</option>
@@ -1148,10 +1167,14 @@ function renderSheet(emp,rec,shifts,c){
       <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${(noShift&&type==='normal')||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select></div>
-      <div class="d-field" data-label="固定加班"><div class="ipt-wrap"><input type="text" inputmode="numeric" value="${hasFixedOt?hoursToHM(autoOt):''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34，可輸入 時:分 如 1:30"
-        data-date="${ds}" onchange="patchDayHM('${ds}','autoOt',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">時:分</span></div></div>
-      <div class="d-field col-ot2" data-label="額外加班"><div class="ipt-wrap"><input type="text" inputmode="numeric" value="${ot167?hoursToHM(ot167):''}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67，可輸入 時:分 如 0:40"
-        data-date="${ds}" onchange="patchDayHM('${ds}','ot167',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">時:分</span></div></div>
+      <div class="d-field" data-label="固定加班"><div class="hm-wrap">
+        <input type="number" min="0" max="23" inputmode="numeric" value="${hasFixedOt?hPart(autoOt):''}" class="hm-h ${hasFixedOt&&autoOt?'fill-orange':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','autoOt','h',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">時</span>
+        <input type="number" min="0" max="59" inputmode="numeric" value="${hasFixedOt?mPart(autoOt):''}" class="hm-m ${hasFixedOt&&autoOt?'fill-orange':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','autoOt','m',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">分</span>
+      </div></div>
+      <div class="d-field col-ot2" data-label="額外加班"><div class="hm-wrap">
+        <input type="number" min="0" max="23" inputmode="numeric" value="${ot167?hPart(ot167):''}" class="hm-h ${ot167?'fill-red':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','ot167','h',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">時</span>
+        <input type="number" min="0" max="59" inputmode="numeric" value="${ot167?mPart(ot167):''}" class="hm-m ${ot167?'fill-red':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','ot167','m',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">分</span>
+      </div></div>
       <div class="d-field col-late" data-label="遲到"><div class="ipt-wrap"><input type="number" min="0" max="480" step="1" value="${lateMins}" class="${lateMins?'fill-red':''}" placeholder="—" title="遲到分鐘"
         data-date="${ds}" onchange="patchDay('${ds}','lateMins',+this.value)" ${!shift||type!=='normal'||!inEmp||dis?'disabled':''}><span class="ipt-unit">分</span></div></div>
       ${noShift&&inEmp?`<button class="btn-sm o d-tempbtn" style="font-size:10px;padding:2px 5px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}" onclick="toggleTempOt('${ds}')" ${dis}>加班</button>`:'<div class="d-spacer"></div>'}
@@ -1420,6 +1443,16 @@ async function syncAnnualToHR(ds,add){
 }
 window.patchDay=function(ds,field,value){if(!currentRec)return;dayRec(ds)[field]=value;persist();rerender();};
 window.patchDayHM=function(ds,field,str){if(!currentRec)return;const v=hmToHours(str);dayRec(ds)[field]=(v===null||v===0&&str==='')?(field==='workedHours'?null:0):v;persist();rerender();};
+window.patchDayParts=function(ds,field,part,val){
+  if(!currentRec)return;
+  const r=dayRec(ds);
+  const cur=r[field];
+  let h=hPart(cur)||0, m=mPart(cur)||0;
+  if(part==='h')h=Number(val)||0; else m=Number(val)||0;
+  const hours=hmPartsToHours(h,m);
+  r[field]=(field==='workedHours'&&hours===0&&part==='h'&&!val&&!m)?null:hours;
+  persist();rerender();
+};
 window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
 window.toggleTempOt=function(ds){
   if(!currentRec)return;const r=dayRec(ds);
@@ -1435,6 +1468,12 @@ function ensureSegs(ds){
 window.addTempSeg=function(ds){if(!currentRec)return;ensureSegs(ds).push({h:'',rate:1.34});persist();rerender();};
 window.updTempSeg=function(ds,si,field,val){if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;s[si][field]=val;persist();rerender();};
 window.updTempSegHM=function(ds,si,str){if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;s[si].h=hmToHours(str)||0;persist();rerender();};
+window.updTempSegParts=function(ds,si,part,val){
+  if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;
+  let h=hPart(s[si].h)||0,m=mPart(s[si].h)||0;
+  if(part==='h')h=Number(val)||0;else m=Number(val)||0;
+  s[si].h=hmPartsToHours(h,m);persist();rerender();
+};
 window.delTempSeg=function(ds,si){if(!currentRec)return;const s=ensureSegs(ds);s.splice(si,1);if(!s.length)s.push({h:'',rate:1.34});persist();rerender();};
 window.addCustomAdd=function(){if(!currentRec)return;if(!currentRec.customAdds)currentRec.customAdds=[];currentRec.customAdds.push({name:'',amount:0});persist();rerender();};
 window.updCustomAdd=function(i,field,val){if(!currentRec||!currentRec.customAdds||!currentRec.customAdds[i])return;currentRec.customAdds[i][field]=val;persist();rerender();};
