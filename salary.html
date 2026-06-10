@@ -764,9 +764,13 @@ function calcSalary(emp,rec,shifts){
   const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自負
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
-  const pensionRate=rec?.pensionRate??0;
+  // 自提%：salary 手動覆蓋優先，否則抓 hr insurance.pensionRate
+  const hrPension=Number(emp.insurance?.pensionRate||0);
+  const pensionRate=rec?.pensionRate!=null?rec.pensionRate:hrPension;
   const pensionAmt=pensionRate>0?Math.round(insGrade*pensionRate):0;
-  const dependents=rec?.dependents??0;
+  // 眷屬數：salary 手動覆蓋優先，否則抓 hr insurance.dependents 數量
+  const hrDeps=Array.isArray(emp.insurance?.dependents)?emp.insurance.dependents.length:0;
+  const dependents=rec?.dependents!=null?rec.dependents:hrDeps;
   const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷整月健保
   const insMode=rec?.insMode||'normal';
 
@@ -850,6 +854,7 @@ function calcSalary(emp,rec,shifts){
     hireDate:emp2.hireDate,leaveDate:emp2.leaveDate,
     unenrollDate:unenrollDate?dateStr(unenrollDate.getFullYear(),unenrollDate.getMonth()+1,unenrollDate.getDate()):null,
     pensionRate,pensionAmt,dependents,insMode,
+    pensionFromHR:(rec?.pensionRate==null&&hrPension>0),depsFromHR:(rec?.dependents==null&&hrDeps>0),
     annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
     isCentral:isCen,scheduledDays,mealDays,mealAllowance,
     gross,totalDeduct,totalAdd,netPay,verifySum,
@@ -1296,7 +1301,7 @@ function renderSheet(emp,rec,shifts,c){
           </div>
 
           <div class="ins-trow">
-            <div class="ins-tname">健保<div class="ins-tnote">本人 + 眷屬加保</div></div>
+            <div class="ins-tname">健保<div class="ins-tnote">本人 + 眷屬加保${c.depsFromHR?'<br><span style="color:var(--blue)">眷屬數來自人員資訊</span>':''}</div></div>
             <div style="display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
               <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
               <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
@@ -1305,7 +1310,7 @@ function renderSheet(emp,rec,shifts,c){
           </div>
 
           <div class="ins-trow">
-            <div class="ins-tname">自提退休金<div class="ins-tnote">投保級距 × 自提%</div></div>
+            <div class="ins-tname">自提退休金<div class="ins-tnote">投保級距 × 自提%${c.pensionFromHR?'<br><span style="color:var(--blue)">自提%來自人員資訊</span>':''}</div></div>
             <div style="text-align:center"><select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${dis}><option value="0"${c.pensionRate===0?' selected':''}>不自提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
             <div class="ins-tval">−$${c.pensionAmt.toLocaleString()}</div>
           </div>

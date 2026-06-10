@@ -1260,6 +1260,17 @@ function render() {
               <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
             </div>`).join('')}
           </div>`:''}
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee">
+            <div class="sec-title" style="margin-bottom:8px">勞退自提</div>
+            <div style="display:flex;align-items:center;gap:8px;max-width:400px">
+              <select id="ins-pension-${sel.id}" style="flex:1;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
+                <option value="0"${!ins.pensionRate||ins.pensionRate==0?' selected':''}>不自提</option>
+                ${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${ins.pensionRate==p/100?' selected':''}>自提 ${p}%</option>`).join('')}
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="savePensionRate(${sel.id})">儲存</button>
+            </div>
+            <div style="font-size:11px;color:#9AA0B4;margin-top:5px">自提金額 = 投保級距 × 自提%，此設定會自動帶入薪資計算。</div>
+          </div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1844,6 +1855,18 @@ window.deleteInsuranceHistory=async function(empId,idx){
   if(!r||!r.insurance||!r.insurance.gradeHistory)return;
   r.insurance.gradeHistory.splice(idx,1);
   render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
+};
+
+window.savePensionRate=async function(empId){
+  const r=employees.find(x=>x.id===empId);
+  if(!r)return;
+  if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
+  const el=document.getElementById('ins-pension-'+empId);
+  if(!el)return;
+  r.insurance.pensionRate=Number(el.value)||0;
+  showToast('儲存中...'); await saveData();
+  const pct=Math.round(r.insurance.pensionRate*100);
+  showToast(pct>0?`勞退自提 ${pct}% 已儲存 ✓`:'已設為不自提 ✓');
 };
 
 // ── 刪除眷屬 ──
