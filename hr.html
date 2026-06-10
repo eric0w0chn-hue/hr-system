@@ -68,7 +68,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 /* 詳細資料 */
 .detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:visible;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
 .detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#F0F2F5 0%,#fff 100%)}
-.detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .detail-tabs::-webkit-scrollbar{display:none}
 .dtab{padding:9px 10px;font-size:11.5px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
 .dtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
@@ -868,7 +868,7 @@ function render() {
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
-      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助'],['training','教育訓練'],['interview','訪談紀錄']];
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助'],['interview','訪談紀錄']];
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
@@ -1260,17 +1260,6 @@ function render() {
               <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
             </div>`).join('')}
           </div>`:''}
-          <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee">
-            <div class="sec-title" style="margin-bottom:8px">勞退自提</div>
-            <div style="display:flex;align-items:center;gap:8px;max-width:400px">
-              <select id="ins-pension-${sel.id}" style="flex:1;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
-                <option value="0"${!ins.pensionRate||ins.pensionRate==0?' selected':''}>不自提</option>
-                ${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${ins.pensionRate==p/100?' selected':''}>自提 ${p}%</option>`).join('')}
-              </select>
-              <button class="btn btn-sm btn-primary" onclick="savePensionRate(${sel.id})">儲存</button>
-            </div>
-            <div style="font-size:11px;color:#9AA0B4;margin-top:5px">自提金額 = 投保級距 × 自提%，此設定會自動帶入薪資計算。</div>
-          </div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1347,9 +1336,10 @@ function render() {
       det=`<div class="detail">
         <div class="detail-header">
           <div class="av ${avCls(sel.name)}" style="width:38px;height:38px;font-size:13px">${ini(sel.name)}</div>
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:500">${sel.name}</div>
-            <div style="font-size:12px;color:#6b6b68">${sel.workLocation||'—'} · ${sel.title||'—'} · ${eBadge(sel.status)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:16px;font-weight:700;letter-spacing:.3px;line-height:1.2">${sel.name}</div>
+            <div style="font-size:12px;color:#6b6b68;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sel.workLocation||'—'} · ${sel.title||'—'}</div>
+            <div style="margin-top:4px">${eBadge(sel.status)}</div>
           </div>
           <button class="btn btn-sm btn-outline" onclick="openModal('editEmployee',${sel.id})">編輯</button>
           <button class="btn btn-sm btn-outline" style="color:#e24b4a;border-color:#e24b4a" onclick="resignEmployee(${sel.id})">離職</button>
@@ -1855,18 +1845,6 @@ window.deleteInsuranceHistory=async function(empId,idx){
   if(!r||!r.insurance||!r.insurance.gradeHistory)return;
   r.insurance.gradeHistory.splice(idx,1);
   render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
-};
-
-window.savePensionRate=async function(empId){
-  const r=employees.find(x=>x.id===empId);
-  if(!r)return;
-  if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
-  const el=document.getElementById('ins-pension-'+empId);
-  if(!el)return;
-  r.insurance.pensionRate=Number(el.value)||0;
-  showToast('儲存中...'); await saveData();
-  const pct=Math.round(r.insurance.pensionRate*100);
-  showToast(pct>0?`勞退自提 ${pct}% 已儲存 ✓`:'已設為不自提 ✓');
 };
 
 // ── 刪除眷屬 ──
