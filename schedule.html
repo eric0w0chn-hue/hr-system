@@ -1169,18 +1169,19 @@ onAuthStateChanged(auth,async user=>{
   }
 
   // 並行載入所有資料
-  await Promise.all([
-    getDoc(doc(db,'hr','settings')).then(s=>{
-      if(s.exists()){
-        workLocations=s.data().workLocations||[];
-        // Firestore 有設定就合併，沒有就保留寫死的預設值
-        if(s.data().locationCodes) locationCodes={...locationCodes,...s.data().locationCodes};
-      }
-    }),
-    getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
-    loadShiftTypes(),
-    loadHolidays(viewYear),
-  ]);
+  try {
+    await Promise.all([
+      getDoc(doc(db,'hr','settings')).then(s=>{
+        if(s.exists()){
+          workLocations=s.data().workLocations||[];
+          if(s.data().locationCodes) locationCodes={...locationCodes,...s.data().locationCodes};
+        }
+      }),
+      getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
+      loadShiftTypes(),
+      loadHolidays(viewYear),
+    ]);
+  } catch(e) { console.error('初始載入失敗',e); }
 
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:
@@ -1203,7 +1204,7 @@ onAuthStateChanged(auth,async user=>{
     }
   }
 
-  await loadShifts();
+  try { await loadShifts(); } catch(e) { console.error('loadShifts 失敗',e); }
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
