@@ -418,6 +418,7 @@ let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
 let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false, showSysPanel=false;
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
+let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -660,7 +661,7 @@ function calcSalary(emp,rec,shifts){
     const ds=dateStr(viewYear,viewMonth,d);
     const shift=getShift(shifts,emp,ds);
     const r=dd[ds]||{};
-    const type=r.type||'normal';
+    const type=getEffectiveType(emp,r,ds);
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
 
     // 未排班日臨時加班（支援多段費率）
@@ -668,6 +669,12 @@ function calcSalary(emp,rec,shifts){
       const segs=Array.isArray(r.tempSegs)?r.tempSegs:(r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[]);
       for(const sg of segs){
         if(sg.h>0){const rate=Number(sg.rate||1.34);tempOtSegs[rate]=(tempOtSegs[rate]||0)+Number(sg.h);}
+      }
+      // HR 特休帶入但當天未排班 → 仍列入全薪假別呈現（月薪制不扣薪，不影響實領）
+      if(lt.pay==='full'&&type!=='normal'){
+        const label=LEAVE_TYPES[type].label;
+        if(!paidLeaves[label])paidLeaves[label]=[];
+        paidLeaves[label].push(`${d}日`);
       }
       continue;
     }
@@ -846,8 +853,42 @@ function calcSalary(emp,rec,shifts){
 function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
 function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name));}
+// 取某員工 hr 臨時特休日期 Set（當年度）
+function getExtraLeaveSet(emp,y){
+  const s=new Set();
+  const arr=emp&&emp.extraLeave&&emp.extraLeave[y];
+  if(Array.isArray(arr))arr.forEach(d=>s.add(d));
+  return s;
+}
+// 決定某天有效假別：salary_records 手動 type 優先；否則 hr 特休帶為 annual；否則 normal
+// r.type 存在(含'normal')=手動設定過 → 優先；不存在=未設定 → 可被 extraLeave 覆蓋
+function getEffectiveType(emp,r,ds){
+  if(r&&r.type!=null&&r.type!=='')return r.type; // 手動設定優先
+  const y=Number(ds.slice(0,4));
+  const exSet=getExtraLeaveSet(emp,y);
+  if(exSet.has(ds))return 'annual'; // HR 特休自動帶入
+  return 'normal';
+}
 function storeEmps(store){return employees.filter(e=>normStore(e.workLocation)===normStore(store));}
 function fmtMin(mins){mins=Math.round(mins);if(mins===0)return'0';const h=Math.floor(mins/60),m=mins%60;return`${h>0?h+'時':''}${m>0?m+'分':''}`||'0';}
+// 「時:分」或純數字字串 → 小時(數字)
+function hmToHours(str){
+  if(str==null||str==='')return null;
+  str=String(str).trim();
+  if(str.includes(':')){
+    const[h,m]=str.split(':');
+    return (Number(h)||0)+(Number(m)||0)/60;
+  }
+  return Number(str)||0;
+}
+// 小時(數字) → 「時:分」顯示
+function hoursToHM(hrs){
+  if(hrs==null||hrs===''||isNaN(hrs))return '';
+  const total=Math.round(Number(hrs)*60);
+  const h=Math.floor(total/60),m=total%60;
+  if(m===0)return String(h);
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
 function toDateInput(d){if(!d)return'';const dt=new Date(d);if(isNaN(dt))return'';return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
 
 // ─── 主畫面 ───
@@ -912,8 +953,13 @@ function renderMain(){
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
     const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
     const act=String(e.id)===String(selectedEmpId);
-    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}</option>`;
+    const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+    const net=snapCache[snapKey];
+    const netTxt=net!=null?`　實領 $${Number(net).toLocaleString()}`:'';
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}${netTxt}</option>`;
   }).join(''):'';
+  // 背景預載當店各員工實領（snapshot），載完更新下拉文字
+  preloadSnapshots(curEmps);
 
   main.innerHTML=`
     <div class="filter-bar">
@@ -962,6 +1008,32 @@ window.selEmpFromSel=async function(empId){
 };
 window.selEmp=window.selEmpFromSel; // 相容
 
+// 背景預載當店各員工本月實領，更新下拉選項文字
+let _preloadToken=0;
+async function preloadSnapshots(emps){
+  if(!emps||!emps.length)return;
+  const token=++_preloadToken;
+  for(const e of emps){
+    const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+    if(snapCache[snapKey]!=null)continue;
+    try{
+      const[shifts,rec]=await Promise.all([loadShifts(e.id,viewYear,viewMonth),loadRec(e.id,viewYear,viewMonth)]);
+      if(token!==_preloadToken)return; // 已切換店面/月份，放棄
+      const c=calcSalary(e,rec||{dailyData:{}},shifts);
+      snapCache[snapKey]=Math.round(c.netPay);
+      // 更新下拉對應 option 文字
+      const sel=document.getElementById('empSel');
+      if(sel){const opt=[...sel.options].find(o=>o.value===String(e.id));
+        if(opt&&!opt.textContent.includes('實領')){
+          const tgt=getTarget(e,viewYear,viewMonth);
+          const e2=calcEmployedDays(e,viewYear,viewMonth,null);
+          const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
+          opt.textContent=`${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}　實領 $${Number(Math.round(c.netPay)).toLocaleString()}`;
+        }}
+    }catch(err){}
+  }
+}
+
 async function loadAndRender(empId,doScroll){
   const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
   const[shifts,rec]=await Promise.all([loadShifts(empId,viewYear,viewMonth),loadRec(empId,viewYear,viewMonth)]);
@@ -994,7 +1066,7 @@ function renderSheet(emp,rec,shifts,c){
     const isWknd=dow===0||dow===6;
     const shift=getShift(shifts,emp,ds);
     const r=dd[ds]||{};
-    const type=r.type||'normal';
+    const type=getEffectiveType(emp,r,ds);
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
     const inEmp=emp2.inEmploy(d);
     const noShift=!shift;
@@ -1011,12 +1083,12 @@ function renderSheet(emp,rec,shifts,c){
     // 請假出勤時數子欄（請假且非全薪/或需要部分出勤時）
     let subRow='';
     if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'){
-      const wh=r.workedHours!=null?r.workedHours:'';
+      const wh=r.workedHours!=null?hoursToHM(r.workedHours):'';
       subRow=`<div class="sub-row"><div class="sub-leave">
         <span>當天實際上班</span>
-        <input type="number" min="0" max="24" step="0.5" value="${wh}" placeholder="0"
-          data-date="${ds}" onchange="patchDay('${ds}','workedHours',this.value===''?null:+this.value)" ${dis}>
-        <span>小時（其餘${LEAVE_TYPES[type].label}）</span>
+        <input type="text" inputmode="numeric" value="${wh}" placeholder="時:分"
+          data-date="${ds}" onchange="patchDayHM('${ds}','workedHours',this.value)" ${dis} style="width:62px">
+        <span>（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
     }
     // 未排班日臨時加班子欄（多段費率）
@@ -1025,8 +1097,8 @@ function renderSheet(emp,rec,shifts,c){
       const segs=Array.isArray(r.tempSegs)?r.tempSegs:(r.tempOt>0?[{h:Number(r.tempOt),rate:Number(r.tempOtRate||1.34)}]:[{h:'',rate:1.34}]);
       const segHtml=segs.map((sg,si)=>`<div class="sub-temp">
         <span>第${si+1}段</span>
-        <input type="number" min="0" max="24" step="0.5" value="${sg.h||''}" placeholder="時" data-date="${ds}" onchange="updTempSeg('${ds}',${si},'h',+this.value)" ${dis}>
-        <span>h ×</span>
+        <input type="text" inputmode="numeric" value="${sg.h?hoursToHM(sg.h):''}" placeholder="時:分" data-date="${ds}" onchange="updTempSegHM('${ds}',${si},this.value)" ${dis} style="width:62px">
+        <span>×</span>
         <select data-date="${ds}" onchange="updTempSeg('${ds}',${si},'rate',+this.value)" ${dis}>
           <option value="1"${sg.rate==1?' selected':''}>1.0</option>
           <option value="1.34"${sg.rate==1.34?' selected':''}>1.34</option>
@@ -1042,21 +1114,20 @@ function renderSheet(emp,rec,shifts,c){
     }
 
     // ── 全部預設收起，點開才填寫 ──
-    // 已填過資料（非預設）的日子顯示摘要；展開狀態存 r.expanded
+    const fromHR = (r.type==null||r.type==='') && type==='annual'; // 由HR特休帶入
     const hasData = (type!=='normal') || r.ot167>0 || r.lateMins>0 || r.workedHours!=null
       || r.hasTempOt || (r.autoOt!=null && r.autoOt!==defOt);
     const isExpanded = r.expanded;
     if(!isExpanded){
-      // 收起列摘要
+      // 收起列摘要：假別優先（含 HR 帶入特休）
       let summary='';
-      if(noShift){
-        summary = hasData ? `<span class="d-sum-tag t-blue">臨時加班</span>` : `<span class="d-sum-muted">未排班</span>`;
-      } else if(type!=='normal'){
-        summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${r.workedHours}h）`:''}</span>`;
+      if(type!=='normal'){
+        summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${hoursToHM(r.workedHours)}h）`:''}</span>${fromHR?'<span class="d-sum-extra">（HR特休）</span>':''}`;
+      } else if(noShift){
+        summary = r.hasTempOt ? `<span class="d-sum-tag t-blue">臨時加班</span>` : `<span class="d-sum-muted">未排班</span>`;
       } else {
-        // 正常班
         const parts=[];
-        if(r.ot167>0)parts.push(`額外+${r.ot167}h`);
+        if(r.ot167>0)parts.push(`額外+${hoursToHM(r.ot167)}h`);
         if(r.lateMins>0)parts.push(`遲到${r.lateMins}分`);
         summary = parts.length
           ? `<span class="d-sum-tag t-gray">正常</span><span class="d-sum-extra">${parts.join('、')}</span>`
@@ -1074,13 +1145,13 @@ function renderSheet(emp,rec,shifts,c){
     rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
       <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
       <div class="d-shift">${shiftTxt}${inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
-      <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${noShift||!inEmp?'disabled':dis}>
+      <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${(noShift&&type==='normal')||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select></div>
-      <div class="d-field" data-label="固定加班"><div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${hasFixedOt?autoOt:''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34"
-        data-date="${ds}" onchange="patchDay('${ds}','autoOt',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div></div>
-      <div class="d-field col-ot2" data-label="額外加班"><div class="ipt-wrap"><input type="number" min="0" max="24" step="0.5" value="${ot167}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67"
-        data-date="${ds}" onchange="patchDay('${ds}','ot167',+this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">h</span></div></div>
+      <div class="d-field" data-label="固定加班"><div class="ipt-wrap"><input type="text" inputmode="numeric" value="${hasFixedOt?hoursToHM(autoOt):''}" class="${hasFixedOt?'fill-orange':''}" placeholder="—" title="固定加班×1.34，可輸入 時:分 如 1:30"
+        data-date="${ds}" onchange="patchDayHM('${ds}','autoOt',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">時:分</span></div></div>
+      <div class="d-field col-ot2" data-label="額外加班"><div class="ipt-wrap"><input type="text" inputmode="numeric" value="${ot167?hoursToHM(ot167):''}" class="${ot167?'fill-red':''}" placeholder="—" title="額外加班×1.67，可輸入 時:分 如 0:40"
+        data-date="${ds}" onchange="patchDayHM('${ds}','ot167',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="ipt-unit">時:分</span></div></div>
       <div class="d-field col-late" data-label="遲到"><div class="ipt-wrap"><input type="number" min="0" max="480" step="1" value="${lateMins}" class="${lateMins?'fill-red':''}" placeholder="—" title="遲到分鐘"
         data-date="${ds}" onchange="patchDay('${ds}','lateMins',+this.value)" ${!shift||type!=='normal'||!inEmp||dis?'disabled':''}><span class="ipt-unit">分</span></div></div>
       ${noShift&&inEmp?`<button class="btn-sm o d-tempbtn" style="font-size:10px;padding:2px 5px;min-height:24px;${r.hasTempOt?'background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)':'color:var(--text3)'}" onclick="toggleTempOt('${ds}')" ${dis}>加班</button>`:'<div class="d-spacer"></div>'}
@@ -1282,7 +1353,11 @@ function persist(){ if(selectedEmpId&&currentRec) saveRec(selectedEmpId,viewYear
 function rerender(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
   const sy=window.scrollY;
-  renderSheet(emp,currentRec,curShifts,calcSalary(emp,currentRec,curShifts));
+  const c=calcSalary(emp,currentRec,curShifts);
+  renderSheet(emp,currentRec,curShifts,c);
+  // 同步更新下拉的實領
+  const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+  snapCache[snapKey]=Math.round(c.netPay);
   window.scrollTo(0,sy);
 }
 function dayRec(ds){
@@ -1305,11 +1380,46 @@ window.updType=function(el){
   if(!currentRec)return;
   const type=el.value,ds=el.dataset.date;
   const r=dayRec(ds);
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  const prevEff=getEffectiveType(emp,r,ds); // 變更前的有效假別（含HR帶入）
   r.type=type;
   if(type==='normal'){delete r.workedHours;r.workedHours=null;} // 切回正常清掉請假時數
+  // 特休假 ↔ 同步 HR 臨時特休
+  if(type==='annual'&&prevEff!=='annual'){syncAnnualToHR(ds,true);}
+  else if(prevEff==='annual'&&type!=='annual'){syncAnnualToHR(ds,false);}
   persist();rerender();
 };
+// 同步特休日期到 hr/employees 的 extraLeave[年]（同時更新記憶體 employees）
+async function syncAnnualToHR(ds,add){
+  try{
+    const empId=selectedEmpId;
+    const yr=new Date(ds).getFullYear();
+    // 先更新記憶體（讓 getEffectiveType 即時反映、下拉實領重算正確）
+    const memEmp=employees.find(e=>String(e.id)===String(empId));
+    if(memEmp){
+      if(!memEmp.extraLeave)memEmp.extraLeave={};
+      if(!memEmp.extraLeave[yr])memEmp.extraLeave[yr]=[];
+      const ma=memEmp.extraLeave[yr];const mi=ma.indexOf(ds);
+      if(add){if(mi<0){ma.push(ds);ma.sort();}}else{if(mi>=0)ma.splice(mi,1);}
+    }
+    // 寫回 Firestore
+    const snap=await getDoc(doc(db,'hr','employees'));
+    if(!snap.exists())return;
+    const list=snap.data().list||[];
+    const emp=list.find(e=>String(e.id)===String(empId));
+    if(!emp)return;
+    if(!emp.extraLeave)emp.extraLeave={};
+    if(!emp.extraLeave[yr])emp.extraLeave[yr]=[];
+    const arr=emp.extraLeave[yr];
+    const idx=arr.indexOf(ds);
+    if(add){if(idx<0){arr.push(ds);arr.sort();}}
+    else{if(idx>=0)arr.splice(idx,1);}
+    await setDoc(doc(db,'hr','employees'),{list},{merge:true});
+    showToast(add?`✓ 特休 ${ds} 已同步至人員資訊`:`✓ 已移除 ${ds} 特休同步`);
+  }catch(e){console.error('syncAnnualToHR',e);}
+}
 window.patchDay=function(ds,field,value){if(!currentRec)return;dayRec(ds)[field]=value;persist();rerender();};
+window.patchDayHM=function(ds,field,str){if(!currentRec)return;const v=hmToHours(str);dayRec(ds)[field]=(v===null||v===0&&str==='')?(field==='workedHours'?null:0):v;persist();rerender();};
 window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
 window.toggleTempOt=function(ds){
   if(!currentRec)return;const r=dayRec(ds);
@@ -1324,6 +1434,7 @@ function ensureSegs(ds){
 }
 window.addTempSeg=function(ds){if(!currentRec)return;ensureSegs(ds).push({h:'',rate:1.34});persist();rerender();};
 window.updTempSeg=function(ds,si,field,val){if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;s[si][field]=val;persist();rerender();};
+window.updTempSegHM=function(ds,si,str){if(!currentRec)return;const s=ensureSegs(ds);if(!s[si])return;s[si].h=hmToHours(str)||0;persist();rerender();};
 window.delTempSeg=function(ds,si){if(!currentRec)return;const s=ensureSegs(ds);s.splice(si,1);if(!s.length)s.push({h:'',rate:1.34});persist();rerender();};
 window.addCustomAdd=function(){if(!currentRec)return;if(!currentRec.customAdds)currentRec.customAdds=[];currentRec.customAdds.push({name:'',amount:0});persist();rerender();};
 window.updCustomAdd=function(i,field,val){if(!currentRec||!currentRec.customAdds||!currentRec.customAdds[i])return;currentRec.customAdds[i][field]=val;persist();rerender();};
