@@ -401,6 +401,8 @@ window.exportToExcel = async function() {
 
     for(const dateStr of Object.keys(locShifts).sort()){
       for(const s of locShifts[dateStr]){
+        // 特休不匯出（只匯出實際上班排班）
+        if(s.kind==='annual') continue;
         // 人員篩選（UI 篩選器）
         if(filterEmpIds.size > 0 && !filterEmpIds.has(String(s.empId))) continue;
         // 跨店只匯自己
