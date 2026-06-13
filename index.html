@@ -3,14 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" href="/hr-system/icons/icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/hr-system/icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/hr-system/icons/favicon-32.png">
-<link rel="manifest" href="/hr-system/manifest.json">
-<meta name="apple-mobile-web-app-title" content="鑫系統">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2D3142">
 <title>鑫系統 LIANGPING</title>
 <style>
 :root{--bg:#ECEEF2;--surface:#FFFFFF;--border:#DDE1E9;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142}
@@ -37,6 +29,8 @@ body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height
 .divider{border:none;border-top:1px solid var(--border);margin:20px 0}
 .hint{font-size:11px;color:var(--text3);text-align:center;line-height:1.8}
 .hint strong{color:var(--text2)}
+.remember-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:12px;cursor:pointer;user-select:none}
+.remember-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -49,13 +43,16 @@ body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height
   <div class="card">
     <div class="fr">
       <label>身分證號</label>
-      <input id="idNo" type="text" placeholder="A123456789" autocomplete="off" maxlength="10">
+      <input id="idNo" type="text" placeholder="A123456789" autocomplete="username" maxlength="10">
     </div>
     <div class="fr">
       <label>密碼</label>
-      <input id="pwd" type="password" placeholder="••••••">
+      <input id="pwd" type="password" placeholder="••••••" autocomplete="current-password">
     </div>
     <div class="err" id="errMsg"></div>
+    <label class="remember-row">
+      <input type="checkbox" id="rememberMe"> 記住帳號
+    </label>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">登入</button>
     <hr class="divider">
     <p class="hint">首次登入密碼為民國生日<br><strong>例：民國83年1月1日 → 830101</strong></p>
@@ -70,6 +67,12 @@ const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+// 讀取記憶的帳號
+(function(){
+  const saved=localStorage.getItem('rememberedIdNo');
+  const cb=document.getElementById('rememberMe');
+  if(saved){ document.getElementById('idNo').value=saved; cb.checked=true; }
+})();
 document.getElementById('idNo').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwd').focus();});
 if(new URLSearchParams(window.location.search).get('disabled')==='1'){
   document.getElementById('errMsg').textContent='此帳號已停用，請聯繫管理人員';
@@ -91,6 +94,12 @@ window.doLogin=async function(){
       const _doc=doc(_db,'users',cred.user.uid);
       await setDoc(_doc,{lastLoginAt:new Date().toISOString()},{merge:true});
     }catch(e2){ console.warn('lastLoginAt write failed:',e2); }
+    // 記住帳號
+    if(document.getElementById('rememberMe').checked){
+      localStorage.setItem('rememberedIdNo', idNo);
+    } else {
+      localStorage.removeItem('rememberedIdNo');
+    }
     window.location.href='dashboard.html';
   }catch(e){
     btn.disabled=false;btn.textContent='登入';
