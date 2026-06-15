@@ -460,6 +460,7 @@ async function loadOverview(){
 
 function renderOverview(dates){
   const body = document.getElementById('overviewBody');
+  if(!body) return;  // 總覽容器不存在時安全跳過，避免 null 存取拋錯
   const weekdays = ['日','一','二','三','四','五','六'];
   const today = todayStr();
 
@@ -488,9 +489,10 @@ function renderOverview(dates){
     </div>`;
   }).join('');
 
-  document.getElementById('overviewRange').textContent = `最近 ${dates.length} 天`;
+  const rangeEl = document.getElementById('overviewRange');
+  if(rangeEl) rangeEl.textContent = `最近 ${dates.length} 天`;
   const loadMore = document.getElementById('ovLoadMore');
-  loadMore.style.display = overviewDays < 60 ? 'block' : 'none';
+  if(loadMore) loadMore.style.display = overviewDays < 60 ? 'block' : 'none';
 }
 
 window.loadMoreOverview = async function(){
