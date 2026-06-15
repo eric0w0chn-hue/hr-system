@@ -181,6 +181,55 @@ tr.dragging{opacity:.4}
   .modal-backdrop{align-items:center;padding:16px}
   .modal{border-radius:14px}
 }
+
+/* 手機版帳號收合展開 */
+@media(max-width:600px){
+  /* 隱藏桌機表格 thead */
+  .tbl-wrap table thead{display:none}
+  /* 每個 tr 變成卡片列 */
+  .tbl-wrap table tbody tr{
+    display:block;
+    border-bottom:1px solid var(--border);
+    padding:0;
+    cursor:pointer;
+  }
+  .tbl-wrap table tbody tr:last-child{border-bottom:none}
+  /* 名稱列（第一個 td）─ 永遠顯示，做成標題行 */
+  .tbl-wrap table tbody tr td:first-child{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;font-size:14px;font-weight:600;color:var(--text);
+    border-bottom:none;
+  }
+  .tbl-wrap table tbody tr td:first-child::before{display:none}
+  /* 展開箭頭 */
+  .tbl-wrap table tbody tr td:first-child::after{
+    content:'▸';font-size:12px;color:var(--text3);transition:transform .2s;flex-shrink:0;margin-left:8px;
+  }
+  .tbl-wrap table tbody tr.acc-open td:first-child::after{
+    transform:rotate(90deg);
+  }
+  /* 其餘 td 預設隱藏 */
+  .tbl-wrap table tbody tr td:not(:first-child){
+    display:none;padding:4px 14px;font-size:12px;color:var(--text);border-bottom:none;
+  }
+  .tbl-wrap table tbody tr td:not(:first-child)::before{
+    content:attr(data-label);font-size:11px;color:var(--text3);font-weight:500;
+    display:inline-block;min-width:56px;margin-right:6px;
+  }
+  /* 展開後顯示 */
+  .tbl-wrap table tbody tr.acc-open td:not(:first-child){
+    display:flex;align-items:center;
+  }
+  /* 最後一個 td（操作）展開後底部留空白 */
+  .tbl-wrap table tbody tr.acc-open td:last-child{
+    padding-bottom:12px;
+  }
+  /* 拖拉把手在手機不顯示 */
+  .drag-handle{display:none}
+  /* card padding 壓縮 */
+  .card{margin-bottom:8px;padding:0}
+  .card-header{padding:12px 14px 10px}
+}
 </style>
 </head>
 <body>
@@ -452,28 +501,28 @@ function renderRow(e) {
     : `<span style="color:var(--text3)">—</span>`;
 
   const eyeBtn = e.password
-    ? `<button class="pw-toggle" onclick="_togglePw('${e.id}')">${visible ? '🙈' : '👁'}</button>`
+    ? `<button class="pw-toggle" onclick="event.stopPropagation();_togglePw('${e.id}')">${visible ? '🙈' : '👁'}</button>`
     : '';
 
   const actionCol = _role !== 'employee'
     ? `<td><div class="btns-row">
-        <button class="btn btn-ghost btn-sm" onclick="_edit('${e.id}')">編輯</button>
-        <button class="btn btn-danger btn-sm" onclick="_del('${e.id}')">刪除</button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();_edit('${e.id}')">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();_del('${e.id}')">刪除</button>
       </div></td>`
     : '';
 
   const dragHandle = _role !== 'employee'
     ? `<span class="drag-handle" title="拖曳排序">⠿</span>`
     : '';
-  return `<tr draggable="false" data-id="${e.id}" data-store="${esc(e.store)}">
+  return `<tr draggable="false" data-id="${e.id}" data-store="${esc(e.store)}" onclick="_toggleAcc(this)">
     <td>${dragHandle}${esc(e.name)}</td>
     <td data-label="帳號"><span style="font-family:monospace">${e.account ? esc(e.account) : '<span style=color:var(--text3)>—</span>'}</span></td>
     <td data-label="密碼"><div class="pw-cell">${pwDisplay}${eyeBtn}</div></td>
     <td data-label="備註">${e.note ? esc(e.note) : '<span style=color:var(--text3)>—</span>'}</td>
     <td data-label="修改日期"><span class="date-chip">${e.updatedAt || '—'}</span></td>
     ${_role !== 'employee' ? `<td data-label="操作"><div class="btns-row">
-        <button class="btn btn-ghost btn-sm" onclick="_edit('${e.id}')">編輯</button>
-        <button class="btn btn-danger btn-sm" onclick="_del('${e.id}')">刪除</button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();_edit('${e.id}')">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();_del('${e.id}')">刪除</button>
       </div></td>` : ''}
   </tr>`;
 }
@@ -483,6 +532,11 @@ function esc(s) {
 }
 
 // expose to inline onclick
+
+window._toggleAcc = function(tr) {
+  tr.classList.toggle('acc-open');
+};
+
 window._togglePw = function(id) {
   _pwVisible[id] = !(_pwVisible[id] || false);
   renderEntries();
