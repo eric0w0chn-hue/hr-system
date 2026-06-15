@@ -87,14 +87,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;backdrop-filter:blur(2px)}
-.modal{background:var(--surface);border-radius:16px;width:460px;max-width:100%;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border)}
+.modal{background:var(--surface);border-radius:16px;width:460px;max-width:100%;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.18);border:1px solid var(--border);max-height:90vh;overflow-y:auto}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);position:sticky;bottom:-28px;background:var(--surface);margin-left:-28px;margin-right:-28px;margin-bottom:-28px;padding:16px 28px 28px;border-radius:0 0 16px 16px}
 .modal-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
 .fr{margin-bottom:14px}
 .fr label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
 .fr select,.fr input{width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;transition:border-color .15s}
 .fr select:focus,.fr input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.08)}
 .time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
 
 /* Toast */
 .toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none}
@@ -205,6 +205,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
   /* readonly notice */
   .readonly-notice { font-size: 12px; padding: 8px 12px; }
+
+  /* Modal 手機版：縮小 padding、底部按鈕固定 */
+  .modal { padding: 20px; max-height: 92vh; }
+  .mf { bottom: -20px; margin-left: -20px; margin-right: -20px; margin-bottom: -20px; padding: 14px 20px 20px; }
 }
 
 @media (max-width: 480px) {
