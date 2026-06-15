@@ -395,6 +395,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .badge-g{background:var(--green-bg);color:var(--green)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
 .loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
+
+/* 自製選同仁下拉 */
+.cdd{position:relative;flex:1;min-width:0}
+.cdd-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;border:1px solid var(--border2);border-radius:10px;
+  background:var(--surface);cursor:pointer;font-size:13px;font-family:inherit;
+  color:var(--text);gap:8px;min-height:44px;text-align:left}
+.cdd-trigger:disabled{opacity:.5;cursor:not-allowed}
+.cdd-trigger-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cdd-arrow{font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s}
+.cdd.open .cdd-arrow{transform:rotate(180deg)}
+.cdd-dropdown{position:fixed;z-index:9999;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;
+  max-height:60vh;overflow-y:auto;min-width:220px}
+.cdd-dropdown-inner{padding:6px 0}
+.cdd-opt{padding:10px 16px;cursor:pointer;transition:background .1s}
+.cdd-opt:hover{background:var(--surface2)}
+.cdd-opt.selected{background:var(--accent-light)}
+.cdd-opt .opt-name{font-size:14px;font-weight:600;color:var(--text)}
+.cdd-opt .opt-target{font-size:12px;color:var(--text2);margin-top:1px}
+.cdd-opt .opt-actual{font-size:12px;color:#087443;margin-top:1px;font-weight:500}
+.cdd-opt-placeholder{padding:10px 16px;font-size:13px;color:var(--text3)}
+
 </style>
 </head>
 <body>
@@ -992,10 +1016,16 @@ function renderMain(){
     </div>
     <div class="emp-picker-bar">
       <span class="fl">選擇同仁</span>
-      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'}>
+      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'} style="display:none">
         <option value="">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</option>
         ${empOpts}
       </select>
+      <div class="cdd">
+        <button class="cdd-trigger" onclick="_cddToggle(this)" ${curEmps.length?'':'disabled'} type="button">
+          <span class="cdd-trigger-text">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</span>
+          <span class="cdd-arrow">▼</span>
+        </button>
+      </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
@@ -1582,6 +1612,113 @@ window.goBack=function(){
   if(document.referrer&&document.referrer.includes(location.host))history.back();
   else location.href='dashboard.html';
 };
+
+// ── 自製選同仁下拉 ──
+let _cddOpen = false;
+let _cddDropEl = null;
+
+function _cddClose(){
+  if(_cddDropEl){ _cddDropEl.remove(); _cddDropEl=null; }
+  _cddOpen=false;
+  document.removeEventListener('click',_cddCloseOnOutside);
+}
+function _cddCloseOnOutside(e){
+  if(_cddDropEl && !_cddDropEl.contains(e.target) && !e.target.closest('.cdd-trigger')){
+    _cddClose();
+  }
+}
+window._cddToggle = function(btn){
+  if(btn.disabled) return;
+  if(_cddOpen){ _cddClose(); return; }
+  const cdd = btn.closest('.cdd');
+  const trigger = btn;
+  const rect = trigger.getBoundingClientRect();
+  
+  // 建立下拉
+  const drop = document.createElement('div');
+  drop.className='cdd-dropdown';
+  drop.style.left = rect.left + 'px';
+  drop.style.width = Math.max(rect.width, 240) + 'px';
+  
+  // 決定往上還是往下開
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow >= 260 || spaceBelow >= spaceAbove){
+    drop.style.top = (rect.bottom + 4) + 'px';
+    drop.style.maxHeight = Math.min(spaceBelow - 16, window.innerHeight*0.55) + 'px';
+  } else {
+    drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    drop.style.maxHeight = Math.min(spaceAbove - 16, window.innerHeight*0.55) + 'px';
+    drop.style.top = 'auto';
+  }
+  
+  const inner = document.createElement('div');
+  inner.className='cdd-dropdown-inner';
+  
+  // 取得目前的 empSel options（隱藏的 select 還在 DOM 裡）
+  const sel = document.getElementById('empSel');
+  if(!sel){ _cddClose(); return; }
+  
+  const opts = Array.from(sel.options);
+  opts.forEach(opt => {
+    if(!opt.value){
+      const ph = document.createElement('div');
+      ph.className='cdd-opt-placeholder';
+      ph.textContent = opt.text;
+      inner.appendChild(ph);
+      return;
+    }
+    const text = opt.text;
+    // 解析：姓名、目標$xxx、實領$xxx
+    const nameMatch = text.match(/^([^\n\u3000目標實領]+)/);
+    const targetMatch = text.match(/目標\$([\d,]+)/);
+    const actualMatch = text.match(/實領\$([\d,]+)/);
+    const name = nameMatch ? nameMatch[1].trim() : text;
+    
+    const item = document.createElement('div');
+    item.className = 'cdd-opt' + (opt.value === sel.value ? ' selected' : '');
+    item.innerHTML = `<div class="opt-name">${name}</div>${targetMatch?`<div class="opt-target">目標 $${targetMatch[1]}</div>`:''}${actualMatch?`<div class="opt-actual">實領 $${actualMatch[1]}</div>`:''}`;
+    item.addEventListener('click', e=>{
+      e.stopPropagation();
+      _cddClose();
+      // 觸發選擇
+      sel.value = opt.value;
+      selEmpFromSel(opt.value);
+      // 更新 trigger 文字
+      const trigText = btn.querySelector('.cdd-trigger-text');
+      if(trigText) trigText.textContent = name;
+    });
+    inner.appendChild(item);
+  });
+  
+  drop.appendChild(inner);
+  document.body.appendChild(drop);
+  _cddDropEl = drop;
+  _cddOpen = true;
+  setTimeout(()=>document.addEventListener('click',_cddCloseOnOutside),0);
+};
+
+// 當 empSel options 更新後，同步更新 trigger 顯示文字
+const _origUpdateEmpSel = window._updateEmpSelDisplay;
+function _syncCddTrigger(){
+  const sel = document.getElementById('empSel');
+  const trigText = document.querySelector('.cdd-trigger-text');
+  if(!sel || !trigText) return;
+  const cur = sel.options[sel.selectedIndex];
+  if(cur && cur.value){
+    const nameMatch = cur.text.match(/^([^\n目標實]+)/);
+    trigText.textContent = nameMatch ? nameMatch[1].trim() : cur.text;
+  } else {
+    trigText.textContent = cur ? cur.text : '— 請選擇同仁 —';
+  }
+}
+// 覆寫 selEmpFromSel 加入同步
+const _orig_selEmpFromSel = window.selEmpFromSel;
+window.selEmpFromSel = async function(empId){
+  await _orig_selEmpFromSel(empId);
+  setTimeout(_syncCddTrigger, 100);
+};
+
 </script>
 </body>
 </html>
