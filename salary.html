@@ -406,10 +406,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cdd-trigger-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cdd-arrow{font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s}
 .cdd.open .cdd-arrow{transform:rotate(180deg)}
-.cdd-dropdown{position:fixed;z-index:9999;background:var(--surface);
+.cdd{position:relative}
+.cdd-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);
   border:1px solid var(--border);border-radius:12px;
   box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;
-  max-height:60vh;overflow-y:auto;min-width:220px}
+  max-height:55vh;overflow-y:auto;min-width:220px}
 .cdd-dropdown-inner{padding:6px 0}
 .cdd-opt{padding:10px 16px;cursor:pointer;transition:background .1s}
 .cdd-opt:hover{background:var(--surface2)}
@@ -996,8 +997,8 @@ function renderMain(){
     const act=String(e.id)===String(selectedEmpId);
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     const net=snapCache[snapKey];
-    const netTxt='';
-    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}</option>`;
+    const netTxt=net!=null?`　實領 $${Number(net).toLocaleString()}`:'';
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}${netTxt?'\n實領$'+netTxt.replace(/.*\$/,''):''}</option>`;
   }).join(''):'';
   // 背景預載當店各員工實領（snapshot），載完更新下拉文字
   preloadSnapshots(curEmps);
@@ -1016,10 +1017,16 @@ function renderMain(){
     </div>
     <div class="emp-picker-bar">
       <span class="fl">選擇同仁</span>
-      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'}>
+      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'} style="display:none">
         <option value="">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</option>
         ${empOpts}
       </select>
+      <div class="cdd">
+        <button class="cdd-trigger" onclick="_cddToggle(this)" ${curEmps.length?'':'disabled'} type="button">
+          <span class="cdd-trigger-text">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</span>
+          <span class="cdd-arrow">▼</span>
+        </button>
+      </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
@@ -1069,7 +1076,7 @@ async function preloadSnapshots(emps){
           const tgt=getTarget(e,viewYear,viewMonth);
           const e2=calcEmployedDays(e,viewYear,viewMonth,null);
           const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
-          opt.textContent=`${e.name}${flag}`;
+          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(Math.round(c.netPay)).toLocaleString()}`;
         }}
     }catch(err){}
   }
@@ -1631,20 +1638,6 @@ window._cddToggle = function(btn){
   // 建立下拉
   const drop = document.createElement('div');
   drop.className='cdd-dropdown';
-  drop.style.left = rect.left + 'px';
-  drop.style.width = Math.max(rect.width, 240) + 'px';
-  
-  // 決定往上還是往下開
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const spaceAbove = rect.top;
-  if(spaceBelow >= 260 || spaceBelow >= spaceAbove){
-    drop.style.top = (rect.bottom + 4) + 'px';
-    drop.style.maxHeight = Math.min(spaceBelow - 16, window.innerHeight*0.55) + 'px';
-  } else {
-    drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-    drop.style.maxHeight = Math.min(spaceAbove - 16, window.innerHeight*0.55) + 'px';
-    drop.style.top = 'auto';
-  }
   
   const inner = document.createElement('div');
   inner.className='cdd-dropdown-inner';
@@ -1686,7 +1679,7 @@ window._cddToggle = function(btn){
   });
   
   drop.appendChild(inner);
-  document.body.appendChild(drop);
+  cdd.appendChild(drop);
   _cddDropEl = drop;
   _cddOpen = true;
   setTimeout(()=>document.addEventListener('click',_cddCloseOnOutside),0);
