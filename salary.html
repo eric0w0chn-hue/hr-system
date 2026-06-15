@@ -973,7 +973,7 @@ function renderMain(){
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     const net=snapCache[snapKey];
     const netTxt=net!=null?`　實領 $${Number(net).toLocaleString()}`:'';
-    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}${netTxt?'  實$'+netTxt.replace(/.*\$/,''):''}</option>`;
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}${netTxt?'\n實領$'+netTxt.replace(/.*\$/,''):''}</option>`;
   }).join(''):'';
   // 背景預載當店各員工實領（snapshot），載完更新下拉文字
   preloadSnapshots(curEmps);
@@ -1045,7 +1045,7 @@ async function preloadSnapshots(emps){
           const tgt=getTarget(e,viewYear,viewMonth);
           const e2=calcEmployedDays(e,viewYear,viewMonth,null);
           const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
-          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''} 實$${Number(Math.round(c.netPay)).toLocaleString()}`;
+          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(Math.round(c.netPay)).toLocaleString()}`;
         }}
     }catch(err){}
   }
