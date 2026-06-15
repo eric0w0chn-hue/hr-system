@@ -1621,10 +1621,14 @@ let _cddDropEl = null;
 function _cddClose(){
   if(_cddDropEl){ _cddDropEl.remove(); _cddDropEl=null; }
   _cddOpen=false;
-  document.removeEventListener('click',_cddCloseOnOutside);
+  document.removeEventListener('touchstart',_cddCloseOnOutside,true);
+  document.removeEventListener('click',_cddCloseOnOutside,true);
 }
 function _cddCloseOnOutside(e){
-  if(_cddDropEl && !_cddDropEl.contains(e.target) && !e.target.closest('.cdd-trigger')){
+  if(!_cddDropEl) return;
+  // 判斷觸控/點擊是否在下拉或觸發按鈕以外
+  const t = e.target||e.touches&&e.touches[0]&&document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
+  if(t && !_cddDropEl.contains(t) && !t.closest('.cdd-trigger')){
     _cddClose();
   }
 }
@@ -1638,6 +1642,7 @@ window._cddToggle = function(btn){
   // 建立下拉
   const drop = document.createElement('div');
   drop.className='cdd-dropdown';
+  drop.style.touchAction='pan-y'; // 允許下拉內垂直滾動
   
   const inner = document.createElement('div');
   inner.className='cdd-dropdown-inner';
@@ -1682,7 +1687,10 @@ window._cddToggle = function(btn){
   cdd.appendChild(drop);
   _cddDropEl = drop;
   _cddOpen = true;
-  setTimeout(()=>document.addEventListener('click',_cddCloseOnOutside),0);
+  setTimeout(()=>{
+    document.addEventListener('touchstart',_cddCloseOnOutside,true);
+    document.addEventListener('click',_cddCloseOnOutside,true);
+  },0);
 };
 
 // 當 empSel options 更新後，同步更新 trigger 顯示文字
