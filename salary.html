@@ -1643,6 +1643,9 @@ window._cddToggle = function(btn){
   const drop = document.createElement('div');
   drop.className='cdd-dropdown';
   drop.style.touchAction='pan-y'; // 允許下拉內垂直滾動
+  // 動態計算可用高度：視窗底部 - trigger 底部 - 16px 安全距離
+  const availH = window.innerHeight - rect.bottom - 16;
+  drop.style.maxHeight = Math.max(availH, 200) + 'px';
   
   const inner = document.createElement('div');
   inner.className='cdd-dropdown-inner';
