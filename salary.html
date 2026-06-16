@@ -280,6 +280,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 .ded-sec{padding:12px 16px;border-top:1px solid var(--border)}
 .paid-leave-box{margin-top:10px;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px}
+.mgr-deduct-box{margin-top:10px;padding:12px 14px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px}
+.mgr-deduct-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mgr-deduct-lbl{flex:1;font-size:13px;font-weight:600;color:var(--text);min-width:140px}
+.mgr-deduct-input{display:flex;align-items:center;gap:4px}
+.mgr-deduct-input input{width:64px;font-size:14px;padding:7px 9px;border:1px solid var(--red-border);border-radius:7px;text-align:center;font-family:inherit;-webkit-appearance:none;appearance:none;min-height:40px}
+.mgr-deduct-input input:focus{outline:none;border-color:var(--red)}
+.mgr-unit{font-size:11px;color:var(--text3)}
+.mgr-deduct-val{font-size:15px;font-weight:700;color:var(--red);min-width:70px;text-align:right}
+.mgr-warn{margin-top:8px;font-size:12px;font-weight:600;color:var(--red);background:#fff;padding:7px 10px;border-radius:6px;border:1px dashed var(--red)}
+@media(max-width:600px){.mgr-deduct-lbl{min-width:100%}.mgr-deduct-input{flex:1}.mgr-deduct-input input{width:100%}}
 .paid-leave-title{font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px}
 .paid-leave-list{display:flex;flex-direction:column;gap:4px}
 .paid-leave-item{display:flex;align-items:center;gap:8px;font-size:12px}
@@ -395,31 +405,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .badge-g{background:var(--green-bg);color:var(--green)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
 .loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
-
-/* 自製選同仁下拉 */
-.cdd{position:relative;flex:1;min-width:0}
-.cdd-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;
-  padding:8px 12px;border:1px solid var(--border2);border-radius:10px;
-  background:var(--surface);cursor:pointer;font-size:13px;font-family:inherit;
-  color:var(--text);gap:8px;min-height:44px;text-align:left}
-.cdd-trigger:disabled{opacity:.5;cursor:not-allowed}
-.cdd-trigger-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cdd-arrow{font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s}
-.cdd.open .cdd-arrow{transform:rotate(180deg)}
-.cdd{position:relative}
-.cdd-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:var(--surface);
-  border:1px solid var(--border);border-radius:12px;
-  box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;
-  max-height:55vh;overflow-y:auto;min-width:220px}
-.cdd-dropdown-inner{padding:6px 0}
-.cdd-opt{padding:10px 16px;cursor:pointer;transition:background .1s}
-.cdd-opt:hover{background:var(--surface2)}
-.cdd-opt.selected{background:var(--accent-light)}
-.cdd-opt .opt-name{font-size:14px;font-weight:600;color:var(--text)}
-.cdd-opt .opt-target{font-size:12px;color:var(--text2);margin-top:1px}
-.cdd-opt .opt-actual{font-size:12px;color:#087443;margin-top:1px;font-weight:500}
-.cdd-opt-placeholder{padding:10px 16px;font-size:13px;color:var(--text3)}
-
 </style>
 </head>
 <body>
@@ -440,7 +425,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let CU={name:'',role:'',uid:''};
@@ -797,7 +782,11 @@ function calcSalary(emp,rec,shifts){
   const hrDeps=Array.isArray(emp.insurance?.dependents)?emp.insurance.dependents.length:0;
   const dependents=rec?.dependents!=null?rec.dependents:hrDeps;
   const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷整月健保
-  const insMode=rec?.insMode||'normal';
+  // 繳費狀態：手動設定優先；否則若到職日 = 當前薪資年月 → 自動新人首月免扣
+  let autoInsMode='normal';
+  const _hd=emp2.hireDate?new Date(emp2.hireDate):null;
+  if(_hd&&_hd.getFullYear()===viewYear&&(_hd.getMonth()+1)===viewMonth)autoInsMode='new';
+  const insMode=rec?.insMode||autoInsMode;
 
   // ── 勞保：按「在保天數」計算（不足月）──
   // 在保天數 = 退保日 − 到職日(或月初)。退保日預設離職次日，故離職日當天仍在保。
@@ -857,9 +846,14 @@ function calcSalary(emp,rec,shifts){
   const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
   const customAdds=rec?.customAdds||[]; // [{name, amount}]
   const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
+  // 管理人員出勤扣點：每點 -100，最多扣 8 點（-800）；達 9 點以上封頂 -800 並提示當月無管理獎金
+  const mgrPoints=Number(rec?.mgrPoints||0);
+  const mgrDeductPts=Math.min(mgrPoints,8);
+  const mgrDeduct=mgrDeductPts*100;
+  const mgrNoBonus=mgrPoints>=9; // 達9點→當月無管理人員獎金
 
   const gross=base+elastic+otPayTotal;
-  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLabor+finalHealth+pensionAmt;
+  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLabor+finalHealth+pensionAmt+mgrDeduct;
   const totalAdd=autoAnnualComp+autoRedComp+mealAllowance+customAddTotal;
   const netPay=gross-totalDeduct+totalAdd;
 
@@ -874,6 +868,7 @@ function calcSalary(emp,rec,shifts){
     workDays,personalMins,absentDays,sickHours,
     personalDates,sickDates,absentDates,paidLeaves,
     personalDeduct,absentDeduct,sickDeduct,
+    mgrPoints,mgrDeduct,mgrNoBonus,
     laborBase,healthBase,healthTotal,finalLabor,finalHealth,
     laborInsuredDays,healthCharged,laborInMonth,
     hireDate:emp2.hireDate,leaveDate:emp2.leaveDate,
@@ -998,7 +993,7 @@ function renderMain(){
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     const net=snapCache[snapKey];
     const netTxt=net!=null?`　實領 $${Number(net).toLocaleString()}`:'';
-    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}${netTxt?'\n實領$'+netTxt.replace(/.*\$/,''):''}</option>`;
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}${netTxt}</option>`;
   }).join(''):'';
   // 背景預載當店各員工實領（snapshot），載完更新下拉文字
   preloadSnapshots(curEmps);
@@ -1017,16 +1012,10 @@ function renderMain(){
     </div>
     <div class="emp-picker-bar">
       <span class="fl">選擇同仁</span>
-      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'} style="display:none">
+      <select id="empSel" onchange="selEmpFromSel(this.value)" ${curEmps.length?'':'disabled'}>
         <option value="">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</option>
         ${empOpts}
       </select>
-      <div class="cdd">
-        <button class="cdd-trigger" onclick="_cddToggle(this)" ${curEmps.length?'':'disabled'} type="button">
-          <span class="cdd-trigger-text">${curEmps.length?'— 請選擇同仁 —':'此店面尚無在職同仁'}</span>
-          <span class="cdd-arrow">▼</span>
-        </button>
-      </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
@@ -1076,7 +1065,7 @@ async function preloadSnapshots(emps){
           const tgt=getTarget(e,viewYear,viewMonth);
           const e2=calcEmployedDays(e,viewYear,viewMonth,null);
           const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
-          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(Math.round(c.netPay)).toLocaleString()}`;
+          opt.textContent=`${e.name}${flag}${tgt?'　目標 $'+Number(tgt).toLocaleString():''}　實領 $${Number(Math.round(c.netPay)).toLocaleString()}`;
         }}
     }catch(err){}
   }
@@ -1364,6 +1353,16 @@ function renderSheet(emp,rec,shifts,c){
             ${Object.entries(c.paidLeaves).map(([label,dates])=>`<div class="paid-leave-item"><span class="paid-leave-label">${label}</span><span class="paid-leave-dates">${dates.join('、')}</span></div>`).join('')}
           </div>
         </div>`:''}
+        <div class="mgr-deduct-box">
+          <div class="mgr-deduct-row">
+            <div class="mgr-deduct-lbl">管理人員出勤扣點<div class="ded-sub">每點 −$100（上限 8 點 −$800）</div></div>
+            <div class="mgr-deduct-input">
+              <input type="number" min="0" max="31" step="1" value="${c.mgrPoints||''}" placeholder="0" onchange="patchRec('mgrPoints',+this.value)" ${dis}><span class="mgr-unit">點</span>
+            </div>
+            <div class="mgr-deduct-val">−$${c.mgrDeduct.toLocaleString()}</div>
+          </div>
+          ${c.mgrNoBonus?`<div class="mgr-warn">⚠️ 已達 ${c.mgrPoints} 點，當月無管理人員獎金</div>`:''}
+        </div>
       </div>
 
       <div class="add-sec">
@@ -1528,7 +1527,7 @@ window.exportSlip=async function(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
   const c=calcSalary(emp,currentRec,curShifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
-  const customRows=(c.customAdds||[]).filter(a=>a.amount>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
+  const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
 
   const slipHtml=`<table>
 <tr><td class="sh" colspan="2">加項</td></tr>
@@ -1545,6 +1544,7 @@ ${customRows}
 ${c.personalDeduct>0?`<tr><td>事假 ${fmtMin(c.personalMins)}${c.personalDates.length?`<div class="sd">${c.personalDates.join('、')}</div>`:''}</td><td class="red">−$${c.personalDeduct.toLocaleString()}</td></tr>`:''}
 ${c.sickDeduct>0?`<tr><td>病假 ${fmtMin(c.sickHours*60)}${c.sickDates.length?`<div class="sd">${c.sickDates.join('、')}</div>`:''}</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>`:''}
 ${c.absentDeduct>0?`<tr><td>曠職 ${Math.round(c.absentDays*10)/10}天${c.absentDates.length?`<div class="sd">${c.absentDates.join('、')}</div>`:''}</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>`:''}
+${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
 <tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+次月×2)':c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
 <tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+次月×2)':!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
@@ -1568,7 +1568,7 @@ ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別�
       <h2 style="font-size:17px;margin-bottom:4px">薪　資　單</h2>
       <div style="font-size:11px;color:#666;margin-bottom:14px">${sub}</div>
       ${slipHtml}
-      <div style="font-size:10px;color:#999;margin-top:10px">本薪資單由梁平鑫系統自動產生。</div>
+      <div style="font-size:10px;color:#999;margin-top:10px">薪資內容如有問題，請盡速聯繫管理人員。</div>
     </div>
   </div>`;
   document.body.appendChild(ov);
@@ -1613,110 +1613,6 @@ window.goBack=function(){
   if(document.referrer&&document.referrer.includes(location.host))history.back();
   else location.href='dashboard.html';
 };
-
-// ── 自製選同仁下拉 ──
-let _cddOpen = false;
-let _cddDropEl = null;
-
-function _cddClose(){
-  if(_cddDropEl){ _cddDropEl.remove(); _cddDropEl=null; }
-  _cddOpen=false;
-  document.removeEventListener('touchstart',_cddCloseOnOutside,true);
-  document.removeEventListener('click',_cddCloseOnOutside,true);
-}
-function _cddCloseOnOutside(e){
-  if(!_cddDropEl) return;
-  // 判斷觸控/點擊是否在下拉或觸發按鈕以外
-  const t = e.target||e.touches&&e.touches[0]&&document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
-  if(t && !_cddDropEl.contains(t) && !t.closest('.cdd-trigger')){
-    _cddClose();
-  }
-}
-window._cddToggle = function(btn){
-  if(btn.disabled) return;
-  if(_cddOpen){ _cddClose(); return; }
-  const cdd = btn.closest('.cdd');
-  const trigger = btn;
-  const rect = trigger.getBoundingClientRect();
-  
-  // 建立下拉
-  const drop = document.createElement('div');
-  drop.className='cdd-dropdown';
-  drop.style.touchAction='pan-y'; // 允許下拉內垂直滾動
-  // 動態計算可用高度：視窗底部 - trigger 底部 - 16px 安全距離
-  const availH = window.innerHeight - rect.bottom - 16;
-  drop.style.maxHeight = Math.max(availH, 200) + 'px';
-  
-  const inner = document.createElement('div');
-  inner.className='cdd-dropdown-inner';
-  
-  // 取得目前的 empSel options（隱藏的 select 還在 DOM 裡）
-  const sel = document.getElementById('empSel');
-  if(!sel){ _cddClose(); return; }
-  
-  const opts = Array.from(sel.options);
-  opts.forEach(opt => {
-    if(!opt.value){
-      const ph = document.createElement('div');
-      ph.className='cdd-opt-placeholder';
-      ph.textContent = opt.text;
-      inner.appendChild(ph);
-      return;
-    }
-    const text = opt.text;
-    // 解析：姓名、目標$xxx、實領$xxx
-    const nameMatch = text.match(/^([^\n\u3000目標實領]+)/);
-    const targetMatch = text.match(/目標\$([\d,]+)/);
-    const actualMatch = text.match(/實領\$([\d,]+)/);
-    const name = nameMatch ? nameMatch[1].trim() : text;
-    
-    const item = document.createElement('div');
-    item.className = 'cdd-opt' + (opt.value === sel.value ? ' selected' : '');
-    item.innerHTML = `<div class="opt-name">${name}</div>${targetMatch?`<div class="opt-target">目標 $${targetMatch[1]}</div>`:''}${actualMatch?`<div class="opt-actual">實領 $${actualMatch[1]}</div>`:''}`;
-    item.addEventListener('click', e=>{
-      e.stopPropagation();
-      _cddClose();
-      // 觸發選擇
-      sel.value = opt.value;
-      selEmpFromSel(opt.value);
-      // 更新 trigger 文字
-      const trigText = btn.querySelector('.cdd-trigger-text');
-      if(trigText) trigText.textContent = name;
-    });
-    inner.appendChild(item);
-  });
-  
-  drop.appendChild(inner);
-  cdd.appendChild(drop);
-  _cddDropEl = drop;
-  _cddOpen = true;
-  setTimeout(()=>{
-    document.addEventListener('touchstart',_cddCloseOnOutside,true);
-    document.addEventListener('click',_cddCloseOnOutside,true);
-  },0);
-};
-
-// 當 empSel options 更新後，同步更新 trigger 顯示文字
-const _origUpdateEmpSel = window._updateEmpSelDisplay;
-function _syncCddTrigger(){
-  const sel = document.getElementById('empSel');
-  const trigText = document.querySelector('.cdd-trigger-text');
-  if(!sel || !trigText) return;
-  const cur = sel.options[sel.selectedIndex];
-  if(cur && cur.value){
-    const nameMatch = cur.text.match(/^([^\n目標實]+)/);
-    trigText.textContent = nameMatch ? nameMatch[1].trim() : cur.text;
-  } else {
-    trigText.textContent = cur ? cur.text : '— 請選擇同仁 —';
-  }
-}
-// 覆寫 selEmpFromSel 加入同步
-const _orig_selEmpFromSel = window.selEmpFromSel;
-window.selEmpFromSel = async function(empId){
-  await _orig_selEmpFromSel(empId);
-  setTimeout(_syncCddTrigger, 100);
-};
-
 </script>
 </body>
 </html>
