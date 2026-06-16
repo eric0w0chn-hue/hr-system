@@ -50,12 +50,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   <div class="redirect-wrap">
     <div class="redirect-icon">💰</div>
     <div class="redirect-title">結帳系統</div>
-    <div class="redirect-sub">即將跳轉到結帳系統，請稍候…</div>
-    <a id="manualBtn" href="https://liangping-accounting.vercel.app/manager/edit/c2a882ac-574c-47d3-8b0f-9d0508e1ed44" target="_blank" class="redirect-btn">
+    <div class="redirect-sub">正在跳轉到結帳系統…</div>
+    <a id="manualBtn" href="https://liangping-accounting.vercel.app/manager/edit/c2a882ac-574c-47d3-8b0f-9d0508e1ed44" class="redirect-btn">
       <span class="spinner" id="btnSpinner"></span>
       前往結帳系統
     </a>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">若未自動跳轉，請點擊上方按鈕</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">若未自動跳轉，請點擊上方按鈕（跳轉後可用返回鍵回到鑫系統）</div>
   </div>
 </div>
 
@@ -67,11 +67,10 @@ authGuard('checkout', ({ role }) => {
   if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  // 自動在新分頁開啟
+  // 直接跳轉（避免彈出視窗封鎖）
   setTimeout(() => {
-    window.open('https://liangping-accounting.vercel.app/manager/edit/c2a882ac-574c-47d3-8b0f-9d0508e1ed44', '_blank');
-  }, 800);
-});
+    window.location.href = 'https://liangping-accounting.vercel.app/manager/edit/c2a882ac-574c-47d3-8b0f-9d0508e1ed44';
+  }, 600);});
 </script>
 </body>
 </html>
