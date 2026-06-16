@@ -969,7 +969,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
       workedHoursTotal+=worked;workDays++;
       workDates.push(`${d}日(${Math.round(worked*100)/100}h)`);
       // 加班（比照正職）：固定加班、額外加班
-      fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):(type==='normal'?defOt:0));
+      fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):0); // 兼職預設 0，不套用店面固定加班設定
       extraOtHours+=Number(r.ot167||0);
     }
   }
