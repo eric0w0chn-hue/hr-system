@@ -135,6 +135,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .d-row.d-min{grid-template-columns:46px 120px 1fr auto;align-items:center;opacity:1;padding:9px 10px;gap:8px}
 .d-row.d-min:hover{background:#EDEEF3}
 .d-row.d-min.has-data{background:#fff;border-color:var(--accent-light)}
+.d-row.d-min.anomaly{border-color:var(--orange-border)!important;background:var(--orange-bg)!important}
+.anomaly-dot{font-size:11px;color:var(--orange);margin-left:4px;cursor:help}
 .d-min-shift{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-min-summary{font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 .d-sum-muted{color:var(--text3);font-size:12px}
@@ -958,9 +960,9 @@ function renderMain(){
   if(!viewableStores.length){main.innerHTML=`<div class="empty-state"><div style="font-size:32px">🏪</div><div>沒有可見的店面</div></div>`;return;}
   const locked=isMonthLocked(viewYear,viewMonth);
   const lockedBanner=locked&&CU.role!=='admin'
-    ?`<div class="locked-banner">🔒 ${viewYear}年${viewMonth}月已鎖定，僅管理員可修改</div>`
+    ?`<div class="locked-banner">🔒 ${viewYear}年${viewMonth}月已鎖定，所有欄位僅供查閱，無法修改。如需調整，請聯繫管理員解鎖。</div>`
     :locked&&CU.role==='admin'
-    ?`<div class="locked-banner" style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">🔓 管理員模式：鎖定月份可修改</div>`:'';
+    ?`<div class="locked-banner" style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">🔓 管理員模式：此月份已鎖定，但管理員仍可修改。</div>`:'';
 
   let otPanelHtml='';
   if((CU.role==='admin'||CU.role==='consultant')&&showOtPanel){
@@ -982,7 +984,13 @@ function renderMain(){
       <td><span class="rate-del" onclick="delRate(${i})">×</span></td>
     </tr>`).join('');
     sysPanelHtml=`<div class="sys-panel">
-      <div class="sys-panel-title"><span>🔧 系統設定（僅管理員）</span><button class="btn-sm p" onclick="doSaveConfig()">儲存全部設定</button></div>
+      <div class="sys-panel-title">
+        <span>🔧 系統設定（僅管理員）</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-sm o" onclick="applyAllInsSuggest()" title="清除所有人的手動覆蓋值，全部回到2026建議費率">↻ 全店套用${INS_YEAR}建議值</button>
+          <button class="btn-sm p" onclick="doSaveConfig()">儲存全部設定</button>
+        </div>
+      </div>
       <div class="sys-row">
         <div class="sys-field">
           <label>底薪（每年可能調整）</label>
@@ -1047,6 +1055,7 @@ function renderMain(){
         </button>
       </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
+      ${curEmps.length?`<button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單" style="margin-left:auto;white-space:nowrap">📦 批次匯出全店</button>`:''}
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
     <div id="sheetArea"></div>`;
@@ -1188,6 +1197,9 @@ function renderSheet(emp,rec,shifts,c){
     const fromHR = (r.type==null||r.type==='') && type==='annual'; // 由HR特休帶入
     const hasData = (type!=='normal') || r.ot167>0 || r.lateMins>0 || r.workedHours!=null
       || r.hasTempOt || (r.autoOt!=null && r.autoOt!==defOt);
+    // 異常判斷：請假但固定加班仍 > 0（未清為 0）
+    const isAnomaly = shift&&inEmp&&type!=='normal'&&type!=='dayoff'
+      &&LEAVE_TYPES[type]?.pay==='none'&&(r.autoOt!=null?Number(r.autoOt):defOt)>0;
     const isExpanded = r.expanded;
     if(!isExpanded){
       // 收起列摘要：假別優先（含 HR 帶入特休）
@@ -1204,10 +1216,10 @@ function renderSheet(emp,rec,shifts,c){
           ? `<span class="d-sum-tag t-gray">正常</span><span class="d-sum-extra">${parts.join('、')}</span>`
           : `<span class="d-sum-muted">正常出勤</span>`;
       }
-      rows+=`<div class="d-row d-min${isWknd?' weekend':''}${!inEmp?' out-employ':''}${locked?' locked':''}${hasData?' has-data':''}" onclick="${locked||!inEmp?'':`expandDay('${ds}')`}">
+      rows+=`<div class="d-row d-min${isWknd?' weekend':''}${!inEmp?' out-employ':''}${locked?' locked':''}${hasData?' has-data':''}${isAnomaly?' anomaly':''}" onclick="${locked||!inEmp?'':`expandDay('${ds}')`}">
         <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
         <div class="d-min-shift">${shift?`${shift.startTime||''}-${shift.endTime||''}`:'<span style="color:var(--text3)">未排班</span>'}</div>
-        <div class="d-min-summary">${summary}</div>
+        <div class="d-min-summary">${summary}${isAnomaly?'<span class="anomaly-dot" title="請假日固定加班未清零，請確認">⚠</span>':''}</div>
         ${locked||!inEmp?'':`<span class="d-min-hint">${hasData?'✎':'＋'}</span>`}
       </div>`;
       continue;
@@ -1458,6 +1470,48 @@ window.applyInsSuggest=function(){
   const ins=insFromGrade(insGrade);
   currentRec.laborDeduct=null; currentRec.healthDeduct=null;
   persist();showToast(`✓ 已套用 ${INS_YEAR} 建議值（勞保 $${ins.labor} / 健保 $${ins.health}）`);rerender();
+};
+// 全店套用：清除所有人當月的勞健保手動覆蓋值
+window.applyAllInsSuggest=async function(){
+  const store=selectedStore;
+  const emps=storeEmps(store);
+  if(!emps.length){showToast('此店面無在職同仁');return;}
+  if(!confirm(`確定要將「${store}」${emps.length} 位同仁的 ${viewYear}/${viewMonth} 勞健保全部重設為 ${INS_YEAR} 年度建議值？手動覆蓋的金額將被清除。`))return;
+  showToast(`套用中，共 ${emps.length} 人…`,5000);
+  let cnt=0;
+  for(const emp of emps){
+    const rec=await loadRec(emp.id,viewYear,viewMonth)||{dailyData:{}};
+    rec.laborDeduct=null;rec.healthDeduct=null;
+    await saveRec(emp.id,viewYear,viewMonth,rec);
+    cnt++;
+  }
+  // 更新快取
+  for(const emp of emps){
+    const snapKey=`${emp.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+    delete snapCache[snapKey];
+  }
+  showToast(`✓ 已完成 ${cnt} 位同仁的費率重設`);
+  if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
+};
+// 批次匯出：依序顯示全店每位同仁薪資單，使用者逐一確認存圖
+window.batchExportSlips=async function(){
+  const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
+  if(!emps.length){showToast('無在職同仁');return;}
+  if(!confirm(`將依序顯示「${selectedStore}」${emps.length} 位在職同仁的薪資單，請逐一存圖後關閉，關閉後自動顯示下一位。確定開始？`))return;
+  let idx=0;
+  async function showNext(){
+    if(idx>=emps.length){showToast(`✓ 全部 ${emps.length} 位薪資單已完成`);return;}
+    const emp=emps[idx++];
+    const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
+    currentRec=rec||{dailyData:{}};curShifts=shifts;selectedEmpId=emp.id;
+    await exportSlip();
+    const waitClose=()=>new Promise(r=>{const check=setInterval(()=>{if(!document.querySelector('.slip-overlay')){clearInterval(check);r();}},300);});
+    await waitClose();
+    const remaining=emps.length-idx;
+    if(remaining>0)showToast(`還有 ${remaining} 位，開啟下一位中…`,1500);
+    setTimeout(showNext,600);
+  }
+  showNext();
 };
 window.expandDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=true;persist();rerender();};
 window.collapseDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=false;persist();rerender();};
