@@ -876,7 +876,9 @@ function render() {
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
           <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
-          <div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>
+          ${(sel.title||'').includes('兼職')||(sel.title||'').includes('工讀')
+            ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${(sel.hourlyRate||0).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
+            :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>`}
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
           <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${sel.bankName||'—'} ${sel.bankAccount?'· '+sel.bankAccount:''}</div></div>
@@ -1260,6 +1262,17 @@ function render() {
               <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
             </div>`).join('')}
           </div>`:''}
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee">
+            <div class="sec-title" style="margin-bottom:8px">勞退自提</div>
+            <div style="display:flex;align-items:center;gap:8px;max-width:400px">
+              <select id="ins-pension-${sel.id}" style="flex:1;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
+                <option value="0"${!ins.pensionRate||ins.pensionRate==0?' selected':''}>不自提</option>
+                ${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${ins.pensionRate==p/100?' selected':''}>自提 ${p}%</option>`).join('')}
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="savePensionRate(${sel.id})">儲存</button>
+            </div>
+            <div style="font-size:11px;color:#9AA0B4;margin-top:5px">自提金額 = 投保級距 × 自提%，此設定會自動帶入薪資計算。</div>
+          </div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1409,7 +1422,8 @@ function openModal(mode, targetId, extraIdx) {
         ${cddHtml('m-title', titleOptions, r.title||'', 'titleOptions')}
       </div>
       <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
-      <div class="fr"><label>月薪（元）</label><input id="m-salary" type="number" value="${r.salary||''}"></div>
+      <div class="fr"><label>月薪（元）<span style="font-size:10px;color:#9AA0B4">正職用</span></label><input id="m-salary" type="number" value="${r.salary||''}"></div>
+      <div class="fr"><label>時薪（元）<span style="font-size:10px;color:#9AA0B4">兼職用</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
@@ -1544,7 +1558,7 @@ async function saveModal(){
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const newStatus=g('m-status');
-    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
+    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,hourlyRate:parseInt(g('m-hourlyRate'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
       Object.assign(r,empFields);
@@ -1845,6 +1859,18 @@ window.deleteInsuranceHistory=async function(empId,idx){
   if(!r||!r.insurance||!r.insurance.gradeHistory)return;
   r.insurance.gradeHistory.splice(idx,1);
   render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
+};
+
+window.savePensionRate=async function(empId){
+  const r=employees.find(x=>x.id===empId);
+  if(!r)return;
+  if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
+  const el=document.getElementById('ins-pension-'+empId);
+  if(!el)return;
+  r.insurance.pensionRate=Number(el.value)||0;
+  showToast('儲存中...'); await saveData();
+  const pct=Math.round(r.insurance.pensionRate*100);
+  showToast(pct>0?`勞退自提 ${pct}% 已儲存 ✓`:'已設為不自提 ✓');
 };
 
 // ── 刪除眷屬 ──

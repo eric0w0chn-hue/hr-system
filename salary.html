@@ -682,12 +682,17 @@ async function loadShifts(empId,y,m){
 
 // ─── 計算核心 ───
 function calcSalary(emp,rec,shifts){
+  // 兼職（時薪制）判定
+  const isPartTime=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
   const target=getTarget(emp,viewYear,viewMonth);
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
   const defOt=getDefOt(emp.workLocation);
   const emp2=calcEmployedDays(emp,viewYear,viewMonth,rec);
   const isPartial=emp2.partial&&emp2.days<30;
+
+  // 兼職：時薪制獨立計算
+  if(isPartTime)return calcPartTimeSalary(emp,rec,shifts,emp2,defOt);
 
   // 統計
   let fixedOtHours=0;     // 固定加班時數（計入目標等式）
@@ -924,6 +929,109 @@ function calcSalary(emp,rec,shifts){
   };
 }
 
+// ─── 兼職（時薪制）計算 ───
+// 規則：實領 = Σ(實際上班時數×(時薪+10出勤獎勵)) + 加班費(純時薪×倍率) + 加項 − 勞健保 − 管理扣點
+// 請假不扣（只算實際出勤）；無底薪/彈性補貼/目標薪資/不足月概念
+function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
+  const days=getDaysInMonth(viewYear,viewMonth);
+  const dd=rec?.dailyData||{};
+  const hourlyRate=Number(rec?.hourlyOverride??emp.hourlyRate??0); // 純時薪
+  const ATTEND_BONUS=10; // 每小時出勤獎勵
+  const SHIFT_HOURS=8;   // 一個班次預設時數（無填寫實際上班時用）
+
+  let workedHoursTotal=0;  // 實際上班總時數（含出勤獎勵基準）
+  let fixedOtHours=0, extraOtHours=0, tempOtSegs={};
+  let scheduledDays=0, workDays=0;
+  let workDates=[]; // 出勤日明細
+
+  for(let d=1;d<=days;d++){
+    if(!emp2.inEmploy(d))continue;
+    const ds=dateStr(viewYear,viewMonth,d);
+    const shift=getShift(shifts,emp,ds);
+    const r=dd[ds]||{};
+    const type=getEffectiveType(emp,r,ds);
+
+    // 未排班日臨時加班
+    if(!shift){
+      const segs=Array.isArray(r.tempSegs)?r.tempSegs:[];
+      for(const sg of segs){if(sg.h>0){const rate=Number(sg.rate||1.34);tempOtSegs[rate]=(tempOtSegs[rate]||0)+Number(sg.h);}}
+      continue;
+    }
+    if(type==='dayoff')continue;
+    scheduledDays++;
+    // 兼職：請假不扣，只算實際出勤時數
+    // 有填實際上班時數用填的，否則用班次預設（8h）；請假日若沒填上班時數視為0
+    let worked;
+    if(r.workedHours!=null)worked=Number(r.workedHours);
+    else if(type==='normal')worked=SHIFT_HOURS;
+    else worked=0; // 請假當天若沒特別填，當天沒上班
+    if(worked>0){
+      workedHoursTotal+=worked;workDays++;
+      workDates.push(`${d}日(${Math.round(worked*100)/100}h)`);
+      // 加班（比照正職）：固定加班、額外加班
+      fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):(type==='normal'?defOt:0));
+      extraOtHours+=Number(r.ot167||0);
+    }
+  }
+
+  // 薪資組成
+  const basePay=Math.round(workedHoursTotal*hourlyRate);          // 純時薪部分
+  const attendBonus=Math.round(workedHoursTotal*ATTEND_BONUS);     // 出勤獎勵 +10/h
+  // 加班費（純時薪基礎，比照正職倍率）
+  const fixedOtPay=Math.round(hourlyRate*fixedOtHours*1.34);
+  const extraOtPay=Math.round(hourlyRate*extraOtHours*1.67);
+  let tempOtPay=0;const tempOtList=[];
+  for(const[rate,hrs]of Object.entries(tempOtSegs)){
+    const p=Math.round(hourlyRate*hrs*Number(rate));tempOtPay+=p;
+    tempOtList.push({rate:Number(rate),hrs,pay:p});
+  }
+  const otPayTotal=fixedOtPay+extraOtPay+tempOtPay;
+
+  // 勞健保（兼職一樣可投保，沿用設定；預設不扣，由 rec 手動設定）
+  const ins=insFromGrade((rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth));
+  const insMode=rec?.insMode||'normal';
+  const finalLabor=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:0);
+  const finalHealth=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:0);
+  const pensionRate=rec?.pensionRate!=null?rec.pensionRate:Number(emp.insurance?.pensionRate||0);
+  const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
+  const pensionAmt=pensionRate>0?Math.round(insGrade*pensionRate):0;
+
+  // 管理扣點
+  const mgrPoints=Number(rec?.mgrPoints||0);
+  const mgrDeduct=Math.min(mgrPoints,8)*100;
+  const mgrNoBonus=mgrPoints>=9;
+
+  // 加項（其他加項、餐費補助）
+  const isCen=isCentral(emp.workLocation);
+  const mealDays=rec?.mealDays!=null?rec.mealDays:(isCen?scheduledDays:0);
+  const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
+  const customAdds=rec?.customAdds||[];
+  const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
+
+  const gross=basePay+attendBonus+otPayTotal;
+  const totalDeduct=finalLabor+finalHealth+pensionAmt+mgrDeduct;
+  const totalAdd=mealAllowance+customAddTotal;
+  const netPay=gross-totalDeduct+totalAdd;
+
+  return{
+    isPartTime:true, hourlyRate, attendBonusRate:ATTEND_BONUS,
+    workedHoursTotal, workDays, workDates, scheduledDays,
+    basePay, attendBonus,
+    fixedOtHours, extraOtHours, fixedOtPay, extraOtPay, tempOtPay, otPayTotal, tempOtList, tempOtSegs,
+    finalLabor, finalHealth, pensionRate, pensionAmt, insGrade, insMode, insMatched:ins.matched,
+    dependents:0, healthCharged:true, laborInsuredDays:0,
+    mgrPoints, mgrDeduct, mgrNoBonus,
+    mealDays, mealAllowance, customAdds, customAddTotal, isCentral:isCen,
+    gross, totalDeduct, totalAdd, netPay,
+    employedDays:emp2.days, isPartial:false,
+    // 占位（給共用 UI/薪資單用，兼職不適用的欄位給空）
+    paidLeaves:{}, personalDeduct:0, sickDeduct:0, absentDeduct:0,
+    personalDates:[], sickDates:[], absentDates:[], personalMins:0, sickHours:0, absentDays:0,
+    base:0, elastic:0, target:0, proratedTarget:0, hourly:hourlyRate, defOt,
+    annualComp:0,autoAnnualComp:0,redComp:0,autoRedComp:0,
+    gradeOverride:rec?.gradeOverride
+  };
+}
 function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
 function dateStr(y,m,d){return`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function getShift(shifts,emp,ds){return(shifts[ds]||[]).find(s=>(String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name))&&s.kind!=='annual');}
@@ -1034,14 +1142,16 @@ function renderMain(){
   const curEmps=selectedStore?storeEmps(selectedStore):[];
   // 員工下拉選項
   const empOpts=curEmps.length>0?curEmps.map(e=>{
+    const pt=(e.title||'').includes('兼職')||(e.title||'').includes('工讀');
     const tgt=getTarget(e,viewYear,viewMonth);
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
-    const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
+    const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
     const act=String(e.id)===String(selectedEmpId);
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     const net=snapCache[snapKey];
     const netTxt=net!=null?`　實領 $${Number(net).toLocaleString()}`:'';
-    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}${netTxt?'\n實領$'+netTxt.replace(/.*\$/,''):''}</option>`;
+    const headTxt=pt?(e.hourlyRate?' 目標$'+Number(e.hourlyRate).toLocaleString():''):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
+    return`<option value="${e.id}"${act?' selected':''}>${e.name}${flag}${headTxt}${netTxt?'\n實領$'+netTxt.replace(/.*\$/,''):''}</option>`;
   }).join(''):'';
   // 背景預載當店各員工實領（snapshot），載完更新下拉文字
   preloadSnapshots(curEmps);
@@ -1183,6 +1293,16 @@ function renderSheet(emp,rec,shifts,c){
         </div>
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
+    } else if(c.isPartTime&&shift&&inEmp&&type==='normal'){
+      // 兼職正常日：填實際上班時數（時薪計算依此）
+      subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--green-bg);border-color:var(--green-border)">
+        <span style="color:var(--green);font-weight:600">實際上班時數</span>
+        <div class="hm-wrap">
+          <input type="number" min="0" max="23" inputmode="numeric" value="${r.workedHours!=null?hPart(r.workedHours):''}" class="hm-h" placeholder="8" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','h',this.value)" ${dis}><span class="hm-sep">時</span>
+          <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
+        </div>
+        <span style="color:var(--text3);font-size:11px">未填預設 8h</span>
+      </div></div>`;
     }
     // 未排班日臨時加班子欄（多段費率）
     let tempRow='';
@@ -1317,14 +1437,53 @@ function renderSheet(emp,rec,shifts,c){
         </div>
       </div>
 
+      ${c.isPartTime?`
+      <div class="sum-row">
+        <div class="sum-cell"><div class="sum-lbl">時薪</div><div class="sum-val">$${c.hourlyRate.toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">出勤時數</div><div class="sum-val c-blue">${Math.round(c.workedHoursTotal*100)/100}h</div></div>
+        <div class="sum-cell"><div class="sum-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="sum-val c-green">$${c.attendBonus.toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
+      </div>
+      <div class="fml-sec">
+        <div class="sec-title">📐 兼職時薪制 <span style="font-weight:400;color:var(--text3);font-size:10px">實際出勤時數 ×（時薪＋出勤獎勵）＋加班費，請假不扣</span></div>
+        <div class="fml-grid">
+          <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
+          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val c-green">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">每實際上班1小時+$${c.attendBonusRate}</div></div>
+          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${c.fixedOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.34</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div></div>
+        </div>
+        <div class="eq-bar">
+          <span>出勤天數</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
+          <span>出勤時數</span><span class="v">${Math.round(c.workedHoursTotal*100)/100}h</span><span class="op">｜</span>
+          <span>臨時加班</span><span class="v">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'}</span>
+        </div>
+      </div>
+      `:`
       <div class="sum-row">
         <div class="sum-cell"><div class="sum-lbl">底薪</div><div class="sum-val">$${c.base.toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">彈性補貼${c.isPartial?'(手動)':''}</div><div class="sum-val c-blue">$${Math.round(c.elastic).toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">彈性補貼${c.isPartial?'(自動)':''}</div><div class="sum-val c-blue">$${Math.round(c.elastic).toLocaleString()}</div></div>
         <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
         <div class="sum-cell"><div class="sum-lbl">目標薪資</div><div class="sum-val">$${c.target.toLocaleString()}</div></div>
       </div>
 
       ${partialBox}
+
+      <div class="fml-sec">
+        <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
+        <div class="fml-grid">
+          <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
+          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${Math.round(c.extraOtPay).toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
+        </div>
+        <div class="eq-bar">
+          <span>出勤</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
+          <span>事假/遲到</span><span class="v">${fmtMin(c.personalMins)}</span><span class="op">｜</span>
+          <span>病假</span><span class="v">${fmtMin(c.sickHours*60)}</span><span class="op">｜</span>
+          <span>曠職</span><span class="v">${Math.round(c.absentDays*10)/10}天</span>
+        </div>
+      </div>
+      `}
 
       <div class="fml-sec">
         <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
@@ -1703,6 +1862,24 @@ window.exportSlip=async function(){
 
 // ── 薪資單 HTML 共用產生函式（exportSlip + 批次匯出共用）──
 function buildSlipHtml(c,customRows){
+  if(c.isPartTime){
+    return `<table>
+<tr><td class="sh" colspan="2">加項（時薪制）</td></tr>
+<tr><td>時薪 $${c.hourlyRate} × ${Math.round(c.workedHoursTotal*100)/100}h</td><td>$${c.basePay.toLocaleString()}</td></tr>
+<tr><td>出勤獎勵 +$${c.attendBonusRate}/h × ${Math.round(c.workedHoursTotal*100)/100}h</td><td>$${c.attendBonus.toLocaleString()}</td></tr>
+${c.fixedOtPay>0?`<tr><td>加班費 ×1.34（${c.fixedOtHours}h）</td><td>$${c.fixedOtPay.toLocaleString()}</td></tr>`:''}
+${c.extraOtPay>0?`<tr><td>額外加班 ×1.67（${c.extraOtHours}h）</td><td>$${c.extraOtPay.toLocaleString()}</td></tr>`:''}
+${c.tempOtPay>0?`<tr><td>臨時加班</td><td>$${c.tempOtPay.toLocaleString()}</td></tr>`:''}
+${c.mealAllowance>0?`<tr><td>餐費補助（${c.mealDays}天）</td><td>$${c.mealAllowance.toLocaleString()}</td></tr>`:''}
+${customRows}
+${(c.finalLabor>0||c.finalHealth>0||c.pensionAmt>0||c.mgrDeduct>0)?`<tr><td class="sh" colspan="2">扣項</td></tr>`:''}
+${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
+${c.finalLabor>0?`<tr><td>勞保自負</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>`:''}
+${c.finalHealth>0?`<tr><td>健保自負</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>`:''}
+${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
+<tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
+</table>`;
+  }
   return `<table>
 <tr><td class="sh" colspan="2">加項</td></tr>
 <tr><td>底薪</td><td>$${c.base.toLocaleString()}</td></tr>
