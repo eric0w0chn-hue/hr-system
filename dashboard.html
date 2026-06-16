@@ -404,11 +404,12 @@ const ALL_MODULES=[
   {key:'delivery_report', icon:'🚚', name:'配送人員回報', desc:'央廚配送人員聯絡簿、每日回報明日配送人員', page:'delivery_report.html', active:true},
   {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
   {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
+  {key:'checkout', icon:'💰', name:'結帳系統', desc:'跳轉至梁平結帳系統', page:'checkout.html', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv','delivery_report','permissions','store_accounts'],
-  consultant:['hr','schedule','price','meeting','salary','cctv','delivery_report','store_accounts'],
-  manager:  ['hr','schedule','price','meeting','salary','cctv','delivery_report','store_accounts'],
+  admin:    ['hr','clock','schedule','price','device','meeting','salary','account','cctv','delivery_report','permissions','store_accounts','checkout'],
+  consultant:['hr','schedule','price','meeting','salary','cctv','delivery_report','store_accounts','checkout'],
+  manager:  ['hr','schedule','price','meeting','salary','cctv','delivery_report','store_accounts','checkout'],
   employee: ['schedule']
 };
 
