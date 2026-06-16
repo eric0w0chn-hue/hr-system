@@ -224,8 +224,8 @@ tr.dragging{opacity:.4}
   .tbl-wrap table tbody tr.acc-open td:last-child{
     padding-bottom:12px;
   }
-  /* 拖拉把手在手機不顯示 */
-  .drag-handle{display:none}
+  /* 手機版拖拉把手縮小但保留 */
+  .drag-handle{font-size:14px;opacity:.5}
   /* card padding 壓縮 */
   .card{margin-bottom:8px;padding:0}
   .card-header{padding:12px 14px 10px}
@@ -514,10 +514,10 @@ function renderRow(e) {
   const dragHandle = _role !== 'employee'
     ? `<span class="drag-handle" title="拖曳排序">⠿</span>`
     : '';
-  return `<tr draggable="false" data-id="${e.id}" data-store="${esc(e.store)}" onclick="_toggleAcc(this)">
+  return `<tr draggable="false" data-id="${e.id}" data-store="${esc(e.store)}" onclick="if(!_wasDragging)_toggleAcc(this)">
     <td>${dragHandle}${esc(e.name)}</td>
     <td data-label="帳號"><span style="font-family:monospace">${e.account ? esc(e.account) : '<span style=color:var(--text3)>—</span>'}</span></td>
-    <td data-label="密碼"><div class="pw-cell">${pwDisplay}${eyeBtn}</div></td>
+    <td data-label="密碼" data-pw="${esc(e.password||'')}"><div class="pw-cell">${pwDisplay}${eyeBtn}</div></td>
     <td data-label="備註">${e.note ? esc(e.note) : '<span style=color:var(--text3)>—</span>'}</td>
     <td data-label="修改日期"><span class="date-chip">${e.updatedAt || '—'}</span></td>
     ${_role !== 'employee' ? `<td data-label="操作"><div class="btns-row">
@@ -538,8 +538,18 @@ window._toggleAcc = function(tr) {
 };
 
 window._togglePw = function(id) {
+  event.stopPropagation(); // 不觸發 tr 的 toggleAcc
   _pwVisible[id] = !(_pwVisible[id] || false);
-  renderEntries();
+  // 只更新密碼顯示，不重新 render 整個列表
+  const tr = document.querySelector('tr[data-id="'+id+'"]');
+  if(!tr) { renderEntries(); return; }
+  const pwTd = tr.querySelector('td[data-label="密碼"]');
+  if(!pwTd) return;
+  const show = _pwVisible[id];
+  const pw = pwTd.dataset.pw || '';
+  pwTd.innerHTML = show
+    ? `${pw} <button onclick="event.stopPropagation();_togglePw('${id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 4px">🙈</button>`
+    : `<span style="letter-spacing:2px;color:var(--text3)">••••••</span> <button onclick="event.stopPropagation();_togglePw('${id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 4px">👁</button>`;
 };
 
 window._edit = function(id) {
@@ -729,6 +739,7 @@ function attachDrag() {
       row.classList.remove('dragging');
       document.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
       saveSortOrder(row.closest('tbody'));
+      window._wasDragging=true; setTimeout(()=>window._wasDragging=false, 300);
     });
     row.addEventListener('dragover', e => {
       e.preventDefault();
@@ -773,6 +784,7 @@ function attachDrag() {
       row.classList.remove('dragging');
       saveSortOrder(row.closest('tbody'));
       _dragSrc = null;
+      window._wasDragging=true; setTimeout(()=>window._wasDragging=false, 300);
     });
   });
 }
