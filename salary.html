@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>薪資計算 — 鑫系統</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
   --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;
@@ -748,7 +749,7 @@ function calcSalary(emp,rec,shifts){
       } else {
         const leaveH=8-worked;
         if(worked>0)workDays+=worked/8;
-        const wh=worked>0?`(上班${worked}h)`:'';
+        const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';  // 小數第2位
         if(lt.pay==='none'){
           if(type==='absent'){absentDays+=leaveH/8;absentDates.push(`${d}日${wh}`);}
           else {personalMins+=leaveH*60;personalDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);}
@@ -769,9 +770,24 @@ function calcSalary(emp,rec,shifts){
 
   // 彈性補貼
   let elastic, base;
+  let partialOverTarget=false; // 底薪+加班費 ≥ 按比例目標薪資的特殊情況
   if(isPartial){
     base=Math.round(BASE_FULL/30*emp2.days);
-    elastic=rec?.elasticManual!=null?Number(rec.elasticManual):0; // 手動
+    // 不足月加班費（用足月時薪基礎先算）
+    const hourlyFull=BASE_FULL/30/8; // 足月時薪，不依賴 elastic
+    const fixedOtPayFull=Math.round(hourlyFull*fixedOtHours*1.34*10)/10;
+    const proratedTgt=Math.round(target/30*emp2.days);
+    // 自動計算彈性補貼 = 按比例目標 − 底薪 − 固定加班費
+    const autoElastic=proratedTgt-base-fixedOtPayFull;
+    if(autoElastic<=0){
+      // 特殊情況：底薪+加班費已 ≥ 目標，彈性補貼設為 0
+      elastic=0;
+      partialOverTarget=true;
+    } else {
+      elastic=autoElastic;
+    }
+    // 若管理員有手動覆蓋，以手動為準（相容舊資料）
+    if(rec?.elasticManual!=null)elastic=Number(rec.elasticManual);
   } else {
     base=BASE_FULL;
     elastic=Math.round(target/(1+W/240))-BASE_FULL;
@@ -888,7 +904,7 @@ function calcSalary(emp,rec,shifts){
   const verifySum=base+elastic+fixedOtPay; // 應≈proratedTarget
 
   return{
-    target,proratedTarget,isPartial,employedDays:emp2.days,base,elastic,hourly,dailyBase,defOt,
+    target,proratedTarget,isPartial,partialOverTarget,employedDays:emp2.days,base,elastic,hourly,dailyBase,defOt,
     fixedOtHours,extraOtHours,tempOtSegs,tempOtList,W,
     fixedOtPay,extraOtPay,tempOtPay,otPayTotal,
     workDays,personalMins,absentDays,sickHours,
@@ -1205,7 +1221,7 @@ function renderSheet(emp,rec,shifts,c){
       // 收起列摘要：假別優先（含 HR 帶入特休）
       let summary='';
       if(type!=='normal'){
-        summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${hoursToHM(r.workedHours)}h）`:''}</span>${fromHR?'<span class="d-sum-extra">（HR特休）</span>':''}`;
+        summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${(Math.round(Number(r.workedHours)*100)/100)}h）`:''}</span>${fromHR?'<span class="d-sum-extra">（HR特休）</span>':''}`;
       } else if(noShift){
         summary = r.hasTempOt ? `<span class="d-sum-tag t-blue">臨時加班</span>` : `<span class="d-sum-muted">未排班</span>`;
       } else {
@@ -1248,21 +1264,35 @@ function renderSheet(emp,rec,shifts,c){
   // 不足月驗算盒
   let partialBox='';
   if(c.isPartial){
-    const diff=c.proratedTarget-c.verifySum;
-    const ok=Math.abs(diff)<=2;
-    partialBox=`<div class="partial-box">
-      <div class="sec-title">📝 不足月薪資（在職 ${c.employedDays} 天 / 30）— 請手動調整彈性補貼直到驗算相符</div>
-      <div class="partial-grid">
-        <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
-        <div class="partial-item"><label>彈性補貼（手動輸入）</label>
-          <input type="number" id="elasticManualInp" value="${c.elasticManual??0}" onchange="patchRec('elasticManual',+this.value)" ${dis}></div>
-        <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
-        <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
-      </div>
-      <div class="verify-line ${ok?'verify-ok':'verify-no'}">
-        <span>${ok?'✓ 驗算相符':'⚠ 尚未相符'}：底薪 $${c.base.toLocaleString()} + 彈性 $${Math.round(c.elastic).toLocaleString()} + 加班 $${Math.round(c.fixedOtPay).toLocaleString()} = $${Math.round(c.verifySum).toLocaleString()}</span>
-        <span>${ok?'':`差額 $${diff.toLocaleString()}`}</span>
-      </div></div>`;
+    if(c.partialOverTarget){
+      // 特殊情況：底薪+加班費 ≥ 按比例目標，彈性補貼為 0
+      partialBox=`<div class="partial-box">
+        <div class="sec-title">📝 不足月薪資（在職 ${c.employedDays} 天 / 30）</div>
+        <div class="partial-grid">
+          <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
+          <div class="partial-item"><label>彈性補貼</label><div class="readonly-val">$0</div></div>
+          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
+          <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
+        </div>
+        <div class="verify-line" style="background:var(--red-bg);border-color:var(--red-border);color:var(--red)">
+          ⚠️ 底薪＋加班費（$${Math.round(c.base+c.fixedOtPay).toLocaleString()}）已超過按比例目標（$${c.proratedTarget.toLocaleString()}），彈性補貼設為 0。如有問題請聯繫總公司。
+        </div>
+      </div>`;
+    } else {
+      // 正常情況：自動算出彈性補貼，顯示驗算結果
+      partialBox=`<div class="partial-box">
+        <div class="sec-title">📝 不足月薪資（在職 ${c.employedDays} 天 / 30）— 系統自動計算</div>
+        <div class="partial-grid">
+          <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
+          <div class="partial-item"><label>彈性補貼（自動）</label><div class="readonly-val" style="color:var(--green)">$${Math.round(c.elastic).toLocaleString()}</div></div>
+          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
+          <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
+        </div>
+        <div class="verify-line verify-ok">
+          ✓ 自動驗算：底薪 $${c.base.toLocaleString()} + 彈性 $${Math.round(c.elastic).toLocaleString()} + 加班 $${Math.round(c.fixedOtPay).toLocaleString()} = $${Math.round(c.verifySum).toLocaleString()}
+        </div>
+      </div>`;
+    }
   }
 
   const insModeLabel={normal:'正常',new:'新人（首月免扣）',quit_prepay:'離職預扣次月'};
@@ -1493,25 +1523,62 @@ window.applyAllInsSuggest=async function(){
   showToast(`✓ 已完成 ${cnt} 位同仁的費率重設`);
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
 };
-// 批次匯出：依序顯示全店每位同仁薪資單，使用者逐一確認存圖
+// 批次匯出：一次產生全店所有薪資單圖片，打包成 ZIP 下載
 window.batchExportSlips=async function(){
   const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
   if(!emps.length){showToast('無在職同仁');return;}
-  if(!confirm(`將依序顯示「${selectedStore}」${emps.length} 位在職同仁的薪資單，請逐一存圖後關閉，關閉後自動顯示下一位。確定開始？`))return;
-  let idx=0;
-  async function showNext(){
-    if(idx>=emps.length){showToast(`✓ 全部 ${emps.length} 位薪資單已完成`);return;}
-    const emp=emps[idx++];
-    const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
-    currentRec=rec||{dailyData:{}};curShifts=shifts;selectedEmpId=emp.id;
-    await exportSlip();
-    const waitClose=()=>new Promise(r=>{const check=setInterval(()=>{if(!document.querySelector('.slip-overlay')){clearInterval(check);r();}},300);});
-    await waitClose();
-    const remaining=emps.length-idx;
-    if(remaining>0)showToast(`還有 ${remaining} 位，開啟下一位中…`,1500);
-    setTimeout(showNext,600);
+  if(!confirm(`將產生「${selectedStore}」${emps.length} 位在職同仁的薪資單圖片並打包下載 ZIP，請稍候。`))return;
+  if(typeof JSZip==='undefined'){showToast('⚠️ JSZip 套件未載入，請稍後再試');return;}
+  if(typeof html2canvas==='undefined'){showToast('⚠️ html2canvas 套件未載入，請稍後再試');return;}
+
+  // 建一個隱藏容器來渲染薪資單
+  const container=document.createElement('div');
+  container.style.cssText='position:fixed;left:-9999px;top:0;width:580px;background:#fff;z-index:-1';
+  document.body.appendChild(container);
+
+  const zip=new JSZip();
+  const folder=zip.folder(`薪資單_${selectedStore}_${viewYear}年${viewMonth}月`);
+
+  showToast(`開始產生 ${emps.length} 份薪資單…`,10000);
+  let cnt=0;
+  for(const emp of emps){
+    try{
+      const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
+      const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+      const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
+      const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
+      const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
+      const slipHtml=buildSlipHtml(c,customRows,fmtMin);
+
+      container.innerHTML=`<div style="padding:24px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff">
+        <h2 style="font-size:17px;margin-bottom:4px;font-family:inherit">薪　資　單</h2>
+        <div style="font-size:11px;color:#666;margin-bottom:14px">${sub}</div>
+        <style>table{width:100%;border-collapse:collapse}td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px}td:last-child{text-align:right;font-weight:500}.sh{background:#f5f5f5;font-weight:700;font-size:11px;color:#555;padding:5px 10px}.tot td{font-weight:700;font-size:15px;background:#f0f4ff;border-top:2px solid #2D3142}.red{color:#D33A3A}.green{color:#1A9B4C}.sd{font-size:10px;color:#999;margin-top:2px;line-height:1.4;font-weight:400}</style>
+        ${slipHtml}
+        <div style="font-size:10px;color:#999;margin-top:10px">薪資內容如有問題，請盡速聯繫管理人員。</div>
+      </div>`;
+
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const canvas=await html2canvas(container.firstElementChild,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+      const dataUrl=canvas.toDataURL('image/jpeg',0.92);
+      const base64=dataUrl.split(',')[1];
+      folder.file(`${String(cnt+1).padStart(2,'0')}_${emp.name}_${viewYear}年${viewMonth}月.jpg`,base64,{base64:true});
+      cnt++;
+      showToast(`產生中 ${cnt}/${emps.length}：${emp.name}`,2000);
+    }catch(err){console.error('批次匯出錯誤',emp.name,err);}
   }
-  showNext();
+
+  container.remove();
+  if(cnt===0){showToast('⚠️ 沒有成功產生任何薪資單');return;}
+
+  showToast('壓縮打包中…',5000);
+  const blob=await zip.generateAsync({type:'blob'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`薪資單_${selectedStore}_${viewYear}年${viewMonth}月.zip`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  showToast(`✓ 已下載 ${cnt} 份薪資單 ZIP`,3000);
 };
 window.expandDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=true;persist();rerender();};
 window.collapseDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=false;persist();rerender();};
@@ -1612,8 +1679,31 @@ window.exportSlip=async function(){
   const c=calcSalary(emp,currentRec,curShifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
+  const slipHtml=buildSlipHtml(c,customRows);
+  const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
 
-  const slipHtml=`<table>
+  const ov=document.createElement('div');
+  ov.className='slip-overlay';
+  ov.innerHTML=`<div class="slip-modal">
+    <div class="slip-bar">
+      <button class="btn slip-close" onclick="closeSlip()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">薪資單</span>
+      <button class="btn btn-primary" id="saveJpgBtn" onclick="saveJpg('${emp.name}_${viewYear}年${viewMonth}月')">🖼️ 存成圖檔</button>
+    </div>
+    <div class="slip-body" id="slipBody">
+      <h2 style="font-size:17px;margin-bottom:4px">薪　資　單</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:14px">${sub}</div>
+      ${slipHtml}
+      <div style="font-size:10px;color:#999;margin-top:10px">薪資內容如有問題，請盡速聯繫管理人員。</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeSlip();});
+};
+
+// ── 薪資單 HTML 共用產生函式（exportSlip + 批次匯出共用）──
+function buildSlipHtml(c,customRows){
+  return `<table>
 <tr><td class="sh" colspan="2">加項</td></tr>
 <tr><td>底薪</td><td>$${c.base.toLocaleString()}</td></tr>
 <tr><td>彈性補貼</td><td>$${Math.round(c.elastic).toLocaleString()}</td></tr>
@@ -1636,28 +1726,7 @@ ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C4
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table>`;
-
-  const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
-
-  // 同頁 overlay（手機相容，不依賴 window.open）
-  const ov=document.createElement('div');
-  ov.className='slip-overlay';
-  ov.innerHTML=`<div class="slip-modal">
-    <div class="slip-bar">
-      <button class="btn slip-close" onclick="closeSlip()">✕ 關閉</button>
-      <span style="font-size:14px;font-weight:700">薪資單</span>
-      <button class="btn btn-primary" id="saveJpgBtn" onclick="saveJpg('${emp.name}_${viewYear}年${viewMonth}月')">🖼️ 存成圖檔</button>
-    </div>
-    <div class="slip-body" id="slipBody">
-      <h2 style="font-size:17px;margin-bottom:4px">薪　資　單</h2>
-      <div style="font-size:11px;color:#666;margin-bottom:14px">${sub}</div>
-      ${slipHtml}
-      <div style="font-size:10px;color:#999;margin-top:10px">薪資內容如有問題，請盡速聯繫管理人員。</div>
-    </div>
-  </div>`;
-  document.body.appendChild(ov);
-  ov.addEventListener('click',e=>{if(e.target===ov)closeSlip();});
-};
+}
 
 window.closeSlip=function(){
   const ov=document.querySelector('.slip-overlay');if(ov)ov.remove();
