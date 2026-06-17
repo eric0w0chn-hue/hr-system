@@ -99,8 +99,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sum-val{font-size:17px;font-weight:700}
 .c-green{color:var(--green)}.c-red{color:var(--red)}.c-blue{color:var(--blue)}.c-orange{color:var(--orange)}
 
-.fml-sec{padding:12px 16px;border-bottom:1px solid var(--border)}
+.fml-sec{padding:0;border-bottom:1px solid var(--border)}
+.ins-section{padding:0;border-top:1px solid var(--border)}
+.ded-sec{padding:0;border-top:1px solid var(--border)}
+.add-sec{padding:0;border-top:1px solid var(--border)}
 .sec-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+/* ── 可展開區塊統一樣式 ── */
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;cursor:pointer;user-select:none;border-radius:8px;transition:background .12s;gap:10px}
+.collapsible-header:hover{background:var(--surface2)}
+.ch-left{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)}
+.ch-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ch-summary{font-size:12px;color:var(--text2);white-space:nowrap}
+.ch-summary.empty{color:var(--text3)}
+.ch-summary.has-value{color:var(--text);font-weight:600}
+.ch-summary.deduct{color:var(--red);font-weight:600}
+.ch-summary.add{color:var(--green);font-weight:600}
+.ch-chevron{width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:var(--surface2);font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s,background .12s}
+.collapsible-header:hover .ch-chevron{background:var(--border);color:var(--text2)}
+.ch-chevron.open{transform:rotate(180deg)}
+.collapsible-body{padding:0 4px 4px}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
 .fml-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
@@ -471,6 +488,7 @@ let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
 let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false, showSysPanel=false;
 let showMgrPanel=false, showAddPanel=false; // 管理扣點、加項預設收闔
 let showFmlPanel=false, showInsPanel=false; // 計算公式、勞健保預設收闔
+let showDedPanel=false; // 扣項明細預設收闔
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
 let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
 let curShifts={};
@@ -1218,6 +1236,7 @@ window.toggleMgrPanel=function(){showMgrPanel=!showMgrPanel;rerender();};
 window.toggleAddPanel=function(){showAddPanel=!showAddPanel;rerender();};
 window.toggleFmlPanel=function(){showFmlPanel=!showFmlPanel;rerender();};
 window.toggleInsPanel=function(){showInsPanel=!showInsPanel;rerender();};
+window.toggleDedPanel=function(){showDedPanel=!showDedPanel;rerender();};
 window.setBaseSalary=function(v){if(v>0)BASE_FULL=v;};
 window.setInsYear=function(v){if(v>0)INS_YEAR=v;};
 window.updRate=function(i,field,v){if(LABOR_TABLE[i])LABOR_TABLE[i][field]=v;};
@@ -1228,7 +1247,7 @@ window.doSaveConfig=function(){LABOR_TABLE.sort((a,b)=>a.grade-b.grade);saveConf
 window.selEmpFromSel=async function(empId){
   if(!empId){selectedEmpId=null;document.getElementById('sheetArea').innerHTML='';return;}
   selectedEmpId=empId;halfView='first';
-  showMgrPanel=false;showAddPanel=false;showFmlPanel=false;showInsPanel=false; // 切換同仁時重置收闔
+  showMgrPanel=false;showAddPanel=false;showFmlPanel=false;showInsPanel=false;showDedPanel=false; // 切換同仁時重置收闔
   document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入中…</div>';
   await loadAndRender(empId,true);
 };
@@ -1481,11 +1500,11 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
       </div>
       <div class="fml-sec">
-        <div class="sec-title" onclick="toggleFmlPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
-          <span>📐 兼職時薪制 <span style="font-weight:400;color:var(--text3);font-size:10px">實際出勤時數 ×（時薪＋出勤獎勵）＋加班費，請假不扣</span></span>
-          <span style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;color:var(--text2)">時薪 $${c.hourlyRate}｜出勤 ${Math.round(c.workedHoursTotal*100)/100}h</span>
-            <span style="font-size:11px;color:var(--text3)">${showFmlPanel?'▲':'▼'}</span>
+        <div class="collapsible-header" onclick="toggleFmlPanel()">
+          <span class="ch-left">📐 兼職時薪制</span>
+          <span class="ch-right">
+            <span class="ch-summary has-value">時薪 $${c.hourlyRate}｜出勤 ${Math.round(c.workedHoursTotal*100)/100}h</span>
+            <span class="ch-chevron ${showFmlPanel?'open':''}">▼</span>
           </span>
         </div>
         ${showFmlPanel?`
@@ -1513,11 +1532,11 @@ function renderSheet(emp,rec,shifts,c){
       ${partialBox}
 
       <div class="fml-sec">
-        <div class="sec-title" onclick="toggleFmlPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
-          <span>📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</span>
-          <span style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;color:var(--text2)">時薪 $${c.hourly.toFixed(2)}｜加班 ${c.fixedOtHours}h→$${Math.round(c.fixedOtPay).toLocaleString()}</span>
-            <span style="font-size:11px;color:var(--text3)">${showFmlPanel?'▲':'▼'}</span>
+        <div class="collapsible-header" onclick="toggleFmlPanel()">
+          <span class="ch-left">📐 計算公式 ${c.isPartial?'<span style="font-size:10px;font-weight:400;color:var(--orange)">不足月</span>':''}</span>
+          <span class="ch-right">
+            <span class="ch-summary has-value">時薪 $${c.hourly.toFixed(2)}｜加班 ${c.fixedOtHours}h→$${Math.round(c.fixedOtPay).toLocaleString()}</span>
+            <span class="ch-chevron ${showFmlPanel?'open':''}">▼</span>
           </span>
         </div>
         ${showFmlPanel?`
@@ -1550,11 +1569,11 @@ function renderSheet(emp,rec,shifts,c){
       </div>
 
       <div class="ins-section">
-        <div class="sec-title" onclick="toggleInsPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
-          <span>🛡️ 勞健保 ${insModeTag}</span>
-          <span style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;color:var(--text2)">投保 $${c.insGrade.toLocaleString()}｜勞 $${c.finalLabor.toLocaleString()}｜健 $${c.finalHealth.toLocaleString()}</span>
-            <span style="font-size:11px;color:var(--text3)">${showInsPanel?'▲':'▼'}</span>
+        <div class="collapsible-header" onclick="toggleInsPanel()">
+          <span class="ch-left">🛡️ 勞健保 ${insModeTag}</span>
+          <span class="ch-right">
+            <span class="ch-summary deduct">投保 $${c.insGrade.toLocaleString()}｜勞 $${c.finalLabor.toLocaleString()}｜健 $${c.finalHealth.toLocaleString()}</span>
+            <span class="ch-chevron ${showInsPanel?'open':''}">▼</span>
           </span>
         </div>
         ${showInsPanel?`
@@ -1616,7 +1635,15 @@ function renderSheet(emp,rec,shifts,c){
       </div>
 
       <div class="ded-sec">
-        <div class="sec-title">➖ 扣項明細</div>
+        <div class="collapsible-header" onclick="toggleDedPanel()">
+          <span class="ch-left">➖ 扣項明細</span>
+          <span class="ch-right">
+            <span class="ch-summary ${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct)>0?'deduct':'empty'}">${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct)>0?`−$${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct).toLocaleString()}`:'無扣項'}</span>
+            <span class="ch-chevron ${showDedPanel?'open':''}">▼</span>
+          </span>
+        </div>
+        ${showDedPanel?`
+        <div class="collapsible-body">
         <div class="ded-grid">
           <div class="ded-item"><div class="ded-lbl">事假<div class="ded-sub">${fmtMin(c.personalMins)}（含遲到）</div>${c.personalDates.length?`<div class="ded-dates">${c.personalDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.personalDeduct.toLocaleString()}</div></div>
           <div class="ded-item"><div class="ded-lbl">病假<div class="ded-sub">${fmtMin(c.sickHours*60)} × 半薪</div>${c.sickDates.length?`<div class="ded-dates">${c.sickDates.join('、')}</div>`:''}</div><div class="ded-val">−$${c.sickDeduct.toLocaleString()}</div></div>
@@ -1629,11 +1656,11 @@ function renderSheet(emp,rec,shifts,c){
           </div>
         </div>`:''}
         <div class="mgr-deduct-box">
-          <div class="mgr-deduct-row" onclick="toggleMgrPanel()" style="cursor:pointer;user-select:none">
+          <div class="mgr-deduct-row" onclick="event.stopPropagation();toggleMgrPanel()" style="cursor:pointer;user-select:none">
             <div class="mgr-deduct-lbl">管理人員出勤扣點<div class="ded-sub">每點 −$100（上限 8 點 −$800）</div></div>
             <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
               ${c.mgrPoints>0?`<span style="font-size:13px;font-weight:700;color:var(--red)">−$${c.mgrDeduct.toLocaleString()}（${c.mgrPoints}點）</span>`:`<span style="font-size:12px;color:var(--text3)">未設定</span>`}
-              <span style="font-size:11px;color:var(--text3)">${showMgrPanel?'▲':'▼'}</span>
+              <span class="ch-chevron ${showMgrPanel?'open':''}">▼</span>
             </div>
           </div>
           ${showMgrPanel?`
@@ -1647,14 +1674,15 @@ function renderSheet(emp,rec,shifts,c){
           `:''}
         </div>
         </div>
+        `:''}
       </div>
 
       <div class="add-sec">
-        <div class="sec-title" onclick="toggleAddPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
-          <span>➕ 加項</span>
-          <span style="display:flex;align-items:center;gap:8px">
-            ${c.totalAdd>0?`<span style="font-size:13px;font-weight:700;color:var(--green)">+$${c.totalAdd.toLocaleString()}</span>`:`<span style="font-size:12px;color:var(--text3)">未設定</span>`}
-            <span style="font-size:11px;color:var(--text3)">${showAddPanel?'▲':'▼'}</span>
+        <div class="collapsible-header" onclick="toggleAddPanel()">
+          <span class="ch-left">➕ 加項</span>
+          <span class="ch-right">
+            <span class="ch-summary ${c.totalAdd>0?'add':'empty'}">${c.totalAdd>0?`+$${c.totalAdd.toLocaleString()}`:'未設定'}</span>
+            <span class="ch-chevron ${showAddPanel?'open':''}">▼</span>
           </span>
         </div>
         ${showAddPanel?`
