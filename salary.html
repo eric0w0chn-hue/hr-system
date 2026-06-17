@@ -107,8 +107,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── 可展開區塊統一樣式 ── */
 .collapsible-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;cursor:pointer;user-select:none;border-radius:8px;transition:background .12s;gap:10px}
 .collapsible-header:hover{background:var(--surface2)}
-.ch-left{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)}
-.ch-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ch-left{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);min-width:0;flex-shrink:0}
+.ch-right{display:flex;align-items:center;gap:8px;flex-shrink:0;min-width:0}
+.ch-summary{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+@media(max-width:600px){
+  .ch-summary{max-width:120px;font-size:11px}
+  .collapsible-header{padding:10px 13px;gap:6px}
+  .ch-ins-full{display:none}
+  .ch-ins-short{display:inline}
+}
+@media(min-width:601px){
+  .ch-ins-short{display:none}
+}
 .ch-summary{font-size:12px;color:var(--text2);white-space:nowrap}
 .ch-summary.empty{color:var(--text3)}
 .ch-summary.has-value{color:var(--text);font-weight:600}
@@ -1572,7 +1582,8 @@ function renderSheet(emp,rec,shifts,c){
         <div class="collapsible-header" onclick="toggleInsPanel()">
           <span class="ch-left">🛡️ 勞健保 ${insModeTag}</span>
           <span class="ch-right">
-            <span class="ch-summary deduct">投保 $${c.insGrade.toLocaleString()}｜勞 $${c.finalLabor.toLocaleString()}｜健 $${c.finalHealth.toLocaleString()}</span>
+            <span class="ch-summary deduct ch-ins-full">投保 $${c.insGrade.toLocaleString()}｜勞 $${c.finalLabor.toLocaleString()}｜健 $${c.finalHealth.toLocaleString()}</span>
+            <span class="ch-summary deduct ch-ins-short">扣 $${(c.finalLabor+c.finalHealth).toLocaleString()}</span>
             <span class="ch-chevron ${showInsPanel?'open':''}">▼</span>
           </span>
         </div>
