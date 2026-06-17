@@ -180,6 +180,13 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .topbar-right{gap:5px}
   .role-chip{display:none}
 }
+.import-preview-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.import-preview-row:last-child{border-bottom:none}
+.imp-tag{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;white-space:nowrap}
+.imp-match{background:#E8F5E9;color:#2E7D32}
+.imp-change{background:#FFF3E0;color:#E65100}
+.imp-new{background:#E3F2FD;color:#1565C0}
+.imp-nomatch{background:#FFEBEE;color:#C62828}
 </style>
 <body>
 <div class="topbar">
@@ -1243,6 +1250,7 @@ function render() {
         body=`<div style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span class="sec-title" style="margin:0">投保資料</span>
+            <button class="btn btn-sm btn-outline" onclick="openInsuranceImport()" style="font-size:11px">📄 匯入勞保明細</button>
           </div>
           <div class="dg3" style="margin-bottom:12px">
             <div class="sc"><div class="sl">現有投保級距</div><div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div></div>
@@ -1902,6 +1910,139 @@ window.removeLeaveDate=async function(id,date){
   r.leaves.forEach(l=>{if(l.usedDates)l.usedDates=l.usedDates.filter(d=>d!==date);});
   render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
 };
+
+// ── 勞保明細匯入 ──
+window.openInsuranceImport = function(){
+  const html = `<div style="margin-bottom:12px;font-size:13px;color:#5A6175">
+    上傳勞保局下載的「被保險人名冊」PDF，系統將自動比對姓名並更新投保級距。
+  </div>
+  <div style="margin-bottom:14px">
+    <input type="file" id="ins-import-file" accept=".pdf" style="font-size:13px;padding:8px;border:1px solid #DDE1E9;border-radius:8px;width:100%">
+  </div>
+  <div id="ins-import-preview" style="max-height:360px;overflow-y:auto"></div>
+  <div id="ins-import-actions" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #DDE1E9;display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="applyInsuranceImport()">✓ 套用變更</button>
+    <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">取消</button>
+  </div>`;
+  showCustomModal('📄 匯入勞保明細', html);
+  setTimeout(()=>{
+    const fi = document.getElementById('ins-import-file');
+    if(fi) fi.addEventListener('change', parseInsurancePDF);
+  }, 100);
+};
+
+let importResults = [];
+
+async function parseInsurancePDF(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const preview = document.getElementById('ins-import-preview');
+  const actions = document.getElementById('ins-import-actions');
+  preview.innerHTML = '<div style="color:#9AA0B4;font-size:13px">解析中...</div>';
+  
+  try {
+    // 動態載入 PDF.js
+    if(!window.pdfjsLib){
+      await new Promise((resolve, reject)=>{
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({data: buf}).promise;
+    let fullText = '';
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      fullText += tc.items.map(it=>it.str).join(' ') + '\n';
+    }
+    
+    // 解析：找姓名+薪資對（格式：序號 姓名 身分證 生日 勞保薪資 ...）
+    // 姓名2~4字，身分證10碼，薪資數字
+    const rows = [];
+    const re = /\d+\s+([\u4e00-\u9fff]{2,4})\s+[A-Z][0-9]{9}\s+\d{7}\s+([\d,]+)/g;
+    let m;
+    while((m = re.exec(fullText)) !== null){
+      const name = m[1];
+      const grade = parseInt(m[2].replace(/,/g,''));
+      if(grade > 0) rows.push({name, grade});
+    }
+    
+    if(rows.length === 0){
+      preview.innerHTML = '<div style="color:#C62828;font-size:13px">⚠️ 無法解析此 PDF，請確認格式正確</div>';
+      return;
+    }
+    
+    // 比對 employees
+    importResults = rows.map(row=>{
+      const emp = employees.find(e=>e.name===row.name && e.status!=='離職');
+      if(!emp) return {...row, status:'nomatch', empId:null};
+      const cur = emp.insurance ? parseInt(emp.insurance.grade)||0 : 0;
+      if(cur === row.grade) return {...row, status:'same', empId:emp.id, cur};
+      return {...row, status:'change', empId:emp.id, cur};
+    });
+    
+    // 渲染預覽
+    const tagMap = {same:'imp-match', change:'imp-change', nomatch:'imp-nomatch'};
+    const labelMap = {same:'相同', change:'將更新', nomatch:'找不到'};
+    
+    const changeCount = importResults.filter(r=>r.status==='change').length;
+    
+    preview.innerHTML = '<div style="font-size:12px;color:#5A6175;margin-bottom:8px">共解析 '+rows.length+' 筆，其中 <b>'+changeCount+' 筆</b>將被更新</div>'
+      + importResults.map(r=>`<div class="import-preview-row">
+          <div style="font-weight:600;width:60px">${r.name}</div>
+          <div style="flex:1;font-size:12px;color:#9AA0B4">
+            ${r.status==='change'?'$'+r.cur.toLocaleString()+' → ':''}
+            <b style="color:#1A1D23">$${r.grade.toLocaleString()}</b>
+          </div>
+          <span class="imp-tag ${tagMap[r.status]}">${labelMap[r.status]}</span>
+        </div>`).join('');
+    
+    if(changeCount > 0){
+      actions.style.display = 'flex';
+    }
+  } catch(err){
+    preview.innerHTML = '<div style="color:#C62828;font-size:13px">解析失敗：'+err.message+'</div>';
+  }
+}
+
+window.applyInsuranceImport = async function(){
+  const toUpdate = importResults.filter(r=>r.status==='change');
+  if(!toUpdate.length) return;
+  const today = new Date().toISOString().slice(0,10);
+  for(const row of toUpdate){
+    const emp = employees.find(e=>e.id===row.empId);
+    if(!emp) continue;
+    if(!emp.insurance) emp.insurance = {grade:'', dependents:[], gradeHistory:[]};
+    if(!emp.insurance.gradeHistory) emp.insurance.gradeHistory = [];
+    emp.insurance.gradeHistory.unshift({grade: emp.insurance.grade||0, date: today});
+    emp.insurance.grade = row.grade;
+  }
+  closeModal();
+  render();
+  showToast('儲存中...');
+  await saveData();
+  showToast('已更新 '+toUpdate.length+' 筆投保級距 ✓');
+  writeOpLog({editor:currentUserName, role:currentRole, module:'hr', action:'匯入勞保明細', detail: toUpdate.length+'筆'});
+};
+
+function showCustomModal(title, html){
+  // 複用現有 modal 機制
+  const area = document.getElementById('modalArea');
+  area.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-title">${title}</div>
+      ${html}
+    </div>
+  </div>`;
+}
+
+
+
 function renderExtraLeave(sel){
   const thisYear=new Date().getFullYear();
   const extraDates=(sel.extraLeave&&sel.extraLeave[thisYear])||[];
