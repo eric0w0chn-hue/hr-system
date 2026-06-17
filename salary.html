@@ -136,6 +136,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .d-row.d-min{grid-template-columns:46px 120px 1fr auto;align-items:center;opacity:1;padding:9px 10px;gap:8px}
 .d-row.d-min:hover{background:#EDEEF3}
 .d-row.d-min.has-data{background:#fff;border-color:var(--accent-light)}
+/* 極簡未排班：高度最低、透明度很低 */
+.d-row.d-min.d-noshift-empty{
+  padding:4px 10px;opacity:.35;border-color:transparent;background:transparent;
+  grid-template-columns:42px 1fr auto;gap:6px;min-height:0;
+}
+.d-row.d-min.d-noshift-empty:hover{opacity:.7;background:var(--surface2)}
+.d-noshift-line{height:1px;background:var(--border);align-self:center;border-radius:1px}
 .d-row.d-min.anomaly{border-color:var(--orange-border)!important;background:var(--orange-bg)!important}
 .anomaly-dot{font-size:11px;color:var(--orange);margin-left:4px;cursor:help}
 .d-min-shift{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -462,6 +469,7 @@ let locationTypes={}; // 各店類型 central/store
 let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
 let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false, showSysPanel=false;
+let showMgrPanel=false, showAddPanel=false; // 管理扣點、加項預設收闔
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
 let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
 let curShifts={};
@@ -1205,6 +1213,8 @@ window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
 window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
 window.toggleSysPanel=function(){showSysPanel=!showSysPanel;renderMain();};
+window.toggleMgrPanel=function(){showMgrPanel=!showMgrPanel;rerender();};
+window.toggleAddPanel=function(){showAddPanel=!showAddPanel;rerender();};
 window.setBaseSalary=function(v){if(v>0)BASE_FULL=v;};
 window.setInsYear=function(v){if(v>0)INS_YEAR=v;};
 window.updRate=function(i,field,v){if(LABOR_TABLE[i])LABOR_TABLE[i][field]=v;};
@@ -1215,6 +1225,7 @@ window.doSaveConfig=function(){LABOR_TABLE.sort((a,b)=>a.grade-b.grade);saveConf
 window.selEmpFromSel=async function(empId){
   if(!empId){selectedEmpId=null;document.getElementById('sheetArea').innerHTML='';return;}
   selectedEmpId=empId;halfView='first';
+  showMgrPanel=false;showAddPanel=false; // 切換同仁時重置收闔
   document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入中…</div>';
   await loadAndRender(empId,true);
 };
@@ -1353,7 +1364,7 @@ function renderSheet(emp,rec,shifts,c){
       if(type!=='normal'){
         summary = `<span class="d-sum-tag t-${LEAVE_TYPES[type].cls||'gray'}">${LEAVE_TYPES[type].label}${r.workedHours!=null?`（上班${(Math.round(Number(r.workedHours)*100)/100)}h）`:''}</span>${fromHR?'<span class="d-sum-extra">（HR特休）</span>':''}`;
       } else if(noShift){
-        summary = r.hasTempOt ? `<span class="d-sum-tag t-blue">臨時加班</span>` : `<span class="d-sum-muted">未排班</span>`;
+        summary = r.hasTempOt ? `<span class="d-sum-tag t-blue">臨時加班</span>` : '';
       } else {
         const parts=[];
         if(r.ot167>0)parts.push(`額外+${hoursToHM(r.ot167)}h`);
@@ -1361,6 +1372,16 @@ function renderSheet(emp,rec,shifts,c){
         summary = parts.length
           ? `<span class="d-sum-tag t-gray">正常</span><span class="d-sum-extra">${parts.join('、')}</span>`
           : `<span class="d-sum-muted">正常出勤</span>`;
+      }
+      // 未排班且無任何資料 → 極簡列（更緊縮）
+      const isEmptyNoShift = noShift && !hasData;
+      if(isEmptyNoShift){
+        rows+=`<div class="d-row d-min d-noshift-empty${isWknd?' weekend':''}${!inEmp?' out-employ':''}" onclick="${locked||!inEmp?'':`expandDay('${ds}')`}">
+          <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text3)'};font-size:11px">${d}</div><div class="d-wday" style="font-size:9px">${WD[dow]}</div></div>
+          <div class="d-noshift-line"></div>
+          ${locked||!inEmp?'':`<span class="d-min-hint" style="font-size:10px;color:var(--text3)">＋</span>`}
+        </div>`;
+        continue;
       }
       rows+=`<div class="d-row d-min${isWknd?' weekend':''}${!inEmp?' out-employ':''}${locked?' locked':''}${hasData?' has-data':''}${isAnomaly?' anomaly':''}" onclick="${locked||!inEmp?'':`expandDay('${ds}')`}">
         <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
@@ -1495,6 +1516,22 @@ function renderSheet(emp,rec,shifts,c){
       </div>
       `}
 
+      <div class="fml-sec">
+        <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
+        <div class="fml-grid">
+          <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
+          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${Math.round(c.extraOtPay).toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
+        </div>
+        <div class="eq-bar">
+          <span>出勤</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
+          <span>事假/遲到</span><span class="v">${fmtMin(c.personalMins)}</span><span class="op">｜</span>
+          <span>病假</span><span class="v">${fmtMin(c.sickHours*60)}</span><span class="op">｜</span>
+          <span>曠職</span><span class="v">${Math.round(c.absentDays*10)/10}天</span>
+        </div>
+      </div>
+
       <div class="daily-sec">
         <div class="sec-title" style="margin-bottom:8px">📅 每日出勤
           <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">正常日自動帶入固定加班，只需處理請假/異常</span></div>
@@ -1579,19 +1616,35 @@ function renderSheet(emp,rec,shifts,c){
           </div>
         </div>`:''}
         <div class="mgr-deduct-box">
-          <div class="mgr-deduct-row">
+          <div class="mgr-deduct-row" onclick="toggleMgrPanel()" style="cursor:pointer;user-select:none">
             <div class="mgr-deduct-lbl">管理人員出勤扣點<div class="ded-sub">每點 −$100（上限 8 點 −$800）</div></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+              ${c.mgrPoints>0?`<span style="font-size:13px;font-weight:700;color:var(--red)">−$${c.mgrDeduct.toLocaleString()}（${c.mgrPoints}點）</span>`:`<span style="font-size:12px;color:var(--text3)">未設定</span>`}
+              <span style="font-size:11px;color:var(--text3)">${showMgrPanel?'▲':'▼'}</span>
+            </div>
+          </div>
+          ${showMgrPanel?`
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--red-border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <div class="mgr-deduct-input">
               <input type="number" min="0" max="31" step="1" value="${c.mgrPoints||''}" placeholder="0" onchange="patchRec('mgrPoints',+this.value)" ${dis}><span class="mgr-unit">點</span>
             </div>
             <div class="mgr-deduct-val">−$${c.mgrDeduct.toLocaleString()}</div>
           </div>
           ${c.mgrNoBonus?`<div class="mgr-warn">⚠️ 已達 ${c.mgrPoints} 點，當月無管理人員獎金</div>`:''}
+          `:''}
+        </div>
         </div>
       </div>
 
       <div class="add-sec">
-        <div class="sec-title">➕ 加項</div>
+        <div class="sec-title" onclick="toggleAddPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
+          <span>➕ 加項</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            ${c.totalAdd>0?`<span style="font-size:13px;font-weight:700;color:var(--green)">+$${c.totalAdd.toLocaleString()}</span>`:`<span style="font-size:12px;color:var(--text3)">未設定</span>`}
+            <span style="font-size:11px;color:var(--text3)">${showAddPanel?'▲':'▼'}</span>
+          </span>
+        </div>
+        ${showAddPanel?`
         <div class="add-list">
           ${c.isCentral?`<div class="add-item" style="background:var(--blue-bg);border-color:var(--blue-border)">
             <span class="add-name" style="color:var(--blue)">🍱 餐費補助 <span style="font-size:10px;opacity:.7">每排一天班 +$${MEAL_PER_DAY}（排班 ${c.scheduledDays} 天）</span></span>
@@ -1610,7 +1663,8 @@ function renderSheet(emp,rec,shifts,c){
           </div>
           ${customAddRows}
         </div>
-        ${!locked?`<button class="btn-sm o" onclick="addCustomAdd()">+ 新增其他加項</button>`:''}
+        ${!locked?`<button class="btn-sm o" style="margin-top:10px" onclick="addCustomAdd()">+ 新增其他加項</button>`:''}
+        `:''}
       </div>
 
       <div class="netpay-bar">
