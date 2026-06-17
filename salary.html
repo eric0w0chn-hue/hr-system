@@ -446,7 +446,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <div class="topbar">
   <div class="topbar-left">
-    <button class="back-btn" onclick="goBack()">← 返回</button>
+    <button class="back-btn" onclick="if(document.referrer&&document.referrer.includes(location.host))history.back();else location.href='dashboard.html'">← 返回</button>
     <div class="dv"></div>
     <h1>💰 薪資計算</h1>
   </div>
@@ -1352,8 +1352,10 @@ function renderSheet(emp,rec,shifts,c){
 
     // ── 全部預設收起，點開才填寫 ──
     const fromHR = (r.type==null||r.type==='') && type==='annual'; // 由HR特休帶入
-    const hasData = (type!=='normal') || r.ot167>0 || r.lateMins>0 || r.workedHours!=null
-      || r.hasTempOt || (r.autoOt!=null && r.autoOt!==defOt);
+    const hasData = (type!=='normal')                                    // 有假別
+      || r.ot167>0 || r.lateMins>0 || r.hasTempOt                       // 有加班/遲到/臨時加班
+      || (type!=='normal' && r.workedHours!=null)                       // 請假日才看 workedHours
+      || (r.autoOt!=null && Math.abs(Number(r.autoOt)-Number(defOt))>0.01); // 固定加班確實與預設不同
     // 異常判斷：請假但固定加班仍 > 0（未清為 0）
     const isAnomaly = shift&&inEmp&&type!=='normal'&&type!=='dayoff'
       &&LEAVE_TYPES[type]?.pay==='none'&&(r.autoOt!=null?Number(r.autoOt):defOt)>0;
