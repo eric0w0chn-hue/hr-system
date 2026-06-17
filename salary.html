@@ -470,6 +470,7 @@ let selectedStore=null, selectedEmpId=null;
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth()+1;
 let isSaving=false, showOtPanel=false, halfView='first', employBoxOpen=false, showSysPanel=false;
 let showMgrPanel=false, showAddPanel=false; // 管理扣點、加項預設收闔
+let showFmlPanel=false, showInsPanel=false; // 計算公式、勞健保預設收闔
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
 let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
 let curShifts={};
@@ -1215,6 +1216,8 @@ window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
 window.toggleSysPanel=function(){showSysPanel=!showSysPanel;renderMain();};
 window.toggleMgrPanel=function(){showMgrPanel=!showMgrPanel;rerender();};
 window.toggleAddPanel=function(){showAddPanel=!showAddPanel;rerender();};
+window.toggleFmlPanel=function(){showFmlPanel=!showFmlPanel;rerender();};
+window.toggleInsPanel=function(){showInsPanel=!showInsPanel;rerender();};
 window.setBaseSalary=function(v){if(v>0)BASE_FULL=v;};
 window.setInsYear=function(v){if(v>0)INS_YEAR=v;};
 window.updRate=function(i,field,v){if(LABOR_TABLE[i])LABOR_TABLE[i][field]=v;};
@@ -1225,7 +1228,7 @@ window.doSaveConfig=function(){LABOR_TABLE.sort((a,b)=>a.grade-b.grade);saveConf
 window.selEmpFromSel=async function(empId){
   if(!empId){selectedEmpId=null;document.getElementById('sheetArea').innerHTML='';return;}
   selectedEmpId=empId;halfView='first';
-  showMgrPanel=false;showAddPanel=false; // 切換同仁時重置收闔
+  showMgrPanel=false;showAddPanel=false;showFmlPanel=false;showInsPanel=false; // 切換同仁時重置收闔
   document.getElementById('sheetArea').innerHTML='<div class="loading-text">載入中…</div>';
   await loadAndRender(empId,true);
 };
@@ -1478,7 +1481,14 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
       </div>
       <div class="fml-sec">
-        <div class="sec-title">📐 兼職時薪制 <span style="font-weight:400;color:var(--text3);font-size:10px">實際出勤時數 ×（時薪＋出勤獎勵）＋加班費，請假不扣</span></div>
+        <div class="sec-title" onclick="toggleFmlPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
+          <span>📐 兼職時薪制 <span style="font-weight:400;color:var(--text3);font-size:10px">實際出勤時數 ×（時薪＋出勤獎勵）＋加班費，請假不扣</span></span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text2)">時薪 $${c.hourlyRate}｜出勤 ${Math.round(c.workedHoursTotal*100)/100}h</span>
+            <span style="font-size:11px;color:var(--text3)">${showFmlPanel?'▲':'▼'}</span>
+          </span>
+        </div>
+        ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
           <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（${c.scheduledHoursTotal}h≥${c.attendThreshold}h）`:`${c.hasAbnormal?'有非正常出勤':'排班未達'+c.attendThreshold+'h（'+c.scheduledHoursTotal+'h）'}，不發放`}</div></div>
@@ -1490,6 +1500,7 @@ function renderSheet(emp,rec,shifts,c){
           <span>出勤時數</span><span class="v">${Math.round(c.workedHoursTotal*100)/100}h</span><span class="op">｜</span>
           <span>臨時加班</span><span class="v">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'}</span>
         </div>
+        `:''}
       </div>
       `:`
       <div class="sum-row">
@@ -1502,7 +1513,14 @@ function renderSheet(emp,rec,shifts,c){
       ${partialBox}
 
       <div class="fml-sec">
-        <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
+        <div class="sec-title" onclick="toggleFmlPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
+          <span>📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text2)">時薪 $${c.hourly.toFixed(2)}｜加班 ${c.fixedOtHours}h→$${Math.round(c.fixedOtPay).toLocaleString()}</span>
+            <span style="font-size:11px;color:var(--text3)">${showFmlPanel?'▲':'▼'}</span>
+          </span>
+        </div>
+        ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
           <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
@@ -1515,6 +1533,7 @@ function renderSheet(emp,rec,shifts,c){
           <span>病假</span><span class="v">${fmtMin(c.sickHours*60)}</span><span class="op">｜</span>
           <span>曠職</span><span class="v">${Math.round(c.absentDays*10)/10}天</span>
         </div>
+        `:''}
       </div>
       `}
 
@@ -1531,8 +1550,15 @@ function renderSheet(emp,rec,shifts,c){
       </div>
 
       <div class="ins-section">
-        <div class="sec-title">🛡️ 勞健保 <span style="font-weight:400;color:var(--text3);font-size:10px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋</span> ${insModeTag}</div>
-
+        <div class="sec-title" onclick="toggleInsPanel()" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center">
+          <span>🛡️ 勞健保 ${insModeTag}</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text2)">投保 $${c.insGrade.toLocaleString()}｜勞 $${c.finalLabor.toLocaleString()}｜健 $${c.finalHealth.toLocaleString()}</span>
+            <span style="font-size:11px;color:var(--text3)">${showInsPanel?'▲':'▼'}</span>
+          </span>
+        </div>
+        ${showInsPanel?`
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋</div>
         <div class="ins-headbar">
           <div class="ins-head-cell">
             <span class="ins-head-lbl">投保級距</span>
@@ -1586,6 +1612,7 @@ function renderSheet(emp,rec,shifts,c){
 
         ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
         ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣：本月一份 + 預扣次月一份（共 ×2）。勞保 $${c.laborBase.toLocaleString()}×2 + 健保 $${c.healthTotal.toLocaleString()}×2，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。隔月無薪資可扣故提前扣除，薪資單會註明。</div>`:''}
+        `:''}
       </div>
 
       <div class="ded-sec">
