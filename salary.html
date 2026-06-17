@@ -1516,22 +1516,6 @@ function renderSheet(emp,rec,shifts,c){
       </div>
       `}
 
-      <div class="fml-sec">
-        <div class="sec-title">📐 計算公式 ${c.isPartial?'':`<span style="font-weight:400;color:var(--text3);font-size:10px">底薪+彈性補貼+固定加班費 = 目標薪資</span>`}</div>
-        <div class="fml-grid">
-          <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
-          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
-          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${Math.round(c.extraOtPay).toLocaleString()}</div></div>
-          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
-        </div>
-        <div class="eq-bar">
-          <span>出勤</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
-          <span>事假/遲到</span><span class="v">${fmtMin(c.personalMins)}</span><span class="op">｜</span>
-          <span>病假</span><span class="v">${fmtMin(c.sickHours*60)}</span><span class="op">｜</span>
-          <span>曠職</span><span class="v">${Math.round(c.absentDays*10)/10}天</span>
-        </div>
-      </div>
-
       <div class="daily-sec">
         <div class="sec-title" style="margin-bottom:8px">📅 每日出勤
           <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">正常日自動帶入固定加班，只需處理請假/異常</span></div>
