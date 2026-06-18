@@ -112,30 +112,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sidebar-unassigned-item{font-size:11px;color:rgba(255,255,255,.4);padding:2px 0;line-height:1.6}
 
 /* ── Main content ── */
-.main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);min-height:100vh}
-.main{padding:28px 24px}
+.main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);min-height:100vh;background:var(--bg)}
+.main{padding:24px 20px;max-width:720px}
 .main-header{margin-bottom:24px}
 .main-header h2{font-size:20px;font-weight:700;color:var(--text)}
 .main-header p{font-size:12px;color:var(--text3);margin-top:4px}
 .preview-notice{background:#FFF4E0;border:1px solid #FDDFA0;border-radius:10px;padding:8px 16px;font-size:12px;color:#C47A00;margin-bottom:20px;display:none;align-items:center;gap:8px}
 .preview-notice.show{display:flex}
 
-/* ── Module cards grid ── */
-.group-section{margin-bottom:32px}
-.group-section-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.group-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
-.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.module-card{background:var(--surface);border-radius:13px;border:1px solid var(--border);padding:20px 18px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:12px;position:relative}
-.module-card:hover{border-color:var(--border2);box-shadow:0 5px 20px rgba(0,0,0,.07);transform:translateY(-2px)}
-.module-card.disabled{cursor:not-allowed;opacity:.5}
-.module-card.disabled:hover{border-color:var(--border);box-shadow:none;transform:none}
-.card-badge{position:absolute;top:12px;right:12px;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
-.badge-active{background:#E6FAF0;color:#087443;border:1px solid #ADE8C4}
-.badge-soon{background:#F4F5F8;color:#9AA0B4;border:1px solid var(--border)}
+/* ── Module list（簡約列表）── */
+.list-section{margin-bottom:8px}
+.list-section-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.6px;margin:20px 0 6px;padding:0 2px;display:flex;align-items:center;gap:8px;text-transform:uppercase}
+.list-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.mod-list-item{display:flex;align-items:center;padding:13px 16px;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;gap:12px;text-decoration:none}
+.mod-list-item:first-child{border-radius:10px 10px 0 0}
+.mod-list-item:last-child{border-bottom:none;border-radius:0 0 10px 10px}
+.mod-list-item:only-child{border-radius:10px}
+.mod-list-item:hover{background:var(--surface2)}
+.mod-list-item.disabled{opacity:.4;cursor:not-allowed}
+.mod-list-item.disabled:hover{background:var(--surface)}
+.mod-list-wrap{background:var(--surface);border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:8px}
+.list-item-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.list-item-name{font-size:14px;color:var(--text);font-weight:500;flex:1}
+.list-item-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
 .badge-admin{background:#FFF4E0;color:#C47A00;border:1px solid #FDDFA0}
-.icon-wrap{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;background:var(--surface2)}
-.mod-name{font-size:14px;font-weight:600;color:var(--text)}
-.mod-desc{font-size:11px;color:var(--text3);line-height:1.6}
+.badge-soon{background:#F4F5F8;color:#9AA0B4;border:1px solid var(--border)}
+.list-item-arrow{color:var(--text3);font-size:12px;flex-shrink:0}
+/* hero 隱藏 */
+.hero-wrap{display:none!important}
 
 /* ── 彈窗（群組管理 / 功能指派） ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center}
@@ -517,7 +521,46 @@ function renderAll(role){
 }
 
 function renderMainCards(role, visKeys, groups){
-  // 右側只顯示品牌 Hero，不渲染功能卡片
+  const mc = document.getElementById('mainContent');
+  if(!mc) return;
+  // 按群組渲染列表
+  let html = '';
+  const isAdmin = (realRole==='admin');
+  const inPreview = (role!==realRole);
+  groups.forEach(g=>{
+    const gMods = ALL_MODULES.filter(m=>g.keys.includes(m.key)&&visKeys.includes(m.key));
+    if(!gMods.length) return;
+    html += `<div class="list-section">
+      <div class="list-section-title">${g.icon} ${g.name}</div>
+      <div class="mod-list-wrap">
+        ${gMods.map(m=>{
+          const badge = !m.active
+            ? `<span class="list-item-badge badge-soon">即將推出</span>`
+            : m.adminOnly ? `<span class="list-item-badge badge-admin">管理員</span>` : '';
+          const click = m.active ? `onclick="goTo('${m.page}')"` : '';
+          return `<div class="mod-list-item${m.active?'':' disabled'}" ${click}>
+            <span class="list-item-icon">${m.icon}</span>
+            <span class="list-item-name">${m.name}</span>
+            ${badge}
+            ${m.active ? '<span class="list-item-arrow">›</span>' : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  // 未分組（admin 非預覽）
+  if(isAdmin&&!inPreview){
+    const assignedKeys=new Set(groups.reduce((a,g)=>a.concat(g.keys||[]),[]));    const unassigned=ALL_MODULES.filter(m=>visKeys.includes(m.key)&&!assignedKeys.has(m.key));
+    if(unassigned.length){
+      html+=`<div class="list-section">
+        <div class="list-section-title">⚠ 未分組功能</div>
+        <div class="mod-list-wrap">
+          ${unassigned.map(m=>`<div class="mod-list-item disabled"><span class="list-item-icon">${m.icon}</span><span class="list-item-name">${m.name}</span></div>`).join('')}
+        </div>
+      </div>`;
+    }
+  }
+  mc.innerHTML = html || '<div style="padding:40px 20px;text-align:center;color:var(--text3);font-size:13px">請在側邊欄建立群組以開始使用</div>';
 }
 
 // ── 群組展開/收合 ──
