@@ -561,6 +561,7 @@ window.onLocationChange=async function(){
   filterEmpIds.clear(); // 重設篩選
   shifts={}; // 先清空，避免顯示舊店資料
   renderCalendar();renderLegend();renderSidebar();
+  await loadShiftTypes(); // 載入該店的班別設定
   await loadShifts();
 };
 
@@ -593,13 +594,18 @@ async function saveShifts(){
   }
 }
 
-// ── 載入 & 儲存班別設定 ──
+// ── 載入 & 儲存班別設定（依店面分開儲存）──
 async function loadShiftTypes(){
-  try{const s=await getDoc(doc(db,'hr','shiftTypes'));shiftTypes=s.exists()?(s.data().list||[]):[];}
+  if(!selectedLocation){ shiftTypes=[]; return; }
+  try{
+    const s=await getDoc(doc(db,'shift_types',selectedLocation));
+    shiftTypes=s.exists()?(s.data().list||[]):[];
+  }
   catch(e){shiftTypes=[];}
 }
 async function saveShiftTypes(){
-  await setDoc(doc(db,'hr','shiftTypes'),{list:shiftTypes,updatedAt:new Date().toISOString()});
+  if(!selectedLocation){ showToast('請先選擇店面'); return; }
+  await setDoc(doc(db,'shift_types',selectedLocation),{list:shiftTypes,updatedAt:new Date().toISOString()});
 }
 
 // ── 渲染月曆（週一起始）──
@@ -996,6 +1002,7 @@ window.openEditModal=function(dateStr,idx){
 
 // ── 班別設定 Modal ──
 window.openShiftTypesModal=function(){
+  if(!selectedLocation){ showToast('請先選擇店面再設定班別'); return; }
   renderShiftTypesModal();
 };
 function renderShiftTypesModal(){
@@ -1009,7 +1016,7 @@ function renderShiftTypesModal(){
   document.getElementById('modalArea').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
-        <div class="modal-title">⚙ 班別設定</div>
+        <div class="modal-title">⚙ 班別設定 — ${selectedLocation}</div>
         <div id="st-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px">${listHtml}</div>
         <div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;letter-spacing:.3px;text-transform:uppercase">新增班別</div>
@@ -1232,7 +1239,6 @@ onAuthStateChanged(auth,async user=>{
       }
     }),
     getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
-    loadShiftTypes(),
     loadHolidays(viewYear),
   ]);
 
@@ -1242,7 +1248,7 @@ onAuthStateChanged(auth,async user=>{
       ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&e.workLocation===l) || currentLocations.includes(l))
       : currentLocations.filter(l=>workLocations.includes(l));
   availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
-  if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];}
+  if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];await loadShiftTypes();}
 
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
 
