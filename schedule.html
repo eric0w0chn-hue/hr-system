@@ -1013,12 +1013,10 @@ function renderShiftTypesModal(){
       <button class="btn" style="padding:3px 8px;font-size:11px;color:#C0392B;border-color:#FECACA" onclick="removeShiftType(${i})">✕</button>
     </div>`).join('')||'<div style="font-size:13px;color:var(--text3);padding:12px 0">尚未設定任何班別</div>';
 
-  document.getElementById('modalArea').innerHTML=`
-    <div class="overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-title">⚙ 班別設定 — ${selectedLocation}</div>
-        <div id="st-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px">${listHtml}</div>
-        <div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
+  const atLimit = shiftTypes.length >= 10;
+  const addSection = atLimit
+    ? `<div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border);font-size:13px;color:var(--text3);text-align:center">已達班別數量上限（10 個），如需新增請先刪除其他班別</div>`
+    : `<div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;letter-spacing:.3px;text-transform:uppercase">新增班別</div>
           <div class="fr"><label>班別名稱</label><input type="text" id="st-name" placeholder="例：早班、晚班、大夜"></div>
           <div class="time-row">
@@ -1026,7 +1024,14 @@ function renderShiftTypesModal(){
             <div class="fr"><label>下班時間</label><input type="time" id="st-end" value="18:00"></div>
           </div>
           <button class="btn btn-primary" style="width:100%" onclick="addShiftType()">＋ 新增</button>
-        </div>
+        </div>`;
+
+  document.getElementById('modalArea').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">⚙ 班別設定 — ${selectedLocation}　<span style="font-size:12px;font-weight:500;color:var(--text3)">(${shiftTypes.length}/10)</span></div>
+        <div id="st-list" style="max-height:200px;overflow-y:auto;margin-bottom:16px">${listHtml}</div>
+        ${addSection}
         <div class="mf">
           <button class="btn btn-primary" onclick="closeModal()">完成</button>
         </div>
@@ -1039,6 +1044,7 @@ window.addShiftType=async function(){
   const start=document.getElementById('st-start').value;
   const end=document.getElementById('st-end').value;
   if(!name||!start||!end){showToast('請填寫完整');return;}
+  if(shiftTypes.length>=10){showToast('班別數量已達上限（10 個）');return;}
   if(shiftTypes.find(t=>t.name===name)){showToast('班別名稱已存在');return;}
   shiftTypes.push({name,start,end});
   await saveShiftTypes();
