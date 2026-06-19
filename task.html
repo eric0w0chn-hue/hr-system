@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>店務追蹤 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
+  --ok:#1F9D55;--warn:#D98A00;--danger:#C0392B;--info:#2D6CDF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;overflow:hidden}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.back-btn{font-size:12px;padding:0 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;min-height:44px;display:flex;align-items:center}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap;flex-shrink:0}
+
+/* ── Main ── */
+.main{max-width:1040px;margin:0 auto;padding:24px 20px}
+.hint{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.6}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.stat-card .n{font-size:26px;font-weight:800;line-height:1}
+.stat-card .l{font-size:12px;color:var(--text2);margin-top:6px}
+.stat-card.s-active .n{color:var(--info)}
+.stat-card.s-over .n{color:var(--danger)}
+.stat-card.s-stale .n{color:var(--warn)}
+.stat-card.s-done .n{color:var(--ok)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar select,.toolbar input{font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
+.toolbar select:focus,.toolbar input:focus{outline:none;border-color:var(--accent)}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tab{font-size:13px;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;min-height:38px}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab .cnt{font-size:11px;background:rgba(0,0,0,.08);padding:0 7px;border-radius:10px;min-width:18px;text-align:center}
+.tab.active .cnt{background:rgba(255,255,255,.22)}
+
+/* ── Button ── */
+.btn{font-size:13px;padding:0 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);min-height:44px;white-space:nowrap}
+.btn:hover{background:var(--accent-light);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#3D4158}
+.btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-ok:hover{background:#188044}
+.btn-warn{background:#FFF4E0;color:#9A6200;border-color:#F2CE8A}
+.btn-danger{background:#FEECEB;color:#C0392B;border-color:#FCA5A5}
+.ml-auto{margin-left:auto}
+
+/* ── Task card ── */
+.tlist{display:flex;flex-direction:column;gap:12px}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .12s;border-left:4px solid var(--border2)}
+.task-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.task-card.lv-overdue{border-left-color:var(--danger)}
+.task-card.lv-stale{border-left-color:var(--warn)}
+.task-card.lv-active{border-left-color:var(--info)}
+.task-card.lv-done{border-left-color:var(--ok);opacity:.82}
+.task-card.lv-cancel{border-left-color:var(--text3);opacity:.7}
+.tc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.tc-store{font-size:11px;color:var(--text2);font-weight:600}
+.tc-title{font-size:15px;font-weight:700;margin:3px 0 8px;line-height:1.35}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-pending{background:#EEF0F4;color:var(--text2)}
+.b-progress{background:#E5EEFB;color:var(--info)}
+.b-completed{background:#E3F5EA;color:var(--ok)}
+.b-cancelled{background:#EEF0F4;color:var(--text3)}
+.b-over{background:#FCE9E7;color:var(--danger)}
+.b-stale{background:#FFF1DC;color:var(--warn)}
+.b-pri-high{background:#FFF1DC;color:var(--warn)}
+.b-pri-urgent{background:#FCE9E7;color:var(--danger)}
+.b-cat{background:var(--surface2);color:var(--text2)}
+.progress-track{height:7px;background:var(--surface2);border-radius:6px;overflow:hidden;margin:10px 0 8px}
+.progress-fill{height:100%;background:var(--info);border-radius:6px;transition:width .3s}
+.progress-fill.f-done{background:var(--ok)}
+.tc-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--text2);flex-wrap:wrap}
+.tc-meta .pct{font-weight:700;color:var(--text)}
+.empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:14px}
+
+/* ── Detail / timeline ── */
+.d-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.d-row .k{color:var(--text2);min-width:78px;flex-shrink:0;font-weight:600}
+.d-row .v{color:var(--text);flex:1}
+.d-desc{background:var(--surface2);border-radius:9px;padding:11px 13px;font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin:10px 0}
+.tl{margin-top:6px;border-left:2px solid var(--border);padding-left:14px;display:flex;flex-direction:column;gap:14px}
+.tl-item{position:relative}
+.tl-item::before{content:'';position:absolute;left:-21px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+.tl-item.t-create::before{background:var(--info)}
+.tl-item.t-complete::before{background:var(--ok)}
+.tl-item.t-cancel::before{background:var(--danger)}
+.tl-item.t-reopen::before{background:var(--warn)}
+.tl-head{font-size:12px;color:var(--text2)}
+.tl-head b{color:var(--text)}
+.tl-note{font-size:13px;margin-top:2px;white-space:pre-wrap}
+.sec-title{font-size:12px;font-weight:700;color:var(--text2);margin:18px 0 8px;letter-spacing:.3px}
+.det-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.det-actions .btn{flex:1;min-width:120px;justify-content:center}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:flex-end;justify-content:center;z-index:500;padding:0;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.15);max-height:92vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;letter-spacing:.3px}
+.form-row input,.form-row select,.form-row textarea{width:100%;font-size:13px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
+.form-row textarea{min-height:84px;resize:vertical}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent)}
+.req::after{content:' *';color:var(--danger)}
+.range-wrap{display:flex;align-items:center;gap:12px}
+.range-wrap input[type=range]{flex:1;min-height:auto;padding:0;accent-color:var(--accent)}
+.range-val{font-size:18px;font-weight:800;min-width:54px;text-align:right}
+.modal-footer{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.modal-footer .btn{flex:1;justify-content:center}
+
+/* ── Toast / Loading ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#loading{display:flex;align-items:center;justify-content:center;height:100vh;gap:8px;font-size:13px;color:var(--text3)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ── RWD ── */
+@media(max-width:600px){
+  .topbar{padding:0 12px;gap:6px;height:52px}
+  .topbar h1{font-size:13px}
+  .back-btn{font-size:11px;padding:0 10px;min-height:36px}
+  .role-chip{font-size:10px;padding:2px 8px}
+  .main{padding:12px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat-card{padding:13px}
+  .stat-card .n{font-size:22px}
+  .toolbar{gap:8px}
+  .toolbar select,.toolbar input{width:100%}
+  .toolbar .btn{width:100%;justify-content:center}
+  .det-actions .btn{flex:1 1 100%}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh}
+}
+@media(min-width:601px){
+  .overlay{align-items:center;padding:16px}
+  .modal{border-radius:16px;max-height:88vh}
+}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div>載入中…</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
+      <div class="tb-dv"></div>
+      <!-- 如需與其他頁一致顯示雞頭 logo，可在 📌 前加入：
+           <img src="專案雞頭BASE64" style="width:28px;height:28px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:6px"> -->
+      <h1>📌 店務追蹤</h1>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" id="btnNew">＋ 新增任務</button>
+      <span class="role-chip" id="roleChip">—</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="hint">
+      📌 任務一經建立即須追蹤至「完成」或「作廢」，<b>無法直接刪除</b>；作廢必須填寫原因並留存紀錄。逾期或長時間未更新的任務會自動標記，供總公司追蹤掌握各店狀況。
+    </div>
+
+    <div class="stats">
+      <div class="stat-card s-active"><div class="n" id="stActive">0</div><div class="l">進行中</div></div>
+      <div class="stat-card s-over"><div class="n" id="stOver">0</div><div class="l">🔴 逾期</div></div>
+      <div class="stat-card s-stale"><div class="n" id="stStale">0</div><div class="l">🟠 停滯</div></div>
+      <div class="stat-card s-done"><div class="n" id="stDone">0</div><div class="l">本月完成</div></div>
+    </div>
+
+    <div class="toolbar">
+      <select id="fStore"></select>
+      <select id="fCat"><option value="__all__">全部分類</option></select>
+      <input type="text" id="fSearch" placeholder="🔍 搜尋任務名稱…">
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="tlist" id="tlist"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ─── 設定 ─── */
+const COLL = 'store_tasks';
+const CATS = ['設備維修','裝修工程','進貨採購','人事','行政庶務','食安衛生','行銷活動','其他'];
+const STALE_DAYS = 7;        // 超過幾天未更新標記為「停滯」
+const FETCH_LIMIT = 500;
+const PRI = {normal:'一般', high:'重要', urgent:'緊急'};
+const STATUS_LABEL = {pending:'待處理', in_progress:'進行中', completed:'已完成', cancelled:'已作廢'};
+
+/* ─── 狀態 ─── */
+let CUR = { name:'', role:'', uid:'' };
+let VIEW_LOCS = [];   // 可檢視範圍（authGuard 已依店面類型過濾）
+let OWN_LOCS  = [];   // 自身所屬店面（新增任務挑選用）
+let TASKS = [];       // 已載入（已過濾 VIEW_LOCS）
+let curTab = 'active';
+
+const TABS = [
+  {key:'active',    name:'進行中'},
+  {key:'overdue',   name:'🔴 逾期'},
+  {key:'stale',     name:'🟠 停滯'},
+  {key:'completed', name:'已完成'},
+  {key:'cancelled', name:'已作廢'},
+];
+
+function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
+
+/* ─── 入口 ─── */
+authGuard('task', ({ uid, role, locations, userData }) => {
+  CUR.role = role; CUR.name = userData?.name || '—'; CUR.uid = uid;
+  VIEW_LOCS = Array.isArray(locations) ? locations.slice() : [];
+  OWN_LOCS  = (userData?.locations && userData.locations.length) ? userData.locations.slice() : VIEW_LOCS.slice();
+
+  const rc = document.getElementById('roleChip');
+  if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
+
+  // 店面篩選下拉（看得到一間以上才顯示「全部店面」）
+  const fs = document.getElementById('fStore');
+  if(VIEW_LOCS.length > 1){
+    fs.innerHTML = '<option value="__all__">全部店面</option>' + VIEW_LOCS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  } else {
+    fs.style.display = 'none';
+  }
+  // 分類下拉
+  document.getElementById('fCat').innerHTML = '<option value="__all__">全部分類</option>' + CATS.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+  document.getElementById('btnNew').addEventListener('click', openCreate);
+  document.getElementById('fStore').addEventListener('change', render);
+  document.getElementById('fCat').addEventListener('change', render);
+  document.getElementById('fSearch').addEventListener('input', render);
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadTasks();
+});
+
+/* ─── 載入 ─── */
+async function loadTasks(){
+  try{
+    const q = query(collection(db, COLL), orderBy('createdAt','desc'), limit(FETCH_LIMIT));
+    const snap = await getDocs(q);
+    TASKS = [];
+    snap.forEach(d=>{
+      const t = { id:d.id, ...d.data() };
+      if(VIEW_LOCS.includes(t.store)) TASKS.push(t);   // 只保留可檢視店面
+    });
+    render();
+  }catch(e){
+    console.error(e);
+    toast('載入失敗：' + (e.message||e));
+  }
+}
+
+/* ─── 旗標計算 ─── */
+function toDateSafe(v){ if(!v) return null; try{ return v.toDate ? v.toDate() : new Date(v); }catch{ return null; } }
+function flags(t){
+  const active = t.status==='pending' || t.status==='in_progress';
+  let overdue=false, stale=false, staleDays=0;
+  if(active && t.dueDate){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due = new Date(t.dueDate+'T00:00:00');
+    if(!isNaN(due) && due < today) overdue = true;
+  }
+  if(active){
+    const lu = toDateSafe(t.lastUpdate) || toDateSafe(t.createdAt);
+    if(lu){
+      const days = Math.floor((Date.now() - lu.getTime())/86400000);
+      if(days >= STALE_DAYS){ stale=true; staleDays=days; }
+    }
+  }
+  return {active, overdue, stale, staleDays};
+}
+
+/* ─── 渲染 ─── */
+function render(){
+  const fStore = document.getElementById('fStore').value || '__all__';
+  const fCat = document.getElementById('fCat').value || '__all__';
+  const kw = (document.getElementById('fSearch').value||'').trim().toLowerCase();
+
+  // 統計（不受 tab 影響，受店面/分類/搜尋影響）
+  const scope = TASKS.filter(t=>{
+    if(fStore!=='__all__' && t.store!==fStore) return false;
+    if(fCat!=='__all__' && t.category!==fCat) return false;
+    if(kw && !(t.title||'').toLowerCase().includes(kw)) return false;
+    return true;
+  });
+  let cActive=0,cOver=0,cStale=0,cDone=0;
+  const now=new Date(); const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  scope.forEach(t=>{
+    const f=flags(t);
+    if(f.active) cActive++;
+    if(f.overdue) cOver++;
+    if(f.stale) cStale++;
+    if(t.status==='completed'){ const cd=toDateSafe(t.completedAt); if(cd){ const cym=cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0'); if(cym===ym) cDone++; } }
+  });
+  document.getElementById('stActive').textContent=cActive;
+  document.getElementById('stOver').textContent=cOver;
+  document.getElementById('stStale').textContent=cStale;
+  document.getElementById('stDone').textContent=cDone;
+
+  // tab 計數
+  const counts = {active:0,overdue:0,stale:0,completed:0,cancelled:0};
+  scope.forEach(t=>{
+    const f=flags(t);
+    if(f.active) counts.active++;
+    if(f.overdue) counts.overdue++;
+    if(f.stale) counts.stale++;
+    if(t.status==='completed') counts.completed++;
+    if(t.status==='cancelled') counts.cancelled++;
+  });
+  document.getElementById('tabs').innerHTML = TABS.map(tb=>
+    `<div class="tab ${curTab===tb.key?'active':''}" data-k="${tb.key}">${tb.name}<span class="cnt">${counts[tb.key]||0}</span></div>`
+  ).join('');
+  document.querySelectorAll('.tab').forEach(el=>el.addEventListener('click',()=>{ curTab=el.dataset.k; render(); }));
+
+  // 清單
+  let list = scope.filter(t=>{
+    const f=flags(t);
+    if(curTab==='active') return f.active;
+    if(curTab==='overdue') return f.overdue;
+    if(curTab==='stale') return f.stale;
+    if(curTab==='completed') return t.status==='completed';
+    if(curTab==='cancelled') return t.status==='cancelled';
+    return true;
+  });
+  // 排序：逾期 > 停滯 > 預計完成日近 > 建立新
+  list.sort((a,b)=>{
+    const fa=flags(a),fb=flags(b);
+    if(fa.overdue!==fb.overdue) return fa.overdue?-1:1;
+    if(fa.stale!==fb.stale) return fa.stale?-1:1;
+    const da=a.dueDate||'9999', dbb=b.dueDate||'9999';
+    if(da!==dbb) return da<dbb?-1:1;
+    return (toDateSafe(b.createdAt)?.getTime()||0)-(toDateSafe(a.createdAt)?.getTime()||0);
+  });
+
+  const wrap = document.getElementById('tlist');
+  if(!list.length){ wrap.innerHTML = `<div class="empty">這個分類目前沒有任務</div>`; return; }
+  wrap.innerHTML = list.map(t=>cardHTML(t)).join('');
+  document.querySelectorAll('.task-card').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)));
+}
+
+function cardHTML(t){
+  const f=flags(t);
+  let lv='lv-active';
+  if(t.status==='completed') lv='lv-done';
+  else if(t.status==='cancelled') lv='lv-cancel';
+  else if(f.overdue) lv='lv-overdue';
+  else if(f.stale) lv='lv-stale';
+
+  const badges=[];
+  badges.push(`<span class="badge b-${t.status==='in_progress'?'progress':t.status}">${STATUS_LABEL[t.status]||t.status}</span>`);
+  if(t.priority==='high') badges.push(`<span class="badge b-pri-high">重要</span>`);
+  if(t.priority==='urgent') badges.push(`<span class="badge b-pri-urgent">緊急</span>`);
+  if(f.overdue) badges.push(`<span class="badge b-over">逾期</span>`);
+  if(f.stale) badges.push(`<span class="badge b-stale">${f.staleDays}天未更新</span>`);
+  if(t.category) badges.push(`<span class="badge b-cat">${esc(t.category)}</span>`);
+
+  const pct = Math.max(0,Math.min(100, t.progress||0));
+  const due = t.dueDate ? `預計 ${esc(t.dueDate)}` : '未設定完成日';
+
+  return `<div class="task-card ${lv}" data-id="${t.id}">
+    <div class="tc-top">
+      <div style="min-width:0">
+        <div class="tc-store">🏪 ${esc(t.store)}</div>
+        <div class="tc-title">${esc(t.title)}</div>
+      </div>
+    </div>
+    <div class="badges">${badges.join('')}</div>
+    <div class="progress-track"><div class="progress-fill ${pct>=100?'f-done':''}" style="width:${pct}%"></div></div>
+    <div class="tc-meta"><span class="pct">${pct}%</span><span>${due}　·　建立：${esc(t.createdBy||'—')}</span></div>
+  </div>`;
+}
+
+/* ─── 詳情 ─── */
+function openDetail(id){
+  const t = TASKS.find(x=>x.id===id); if(!t) return;
+  const f=flags(t);
+  const pct=Math.max(0,Math.min(100,t.progress||0));
+
+  let rows='';
+  rows+=drow('店面', esc(t.store));
+  rows+=drow('狀態', STATUS_LABEL[t.status]||t.status);
+  rows+=drow('分類', esc(t.category||'—'));
+  rows+=drow('優先', PRI[t.priority]||'一般');
+  rows+=drow('預計完成', (t.dueDate?esc(t.dueDate):'未設定') + (f.overdue?' 🔴 已逾期':''));
+  rows+=drow('進度', pct+'%');
+  rows+=drow('建立', esc(t.createdBy||'—')+'　'+fmt(t.createdAt));
+  if(t.status==='completed') rows+=drow('完成', fmt(t.completedAt));
+  if(t.status==='cancelled') rows+=drow('作廢', esc(t.cancelledBy||'—')+'　'+fmt(t.cancelledAt));
+
+  const ups=(t.updates||[]).slice().reverse();
+  const tl = ups.length ? ups.map(u=>{
+    const cls = u.type?('t-'+u.type):'';
+    const typeLabel = ({create:'建立',progress:'進度更新',status:'狀態變更',complete:'完成',cancel:'作廢',reopen:'重啟',postpone:'延期'})[u.type]||'更新';
+    const pp = (u.progress!=null) ? `　(${u.progress}%)` : '';
+    return `<div class="tl-item ${cls}">
+      <div class="tl-head"><b>${esc(u.by||'—')}</b> · ${typeLabel}${pp} · ${fmtISO(u.at)}</div>
+      ${u.note?`<div class="tl-note">${esc(u.note)}</div>`:''}
+    </div>`;
+  }).join('') : '<div class="tl-item"><div class="tl-head">尚無紀錄</div></div>';
+
+  // 操作按鈕
+  const acts=[];
+  if(f.active){
+    acts.push(`<button class="btn btn-primary" data-act="progress">↻ 更新進度</button>`);
+    acts.push(`<button class="btn btn-ok" data-act="complete">✓ 標記完成</button>`);
+    acts.push(`<button class="btn btn-warn" data-act="postpone">⏫ 延期</button>`);
+    acts.push(`<button class="btn btn-danger" data-act="cancel">✕ 作廢</button>`);
+  } else if(isHQ()){
+    acts.push(`<button class="btn btn-warn" data-act="reopen">↺ 重啟任務</button>`);
+  }
+
+  showModal(`
+    <div class="modal-title">📌 ${esc(t.title)}</div>
+    ${rows}
+    ${t.description?`<div class="d-desc">${esc(t.description)}</div>`:''}
+    <div class="sec-title">進度紀錄</div>
+    <div class="tl">${tl}</div>
+    ${acts.length?`<div class="det-actions">${acts.join('')}</div>`:''}
+  `);
+  document.querySelectorAll('.det-actions [data-act]').forEach(b=>{
+    b.addEventListener('click',()=>handleAction(b.dataset.act, t));
+  });
+}
+function drow(k,v){ return `<div class="d-row"><div class="k">${k}</div><div class="v">${v}</div></div>`; }
+
+/* ─── 動作分派 ─── */
+function handleAction(act, t){
+  if(act==='progress') openProgress(t);
+  else if(act==='complete') openComplete(t);
+  else if(act==='postpone') openPostpone(t);
+  else if(act==='cancel') openCancel(t);
+  else if(act==='reopen') openReopen(t);
+}
+
+/* ─── 新增 ─── */
+function openCreate(){
+  const stores = (isHQ()? VIEW_LOCS : OWN_LOCS);
+  if(!stores.length){ toast('沒有可建立任務的店面'); return; }
+  const today = new Date(); const minD = today.toISOString().slice(0,10);
+  showModal(`
+    <div class="modal-title">＋ 新增任務</div>
+    <div class="form-row"><label class="req">店面</label>
+      <select id="cStore">${stores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></div>
+    <div class="form-row"><label class="req">任務名稱</label><input id="cTitle" maxlength="60" placeholder="例：後場冷氣維修"></div>
+    <div class="form-row"><label class="req">分類</label>
+      <select id="cCat">${CATS.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
+    <div class="form-row"><label>優先程度</label>
+      <select id="cPri"><option value="normal">一般</option><option value="high">重要</option><option value="urgent">緊急</option></select></div>
+    <div class="form-row"><label class="req">預計完成日</label><input type="date" id="cDue" min="${minD}"></div>
+    <div class="form-row"><label>詳細說明</label><textarea id="cDesc" placeholder="說明背景、需求或廠商資訊…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="cSave">建立任務</button>
+    </div>
+  `);
+  document.getElementById('cSave').addEventListener('click', saveCreate);
+}
+async function saveCreate(){
+  const store=val('cStore'), title=val('cTitle').trim(), category=val('cCat'),
+        priority=val('cPri'), dueDate=val('cDue'), description=val('cDesc').trim();
+  if(!store||!title||!category||!dueDate){ toast('請填寫店面、名稱、分類與預計完成日'); return; }
+  busy('cSave', true);
+  try{
+    const entry = { at:new Date().toISOString(), by:CUR.name, role:CUR.role, type:'create', note:'建立任務', progress:0 };
+    await addDoc(collection(db, COLL), {
+      store, storeCode:'', title, category, priority, progress:0, status:'pending', dueDate, description,
+      createdBy:CUR.name, createdRole:CUR.role, createdAt:serverTimestamp(), lastUpdate:serverTimestamp(),
+      completedAt:null, completedNote:'', cancelledAt:null, cancelledBy:'', cancelledReason:'',
+      updates:[entry]
+    });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'新增任務', detail:`${store}｜${title}` });
+    closeModal(); toast('已建立任務'); await loadTasks();
+  }catch(e){ console.error(e); toast('建立失敗：'+(e.message||e)); busy('cSave',false); }
+}
+
+/* ─── 更新進度 ─── */
+function openProgress(t){
+  const pct=Math.max(0,Math.min(100,t.progress||0));
+  showModal(`
+    <div class="modal-title">↻ 更新進度 — ${esc(t.title)}</div>
+    <div class="form-row"><label>目前進度</label>
+      <div class="range-wrap"><input type="range" id="pRange" min="0" max="100" step="5" value="${pct}"><span class="range-val" id="pVal">${pct}%</span></div></div>
+    <div class="form-row"><label class="req">進度說明</label><textarea id="pNote" placeholder="這次進展、目前狀況、卡關點…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary" id="pSave">儲存進度</button>
+    </div>
+  `);
+  const r=document.getElementById('pRange'); r.addEventListener('input',()=>document.getElementById('pVal').textContent=r.value+'%');
+  document.getElementById('pSave').addEventListener('click',()=>saveProgress(t.id));
+}
+async function saveProgress(id){
+  const progress=parseInt(val('pRange'),10)||0; const note=val('pNote').trim();
+  if(!note){ toast('請填寫進度說明'); return; }
+  busy('pSave',true);
+  try{
+    const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
+    if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束，無法更新');
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'progress',note,progress}];
+    await updateDoc(doc(db,COLL,id), { progress, status:'in_progress', lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'更新進度', detail:`${fresh.store}｜${fresh.title}（${progress}%）` });
+    closeModal(); toast('進度已更新'); await loadTasks();
+  }catch(e){ console.error(e); toast('更新失敗：'+(e.message||e)); busy('pSave',false); }
+}
+
+/* ─── 標記完成 ─── */
+function openComplete(t){
+  showModal(`
+    <div class="modal-title">✓ 標記完成 — ${esc(t.title)}</div>
+    <div class="form-row"><label class="req">完成說明</label><textarea id="dNote" placeholder="完成結果、驗收狀況…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-ok" id="dSave">確認完成</button>
+    </div>
+  `);
+  document.getElementById('dSave').addEventListener('click',()=>saveComplete(t.id));
+}
+async function saveComplete(id){
+  const note=val('dNote').trim();
+  if(!note){ toast('請填寫完成說明'); return; }
+  busy('dSave',true);
+  try{
+    const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
+    if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束');
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'complete',note,progress:100}];
+    await updateDoc(doc(db,COLL,id), { status:'completed', progress:100, completedAt:serverTimestamp(), completedNote:note, lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'完成任務', detail:`${fresh.store}｜${fresh.title}` });
+    closeModal(); toast('任務已完成'); await loadTasks();
+  }catch(e){ console.error(e); toast('操作失敗：'+(e.message||e)); busy('dSave',false); }
+}
+
+/* ─── 延期 ─── */
+function openPostpone(t){
+  const minD=new Date().toISOString().slice(0,10);
+  showModal(`
+    <div class="modal-title">⏫ 延期 — ${esc(t.title)}</div>
+    <div class="form-row"><label>原訂完成日</label><input value="${esc(t.dueDate||'未設定')}" disabled></div>
+    <div class="form-row"><label class="req">新的預計完成日</label><input type="date" id="nDue" min="${minD}" value="${esc(t.dueDate||'')}"></div>
+    <div class="form-row"><label class="req">延期原因</label><textarea id="nNote" placeholder="為何需要延期…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-warn" id="nSave">確認延期</button>
+    </div>
+  `);
+  document.getElementById('nSave').addEventListener('click',()=>savePostpone(t.id));
+}
+async function savePostpone(id){
+  const nDue=val('nDue'); const note=val('nNote').trim();
+  if(!nDue||!note){ toast('請填寫新完成日與延期原因'); return; }
+  busy('nSave',true);
+  try{
+    const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
+    if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束');
+    const full=`延期：${fresh.dueDate||'未設定'} → ${nDue}。原因：${note}`;
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'postpone',note:full,progress:fresh.progress||0}];
+    await updateDoc(doc(db,COLL,id), { dueDate:nDue, lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'延期任務', detail:`${fresh.store}｜${fresh.title}（→${nDue}）` });
+    closeModal(); toast('已延期'); await loadTasks();
+  }catch(e){ console.error(e); toast('操作失敗：'+(e.message||e)); busy('nSave',false); }
+}
+
+/* ─── 作廢（店長＋總公司皆可，須填原因） ─── */
+function openCancel(t){
+  showModal(`
+    <div class="modal-title">✕ 作廢任務 — ${esc(t.title)}</div>
+    <div class="form-row" style="font-size:12px;color:var(--text2);line-height:1.6">作廢後任務將保留於「已作廢」分類供查閱，無法刪除。請務必說明原因。</div>
+    <div class="form-row"><label class="req">作廢原因</label><textarea id="xNote" placeholder="為何中止這項任務…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-danger" id="xSave">確認作廢</button>
+    </div>
+  `);
+  document.getElementById('xSave').addEventListener('click',()=>saveCancel(t.id));
+}
+async function saveCancel(id){
+  const note=val('xNote').trim();
+  if(!note){ toast('請填寫作廢原因'); return; }
+  busy('xSave',true);
+  try{
+    const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
+    if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束');
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'cancel',note,progress:fresh.progress||0}];
+    await updateDoc(doc(db,COLL,id), { status:'cancelled', cancelledAt:serverTimestamp(), cancelledBy:CUR.name, cancelledReason:note, lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'作廢任務', detail:`${fresh.store}｜${fresh.title}｜原因：${note}` });
+    closeModal(); toast('任務已作廢'); await loadTasks();
+  }catch(e){ console.error(e); toast('操作失敗：'+(e.message||e)); busy('xSave',false); }
+}
+
+/* ─── 重啟（僅總公司） ─── */
+function openReopen(t){
+  if(!isHQ()){ toast('僅總公司可重啟任務'); return; }
+  showModal(`
+    <div class="modal-title">↺ 重啟任務 — ${esc(t.title)}</div>
+    <div class="form-row"><label class="req">重啟原因</label><textarea id="rNote" placeholder="為何重新開啟這項任務…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-warn" id="rSave">確認重啟</button>
+    </div>
+  `);
+  document.getElementById('rSave').addEventListener('click',()=>saveReopen(t.id));
+}
+async function saveReopen(id){
+  const note=val('rNote').trim();
+  if(!note){ toast('請填寫重啟原因'); return; }
+  busy('rSave',true);
+  try{
+    const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'reopen',note,progress:fresh.progress||0}];
+    await updateDoc(doc(db,COLL,id), { status:'in_progress', completedAt:null, cancelledAt:null, lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'重啟任務', detail:`${fresh.store}｜${fresh.title}` });
+    closeModal(); toast('任務已重啟'); await loadTasks();
+  }catch(e){ console.error(e); toast('操作失敗：'+(e.message||e)); busy('rSave',false); }
+}
+
+/* ─── 工具 ─── */
+async function getFresh(id){ const s=await getDoc(doc(db,COLL,id)); return s.exists()? {id:s.id,...s.data()} : null; }
+function val(id){ const e=document.getElementById(id); return e? e.value : ''; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmt(ts){ const d=toDateSafe(ts); if(!d||isNaN(d)) return '—'; return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function fmtISO(s){ const d=s?new Date(s):null; if(!d||isNaN(d)) return '—'; return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function busy(id,on){ const b=document.getElementById(id); if(b){ b.disabled=on; b.style.opacity=on?'.6':'1'; } }
+
+/* ─── Modal / Toast ─── */
+function showModal(html){
+  closeModal();
+  const ov=document.createElement('div'); ov.className='overlay'; ov.id='__ov';
+  ov.innerHTML=`<div class="modal">${html}</div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov) closeModal(); });
+  document.body.appendChild(ov);
+  ov.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
+}
+function closeModal(){ const o=document.getElementById('__ov'); if(o) o.remove(); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+</script>
+</body>
+</html>
