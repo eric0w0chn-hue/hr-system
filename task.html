@@ -209,6 +209,8 @@ const STALE_DAYS = 7;        // 超過幾天未更新標記為「停滯」
 const FETCH_LIMIT = 500;
 const PRI = {normal:'一般', high:'重要', urgent:'緊急'};
 const STATUS_LABEL = {pending:'待處理', in_progress:'進行中', completed:'已完成', cancelled:'已作廢'};
+// 後備店名清單：僅在讀取 hr/settings.workLocations 失敗時使用（沿用全站 hardcode fallback 模式）
+const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞肉本舖','府中雞肉飯專門店','景新雞肉飯專門店','鑫雞肉央廚','大直讚雞肉飯','心惦雞肉飯','幸福雞肉飯','福城雞肉飯','泉州鑫廚房','新莊央廚','巷日雞肉飯'];
 
 /* ─── 狀態 ─── */
 let CUR = { name:'', role:'', uid:'' };
@@ -231,14 +233,41 @@ function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
 authGuard('task', ({ uid, role, locations, userData }) => {
   CUR.role = role; CUR.name = userData?.name || '—'; CUR.uid = uid;
   VIEW_LOCS = Array.isArray(locations) ? locations.slice() : [];
-  OWN_LOCS  = (userData?.locations && userData.locations.length) ? userData.locations.slice() : VIEW_LOCS.slice();
+  OWN_LOCS  = (userData?.locations && userData.locations.length) ? userData.locations.slice() : [];
 
   const rc = document.getElementById('roleChip');
   if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
 
+  init();
+});
+
+// 讀取全站店面清單（hr/settings.workLocations），失敗時用後備清單
+async function loadAllStores(){
+  try{
+    const s = await getDoc(doc(db,'hr','settings'));
+    if(s.exists()){
+      const wl = s.data().workLocations;
+      if(Array.isArray(wl) && wl.length){
+        const names = wl.map(x=> typeof x==='string' ? x : (x?.name||x?.store||x?.label||'')).filter(Boolean);
+        if(names.length) return names;
+      }
+    }
+  }catch(e){ console.warn('loadAllStores 失敗，改用後備清單', e); }
+  return FALLBACK_STORES.slice();
+}
+
+async function init(){
+  // 總公司（admin/consultant）若沒有指定店面 → 視為可檢視/建立全部店面
+  if(isHQ() && VIEW_LOCS.length === 0){
+    VIEW_LOCS = await loadAllStores();
+  }
+  // 建立任務的店面來源：總公司用可檢視範圍；店長用自身所屬店面（無則退回可檢視範圍）
+  if(OWN_LOCS.length === 0) OWN_LOCS = VIEW_LOCS.slice();
+
   // 店面篩選下拉（看得到一間以上才顯示「全部店面」）
   const fs = document.getElementById('fStore');
   if(VIEW_LOCS.length > 1){
+    fs.style.display = '';
     fs.innerHTML = '<option value="__all__">全部店面</option>' + VIEW_LOCS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   } else {
     fs.style.display = 'none';
@@ -254,7 +283,7 @@ authGuard('task', ({ uid, role, locations, userData }) => {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   loadTasks();
-});
+}
 
 /* ─── 載入 ─── */
 async function loadTasks(){
@@ -264,7 +293,7 @@ async function loadTasks(){
     TASKS = [];
     snap.forEach(d=>{
       const t = { id:d.id, ...d.data() };
-      if(VIEW_LOCS.includes(t.store)) TASKS.push(t);   // 只保留可檢視店面
+      if(isHQ() || VIEW_LOCS.includes(t.store)) TASKS.push(t);   // 總公司看全部，其餘僅可檢視店面
     });
     render();
   }catch(e){
