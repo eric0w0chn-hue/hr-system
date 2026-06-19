@@ -1230,8 +1230,8 @@ onAuthStateChanged(auth,async user=>{
     window._checkScheduleLock=function(){ return false; };
   }
   document.getElementById('roleChip').textContent=roleNames[currentRole]||currentRole;
-  // 只有 admin / manager 顯示匯出按鈕
-  if(currentRole==='admin'||currentRole==='manager'){
+  // 管理人員（admin / consultant / manager）顯示匯出按鈕
+  if(currentRole==='admin'||currentRole==='consultant'||currentRole==='manager'){
     document.getElementById('exportBtn').style.display='';
   }
 
