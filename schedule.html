@@ -426,7 +426,7 @@ window.exportToExcel = async function() {
         // 比對時間找對應班別 → C欄帶入代號
         const allShiftTypesToCheck = [...shiftTypes, ...locShiftTypes];
         const matched = allShiftTypesToCheck.find(t=>t.start===s.startTime&&t.end===s.endTime);
-        const shiftCell = matched ? (matched.code ? `${matched.code} - ${matched.name}` : matched.name) : '';
+        const shiftCell = matched && matched.code ? `${matched.code} - ${matched.name}` : '';
         rows.push({
           locCell,
           shiftType: shiftCell,
