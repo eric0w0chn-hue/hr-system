@@ -387,15 +387,22 @@ window.exportToExcel = async function() {
   const allLocShifts = await Promise.all(
     exportLocs.map(async loc => {
       try {
-        const snap = await getDoc(doc(db,'schedules',`${yearMonthKey}_${loc}`));
-        return { loc, shifts: snap.exists() ? (snap.data().shifts||{}) : {} };
-      } catch(e) { return { loc, shifts: {} }; }
+        const [schedSnap, stSnap] = await Promise.all([
+          getDoc(doc(db,'schedules',`${yearMonthKey}_${loc}`)),
+          getDoc(doc(db,'shift_types',loc)),
+        ]);
+        return {
+          loc,
+          shifts: schedSnap.exists() ? (schedSnap.data().shifts||{}) : {},
+          locShiftTypes: stSnap.exists() ? (stSnap.data().list||[]) : [],
+        };
+      } catch(e) { return { loc, shifts:{}, locShiftTypes:[] }; }
     })
   );
 
   // 整合成平排列表
   const rows = [];
-  for(const { loc, shifts: locShifts } of allLocShifts){
+  for(const { loc, shifts: locShifts, locShiftTypes } of allLocShifts){
     const locCode = locationCodes[loc]||'';
     const locCell = locCode ? `${locCode} - ${loc}` : loc;
 
@@ -416,9 +423,13 @@ window.exportToExcel = async function() {
         const empNo = emp.empNo||'';
         const empName = s.empName||emp.name||'';
         const empCell = empNo ? `${empNo}-${empName}` : empName;
+        // 比對時間找對應班別 → C欄帶入代號
+        const allShiftTypesToCheck = [...shiftTypes, ...locShiftTypes];
+        const matched = allShiftTypesToCheck.find(t=>t.start===s.startTime&&t.end===s.endTime);
+        const shiftCell = matched ? (matched.code ? `${matched.code} - ${matched.name}` : matched.name) : '';
         rows.push({
           locCell,
-          shiftType: '',
+          shiftType: shiftCell,
           empCell,
           date: dateStr.replace(/-/g, '/'),
           startTime: toHMS(s.startTime),
@@ -1009,6 +1020,7 @@ function renderShiftTypesModal(){
   const listHtml=shiftTypes.map((t,i)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
       <span style="flex:1;font-size:13px;font-weight:500">${t.name}</span>
+      <span style="font-size:11px;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${t.code||'—'}</span>
       <span style="font-size:12px;color:var(--text2)">${t.start} - ${t.end}</span>
       <button class="btn" style="padding:3px 8px;font-size:11px;color:#C0392B;border-color:#FECACA" onclick="removeShiftType(${i})">✕</button>
     </div>`).join('')||'<div style="font-size:13px;color:var(--text3);padding:12px 0">尚未設定任何班別</div>';
@@ -1018,7 +1030,10 @@ function renderShiftTypesModal(){
     ? `<div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border);font-size:13px;color:var(--text3);text-align:center">已達班別數量上限（10 個），如需新增請先刪除其他班別</div>`
     : `<div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border)">
           <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;letter-spacing:.3px;text-transform:uppercase">新增班別</div>
-          <div class="fr"><label>班別名稱</label><input type="text" id="st-name" placeholder="例：早班、晚班、大夜"></div>
+          <div style="display:flex;gap:8px">
+            <div class="fr" style="flex:1"><label>班別名稱</label><input type="text" id="st-name" placeholder="例：早班、晚班"></div>
+            <div class="fr" style="width:120px"><label>班別代號</label><input type="text" id="st-code" placeholder="例：tw121"></div>
+          </div>
           <div class="time-row">
             <div class="fr"><label>上班時間</label><input type="time" id="st-start" value="09:00"></div>
             <div class="fr"><label>下班時間</label><input type="time" id="st-end" value="18:00"></div>
@@ -1041,12 +1056,13 @@ function renderShiftTypesModal(){
 
 window.addShiftType=async function(){
   const name=document.getElementById('st-name').value.trim();
+  const code=document.getElementById('st-code').value.trim();
   const start=document.getElementById('st-start').value;
   const end=document.getElementById('st-end').value;
   if(!name||!start||!end){showToast('請填寫完整');return;}
   if(shiftTypes.length>=10){showToast('班別數量已達上限（10 個）');return;}
   if(shiftTypes.find(t=>t.name===name)){showToast('班別名稱已存在');return;}
-  shiftTypes.push({name,start,end});
+  shiftTypes.push({name,code,start,end});
   await saveShiftTypes();
   showToast('班別已新增 ✓');
   renderShiftTypesModal();
