@@ -408,7 +408,7 @@ window.exportToExcel = async function() {
 
     // 決定這間店要匯出哪些人
     // admin → 全員；非admin → 主店全員，其他店只匯出自己
-    const isMainStore = currentRole==='admin' || loc===myWorkLocation;
+    const isMainStore = currentRole==='admin' || normLoc(loc)===normLoc(myWorkLocation);
 
     for(const dateStr of Object.keys(locShifts).sort()){
       for(const s of locShifts[dateStr]){
@@ -520,6 +520,9 @@ window.exportToExcel = async function() {
   showToast(`✅ 已匯出 ${rows.length} 筆排班 ${scopeMsg}`);
 };
 
+
+// ── 店面名稱正規化（處理異體字：舖/鋪 等）──
+function normLoc(s){ return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim(); }
 
 // ── 顏色 ──
 const EMP_COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
@@ -1080,8 +1083,8 @@ function getEmpOptions(selectedId=''){
   const locEmps = currentRole==='admin'
     ? allEmployees
     : allEmployees.filter(e => {
-        // 可管理店面的員工 + 自己
-        return currentLocations.includes(e.workLocation) || e.uid===currentUser?.uid;
+        // 可管理店面的員工 + 自己（用正規化比對避免異體字問題）
+        return currentLocations.some(l=>normLoc(l)===normLoc(e.workLocation)) || e.uid===currentUser?.uid;
       });
 
   // 依 workLocation 分組
@@ -1267,7 +1270,7 @@ onAuthStateChanged(auth,async user=>{
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:
     currentRole==='employee'
-      ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&e.workLocation===l) || currentLocations.includes(l))
+      ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&normLoc(e.workLocation)===normLoc(l)) || currentLocations.some(cl=>normLoc(cl)===normLoc(l)))
       : currentLocations.filter(l=>workLocations.includes(l));
   availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
   if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];await loadShiftTypes();}
