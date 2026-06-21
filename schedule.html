@@ -1083,8 +1083,9 @@ function getEmpOptions(selectedId=''){
   const locEmps = currentRole==='admin'
     ? allEmployees
     : allEmployees.filter(e => {
-        // 可管理店面的員工 + 自己（用正規化比對避免異體字問題）
-        return currentLocations.some(l=>normLoc(l)===normLoc(e.workLocation)) || e.uid===currentUser?.uid;
+        return currentLocations.some(l=>normLoc(l)===normLoc(e.workLocation))
+          || (selectedLocation && normLoc(e.workLocation)===normLoc(selectedLocation))
+          || e.uid===currentUser?.uid;
       });
 
   // 依 workLocation 分組
@@ -1095,14 +1096,18 @@ function getEmpOptions(selectedId=''){
     groups[loc].push(e);
   });
 
-  // 依 workLocations 順序排列店面，在職優先
-  const sortedLocs = workLocations.filter(l => groups[l]);
+  // 依 workLocations 順序排列（正規化比對，防異體字導致分組消失）
+  const sortedLocs = [];
+  workLocations.forEach(wl => {
+    const matchKey = Object.keys(groups).find(k => normLoc(k)===normLoc(wl));
+    if(matchKey && !sortedLocs.includes(matchKey)) sortedLocs.push(matchKey);
+  });
   if(groups['（未設定）']) sortedLocs.push('（未設定）');
 
   return sortedLocs.map(loc => {
     const emps = groups[loc]
-      .filter(e => !e.status || e.status==='在職') // 在職優先顯示
-      .concat(groups[loc].filter(e => e.status && e.status!=='在職')); // 離職排後面
+      .filter(e => !e.status || e.status==='在職')
+      .concat(groups[loc].filter(e => e.status && e.status!=='在職'));
     const opts = emps.map(e => {
       const label = e.status && e.status!=='在職' ? `${e.name}（${e.status}）` : e.name;
       return `<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${label}</option>`;
