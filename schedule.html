@@ -1278,7 +1278,16 @@ onAuthStateChanged(auth,async user=>{
       ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&normLoc(e.workLocation)===normLoc(l)) || currentLocations.some(cl=>normLoc(cl)===normLoc(l)))
       : currentLocations.filter(l=>workLocations.includes(l));
   availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
-  if(availLocs.length===1){locSelect.value=availLocs[0];selectedLocation=availLocs[0];await loadShiftTypes();}
+
+  if(availLocs.length===1){
+    locSelect.value=availLocs[0];selectedLocation=availLocs[0];
+    await loadShiftTypes();await loadShifts();
+  } else if(availLocs.length>1 && (currentRole==='manager'||currentRole==='consultant')){
+    const primaryLoc = currentLocations[0]||'';
+    const matchedLoc = availLocs.find(l=>normLoc(l)===normLoc(primaryLoc)) || availLocs[0];
+    locSelect.value=matchedLoc;selectedLocation=matchedLoc;
+    await loadShiftTypes();await loadShifts();
+  }
 
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
 
