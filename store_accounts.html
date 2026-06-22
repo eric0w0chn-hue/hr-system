@@ -760,16 +760,24 @@ function attachDrag() {
     row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
     row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('drag-over'); });
 
-    // mobile touch
+    // mobile touch — 超過 5px 才算拖曳，否則視為一般點擊
     let touchY = 0;
+    let _touchStarted = false;
     handle.addEventListener('touchstart', e => {
       touchY = e.touches[0].clientY;
-      _dragSrc = row;
-      row.classList.add('dragging');
+      _touchStarted = true;
+      _dragSrc = null; // 尚未確認是拖曳
     }, {passive:true});
     handle.addEventListener('touchmove', e => {
-      e.preventDefault();
+      if (!_touchStarted) return;
       const y = e.touches[0].clientY;
+      if (!_dragSrc && Math.abs(y - touchY) > 5) {
+        // 確認是拖曳，正式啟動
+        _dragSrc = row;
+        row.classList.add('dragging');
+      }
+      if (!_dragSrc) return;
+      e.preventDefault();
       const tbody = row.closest('tbody');
       const rows = [...tbody.querySelectorAll('tr')];
       for (const r of rows) {
@@ -784,10 +792,14 @@ function attachDrag() {
       }
     }, {passive:false});
     handle.addEventListener('touchend', () => {
-      row.classList.remove('dragging');
-      saveSortOrder(row.closest('tbody'));
+      _touchStarted = false;
+      if (_dragSrc) {
+        row.classList.remove('dragging');
+        saveSortOrder(row.closest('tbody'));
+        window._wasDragging = true;
+        setTimeout(() => window._wasDragging = false, 300);
+      }
       _dragSrc = null;
-      window._wasDragging=true; setTimeout(()=>window._wasDragging=false, 300);
     });
   });
 }
