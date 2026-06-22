@@ -791,15 +791,20 @@ function attachDrag() {
         }
       }
     }, {passive:false});
-    handle.addEventListener('touchend', () => {
+    handle.addEventListener('touchend', e => {
       _touchStarted = false;
       if (_dragSrc) {
+        // 真正拖曳完成
         row.classList.remove('dragging');
         saveSortOrder(row.closest('tbody'));
         window._wasDragging = true;
         setTimeout(() => window._wasDragging = false, 300);
+        _dragSrc = null;
+      } else {
+        // 沒有移動超過閾值 → 視為點擊展開，阻止冒泡到 tr 避免雙觸發
+        e.preventDefault();
+        _toggleAcc(row);
       }
-      _dragSrc = null;
     });
   });
 }
