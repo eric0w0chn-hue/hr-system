@@ -119,11 +119,14 @@ tr:hover td{background:var(--surface2)}
 .btn-icon-ghost{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:18px;padding:4px 8px;border-radius:7px;transition:all .15s;line-height:1;display:flex;align-items:center;justify-content:center;min-height:34px}
 .btn-icon-ghost:hover{background:rgba(255,255,255,.15);color:#fff}
 
-/* drag handle */
-.drag-handle{cursor:grab;color:var(--text3);padding:0 6px 0 2px;font-size:16px;user-select:none;flex-shrink:0;touch-action:none}
+/* drag / sort mode */
+.drag-handle{cursor:grab;color:var(--text3);padding:0 8px 0 2px;font-size:18px;user-select:none;flex-shrink:0;touch-action:none;display:none}
 .drag-handle:active{cursor:grabbing}
+tr.sortable .drag-handle{display:inline}
+tr.sortable{cursor:grab;background:var(--surface2)!important}
 tr.drag-over td{background:#EEF0FF!important}
 tr.dragging{opacity:.4}
+.sort-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 /* btn text switch */
 .btn-short{display:none}
@@ -472,7 +475,10 @@ function renderEntries() {
     <div class="card">
       <div class="card-header">
         <h2>🏪 <span>${storeName}</span></h2>
-        <span class="section-count">${items.length} 筆</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="section-count">${items.length} 筆</span>
+          ${_role !== 'employee' ? `<button class="btn btn-ghost btn-sm sort-toggle-btn" style="font-size:11px;min-height:28px;padding:0 10px" onclick="event.stopPropagation();_toggleSortMode(this,'${esc(storeId)}')">⇅ 排序</button>` : ''}
+        </div>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -514,11 +520,8 @@ function renderRow(e) {
       </div></td>`
     : '';
 
-  const dragHandle = _role !== 'employee'
-    ? `<span class="drag-handle" title="拖曳排序">⠿</span>`
-    : '';
-  return `<tr draggable="false" data-id="${e.id}" data-store="${esc(e.store)}" onclick="if(!_wasDragging)_toggleAcc(this)">
-    <td>${dragHandle}${esc(e.name)}</td>
+  return `<tr data-id="${e.id}" data-store="${esc(e.store)}" onclick="_toggleAcc(this)">
+    <td>${esc(e.name)}</td>
     <td data-label="帳號"><span style="font-family:monospace">${e.account ? esc(e.account) : '<span style=color:var(--text3)>—</span>'}</span></td>
     <td data-label="密碼" data-pw="${esc(e.password||'')}"><div class="pw-cell">${pwDisplay}${eyeBtn}</div></td>
     <td data-label="備註">${e.note ? esc(e.note) : '<span style=color:var(--text3)>—</span>'}</td>
@@ -724,89 +727,102 @@ window.saveMgmt = async function() {
 // ── Drag & Drop 排序 ──
 let _dragSrc = null;
 
+// 開啟/關閉某店的排序模式
+window._toggleSortMode = function(btn, storeId) {
+  const card = btn.closest('.card');
+  const rows = [...card.querySelectorAll('tr[data-id]')];
+  const isOn = btn.classList.toggle('active');
+  rows.forEach(row => {
+    if (isOn) {
+      row.classList.add('sortable');
+      row.setAttribute('draggable', 'true');
+      row.onclick = null; // 排序模式關閉展開
+      // 確保 drag handle 存在
+      const td = row.querySelector('td:first-child');
+      if (!td.querySelector('.drag-handle')) {
+        const h = document.createElement('span');
+        h.className = 'drag-handle';
+        h.textContent = '⠿';
+        td.prepend(h);
+      }
+    } else {
+      row.classList.remove('sortable');
+      row.setAttribute('draggable', 'false');
+      row.onclick = () => _toggleAcc(row);
+    }
+  });
+  btn.textContent = isOn ? '✓ 完成' : '⇅ 排序';
+  if (!isOn) saveSortOrder(card.querySelector('tbody'));
+  attachDragToCard(card);
+};
+
 function attachDrag() {
-  document.querySelectorAll('#content tr[data-id]').forEach(row => {
-    const handle = row.querySelector('.drag-handle');
-    if (!handle) return;
+  document.querySelectorAll('#content .card').forEach(card => attachDragToCard(card));
+}
 
-    // desktop mouse
-    handle.addEventListener('mousedown', () => { row.setAttribute('draggable','true'); });
-    row.addEventListener('dragend', () => { row.setAttribute('draggable','false'); });
+function attachDragToCard(card) {
+  card.querySelectorAll('tr[data-id]').forEach(row => {
+    // 避免重複綁定
+    if (row._dragBound) return;
+    row._dragBound = true;
 
+    // desktop
     row.addEventListener('dragstart', e => {
+      if (!row.classList.contains('sortable')) { e.preventDefault(); return; }
       _dragSrc = row;
       row.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     });
     row.addEventListener('dragend', () => {
       row.classList.remove('dragging');
-      document.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
-      saveSortOrder(row.closest('tbody'));
+      card.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
     });
     row.addEventListener('dragover', e => {
+      if (!row.classList.contains('sortable')) return;
       e.preventDefault();
-      if (_dragSrc && _dragSrc !== row && _dragSrc.closest('tbody') === row.closest('tbody')) {
-        document.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
+      if (_dragSrc && _dragSrc !== row) {
+        card.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
         row.classList.add('drag-over');
         const tbody = row.closest('tbody');
         const rows = [...tbody.querySelectorAll('tr')];
-        const srcIdx = rows.indexOf(_dragSrc);
-        const tgtIdx = rows.indexOf(row);
-        if (srcIdx < tgtIdx) tbody.insertBefore(_dragSrc, row.nextSibling);
+        const si = rows.indexOf(_dragSrc), ti = rows.indexOf(row);
+        if (si < ti) tbody.insertBefore(_dragSrc, row.nextSibling);
         else tbody.insertBefore(_dragSrc, row);
       }
     });
     row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
     row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('drag-over'); });
 
-    // mobile touch — 長按 500ms 啟動拖曳，短按展開
-    let _longPressTimer = null;
-    let _touchStartY = 0;
-    let _isMobileDragging = false;
-
+    // mobile touch
+    let _ty = 0, _dragging = false;
     row.addEventListener('touchstart', e => {
-      _touchStartY = e.touches[0].clientY;
-      _isMobileDragging = false;
-      _longPressTimer = setTimeout(() => {
-        _isMobileDragging = true;
-        _dragSrc = row;
-        row.classList.add('dragging');
-        // 震動回饋（若裝置支援）
-        if (navigator.vibrate) navigator.vibrate(40);
-      }, 500);
+      if (!row.classList.contains('sortable')) return;
+      _ty = e.touches[0].clientY;
+      _dragging = true;
+      _dragSrc = row;
+      row.classList.add('dragging');
     }, {passive:true});
-
     row.addEventListener('touchmove', e => {
-      const y = e.touches[0].clientY;
-      // 移動超過 8px 取消長按計時
-      if (!_isMobileDragging && Math.abs(y - _touchStartY) > 8) {
-        clearTimeout(_longPressTimer);
-      }
-      if (!_isMobileDragging) return;
+      if (!_dragging) return;
       e.preventDefault();
+      const y = e.touches[0].clientY;
       const tbody = row.closest('tbody');
       const rows = [...tbody.querySelectorAll('tr')];
       for (const r of rows) {
         const rect = r.getBoundingClientRect();
         if (y >= rect.top && y <= rect.bottom && r !== _dragSrc) {
-          const srcIdx = rows.indexOf(_dragSrc);
-          const tgtIdx = rows.indexOf(r);
-          if (srcIdx < tgtIdx) tbody.insertBefore(_dragSrc, r.nextSibling);
+          const si = rows.indexOf(_dragSrc), ti = rows.indexOf(r);
+          if (si < ti) tbody.insertBefore(_dragSrc, r.nextSibling);
           else tbody.insertBefore(_dragSrc, r);
           break;
         }
       }
     }, {passive:false});
-
     row.addEventListener('touchend', () => {
-      clearTimeout(_longPressTimer);
-      if (_isMobileDragging) {
-        row.classList.remove('dragging');
-        saveSortOrder(row.closest('tbody'));
-        _dragSrc = null;
-        _isMobileDragging = false;
-      }
-      // 短按不做任何事，讓 onclick 自然觸發展開
+      if (!_dragging) return;
+      row.classList.remove('dragging');
+      _dragging = false;
+      _dragSrc = null;
     });
   });
 }
