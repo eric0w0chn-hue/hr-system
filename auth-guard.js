@@ -89,7 +89,25 @@ export async function authGuard(moduleKey, onReady, options = {}) {
   const {
     redirectTo     = '/hr-system/index.html',
     noPermRedirect = '/hr-system/dashboard.html',
+    timeoutMs      = 8000,
   } = options;
+
+  // ── 看門狗：超時未完成驗證就顯示重試，不再無限轉圈 ──
+  let _settled = false;
+  const _watchdog = setTimeout(() => {
+    if (_settled) return;
+    const loadingEl = document.getElementById('loading');
+    if (loadingEl) {
+      loadingEl.innerHTML =
+        '<div style="text-align:center;padding:24px;color:#5A6175;font-size:14px;line-height:1.8">' +
+        '連線逾時，請檢查網路<br>' +
+        '<button onclick="location.reload()" style="margin-top:12px;padding:10px 24px;' +
+        'font-size:14px;border-radius:8px;border:1px solid #C8CDD8;background:#2D3142;' +
+        'color:#fff;cursor:pointer;font-family:inherit;min-height:44px">↻ 重新載入</button>' +
+        '</div>';
+    }
+  }, timeoutMs);
+  const _clearWatchdog = () => { _settled = true; clearTimeout(_watchdog); };
 
   onAuthStateChanged(auth, async user => {
     // ① 未登入
@@ -173,6 +191,7 @@ export async function authGuard(moduleKey, onReady, options = {}) {
       filteredLocations = locations.filter(loc => (locationTypes[loc] || 'store') === locType);
     }
 
+    _clearWatchdog();
     onReady({
       user,
       uid: user.uid,
