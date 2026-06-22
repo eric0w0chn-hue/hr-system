@@ -76,16 +76,6 @@ async function fetchPermissions() {
 }
 
 /**
- * 取得已快取的店面類型設定（central/store），供 dashboard 等頁面共用，
- * 避免重複讀取 settings/permissions。優先用 session 快取。
- * @returns {Promise<Object>} locationTypes 物件，如 { '梁平鑫央廚':'central', ... }
- */
-export async function getLocationTypes() {
-  const modules = await fetchPermissions();
-  return modules['__locationTypes__'] || {};
-}
-
-/**
  * 集中式權限守衛
  *
  * @param {string}   moduleKey  - 對應 settings/permissions.modules 的 key

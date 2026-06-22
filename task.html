@@ -202,7 +202,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 // 店面名稱正規化（異體字容錯：舖/鋪）
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
