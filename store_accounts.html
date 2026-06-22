@@ -742,7 +742,6 @@ function attachDrag() {
       row.classList.remove('dragging');
       document.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
       saveSortOrder(row.closest('tbody'));
-      window._wasDragging=true; setTimeout(()=>window._wasDragging=false, 300);
     });
     row.addEventListener('dragover', e => {
       e.preventDefault();
@@ -760,23 +759,30 @@ function attachDrag() {
     row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
     row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('drag-over'); });
 
-    // mobile touch — 超過 5px 才算拖曳，否則視為一般點擊
-    let touchY = 0;
-    let _touchStarted = false;
-    handle.addEventListener('touchstart', e => {
-      touchY = e.touches[0].clientY;
-      _touchStarted = true;
-      _dragSrc = null; // 尚未確認是拖曳
-    }, {passive:true});
-    handle.addEventListener('touchmove', e => {
-      if (!_touchStarted) return;
-      const y = e.touches[0].clientY;
-      if (!_dragSrc && Math.abs(y - touchY) > 5) {
-        // 確認是拖曳，正式啟動
+    // mobile touch — 長按 500ms 啟動拖曳，短按展開
+    let _longPressTimer = null;
+    let _touchStartY = 0;
+    let _isMobileDragging = false;
+
+    row.addEventListener('touchstart', e => {
+      _touchStartY = e.touches[0].clientY;
+      _isMobileDragging = false;
+      _longPressTimer = setTimeout(() => {
+        _isMobileDragging = true;
         _dragSrc = row;
         row.classList.add('dragging');
+        // 震動回饋（若裝置支援）
+        if (navigator.vibrate) navigator.vibrate(40);
+      }, 500);
+    }, {passive:true});
+
+    row.addEventListener('touchmove', e => {
+      const y = e.touches[0].clientY;
+      // 移動超過 8px 取消長按計時
+      if (!_isMobileDragging && Math.abs(y - _touchStartY) > 8) {
+        clearTimeout(_longPressTimer);
       }
-      if (!_dragSrc) return;
+      if (!_isMobileDragging) return;
       e.preventDefault();
       const tbody = row.closest('tbody');
       const rows = [...tbody.querySelectorAll('tr')];
@@ -791,20 +797,16 @@ function attachDrag() {
         }
       }
     }, {passive:false});
-    handle.addEventListener('touchend', e => {
-      _touchStarted = false;
-      if (_dragSrc) {
-        // 真正拖曳完成
+
+    row.addEventListener('touchend', () => {
+      clearTimeout(_longPressTimer);
+      if (_isMobileDragging) {
         row.classList.remove('dragging');
         saveSortOrder(row.closest('tbody'));
-        window._wasDragging = true;
-        setTimeout(() => window._wasDragging = false, 300);
         _dragSrc = null;
-      } else {
-        // 沒有移動超過閾值 → 視為點擊展開，阻止冒泡到 tr 避免雙觸發
-        e.preventDefault();
-        _toggleAcc(row);
+        _isMobileDragging = false;
       }
+      // 短按不做任何事，讓 onclick 自然觸發展開
     });
   });
 }
