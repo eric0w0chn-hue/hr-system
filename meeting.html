@@ -729,13 +729,15 @@ window.saveRecord = async function(){
       });
       await updateDoc(doc(db,'meeting_records',editingId), {...payload, version: (prev.version||1)+1});
       toast('✓ 更新成功，舊版本已備份');
+      writeOpLog({editor:payload.updatedByName||'—', role:currentRole, module:'meeting', action:'編輯會議紀錄', detail:payload.title||editingId});
     } else {
       payload.createdAt = serverTimestamp();
       payload.createdBy = currentUser.uid;
       payload.createdByName = payload.updatedByName;
       payload.version = 1;
-      await addDoc(collection(db,'meeting_records'), payload);
+      const newRef = await addDoc(collection(db,'meeting_records'), payload);
       toast('✓ 會議紀錄已儲存');
+      writeOpLog({editor:payload.updatedByName||'—', role:currentRole, module:'meeting', action:'新增會議紀錄', detail:payload.title||'—'});
     }
 
     closeModal();
@@ -859,12 +861,14 @@ window.doDelete = async function(id){
       }
     }
     // 3. 刪 Firestore 紀錄
+    const delRecord = allRecords.find(x=>x.id===id);
     await deleteDoc(doc(db,'meeting_records',id));
     allRecords = allRecords.filter(x=>x.id!==id);
     closeModal();
     filterRecords();
     updateStorageEstimate();
     toast('✓ 紀錄與檔案已刪除');
+    writeOpLog({editor:(await getDoc(doc(db,'users',currentUser.uid))).data()?.name||'—', role:currentRole, module:'meeting', action:'刪除會議紀錄', detail:delRecord?.title||id});
   } catch(e){ toast('刪除失敗：'+e.message,'err'); }
 };
 
