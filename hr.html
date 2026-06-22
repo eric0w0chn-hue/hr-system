@@ -216,6 +216,9 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 import { authGuard, db, auth, writeOpLog as sysWriteOpLog } from './auth-guard.js?v=3';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// 店面名稱正規化（異體字容錯：舖/鋪）
+function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
+
 import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 // 次要實例建立帳號時需要 config（不影響主要登入狀態）
 const firebaseConfig = {apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
@@ -764,10 +767,10 @@ function render() {
   } else {
     // 依權限過濾：manager/consultant 只計算自己管理的店面
     const visibleAll = (currentUserRole==='manager'||currentUserRole==='consultant') && currentUserLocations.length
-      ? all.filter(r=>currentUserLocations.includes(r.workLocation))
+      ? all.filter(r=>currentUserLocations.some(l=>normLoc(l)===normLoc(r.workLocation)))
       : all;
     // 若有選擇特定店面，stats 只計算該店面
-    const statBase = sloc ? visibleAll.filter(r=>r.workLocation===sloc) : visibleAll;
+    const statBase = sloc ? visibleAll.filter(r=>normLoc(r.workLocation)===normLoc(sloc)) : visibleAll;
     const total=statBase.length,
           active=statBase.filter(r=>r.status==='在職').length,
           stores=sloc ? 1

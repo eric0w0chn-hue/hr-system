@@ -322,6 +322,9 @@ import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// 店面名稱正規化（異體字容錯：舖/鋪）
+function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
+
 
 let _role = '';
 let _uid = '';
@@ -434,14 +437,14 @@ function renderEntries() {
   const content = document.getElementById('content');
 
   // filter by accessible stores
-  const accessibleIds = new Set(_locations);
+  const accessibleIds = new Set(_locations.map(normLoc));
   // 套用個人隱藏設定
   const myHidden = new Set(_hiddenMap[_uid] || []);
-  let list = _entries.filter(e => accessibleIds.has(e.store) && !myHidden.has(e.store));
+  let list = _entries.filter(e => accessibleIds.has(normLoc(e.store)) && !myHidden.has(e.store));
 
   // filter by selected store
   if (_currentStore !== null) {
-    list = list.filter(e => e.store === _currentStore);
+    list = list.filter(e => normLoc(e.store) === normLoc(_currentStore));
   }
 
   if (list.length === 0) {

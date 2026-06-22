@@ -108,6 +108,9 @@ tr:hover td{background:#FAFBFC}
 <script type="module">
 import { authGuard, db } from './auth-guard.js';
 import { doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// 店面名稱正規化（異體字容錯：舖/鋪）
+function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
+
 let workLocations=[],allEmployees=[],currentLocations=[],currentRole='';
 let searchResults=[],currentPage=1;
 const PAGE_SIZE=20;
@@ -124,7 +127,7 @@ window.doSearch=async function(){
   try{
     const snap=await getDocs(collection(db,'attendance_anomaly'));
     let results=snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(loc) results=results.filter(r=>r.workLocation===loc);
+    if(loc) results=results.filter(r=>normLoc(r.workLocation)===normLoc(loc));
     if(empId) results=results.filter(r=>r.empId==empId);
     if(type) results=results.filter(r=>r.type===type);
     if(from) results=results.filter(r=>(r.date||r.occurredAt?.slice(0,10))>=from);
@@ -198,9 +201,9 @@ authGuard('clock_anomaly_query', async ({ role, locations }) => {
   workLocations=s1.exists()?(s1.data().workLocations||[]):[];
   allEmployees=s2.exists()?(s2.data().list||[]):[];
   const locSel=document.getElementById('f-loc'); const empSel=document.getElementById('f-emp');
-  const availLocs=currentRole==='admin'?workLocations:currentLocations.filter(l=>workLocations.includes(l));
+  const availLocs=currentRole==='admin'?workLocations:currentLocations.filter(l=>workLocations.some(w=>normLoc(w)===normLoc(l)));
   availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSel.appendChild(o);});
-  const availEmps=currentRole==='admin'?allEmployees:allEmployees.filter(e=>currentLocations.includes(e.workLocation));
+  const availEmps=currentRole==='admin'?allEmployees:allEmployees.filter(e=>currentLocations.some(l=>normLoc(l)===normLoc(e.workLocation)));
   availEmps.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name} ${e.workLocation||''}`;empSel.appendChild(o);});
   const now=new Date();const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('f-from').value=`${y}-${m}-01`;
