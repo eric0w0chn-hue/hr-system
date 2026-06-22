@@ -374,6 +374,8 @@ window.toggleForm=function(e){
   btn.classList.toggle('closed',isOpen);
 };
 function twToday(){return new Date(Date.now()+8*3600000).toISOString().slice(0,10);}
+// 店面名稱正規化（處理異體字：舖/鋪）
+function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 function fmtDate(ds){if(!ds)return'—';const[y,m,d]=ds.split('-');return`${+y-1911}年${+m}月${+d}日`;}
 function fmtTime(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});}
 
@@ -652,7 +654,7 @@ window.loadReports=async function(){
     const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',dateVal)));
     // 所有管理職都能看到所有可見店面（不限自己的店）
     allReports=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(r=>visibleStores.includes(r.store));
+      .filter(r=>visibleStores.some(s=>normLoc(s)===normLoc(r.store)));
 
     const stores=[...new Set(allReports.map(r=>r.store))].filter(Boolean).sort();
     const tabsEl=document.getElementById('storeTabs');
@@ -668,7 +670,7 @@ window.loadReports=async function(){
 function renderMissing(dateVal){
   if(cRole!=='admin'&&cRole!=='consultant') return;
   const reported=new Set(allReports.map(r=>r.store));
-  const missing=visibleStores.filter(s=>!reported.has(s));
+  const missing=visibleStores.filter(s=>![...reported].some(rs=>normLoc(rs)===normLoc(s)));
   const banner=document.getElementById('missingBanner');
   if(!banner) return;
   if(missing.length){
@@ -690,7 +692,7 @@ window.setStoreFilter=function(s){
 
 function renderReports(){
   const list=document.getElementById('reportList');
-  const filtered=storeFilter==='all'?allReports:allReports.filter(r=>r.store===storeFilter);
+  const filtered=storeFilter==='all'?allReports:allReports.filter(r=>normLoc(r.store)===normLoc(storeFilter));
   if(!filtered.length){list.innerHTML='<div class="empty-state">此日期無回報記錄</div>';return;}
 
   // 問題4：同店面合併為一個窗格，廠商分行顯示
@@ -745,7 +747,7 @@ window.deleteReport=async function(id){
 // ══ 今日品項摘要 ══
 async function loadSummary(){
   const snap=await getDocs(query(collection(db,'price_reports'),where('date','==',todayStr)));
-  const reports=snap.docs.map(d=>d.data()).filter(r=>visibleStores.includes(r.store));
+  const reports=snap.docs.map(d=>d.data()).filter(r=>visibleStores.some(s=>normLoc(s)===normLoc(r.store)));
   const itemMap={};
   reports.forEach(r=>(r.items||[]).forEach(i=>{
     if(!itemMap[i.item]) itemMap[i.item]={};
