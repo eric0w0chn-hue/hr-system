@@ -131,6 +131,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .collapsible-header:hover .ch-chevron{background:var(--border);color:var(--text2)}
 .ch-chevron.open{transform:rotate(180deg)}
 .collapsible-body{padding:0 4px 4px}
+/* 勞健保核對表 */
+.audit-wrap{overflow-x:auto}
+.audit-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+.audit-tbl th{background:var(--accent);color:#fff;padding:10px 12px;text-align:right;font-size:12px;font-weight:600;white-space:nowrap;position:sticky;top:0}
+.audit-tbl th:first-child{text-align:left}
+.audit-tbl td{padding:9px 12px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+.audit-tbl .ac-name{text-align:left;font-weight:600;color:var(--text)}
+.audit-tbl .ac-num{font-variant-numeric:tabular-nums;font-family:'SF Mono',Menlo,monospace}
+.audit-tbl tbody tr:hover{background:var(--surface2)}
+.audit-tbl tbody tr:nth-child(even){background:#FAFBFC}
+.audit-tbl .ac-sum td{border-top:2px solid var(--accent);border-bottom:none;font-weight:700;background:var(--accent-light);color:var(--text)}
+.ac-tag{font-size:10px;background:var(--green-bg);color:var(--green);padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:600}
+.ac-tag.o{background:var(--orange-bg);color:var(--orange)}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
 .fml-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
@@ -490,7 +503,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let CU={name:'',role:'',uid:''};
@@ -1231,7 +1244,8 @@ function renderMain(){
         </button>
       </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
-      ${curEmps.length?`<button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單" style="margin-left:auto;white-space:nowrap">📦 批次匯出全店</button>`:''}
+      ${curEmps.length?`<button class="btn-sm o" onclick="showInsAuditTable()" title="全店勞健保核對總表" style="margin-left:auto;white-space:nowrap">📋 勞健保核對表</button>`:''}
+      ${curEmps.length?`<button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單" style="white-space:nowrap">📦 批次匯出全店</button>`:''}
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
     <div id="sheetArea"></div>`;
@@ -1785,6 +1799,95 @@ window.applyAllInsSuggest=async function(){
   showToast(`✓ 已完成 ${cnt} 位同仁的費率重設`);
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
 };
+
+// ── 勞健保核對總表 ──
+function calcInsAuditRow(emp,rec){
+  const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
+  const ins=insFromGrade(insGrade);
+  const insMode=rec?.insMode||'normal';
+  const laborSelf=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:ins.labor);
+  const healthSelf=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:ins.health);
+  const laborEmployer=Math.round(insGrade*0.06);
+  const pension=Math.round(insGrade*0.06);
+  const healthEmployer=Math.round(insGrade*0.0517*0.6*1.56);
+  return {name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode};
+}
+
+window.showInsAuditTable=async function(){
+  const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
+  if(!emps.length){showToast('此店面無在職同仁');return;}
+  showToast('載入核對資料中…',8000);
+  const rows=[];
+  for(const emp of emps){
+    const rec=await loadRec(emp.id,viewYear,viewMonth);
+    rows.push(calcInsAuditRow(emp,rec));
+  }
+  const sum=rows.reduce((s,r)=>({laborSelf:s.laborSelf+r.laborSelf,laborEmployer:s.laborEmployer+r.laborEmployer,pension:s.pension+r.pension,healthSelf:s.healthSelf+r.healthSelf,healthEmployer:s.healthEmployer+r.healthEmployer}),{laborSelf:0,laborEmployer:0,pension:0,healthSelf:0,healthEmployer:0});
+  window._insAuditRows=rows;
+
+  const ov=document.createElement('div');
+  ov.className='slip-overlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:840px">
+    <div class="slip-bar">
+      <button class="btn slip-close" onclick="closeSlip()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">勞健保核對表 — ${selectedStore}　${viewYear}年${viewMonth}月</span>
+      <button class="btn btn-primary" onclick="exportInsAuditCSV()">⬇ 匯出 CSV</button>
+    </div>
+    <div class="slip-body" style="padding:0">
+      <div class="audit-wrap">
+        <table class="audit-tbl">
+          <thead><tr>
+            <th>姓名</th><th>投保薪資</th><th>勞保(自付)</th><th>勞保(單位)</th><th>勞退</th><th>健保(自付)</th><th>健保(單位)</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r=>`<tr>
+              <td class="ac-name">${r.name}${r.insMode==='new'?'<span class="ac-tag">首月免扣</span>':r.insMode==='quit_prepay'?'<span class="ac-tag o">離職預扣</span>':''}</td>
+              <td>${r.grade.toLocaleString()}</td>
+              <td class="ac-num">${r.laborSelf.toLocaleString()}</td>
+              <td class="ac-num">${r.laborEmployer.toLocaleString()}</td>
+              <td class="ac-num">${r.pension.toLocaleString()}</td>
+              <td class="ac-num">${r.healthSelf.toLocaleString()}</td>
+              <td class="ac-num">${r.healthEmployer.toLocaleString()}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr class="ac-sum">
+            <td>合計（${rows.length}人）</td><td>—</td>
+            <td class="ac-num">${sum.laborSelf.toLocaleString()}</td>
+            <td class="ac-num">${sum.laborEmployer.toLocaleString()}</td>
+            <td class="ac-num">${sum.pension.toLocaleString()}</td>
+            <td class="ac-num">${sum.healthSelf.toLocaleString()}</td>
+            <td class="ac-num">${sum.healthEmployer.toLocaleString()}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div style="font-size:11px;color:#999;padding:12px 16px;line-height:1.7">
+        計算規則：勞保單位 = 投保薪資 × 6%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
+        「首月免扣」者自付為 0（單位負擔仍照投保級距計算）。如有手動覆蓋勞健保自付金額，自付欄以覆蓋值為準。
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeSlip();});
+};
+
+window.exportInsAuditCSV=function(){
+  const rows=window._insAuditRows||[];
+  if(!rows.length)return;
+  const header=['姓名','投保薪資','勞保(自付)','勞保(單位)','勞退','健保(自付)','健保(單位)'];
+  const lines=[header.join(',')];
+  rows.forEach(r=>lines.push([r.name,r.grade,r.laborSelf,r.laborEmployer,r.pension,r.healthSelf,r.healthEmployer].join(',')));
+  const sum=rows.reduce((s,r)=>({a:s.a+r.laborSelf,b:s.b+r.laborEmployer,c:s.c+r.pension,d:s.d+r.healthSelf,e:s.e+r.healthEmployer}),{a:0,b:0,c:0,d:0,e:0});
+  lines.push(['合計','',sum.a,sum.b,sum.c,sum.d,sum.e].join(','));
+  const csv='\uFEFF'+lines.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`勞健保核對_${selectedStore}_${viewYear}年${viewMonth}月.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  showToast('✓ 已匯出 CSV');
+};
+
 // 批次匯出：一次產生全店所有薪資單圖片，打包成 ZIP 下載
 window.batchExportSlips=async function(){
   const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
