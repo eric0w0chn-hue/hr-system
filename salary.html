@@ -1807,7 +1807,7 @@ function calcInsAuditRow(emp,rec){
   const insMode=rec?.insMode||'normal';
   const laborSelf=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:ins.labor);
   const healthSelf=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:ins.health);
-  const laborEmployer=Math.round(insGrade*0.06);
+  const laborEmployer=Math.round(insGrade*0.0894);
   const pension=Math.round(insGrade*0.06);
   const healthEmployer=Math.round(insGrade*0.0517*0.6*1.56);
   return {name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode};
@@ -1861,7 +1861,7 @@ window.showInsAuditTable=async function(){
         </table>
       </div>
       <div style="font-size:11px;color:#999;padding:12px 16px;line-height:1.7">
-        計算規則：勞保單位 = 投保薪資 × 6%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
+        計算規則：勞保單位 = 投保薪資 × 8.94%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
         「首月免扣」者自付為 0（單位負擔仍照投保級距計算）。如有手動覆蓋勞健保自付金額，自付欄以覆蓋值為準。
       </div>
     </div>
