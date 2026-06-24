@@ -144,6 +144,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .audit-tbl .ac-sum td{border-top:2px solid var(--accent);border-bottom:none;font-weight:700;background:var(--accent-light);color:var(--text)}
 .ac-tag{font-size:10px;background:var(--green-bg);color:var(--green);padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:600}
 .ac-tag.o{background:var(--orange-bg);color:var(--orange)}
+.ac-tag.r{background:var(--red-bg);color:var(--red)}
+.ac-tag.na{background:var(--surface2);color:var(--text3)}
+/* 比對結果 */
+.cmp-banner{padding:11px 16px;font-size:13px;font-weight:600;line-height:1.6}
+.cmp-banner.ok{background:var(--green-bg);color:var(--green);border-bottom:1px solid var(--green-border)}
+.cmp-banner.warn{background:var(--orange-bg);color:var(--orange);border-bottom:1px solid var(--orange-border)}
+.audit-tbl td.cmp-ok{color:var(--green)}
+.audit-tbl td.cmp-diff{background:var(--red-bg)!important;color:var(--red);font-weight:700}
+.cmp-comp{font-size:10px;color:var(--red);font-weight:600;margin-top:1px}
+.audit-tbl td.cmp-na{color:var(--text3)}
+.audit-tbl tr.cmp-row-na{opacity:.7}
+.audit-tbl tr.cmp-row-extra{background:var(--red-bg)!important}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
 .fml-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
@@ -1827,52 +1839,165 @@ window.showInsAuditTable=async function(){
     const rec=await loadRec(emp.id,viewYear,viewMonth);
     rows.push(calcInsAuditRow(emp,rec));
   }
-  const sum=rows.reduce((s,r)=>({laborSelf:s.laborSelf+r.laborSelf,laborEmployer:s.laborEmployer+r.laborEmployer,pension:s.pension+r.pension,healthSelf:s.healthSelf+r.healthSelf,healthEmployer:s.healthEmployer+r.healthEmployer}),{laborSelf:0,laborEmployer:0,pension:0,healthSelf:0,healthEmployer:0});
   window._insAuditRows=rows;
+  window._insAuditCompare=null; // 比對結果清空
 
   const ov=document.createElement('div');
   ov.className='slip-overlay';
-  ov.innerHTML=`<div class="slip-modal" style="max-width:840px">
+  ov.id='insAuditOverlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:880px">
     <div class="slip-bar">
       <button class="btn slip-close" onclick="closeSlip()">✕ 關閉</button>
       <span style="font-size:14px;font-weight:700">勞健保核對表 — ${selectedStore}　${viewYear}年${viewMonth}月</span>
-      <button class="btn btn-primary" onclick="exportInsAuditCSV()">⬇ 匯出 CSV</button>
+      <span style="display:flex;gap:6px">
+        <input type="file" id="insCmpFile" accept=".csv" style="display:none" onchange="importInsCompare(this)">
+        <button class="btn btn-outline" onclick="document.getElementById('insCmpFile').click()">📂 匯入比對</button>
+        <button class="btn btn-primary" onclick="exportInsAuditCSV()">⬇ 匯出 CSV</button>
+      </span>
     </div>
-    <div class="slip-body" style="padding:0">
-      <div class="audit-wrap">
-        <table class="audit-tbl">
-          <thead><tr>
-            <th>姓名</th><th>投保薪資</th><th>勞保(自付)</th><th>勞保(單位)</th><th>勞退</th><th>健保(自付)</th><th>健保(單位)</th>
-          </tr></thead>
-          <tbody>
-            ${rows.map(r=>`<tr>
-              <td class="ac-name">${r.name}${r.insMode==='new'?'<span class="ac-tag">首月免扣</span>':r.insMode==='quit_prepay'?'<span class="ac-tag o">離職預扣</span>':''}</td>
-              <td>${r.grade.toLocaleString()}</td>
-              <td class="ac-num">${r.laborSelf.toLocaleString()}</td>
-              <td class="ac-num">${r.laborEmployer.toLocaleString()}</td>
-              <td class="ac-num">${r.pension.toLocaleString()}</td>
-              <td class="ac-num">${r.healthSelf.toLocaleString()}</td>
-              <td class="ac-num">${r.healthEmployer.toLocaleString()}</td>
-            </tr>`).join('')}
-          </tbody>
-          <tfoot><tr class="ac-sum">
-            <td>合計（${rows.length}人）</td><td>—</td>
-            <td class="ac-num">${sum.laborSelf.toLocaleString()}</td>
-            <td class="ac-num">${sum.laborEmployer.toLocaleString()}</td>
-            <td class="ac-num">${sum.pension.toLocaleString()}</td>
-            <td class="ac-num">${sum.healthSelf.toLocaleString()}</td>
-            <td class="ac-num">${sum.healthEmployer.toLocaleString()}</td>
-          </tr></tfoot>
-        </table>
-      </div>
-      <div style="font-size:11px;color:#999;padding:12px 16px;line-height:1.7">
-        計算規則：勞保單位 = 投保薪資 × 8.94%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
-        「首月免扣」者自付為 0（單位負擔仍照投保級距計算）。如有手動覆蓋勞健保自付金額，自付欄以覆蓋值為準。
-      </div>
+    <div class="slip-body" style="padding:0" id="insAuditBody">
+      ${renderInsAuditBody()}
     </div>
   </div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click',e=>{if(e.target===ov)closeSlip();});
+};
+
+// 表格本體渲染（含比對標紅）
+function renderInsAuditBody(){
+  const rows=window._insAuditRows||[];
+  const cmp=window._insAuditCompare; // {matched:Map(idx->{laborSelf,healthSelf}), unmatchedCompany:[], summary}
+  const sum=rows.reduce((s,r)=>({laborSelf:s.laborSelf+r.laborSelf,laborEmployer:s.laborEmployer+r.laborEmployer,pension:s.pension+r.pension,healthSelf:s.healthSelf+r.healthSelf,healthEmployer:s.healthEmployer+r.healthEmployer}),{laborSelf:0,laborEmployer:0,pension:0,healthSelf:0,healthEmployer:0});
+
+  // 比對總結列
+  let cmpBanner='';
+  if(cmp){
+    if(cmp.diffCount===0&&cmp.unmatchedCompany.length===0&&cmp.unmatchedSystem.length===0){
+      cmpBanner=`<div class="cmp-banner ok">✓ 全部相符：${cmp.matchedCount} 位同仁的勞保自付、健保自付與公司資料完全一致</div>`;
+    } else {
+      const parts=[];
+      if(cmp.diffCount>0)parts.push(`${cmp.diffCount} 筆金額不一致`);
+      if(cmp.unmatchedSystem.length)parts.push(`${cmp.unmatchedSystem.length} 位系統有但公司未提供`);
+      if(cmp.unmatchedCompany.length)parts.push(`${cmp.unmatchedCompany.length} 位公司有但系統查無`);
+      cmpBanner=`<div class="cmp-banner warn">⚠️ 發現差異：${parts.join('、')}。紅色標示處請確認。</div>`;
+    }
+  }
+
+  // 公司資料配對：每列找對應
+  function cellCmp(idx,field,sysVal){
+    if(!cmp)return `<td class="ac-num">${sysVal.toLocaleString()}</td>`;
+    const m=cmp.matched.get(idx);
+    if(!m||m[field]==null)return `<td class="ac-num cmp-na" title="公司未提供">${sysVal.toLocaleString()}</td>`;
+    const compVal=m[field];
+    if(compVal===sysVal)return `<td class="ac-num cmp-ok">${sysVal.toLocaleString()} ✓</td>`;
+    return `<td class="ac-num cmp-diff" title="公司值 ${compVal.toLocaleString()} / 系統值 ${sysVal.toLocaleString()}">系統 ${sysVal.toLocaleString()}<div class="cmp-comp">公司 ${compVal.toLocaleString()}</div></td>`;
+  }
+
+  let html=`${cmpBanner}
+    <div class="audit-wrap">
+      <table class="audit-tbl">
+        <thead><tr>
+          <th>姓名</th><th>投保薪資</th><th>勞保(自付)</th><th>勞保(單位)</th><th>勞退</th><th>健保(自付)</th><th>健保(單位)</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map((r,idx)=>{
+            const unmatchedSys=cmp&&cmp.unmatchedSystem.includes(idx);
+            return `<tr${unmatchedSys?' class="cmp-row-na"':''}>
+            <td class="ac-name">${r.name}${r.insMode==='new'?'<span class="ac-tag">首月免扣</span>':r.insMode==='quit_prepay'?'<span class="ac-tag o">離職預扣</span>':''}${unmatchedSys?'<span class="ac-tag na">公司未提供</span>':''}</td>
+            <td>${r.grade.toLocaleString()}</td>
+            ${cellCmp(idx,'laborSelf',r.laborSelf)}
+            <td class="ac-num">${r.laborEmployer.toLocaleString()}</td>
+            <td class="ac-num">${r.pension.toLocaleString()}</td>
+            ${cellCmp(idx,'healthSelf',r.healthSelf)}
+            <td class="ac-num">${r.healthEmployer.toLocaleString()}</td>
+          </tr>`;}).join('')}
+          ${cmp&&cmp.unmatchedCompany.length?cmp.unmatchedCompany.map(u=>`<tr class="cmp-row-extra">
+            <td class="ac-name">${u.name}<span class="ac-tag r">系統查無</span></td>
+            <td>${u.grade?u.grade.toLocaleString():'—'}</td>
+            <td class="ac-num cmp-diff">公司 ${u.laborSelf!=null?u.laborSelf.toLocaleString():'—'}</td>
+            <td class="ac-num">—</td><td class="ac-num">—</td>
+            <td class="ac-num cmp-diff">公司 ${u.healthSelf!=null?u.healthSelf.toLocaleString():'—'}</td>
+            <td class="ac-num">—</td>
+          </tr>`).join(''):''}
+        </tbody>
+        <tfoot><tr class="ac-sum">
+          <td>合計（${rows.length}人）</td><td>—</td>
+          <td class="ac-num">${sum.laborSelf.toLocaleString()}</td>
+          <td class="ac-num">${sum.laborEmployer.toLocaleString()}</td>
+          <td class="ac-num">${sum.pension.toLocaleString()}</td>
+          <td class="ac-num">${sum.healthSelf.toLocaleString()}</td>
+          <td class="ac-num">${sum.healthEmployer.toLocaleString()}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style="font-size:11px;color:#999;padding:12px 16px;line-height:1.7">
+      計算規則：勞保單位 = 投保薪資 × 8.94%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
+      ${cmp?'比對方式：以「姓名＋投保薪資」配對，比對勞保自付、健保自付。紅色＝不一致，請確認。':'點「📂 匯入比對」上傳公司 CSV（需含 姓名、投保薪資、勞保(自付)、健保(自付) 欄位），系統會自動標出差異。'}
+    </div>`;
+  return html;
+}
+
+// 匯入公司 CSV 並比對
+window.importInsCompare=function(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const text=String(e.target.result||'').replace(/^\uFEFF/,'');
+      const lines=text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){showToast('⚠️ CSV 沒有資料列');return;}
+      // 解析表頭，找欄位位置
+      const header=lines[0].split(',').map(h=>h.trim());
+      const findCol=(...keys)=>header.findIndex(h=>keys.some(k=>h.includes(k)));
+      const cName=findCol('姓名');
+      const cGrade=findCol('投保薪資','投保級距','投保');
+      const cLabor=findCol('勞保(自付)','勞保自付','勞保（自付）');
+      const cHealth=findCol('健保(自付)','健保自付','健保（自付）');
+      if(cName<0||cGrade<0){showToast('⚠️ CSV 需包含「姓名」與「投保薪資」欄位');return;}
+      if(cLabor<0&&cHealth<0){showToast('⚠️ CSV 需至少包含「勞保(自付)」或「健保(自付)」欄位');return;}
+
+      // 公司資料
+      const company=lines.slice(1).map(l=>{
+        const cols=l.split(',').map(c=>c.trim());
+        const numOf=i=>{const v=(cols[i]||'').replace(/[$,\s]/g,'');return v===''?null:Number(v);};
+        return {
+          name:(cols[cName]||'').trim(),
+          grade:numOf(cGrade),
+          laborSelf:cLabor>=0?numOf(cLabor):null,
+          healthSelf:cHealth>=0?numOf(cHealth):null
+        };
+      }).filter(c=>c.name&&c.name!=='合計');
+
+      // 開始比對：姓名+投保薪資 雙重配對
+      const rows=window._insAuditRows||[];
+      const matched=new Map();
+      const usedCompany=new Set();
+      const unmatchedSystem=[];
+      let diffCount=0, matchedCount=0;
+
+      rows.forEach((r,idx)=>{
+        // 找公司資料中 姓名相同 且 投保薪資相同
+        const ci=company.findIndex((c,i)=>!usedCompany.has(i)&&c.name===r.name&&Number(c.grade)===Number(r.grade));
+        if(ci<0){unmatchedSystem.push(idx);return;}
+        usedCompany.add(ci);
+        matchedCount++;
+        const c=company[ci];
+        matched.set(idx,{laborSelf:c.laborSelf,healthSelf:c.healthSelf});
+        if(c.laborSelf!=null&&c.laborSelf!==r.laborSelf)diffCount++;
+        if(c.healthSelf!=null&&c.healthSelf!==r.healthSelf)diffCount++;
+      });
+      // 公司有但系統沒配到的
+      const unmatchedCompany=company.filter((c,i)=>!usedCompany.has(i));
+
+      window._insAuditCompare={matched,unmatchedSystem,unmatchedCompany,diffCount,matchedCount};
+      document.getElementById('insAuditBody').innerHTML=renderInsAuditBody();
+      if(diffCount===0&&unmatchedCompany.length===0&&unmatchedSystem.length===0)showToast(`✓ 全部相符（${matchedCount}人）`);
+      else showToast(`⚠️ 發現 ${diffCount} 筆差異，已標紅`);
+    }catch(err){console.error(err);showToast('⚠️ CSV 解析失敗，請確認格式');}
+    input.value=''; // 清空讓同檔可再選
+  };
+  reader.readAsText(file,'utf-8');
 };
 
 window.exportInsAuditCSV=function(){
