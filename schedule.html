@@ -927,6 +927,7 @@ window.addBatch=function(){
     const dow=new Date(el.dataset.date).getDay();const isHol=!!twHolidays[el.dataset.date];
     el.style.color=isHol||dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)';});
   document.getElementById('m-note').value='';
+  setBatchKind('work'); // 加完一批後重置回上班模式，避免殘留特休狀態
   updateBatchCount();renderPendingList();
 };
 
@@ -982,6 +983,8 @@ window.updateBatchCount=function(){
 };
 
 window.applyShiftType=function(start,end){
+  // 點選班別快選時，自動切回「上班」模式（避免殘留特休狀態）
+  if(batchKind!=='work') setBatchKind('work');
   document.getElementById('m-start').value=start;
   document.getElementById('m-end').value=end;
 };
