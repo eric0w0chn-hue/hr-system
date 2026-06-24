@@ -115,6 +115,17 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
   .acc-meta .store-tag{display:none}
 }
 </style>
+  <script>
+  /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      var s=document.createElement("style");
+      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      document.head.appendChild(s);
+      document.documentElement.setAttribute("data-embed","1");
+    }
+  })();
+  </script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入中...</div></div>

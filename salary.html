@@ -503,6 +503,16 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .cdd-opt-placeholder{padding:10px 16px;font-size:13px;color:var(--text3)}
 
 </style>
+  <script>
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      var s=document.createElement("style");
+      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      document.head.appendChild(s);
+      document.documentElement.setAttribute("data-embed","1");
+    }
+  })();
+  </script>
 </head>
 <body>
 
@@ -522,7 +532,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let CU={name:'',role:'',uid:''};

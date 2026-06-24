@@ -191,6 +191,16 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 .imp-new{background:#E3F2FD;color:#1565C0}
 .imp-nomatch{background:#FFEBEE;color:#C62828}
 </style>
+<script>
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      var s=document.createElement("style");
+      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      document.head.appendChild(s);
+      document.documentElement.setAttribute(\'data-embed\',\'1\');
+    }
+  })();
+  </script>
 <body>
 <div class="topbar">
       <div class="topbar-left">

@@ -76,6 +76,17 @@ tr:hover td{background:#FAFBFC}
 @media(max-width:600px){.topbar{padding:0 12px;gap:6px}.topbar h1{font-size:14px}.back-btn{font-size:11px;padding:4px 9px}}
 /* ===== 標準 topbar 結束 ===== */
 </style>
+  <script>
+  /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      var s=document.createElement("style");
+      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      document.head.appendChild(s);
+      document.documentElement.setAttribute("data-embed","1");
+    }
+  })();
+  </script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入員工資料...</div></div>

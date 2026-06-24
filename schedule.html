@@ -224,6 +224,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+  /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      var s=document.createElement("style");
+      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      document.head.appendChild(s);
+      document.documentElement.setAttribute("data-embed","1");
+    }
+  })();
+  </script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div style="font-size:13px;color:var(--text3)">載入中...</div></div>
@@ -811,7 +822,6 @@ function renderSidebar(){
   const daySet={}; // empId -> Set of dates
   const nameMap={};
   Object.entries(shifts).forEach(([dateStr,arr])=>arr.forEach(s=>{
-    if(s.kind==='annual') return; // 特休不計入出勤天數
     if(!daySet[s.empId]) daySet[s.empId]=new Set();
     daySet[s.empId].add(dateStr);
     nameMap[s.empId]=s.empName;
@@ -927,7 +937,6 @@ window.addBatch=function(){
     const dow=new Date(el.dataset.date).getDay();const isHol=!!twHolidays[el.dataset.date];
     el.style.color=isHol||dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)';});
   document.getElementById('m-note').value='';
-  setBatchKind('work'); // 加完一批後重置回上班模式，避免殘留特休狀態
   updateBatchCount();renderPendingList();
 };
 
@@ -983,8 +992,6 @@ window.updateBatchCount=function(){
 };
 
 window.applyShiftType=function(start,end){
-  // 點選班別快選時，自動切回「上班」模式（避免殘留特休狀態）
-  if(batchKind!=='work') setBatchKind('work');
   document.getElementById('m-start').value=start;
   document.getElementById('m-end').value=end;
 };
