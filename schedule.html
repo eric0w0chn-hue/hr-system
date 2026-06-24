@@ -811,6 +811,7 @@ function renderSidebar(){
   const daySet={}; // empId -> Set of dates
   const nameMap={};
   Object.entries(shifts).forEach(([dateStr,arr])=>arr.forEach(s=>{
+    if(s.kind==='annual') return; // 特休不計入出勤天數
     if(!daySet[s.empId]) daySet[s.empId]=new Set();
     daySet[s.empId].add(dateStr);
     nameMap[s.empId]=s.empName;
