@@ -6,33 +6,152 @@
 <title>歡迎 — 鑫系統</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
-  background:#F0F2F5;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.hero{display:flex;align-items:center;gap:32px;padding:40px 24px;flex-wrap:wrap;justify-content:center}
-.hero-logo-ring{width:110px;height:110px;border-radius:28px;overflow:hidden;box-shadow:0 8px 32px rgba(45,49,66,.15);flex-shrink:0}
-.hero-logo{width:100%;height:100%;object-fit:cover}
-.hero-text{max-width:320px}
-.hero-sub{font-size:12px;color:#9AA0B4;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
-.hero-title{font-size:28px;font-weight:800;color:#1A1D23;line-height:1.2}
-.hero-en{font-size:11px;color:#9AA0B4;letter-spacing:2px;margin-top:4px}
-.hero-divider{width:36px;height:3px;background:#2D3142;border-radius:2px;margin:14px 0}
-.hero-desc{font-size:13px;color:#5A6175;line-height:1.7}
-.hero-motto{font-size:12px;color:#9AA0B4;margin-top:12px;font-style:italic}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  background:#F0F2F5;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;
+}
+
+/* 背景裝飾 */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 50%, rgba(45,49,66,.06) 0%, transparent 60%),
+             radial-gradient(ellipse at 80% 20%, rgba(45,49,66,.04) 0%, transparent 50%);
+  pointer-events:none;
+}
+
+.hero{
+  display:flex;align-items:center;gap:56px;
+  padding:48px 40px;flex-wrap:wrap;justify-content:center;
+  position:relative;z-index:1;
+}
+
+/* LOGO 區 */
+.hero-logo-wrap{
+  position:relative;flex-shrink:0;
+}
+.hero-logo-ring{
+  width:120px;height:120px;border-radius:30px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(45,49,66,.18),0 4px 16px rgba(45,49,66,.1);
+  position:relative;z-index:1;
+}
+.hero-logo{width:100%;height:100%;object-fit:cover;display:block}
+.hero-logo-glow{
+  position:absolute;inset:-8px;border-radius:38px;
+  background:linear-gradient(135deg,rgba(255,180,0,.15),rgba(45,49,66,.1));
+  filter:blur(12px);z-index:0;
+}
+
+/* 文字區 */
+.hero-text{max-width:400px}
+
+.hero-eyebrow{
+  display:flex;align-items:center;gap:8px;margin-bottom:16px;
+}
+.hero-eyebrow-line{
+  width:28px;height:2px;
+  background:linear-gradient(90deg,#2D3142,transparent);
+  border-radius:1px;
+}
+.hero-eyebrow-text{
+  font-size:11px;font-weight:600;color:#9AA0B4;
+  letter-spacing:2.5px;text-transform:uppercase;
+}
+
+.hero-title{
+  font-size:38px;font-weight:800;
+  color:#1A1D23;line-height:1.15;
+  letter-spacing:-.5px;
+  margin-bottom:8px;
+}
+.hero-title span{
+  background:linear-gradient(135deg,#2D3142 0%,#5A6175 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+.hero-en{
+  font-size:10.5px;font-weight:600;color:#C8CDD8;
+  letter-spacing:3px;text-transform:uppercase;
+  margin-bottom:24px;
+}
+
+.hero-divider{
+  width:48px;height:3px;
+  background:linear-gradient(90deg,#2D3142,#9AA0B4);
+  border-radius:2px;margin-bottom:20px;
+}
+
+.hero-desc{
+  font-size:14px;color:#5A6175;line-height:1.8;
+  margin-bottom:24px;
+}
+
+.hero-tags{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;
+}
+.hero-tag{
+  font-size:11px;font-weight:500;color:#5A6175;
+  padding:4px 12px;border-radius:20px;
+  background:rgba(45,49,66,.06);
+  border:1px solid rgba(45,49,66,.1);
+  letter-spacing:.3px;
+}
+
+.hero-motto{
+  font-size:13px;color:#9AA0B4;
+  font-style:italic;letter-spacing:.3px;
+  padding-left:12px;
+  border-left:2px solid #DDE1E9;
+}
+
+/* 版本小字 */
+.hero-version{
+  position:fixed;bottom:20px;right:24px;
+  font-size:10px;color:#C8CDD8;letter-spacing:.5px;
+}
+
+@media(max-width:640px){
+  .hero{gap:32px;padding:32px 20px}
+  .hero-logo-ring{width:96px;height:96px;border-radius:24px}
+  .hero-title{font-size:28px}
+  .hero-tags{display:none}
+}
 </style>
 </head>
 <body>
 <div class="hero">
-  <div class="hero-logo-ring">
-    <img class="hero-logo" src="icons/icon-180.png" onerror="this.style.background='#2D3142';this.style.display='block'" alt="鑫系統">
+  <div class="hero-logo-wrap">
+    <div class="hero-logo-glow"></div>
+    <div class="hero-logo-ring">
+      <img class="hero-logo" src="icons/icon-180.png"
+        onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22><rect width=%22120%22 height=%22120%22 fill=%22%232D3142%22 rx=%2224%22/><text x=%2260%22 y=%2278%22 font-size=%2256%22 text-anchor=%22middle%22>🐔</text></svg>'"
+        alt="鑫系統">
+    </div>
   </div>
   <div class="hero-text">
-    <div class="hero-sub">歡迎使用</div>
-    <div class="hero-title">輔助管理系統</div>
-    <div class="hero-en">LIANGPING MANAGEMENT SYSTEM</div>
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-line"></div>
+      <div class="hero-eyebrow-text">Welcome to</div>
+    </div>
+    <div class="hero-title"><span>輔助管理系統</span></div>
+    <div class="hero-en">LIANGPING Management System</div>
     <div class="hero-divider"></div>
-    <div class="hero-desc">整合人事、排班、各項回報事宜等<br>核心業務的一站式管理平台</div>
+    <div class="hero-desc">
+      整合人事、排班、各項回報事宜等<br>
+      核心業務的一站式管理平台
+    </div>
+    <div class="hero-tags">
+      <span class="hero-tag">👥 人員管理</span>
+      <span class="hero-tag">📅 排班系統</span>
+      <span class="hero-tag">💰 薪資計算</span>
+      <span class="hero-tag">📋 各項回報</span>
+    </div>
     <div class="hero-motto">「你敢建議、我敢嘗試。」</div>
   </div>
 </div>
+<div class="hero-version">鑫系統 LIANGPING · 2026</div>
 </body>
 </html>

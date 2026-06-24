@@ -114,6 +114,12 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
   .acc-actions{flex-direction:column;gap:4px;align-items:flex-end}
   .acc-meta .store-tag{display:none}
 }
+
+/* embed 模式 */
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+[data-embed="1"] body{padding-top:0!important}
+[data-embed="1"] #app{padding-top:0!important}
+[data-embed="1"] .main{padding-top:16px!important}
 </style>
   <script>
   /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */

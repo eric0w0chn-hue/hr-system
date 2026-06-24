@@ -75,6 +75,12 @@ tr:hover td{background:#FAFBFC}
 .role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap}
 @media(max-width:600px){.topbar{padding:0 12px;gap:6px}.topbar h1{font-size:14px}.back-btn{font-size:11px;padding:4px 9px}}
 /* ===== 標準 topbar 結束 ===== */
+
+/* embed 模式 */
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+[data-embed="1"] body{padding-top:0!important}
+[data-embed="1"] #app{padding-top:0!important}
+[data-embed="1"] .main{padding-top:16px!important}
 </style>
   <script>
   /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */

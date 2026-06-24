@@ -226,6 +226,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .role-chip{font-size:10px;padding:2px 8px;max-width:100px;overflow:hidden;text-overflow:ellipsis}
 }
 .storage-pill{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+
+/* embed 模式 */
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+[data-embed="1"] body{padding-top:0!important}
+[data-embed="1"] #app{padding-top:0!important}
+[data-embed="1"] .main{padding-top:16px!important}
 </style>
   <script>
   /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */

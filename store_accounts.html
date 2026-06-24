@@ -236,6 +236,12 @@ tr.dragging{opacity:.4}
   .card{margin-bottom:8px;padding:0}
   .card-header{padding:12px 14px 10px}
 }
+
+/* embed 模式 */
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+[data-embed="1"] body{padding-top:0!important}
+[data-embed="1"] #app{padding-top:0!important}
+[data-embed="1"] .main{padding-top:16px!important}
 </style>
   <script>
   /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
