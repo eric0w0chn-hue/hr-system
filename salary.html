@@ -1038,7 +1038,6 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
 
   // 薪資組成
   const basePay=Math.round(workedHoursTotal*hourlyRate);                            // 純時薪部分
-  const attendBonus=attendQualified?Math.round(workedHoursTotal*ATTEND_BONUS):0;   // 出勤獎勵：全勤136h才給
   // 加班費（純時薪基礎，比照正職倍率）
   const fixedOtPay=Math.round(hourlyRate*fixedOtHours*1.34);
   const extraOtPay=Math.round(hourlyRate*extraOtHours*1.67);
@@ -1048,6 +1047,11 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     tempOtList.push({rate:Number(rate),hrs,pay:p});
   }
   const otPayTotal=fixedOtPay+extraOtPay+tempOtPay;
+  const tempOtHoursTotal=Object.values(tempOtSegs).reduce((s,h)=>s+h,0);
+  const otHoursTotal=fixedOtHours+extraOtHours+tempOtHoursTotal; // 全部加班時數
+  // 出勤獎勵：全勤達標才給，時數包含加班時數
+  const attendBonusHours=attendQualified?(workedHoursTotal+otHoursTotal):0;
+  const attendBonus=Math.round(attendBonusHours*ATTEND_BONUS);
 
   // 勞健保（兼職一樣可投保，沿用設定；預設不扣，由 rec 手動設定）
   const ins=insFromGrade((rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth));
@@ -1078,6 +1082,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   return{
     isPartTime:true, hourlyRate, attendBonusRate:ATTEND_BONUS,
     attendQualified, scheduledHoursTotal, hasAbnormal, attendThreshold:ATTEND_THRESHOLD,
+    attendBonusHours, otHoursTotal,
     workedHoursTotal, workDays, workDates, scheduledDays,
     basePay, attendBonus,
     fixedOtHours, extraOtHours, fixedOtPay, extraOtPay, tempOtPay, otPayTotal, tempOtList, tempOtSegs,
@@ -1537,7 +1542,7 @@ function renderSheet(emp,rec,shifts,c){
         ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
-          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（${c.scheduledHoursTotal}h≥${c.attendThreshold}h）`:`${c.hasAbnormal?'有非正常出勤':'排班未達'+c.attendThreshold+'h（'+c.scheduledHoursTotal+'h）'}，不發放`}</div></div>
+          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（${c.scheduledHoursTotal}h≥${c.attendThreshold}h）出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有非正常出勤':'排班未達'+c.attendThreshold+'h（'+c.scheduledHoursTotal+'h）'}，不發放`}</div></div>
           <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${c.fixedOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.34</div></div>
           <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div></div>
         </div>
