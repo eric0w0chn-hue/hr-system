@@ -192,12 +192,24 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 .imp-nomatch{background:#FFEBEE;color:#C62828}
 
 /* ── embed 模式：被 iframe 嵌入時完全隱藏 topbar ── */
-[data-embed="1"] .topbar,
-[data-embed="1"] .topbar *{
+[data-embed="1"] .topbar{
   display:none!important;
   height:0!important;
   min-height:0!important;
   overflow:hidden!important;
+  position:static!important;
+}
+[data-embed="1"] .topbar *,
+[data-embed="1"] #todayLabel,
+[data-embed="1"] #clockLabel,
+[data-embed="1"] #roleChip,
+[data-embed="1"] .topbar-right,
+[data-embed="1"] .topbar-left,
+[data-embed="1"] .back-btn,
+[data-embed="1"] .topbar-dv,
+[data-embed="1"] .tb-dv{
+  display:none!important;
+  visibility:hidden!important;
 }
 [data-embed="1"] body{padding-top:0!important}
 [data-embed="1"] #app{padding-top:0!important}
