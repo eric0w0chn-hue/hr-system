@@ -642,7 +642,16 @@ window.setPreview=function(role){
 };
 
 // ── Auth ──
+// ── 看門狗：8秒未完成驗證就顯示重試按鈕 ──
+let _dashSettled=false;
+const _dashWatchdog=setTimeout(()=>{
+  if(_dashSettled)return;
+  const el=document.getElementById('loading');
+  if(el)el.innerHTML='<div style="text-align:center;padding:24px;color:#9AA0B4;font-size:14px;line-height:1.8">連線逾時，請檢查網路<br><button onclick="location.reload()" style="margin-top:12px;padding:10px 24px;font-size:14px;border-radius:8px;border:1px solid #C8CDD8;background:#2D3142;color:#fff;cursor:pointer;font-family:inherit;min-height:44px">↻ 重新載入</button></div>';
+},8000);
+
 onAuthStateChanged(auth,async user=>{
+  _dashSettled=true; clearTimeout(_dashWatchdog);
   if(!user){window.location.href='/hr-system/index.html';return;}
   try{ await setDoc(doc(db,'users',user.uid),{lastLoginAt:new Date().toISOString()},{merge:true}); }catch(_){}
   try{
