@@ -1643,7 +1643,7 @@ function renderSheet(emp,rec,shifts,c){
           <div class="ins-trow">
             <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
             <div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
-            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">本月+次月 ×2</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
+            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">${viewMonth}月+${viewMonth+1}月保費 ×2</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
@@ -1652,7 +1652,7 @@ function renderSheet(emp,rec,shifts,c){
               <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
               <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
             </div>
-            <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">本月+次月 ×2</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
+            <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">${viewMonth}月+${viewMonth+1}月保費 ×2</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
@@ -1663,7 +1663,7 @@ function renderSheet(emp,rec,shifts,c){
         </div>
 
         ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
-        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣：本月一份 + 預扣次月一份（共 ×2）。勞保 $${c.laborBase.toLocaleString()}×2 + 健保 $${c.healthTotal.toLocaleString()}×2，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。隔月無薪資可扣故提前扣除，薪資單會註明。</div>`:''}
+        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣說明：每月薪資扣除的是「上個月」的保費。此次同時預扣 ${viewMonth} 月保費 + ${viewMonth+1} 月保費（共 ×2），因離職後無薪資可扣，故提前一併扣除。勞保 $${c.laborBase.toLocaleString()}×2 + 健保 $${c.healthTotal.toLocaleString()}×2，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。</div>`:''}
         `:''}
       </div>
 
@@ -2107,10 +2107,10 @@ ${c.personalDeduct>0?`<tr><td>事假 ${fmtMin(c.personalMins)}${c.personalDates.
 ${c.sickDeduct>0?`<tr><td>病假 ${fmtMin(c.sickHours*60)}${c.sickDates.length?`<div class="sd">${c.sickDates.join('、')}</div>`:''}</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>`:''}
 ${c.absentDeduct>0?`<tr><td>曠職 ${Math.round(c.absentDays*10)/10}天${c.absentDates.length?`<div class="sd">${c.absentDates.join('、')}</div>`:''}</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>`:''}
 ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
-<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+次月×2)':c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
-<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?'(本月+次月×2)':!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
+<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth}月+${viewMonth+1}月保費×2)`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
+<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth}月+${viewMonth+1}月保費×2)`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※離職預扣：本月+次月（勞健保各×2）</td></tr>`:''}
+${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次預扣 ${viewMonth} 月＋${viewMonth+1} 月兩個月保費（各×2），因離職後無薪資可扣，故提前扣除。</td></tr>`:''}
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table>`;
