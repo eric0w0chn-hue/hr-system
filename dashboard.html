@@ -742,6 +742,20 @@ window.goTo=function(page){
   });
   if(window.innerWidth <= 600) window.closeSidebar();
 };
+// 接收 iframe 內頁面的導航請求（如 back-btn 點擊）
+window.addEventListener('message', function(e){
+  if(e.data && e.data.type === 'navigate'){
+    const page = e.data.page;
+    if(page === 'dashboard.html'){
+      // 回主選單：清空 iframe 顯示 welcome
+      const frame = document.getElementById('contentFrame');
+      frame.src = 'welcome.html?embed=1';
+      document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    } else {
+      window.goTo(page);
+    }
+  }
+});
 window.doLogout=async function(){if(!confirm('確定要登出嗎？'))return;await signOut(auth);window.location.href='/hr-system/index.html';};
 
 // ── 公告橫幅 ──

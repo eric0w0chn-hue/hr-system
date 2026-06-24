@@ -174,7 +174,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div id="app" style="display:none">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
+      <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href=this.dataset.href||'dashboard.html';}">← 主選單</button>
       <div class="tb-dv"></div>
       <!-- 如需與其他頁一致顯示雞頭 logo，可在 📌 前加入：
            <img src="專案雞頭BASE64" style="width:28px;height:28px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:6px"> -->

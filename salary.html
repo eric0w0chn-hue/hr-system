@@ -518,7 +518,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 <div class="topbar">
   <div class="topbar-left">
-    <button class="back-btn" onclick="if(document.referrer&&document.referrer.includes(location.host))history.back();else location.href='dashboard.html'">← 返回</button>
+    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href=this.dataset.href||'dashboard.html';}">← 返回</button>
     <div class="dv"></div>
     <h1>💰 薪資計算</h1>
   </div>

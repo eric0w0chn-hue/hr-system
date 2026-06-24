@@ -162,7 +162,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div id="app" style="display:none">
 <div class="topbar">
   <div class="topbar-left">
-    <button class="back-btn" onclick="window.location.href='dashboard.html'">← 返回</button>
+    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href=this.dataset.href||'dashboard.html';}">← 返回</button>
     <h1>🔐 權限管理</h1>
   </div>
   <div class="topbar-right">
