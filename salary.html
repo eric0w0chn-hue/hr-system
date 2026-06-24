@@ -156,6 +156,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .audit-tbl td.cmp-na{color:var(--text3)}
 .audit-tbl tr.cmp-row-na{opacity:.7}
 .audit-tbl tr.cmp-row-extra{background:var(--red-bg)!important}
+/* 可編輯自付欄 */
+.ac-editable{position:relative}
+.ac-edit{width:74px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;padding:5px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);font-family:inherit;-moz-appearance:textfield}
+.ac-edit:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(45,49,66,.1)}
+.ac-edit::-webkit-outer-spin-button,.ac-edit::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cmp-mark{color:var(--green);margin-left:4px;font-weight:700}
+td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
 .fml-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
@@ -1827,7 +1834,7 @@ function calcInsAuditRow(emp,rec){
   const laborEmployer=Math.round(insGrade*0.0894);
   const pension=Math.round(insGrade*0.06);
   const healthEmployer=Math.round(insGrade*0.0517*0.6*1.56);
-  return {name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode};
+  return {empId:emp.id,name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode};
 }
 
 window.showInsAuditTable=async function(){
@@ -1852,6 +1859,7 @@ window.showInsAuditTable=async function(){
       <span style="display:flex;gap:6px">
         <input type="file" id="insCmpFile" accept=".csv" style="display:none" onchange="importInsCompare(this)">
         <button class="btn btn-outline" onclick="document.getElementById('insCmpFile').click()">📂 匯入比對</button>
+        <button class="btn btn-outline" id="applyCmpBtn" style="display:none" onclick="applyCompanyValues()">✓ 一鍵套用公司值</button>
         <button class="btn btn-primary" onclick="exportInsAuditCSV()">⬇ 匯出 CSV</button>
       </span>
     </div>
@@ -1885,12 +1893,13 @@ function renderInsAuditBody(){
 
   // 公司資料配對：每列找對應
   function cellCmp(idx,field,sysVal){
-    if(!cmp)return `<td class="ac-num">${sysVal.toLocaleString()}</td>`;
+    const inp=`<input class="ac-edit" type="number" value="${sysVal}" data-idx="${idx}" data-field="${field}" onchange="editInsSelf(${idx},'${field}',this.value)">`;
+    if(!cmp)return `<td class="ac-num ac-editable">${inp}</td>`;
     const m=cmp.matched.get(idx);
-    if(!m||m[field]==null)return `<td class="ac-num cmp-na" title="公司未提供">${sysVal.toLocaleString()}</td>`;
+    if(!m||m[field]==null)return `<td class="ac-num ac-editable cmp-na" title="公司未提供">${inp}</td>`;
     const compVal=m[field];
-    if(compVal===sysVal)return `<td class="ac-num cmp-ok">${sysVal.toLocaleString()} ✓</td>`;
-    return `<td class="ac-num cmp-diff" title="公司值 ${compVal.toLocaleString()} / 系統值 ${sysVal.toLocaleString()}">系統 ${sysVal.toLocaleString()}<div class="cmp-comp">公司 ${compVal.toLocaleString()}</div></td>`;
+    if(compVal===sysVal)return `<td class="ac-num ac-editable cmp-ok">${inp}<span class="cmp-mark">✓</span></td>`;
+    return `<td class="ac-num ac-editable cmp-diff" title="公司值 ${compVal.toLocaleString()} / 系統值 ${sysVal.toLocaleString()}">${inp}<div class="cmp-comp">公司 ${compVal.toLocaleString()}</div></td>`;
   }
 
   let html=`${cmpBanner}
@@ -1932,7 +1941,7 @@ function renderInsAuditBody(){
     </div>
     <div style="font-size:11px;color:#999;padding:12px 16px;line-height:1.7">
       計算規則：勞保單位 = 投保薪資 × 8.94%｜勞退 = 投保薪資 × 6%｜健保單位 = 投保薪資 × 5.17% × 60% × 1.56<br>
-      ${cmp?'比對方式：以「姓名＋投保薪資」配對，比對勞保自付、健保自付。紅色＝不一致，請確認。':'點「📂 匯入比對」上傳公司 CSV（需含 姓名、投保薪資、勞保(自付)、健保(自付) 欄位），系統會自動標出差異。'}
+      ${cmp?'比對方式：以「姓名＋投保薪資」配對，比對勞保自付、健保自付。紅色＝不一致。可直接點自付欄修改（自動寫回該員工薪資紀錄），或按「✓ 一鍵套用公司值」批次更新。':'勞保自付、健保自付欄位可直接點擊修改，修改後自動寫回該員工的薪資紀錄。或點「📂 匯入比對」上傳公司 CSV（需含 姓名、投保薪資、勞保(自付)、健保(自付) 欄位）自動標出差異。'}
     </div>`;
   return html;
 }
@@ -1992,12 +2001,88 @@ window.importInsCompare=function(input){
 
       window._insAuditCompare={matched,unmatchedSystem,unmatchedCompany,diffCount,matchedCount};
       document.getElementById('insAuditBody').innerHTML=renderInsAuditBody();
+      // 有可套用的差異時顯示「一鍵套用公司值」
+      const applyBtn=document.getElementById('applyCmpBtn');
+      if(applyBtn)applyBtn.style.display=diffCount>0?'':'none';
       if(diffCount===0&&unmatchedCompany.length===0&&unmatchedSystem.length===0)showToast(`✓ 全部相符（${matchedCount}人）`);
       else showToast(`⚠️ 發現 ${diffCount} 筆差異，已標紅`);
     }catch(err){console.error(err);showToast('⚠️ CSV 解析失敗，請確認格式');}
     input.value=''; // 清空讓同檔可再選
   };
   reader.readAsText(file,'utf-8');
+};
+
+// 單格編輯自付金額 → 寫回該員工薪資紀錄
+window.editInsSelf=async function(idx,field,val){
+  const rows=window._insAuditRows||[];
+  const r=rows[idx];if(!r)return;
+  const num=Math.round(Number(val))||0;
+  const recField=field==='laborSelf'?'laborDeduct':'healthDeduct';
+  try{
+    const rec=await loadRec(r.empId,viewYear,viewMonth)||{dailyData:{}};
+    rec[recField]=num;
+    await saveRec(r.empId,viewYear,viewMonth,rec);
+    r[field]=num; // 更新表格資料
+    // 若該員工正在主畫面開著，同步重算
+    if(String(selectedEmpId)===String(r.empId)){const fresh=await loadRec(r.empId,viewYear,viewMonth);currentRec=fresh||{dailyData:{}};rerender();}
+    // 重繪比對狀態
+    if(window._insAuditCompare)recomputeCompare();
+    document.getElementById('insAuditBody').innerHTML=renderInsAuditBody();
+    const applyBtn=document.getElementById('applyCmpBtn');
+    if(applyBtn&&window._insAuditCompare)applyBtn.style.display=window._insAuditCompare.diffCount>0?'':'none';
+    showToast(`✓ 已更新 ${r.name} 的${field==='laborSelf'?'勞保':'健保'}自付為 $${num.toLocaleString()}`);
+  }catch(e){console.error(e);showToast('⚠️ 寫入失敗');}
+};
+
+// 重新計算比對差異數（編輯後用）
+function recomputeCompare(){
+  const cmp=window._insAuditCompare;if(!cmp)return;
+  const rows=window._insAuditRows||[];
+  let diffCount=0;
+  rows.forEach((r,idx)=>{
+    const m=cmp.matched.get(idx);if(!m)return;
+    if(m.laborSelf!=null&&m.laborSelf!==r.laborSelf)diffCount++;
+    if(m.healthSelf!=null&&m.healthSelf!==r.healthSelf)diffCount++;
+  });
+  cmp.diffCount=diffCount;
+}
+
+// 一鍵套用公司值（只套用配對成功且有差異的；系統查無者僅提示不新增）
+window.applyCompanyValues=async function(){
+  const cmp=window._insAuditCompare;if(!cmp){showToast('請先匯入公司資料');return;}
+  const rows=window._insAuditRows||[];
+  // 收集要更新的
+  const updates=[];
+  rows.forEach((r,idx)=>{
+    const m=cmp.matched.get(idx);if(!m)return;
+    const patch={};
+    if(m.laborSelf!=null&&m.laborSelf!==r.laborSelf)patch.laborDeduct=m.laborSelf;
+    if(m.healthSelf!=null&&m.healthSelf!==r.healthSelf)patch.healthDeduct=m.healthSelf;
+    if(Object.keys(patch).length)updates.push({idx,empId:r.empId,name:r.name,patch,m});
+  });
+  if(!updates.length){showToast('沒有需要套用的差異');return;}
+  const naMsg=cmp.unmatchedCompany.length?`\n\n註：公司資料中有 ${cmp.unmatchedCompany.length} 位（${cmp.unmatchedCompany.map(u=>u.name).join('、')}）系統查無，將跳過不處理。`:'';
+  if(!confirm(`將以公司值更新 ${updates.length} 位同仁的勞健保自付金額，並寫回各自的薪資紀錄。確定套用？${naMsg}`))return;
+  showToast(`套用中，共 ${updates.length} 筆…`,8000);
+  let done=0;
+  for(const u of updates){
+    try{
+      const rec=await loadRec(u.empId,viewYear,viewMonth)||{dailyData:{}};
+      Object.assign(rec,u.patch);
+      await saveRec(u.empId,viewYear,viewMonth,rec);
+      const row=rows[u.idx];
+      if(u.patch.laborDeduct!=null)row.laborSelf=u.patch.laborDeduct;
+      if(u.patch.healthDeduct!=null)row.healthSelf=u.patch.healthDeduct;
+      done++;
+    }catch(e){console.error('套用失敗',u.name,e);}
+  }
+  // 同步主畫面
+  if(selectedEmpId){const fresh=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=fresh||{dailyData:{}};rerender();}
+  recomputeCompare();
+  document.getElementById('insAuditBody').innerHTML=renderInsAuditBody();
+  const applyBtn=document.getElementById('applyCmpBtn');
+  if(applyBtn)applyBtn.style.display=cmp.diffCount>0?'':'none';
+  showToast(`✓ 已套用 ${done} 筆${cmp.unmatchedCompany.length?`（${cmp.unmatchedCompany.length} 位系統查無已跳過）`:''}`);
 };
 
 window.exportInsAuditCSV=function(){
