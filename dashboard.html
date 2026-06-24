@@ -729,7 +729,10 @@ onAuthStateChanged(auth,async user=>{
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
     const _frame = document.getElementById('contentFrame');
-    if(_frame) _frame.src = 'welcome.html?embed=1';
+    if(_frame) {
+      _frame.src = 'welcome.html?embed=1';
+      _frame.onload = function(){ try{ _frame.contentDocument.documentElement.setAttribute('data-embed','1'); }catch(_){} };
+    }
   }
 });
 window.goTo=function(page){
@@ -738,6 +741,12 @@ window.goTo=function(page){
   const frame = document.getElementById('contentFrame');
   const sep = page.includes('?') ? '&' : '?';
   frame.src = page + sep + 'embed=1&v=4';
+  // iframe 載入後直接設 data-embed，繞過 URLSearchParams 安全限制
+  frame.onload = function(){
+    try{
+      frame.contentDocument.documentElement.setAttribute('data-embed','1');
+    }catch(_){}
+  };
   document.querySelectorAll('.sidebar-item').forEach(el=>{
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -749,8 +758,11 @@ window.addEventListener('message', function(e){
   const page = e.data.page;
   if(page === 'dashboard.html'){
     const frame = document.getElementById('contentFrame');
-    if(frame) frame.src = 'welcome.html?embed=1';
-    document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    if(frame) {
+      frame.src = 'welcome.html?embed=1';
+      frame.onload = function(){ try{ frame.contentDocument.documentElement.setAttribute('data-embed','1'); }catch(_){} };
+      document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    }
   } else {
     window.goTo(page);
   }
