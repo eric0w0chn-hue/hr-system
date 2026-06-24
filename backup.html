@@ -110,7 +110,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   (function(){
     if(new URLSearchParams(location.search).get("embed")==="1"){
       var s=document.createElement("style");
-      s.textContent=".topbar{display:none!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}";
+      s.textContent=".topbar{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important;position:static!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}#todayLabel,#clockLabel,#roleChip,.topbar-right,.topbar-left,.back-btn,.topbar-dv,.tb-dv,.dv{display:none!important}";
       document.head.appendChild(s);
       document.documentElement.setAttribute("data-embed","1");
     }
