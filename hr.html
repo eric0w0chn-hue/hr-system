@@ -190,6 +190,18 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 .imp-change{background:#FFF3E0;color:#E65100}
 .imp-new{background:#E3F2FD;color:#1565C0}
 .imp-nomatch{background:#FFEBEE;color:#C62828}
+
+/* ── embed 模式：被 iframe 嵌入時完全隱藏 topbar ── */
+[data-embed="1"] .topbar,
+[data-embed="1"] .topbar *{
+  display:none!important;
+  height:0!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+[data-embed="1"] body{padding-top:0!important}
+[data-embed="1"] #app{padding-top:0!important}
+[data-embed="1"] .main{padding-top:16px!important}
 </style>
 <script>
   (function(){
