@@ -1935,9 +1935,11 @@ function renderInsAuditBody(){
         <tbody>
           ${rows.map((r,idx)=>{
             const unmatchedSys=cmp&&cmp.unmatchedSystem.includes(idx);
+            const mGrade=cmp&&cmp.matched.get(idx);
+            const gradeDiff=mGrade&&mGrade.gradeMatch===false;
             return `<tr${unmatchedSys?' class="cmp-row-na"':''}>
             <td class="ac-name">${r.name}${r.insMode==='new'?'<span class="ac-tag">首月免扣</span>':r.insMode==='quit_prepay'?'<span class="ac-tag o">離職預扣</span>':''}${unmatchedSys?'<span class="ac-tag na">公司未提供</span>':''}</td>
-            <td>${r.grade.toLocaleString()}</td>
+            <td class="${gradeDiff?'cmp-diff':''}"${gradeDiff?` title="公司投保 ${mGrade.grade.toLocaleString()} / 系統 ${r.grade.toLocaleString()}"`:''}>${r.grade.toLocaleString()}${gradeDiff?`<div class="cmp-comp">公司 ${mGrade.grade.toLocaleString()}</div>`:''}</td>
             ${cellCmp(idx,'laborSelf',r.laborSelf)}
             <td class="ac-num">${r.laborEmployer.toLocaleString()}</td>
             <td class="ac-num">${r.pension.toLocaleString()}</td>
@@ -2002,30 +2004,41 @@ window.importInsCompare=function(input){
         };
       }).filter(c=>c.name&&c.name!=='合計');
 
-      // 開始比對：姓名+投保薪資 雙重配對
+      // 配對：先「姓名+投保薪資」精準配，配不到的再用「姓名」配（投保薪資不同視為差異）
       const rows=window._insAuditRows||[];
       const matched=new Map();
       const usedCompany=new Set();
       const unmatchedSystem=[];
       let diffCount=0, matchedCount=0;
 
+      // 第一輪：姓名 + 投保薪資 都相同
       rows.forEach((r,idx)=>{
-        // 找公司資料中 姓名相同 且 投保薪資相同
         const ci=company.findIndex((c,i)=>!usedCompany.has(i)&&c.name===r.name&&Number(c.grade)===Number(r.grade));
-        if(ci<0){unmatchedSystem.push(idx);return;}
-        usedCompany.add(ci);
-        matchedCount++;
+        if(ci<0)return;
+        usedCompany.add(ci);matchedCount++;
         const c=company[ci];
-        matched.set(idx,{laborSelf:c.laborSelf,healthSelf:c.healthSelf});
+        matched.set(idx,{laborSelf:c.laborSelf,healthSelf:c.healthSelf,grade:c.grade,gradeMatch:true});
         if(c.laborSelf!=null&&c.laborSelf!==r.laborSelf)diffCount++;
         if(c.healthSelf!=null&&c.healthSelf!==r.healthSelf)diffCount++;
       });
-      // 公司有但系統沒配到的
+      // 第二輪：剩下的用姓名配（投保薪資不同 → 標為差異）
+      rows.forEach((r,idx)=>{
+        if(matched.has(idx))return;
+        const ci=company.findIndex((c,i)=>!usedCompany.has(i)&&c.name===r.name);
+        if(ci<0){unmatchedSystem.push(idx);return;}
+        usedCompany.add(ci);matchedCount++;
+        const c=company[ci];
+        const gradeMatch=Number(c.grade)===Number(r.grade);
+        matched.set(idx,{laborSelf:c.laborSelf,healthSelf:c.healthSelf,grade:c.grade,gradeMatch});
+        if(!gradeMatch)diffCount++; // 投保薪資不一致也算差異
+        if(c.laborSelf!=null&&c.laborSelf!==r.laborSelf)diffCount++;
+        if(c.healthSelf!=null&&c.healthSelf!==r.healthSelf)diffCount++;
+      });
+      // 公司有但系統沒配到的（真的查無此人）
       const unmatchedCompany=company.filter((c,i)=>!usedCompany.has(i));
 
       window._insAuditCompare={matched,unmatchedSystem,unmatchedCompany,diffCount,matchedCount};
       document.getElementById('insAuditBody').innerHTML=renderInsAuditBody();
-      // 有可套用的差異時顯示「一鍵套用公司值」
       const applyBtn=document.getElementById('applyCmpBtn');
       if(applyBtn)applyBtn.style.display=diffCount>0?'':'none';
       if(diffCount===0&&unmatchedCompany.length===0&&unmatchedSystem.length===0)showToast(`✓ 全部相符（${matchedCount}人）`);
@@ -2065,6 +2078,7 @@ function recomputeCompare(){
   let diffCount=0;
   rows.forEach((r,idx)=>{
     const m=cmp.matched.get(idx);if(!m)return;
+    if(m.gradeMatch===false)diffCount++;
     if(m.laborSelf!=null&&m.laborSelf!==r.laborSelf)diffCount++;
     if(m.healthSelf!=null&&m.healthSelf!==r.healthSelf)diffCount++;
   });
