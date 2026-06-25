@@ -162,6 +162,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .ac-edit:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(45,49,66,.1)}
 .ac-edit::-webkit-outer-spin-button,.ac-edit::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .cmp-mark{color:var(--green);margin-left:4px;font-weight:700}
+/* 離職預扣 上月+本月 雙輸入 */
+.prepay-inputs{display:flex;align-items:flex-end;gap:6px;justify-content:center;flex-wrap:wrap}
+.prepay-field{display:flex;flex-direction:column;gap:2px;align-items:center}
+.prepay-field label{font-size:10px;color:var(--orange);font-weight:600;white-space:nowrap}
+.prepay-field input{width:72px}
+.prepay-plus{font-size:14px;color:var(--text3);font-weight:700;padding-bottom:6px}
 td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .fml-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 @media(max-width:700px){.fml-grid{grid-template-columns:repeat(2,1fr)}}
@@ -502,29 +508,13 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .cdd-opt .opt-actual{font-size:12px;color:#087443;margin-top:1px;font-weight:500}
 .cdd-opt-placeholder{padding:10px 16px;font-size:13px;color:var(--text3)}
 
-
-/* embed 模式 */
-[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
-[data-embed="1"] body{padding-top:0!important}
-[data-embed="1"] #app{padding-top:0!important}
-[data-embed="1"] .main{padding-top:16px!important}
 </style>
-  <script>
-  (function(){
-    if(new URLSearchParams(location.search).get("embed")==="1"){
-      var s=document.createElement("style");
-      s.textContent=".topbar{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important;position:static!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}#todayLabel,#clockLabel,#roleChip,.topbar-right,.topbar-left,.back-btn,.topbar-dv,.tb-dv,.dv{display:none!important}";
-      document.head.appendChild(s);
-      document.documentElement.setAttribute("data-embed","1");
-    }
-  })();
-  </script>
 </head>
 <body>
 
 <div class="topbar">
   <div class="topbar-left">
-    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href=this.dataset.href||'dashboard.html';}">← 返回</button>
+    <button class="back-btn" onclick="if(document.referrer&&document.referrer.includes(location.host))history.back();else location.href='dashboard.html'">← 返回</button>
     <div class="dv"></div>
     <h1>💰 薪資計算</h1>
   </div>
@@ -538,7 +528,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let CU={name:'',role:'',uid:''};
@@ -959,12 +949,17 @@ function calcSalary(emp,rec,shifts){
 
   // ── 三種模式 ──
   let finalLabor, finalHealth;
+  // 離職預扣：上月、本月各自金額（可不足月，預設帶整月，使用者依實際調整）
+  const laborPrev=rec?.laborPrev!=null?rec.laborPrev:(rec?.laborDeduct!=null?rec.laborDeduct:laborMonthly);   // 上月勞保
+  const laborCurr=rec?.laborCurr!=null?rec.laborCurr:(rec?.laborDeduct!=null?rec.laborDeduct:laborMonthly);   // 本月勞保
+  const healthPrev=rec?.healthPrev!=null?rec.healthPrev:(rec?.healthDeduct!=null?rec.healthDeduct:healthTotal); // 上月健保
+  const healthCurr=rec?.healthCurr!=null?rec.healthCurr:(rec?.healthDeduct!=null?rec.healthDeduct:healthTotal); // 本月健保
   if(insMode==='new'){
     finalLabor=0; finalHealth=0; // 新人首月免扣
   } else if(insMode==='quit_prepay'){
-    // 離職預扣：本月一份 + 預扣次月一份 = ×2（用整月費用）
-    finalLabor=laborMonthly*2;
-    finalHealth=healthTotal*2;
+    // 離職預扣：上月 + 本月（兩個月各自金額相加，不再用 ×2）
+    finalLabor=laborPrev+laborCurr;
+    finalHealth=healthPrev+healthCurr;
   } else {
     finalLabor=isPartial?laborInMonth:laborMonthly;
     finalHealth=isPartial?(healthCharged?healthTotal:0):healthTotal;
@@ -1005,6 +1000,7 @@ function calcSalary(emp,rec,shifts){
     personalDeduct,absentDeduct,sickDeduct,
     mgrPoints,mgrDeduct,mgrNoBonus,
     laborBase,healthBase,healthTotal,finalLabor,finalHealth,
+    laborPrev,laborCurr,healthPrev,healthCurr,
     laborInsuredDays,healthCharged,laborInMonth,
     hireDate:emp2.hireDate,leaveDate:emp2.leaveDate,
     unenrollDate:unenrollDate?dateStr(unenrollDate.getFullYear(),unenrollDate.getMonth()+1,unenrollDate.getDate()):null,
@@ -1677,17 +1673,29 @@ function renderSheet(emp,rec,shifts,c){
 
           <div class="ins-trow">
             <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
-            <div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>
-            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">${viewMonth}月+${viewMonth+1}月保費 ×2</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
+            ${c.insMode==='quit_prepay'?`
+            <div class="prepay-inputs">
+              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.laborPrev}" onchange="patchRec('laborPrev',+this.value)" ${dis}></div>
+              <span class="prepay-plus">+</span>
+              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.laborCurr}" onchange="patchRec('laborCurr',+this.value)" ${dis}></div>
+            </div>
+            `:`<div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>`}
+            <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">上月$${c.laborPrev.toLocaleString()}+本月$${c.laborCurr.toLocaleString()}</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
             <div class="ins-tname">健保<div class="ins-tnote">本人 + 眷屬加保${c.depsFromHR?'<br><span style="color:var(--blue)">眷屬數來自人員資訊</span>':''}</div></div>
-            <div style="display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
+            ${c.insMode==='quit_prepay'?`
+            <div class="prepay-inputs">
+              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.healthPrev}" onchange="patchRec('healthPrev',+this.value)" ${dis}></div>
+              <span class="prepay-plus">+</span>
+              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.healthCurr}" onchange="patchRec('healthCurr',+this.value)" ${dis}></div>
+            </div>
+            `:`<div style="display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
               <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
               <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
-            </div>
-            <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">${viewMonth}月+${viewMonth+1}月保費 ×2</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
+            </div>`}
+            <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">上月$${c.healthPrev.toLocaleString()}+本月$${c.healthCurr.toLocaleString()}</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
@@ -1698,7 +1706,7 @@ function renderSheet(emp,rec,shifts,c){
         </div>
 
         ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
-        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣說明：每月薪資扣除的是「上個月」的保費。此次同時預扣 ${viewMonth} 月保費 + ${viewMonth+1} 月保費（共 ×2），因離職後無薪資可扣，故提前一併扣除。勞保 $${c.laborBase.toLocaleString()}×2 + 健保 $${c.healthTotal.toLocaleString()}×2，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。</div>`:''}
+        ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣說明：每月薪資扣除的是「上個月」的保費。此次同時扣 ${viewMonth-1<1?12:viewMonth-1} 月（上月）+ ${viewMonth} 月（本月）兩個月保費，因離職後無薪資可扣故提前一併扣除。上方可分別填入兩個月的實際金額（不足月時各自調整）。勞保 $${c.laborPrev.toLocaleString()}+$${c.laborCurr.toLocaleString()}、健保 $${c.healthPrev.toLocaleString()}+$${c.healthCurr.toLocaleString()}，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。</div>`:''}
         `:''}
       </div>
 
@@ -2333,10 +2341,10 @@ ${c.personalDeduct>0?`<tr><td>事假 ${fmtMin(c.personalMins)}${c.personalDates.
 ${c.sickDeduct>0?`<tr><td>病假 ${fmtMin(c.sickHours*60)}${c.sickDates.length?`<div class="sd">${c.sickDates.join('、')}</div>`:''}</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>`:''}
 ${c.absentDeduct>0?`<tr><td>曠職 ${Math.round(c.absentDays*10)/10}天${c.absentDates.length?`<div class="sd">${c.absentDates.join('、')}</div>`:''}</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>`:''}
 ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
-<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth}月+${viewMonth+1}月保費×2)`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
-<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth}月+${viewMonth+1}月保費×2)`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
+<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.laborPrev.toLocaleString()}+${viewMonth}月$${c.laborCurr.toLocaleString()})`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
+<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.healthPrev.toLocaleString()}+${viewMonth}月$${c.healthCurr.toLocaleString()})`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次預扣 ${viewMonth} 月＋${viewMonth+1} 月兩個月保費（各×2），因離職後無薪資可扣，故提前扣除。</td></tr>`:''}
+${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次扣 ${viewMonth-1<1?12:viewMonth-1} 月＋${viewMonth} 月兩個月保費，因離職後無薪資可扣，故提前一併扣除。</td></tr>`:''}
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table>`;
