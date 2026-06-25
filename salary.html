@@ -512,7 +512,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 </head>
 <body>
 
-<div class="topbar">
+<div class="topbar" id="pageTopbar">
   <div class="topbar-left">
     <button class="back-btn" onclick="if(document.referrer&&document.referrer.includes(location.host))history.back();else location.href='dashboard.html'">← 返回</button>
     <div class="dv"></div>
@@ -522,6 +522,13 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
     <span class="role-chip" id="roleChip">—</span>
   </div>
 </div>
+<script>
+  // 若被 dashboard 以 iframe 嵌入，隱藏自己的 topbar（避免與外層 topbar 重複）
+  if(window.self!==window.top){
+    var _tb=document.getElementById('pageTopbar');
+    if(_tb)_tb.style.display='none';
+  }
+</script>
 
 <div class="main" id="mainArea"><div class="loading-text">載入中…</div></div>
 
