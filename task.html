@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-  <link rel="preconnect" href="https://www.googleapis.com" crossorigin>
 <title>店務追蹤 — 鑫系統</title>
 <style>
 :root{
@@ -141,6 +138,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   .topbar h1{font-size:13px}
   .back-btn{font-size:11px;padding:0 10px;min-height:36px}
   .role-chip{font-size:10px;padding:2px 8px}
+  #btnNew .btn-label{display:none}
+  #btnNew{padding:0 11px;min-width:36px;justify-content:center}
   .main{padding:12px}
   .stats{grid-template-columns:repeat(2,1fr);gap:10px}
   .stat-card{padding:13px}
@@ -155,24 +154,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   .overlay{align-items:center;padding:16px}
   .modal{border-radius:16px;max-height:88vh}
 }
-
-/* embed 模式 */
-[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
-[data-embed="1"] body{padding-top:0!important}
-[data-embed="1"] #app{padding-top:0!important}
-[data-embed="1"] .main{padding-top:16px!important}
 </style>
-  <script>
-  /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
-  (function(){
-    if(new URLSearchParams(location.search).get("embed")==="1"){
-      var s=document.createElement("style");
-      s.textContent=".topbar{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important;position:static!important}body{padding-top:0!important}#app{padding-top:0!important}.main{padding-top:16px!important}#todayLabel,#clockLabel,#roleChip,.topbar-right,.topbar-left,.back-btn,.topbar-dv,.tb-dv,.dv{display:none!important}";
-      document.head.appendChild(s);
-      document.documentElement.setAttribute("data-embed","1");
-    }
-  })();
-  </script>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div>載入中…</div>
@@ -180,14 +162,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div id="app" style="display:none">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href=this.dataset.href||'dashboard.html';}">← 主選單</button>
+      <button class="back-btn" onclick="window.location.href='dashboard.html'">← 主選單</button>
       <div class="tb-dv"></div>
       <!-- 如需與其他頁一致顯示雞頭 logo，可在 📌 前加入：
            <img src="專案雞頭BASE64" style="width:28px;height:28px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:6px"> -->
       <h1>📌 店務追蹤</h1>
     </div>
     <div class="topbar-right">
-      <button class="btn btn-primary" id="btnNew">＋ 新增任務</button>
+      <button class="btn btn-primary" id="btnNew">＋<span class="btn-label"> 新增任務</span></button>
       <span class="role-chip" id="roleChip">—</span>
     </div>
   </div>
@@ -219,11 +201,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-// 店面名稱正規化（異體字容錯：舖/鋪）
-function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
-
 
 /* ─── 設定 ─── */
 const COLL = 'store_tasks';
@@ -316,7 +295,7 @@ async function loadTasks(){
     TASKS = [];
     snap.forEach(d=>{
       const t = { id:d.id, ...d.data() };
-      if(isHQ() || VIEW_LOCS.some(l=>normLoc(l)===normLoc(t.store))) TASKS.push(t);   // 總公司看全部，其餘僅可檢視店面
+      if(isHQ() || VIEW_LOCS.includes(t.store)) TASKS.push(t);   // 總公司看全部，其餘僅可檢視店面
     });
     render();
   }catch(e){
