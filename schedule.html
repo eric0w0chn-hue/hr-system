@@ -828,6 +828,7 @@ function renderSidebar(){
   const daySet={}; // empId -> Set of dates
   const nameMap={};
   Object.entries(shifts).forEach(([dateStr,arr])=>arr.forEach(s=>{
+    if(s.kind==='annual') return; // 特休不計入出勤天數
     if(!daySet[s.empId]) daySet[s.empId]=new Set();
     daySet[s.empId].add(dateStr);
     nameMap[s.empId]=s.empName;
@@ -848,7 +849,7 @@ function renderSidebar(){
 function shiftTypeButtons(onSelect){
   if(!shiftTypes.length)return '<div style="font-size:12px;color:var(--text3)">尚未設定班別，可至「班別設定」新增</div>';
   return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">${
-    shiftTypes.map(t=>`<button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="${onSelect}('${t.start}','${t.end}')">${t.name}<span style="color:var(--text3);margin-left:4px;font-size:11px">${t.start}-${t.end}</span></button>`).join('')
+    shiftTypes.map(t=>`<button type="button" class="btn shift-quick-btn" data-start="${t.start}" data-end="${t.end}" style="font-size:12px;padding:4px 10px" onclick="${onSelect}('${t.start}','${t.end}',this)">${t.name}<span style="color:var(--text3);margin-left:4px;font-size:11px">${t.start}-${t.end}</span></button>`).join('')
   }</div>`;
 }
 
@@ -875,6 +876,7 @@ window.openAddModal=function(dateStr=''){
             <button type="button" class="btn batch-kind-btn" id="kindAnnual" onclick="setBatchKind('annual')" style="flex:1">🌴 特休</button>
           </div>
           <div id="workFields">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">選擇班別（或自行設定下方時間）</div>
             <div style="margin-bottom:6px">${shiftTypeButtons('applyShiftType')}</div>
             <div class="time-row">
               <div class="fr"><label>上班時間</label><input type="time" id="m-start" value="09:00"></div>
@@ -943,6 +945,9 @@ window.addBatch=function(){
     const dow=new Date(el.dataset.date).getDay();const isHol=!!twHolidays[el.dataset.date];
     el.style.color=isHol||dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)';});
   document.getElementById('m-note').value='';
+  // 加完一批後重置：切回上班模式 + 清除班別快選高亮
+  if(typeof setBatchKind==='function') setBatchKind('work');
+  document.querySelectorAll('.shift-quick-btn').forEach(b=>{b.style.background='';b.style.color='';b.style.borderColor='';});
   updateBatchCount();renderPendingList();
 };
 
@@ -997,9 +1002,18 @@ window.updateBatchCount=function(){
   if(cnt) cnt.textContent=`已選 ${sel.length} 天`;
 };
 
-window.applyShiftType=function(start,end){
+window.applyShiftType=function(start,end,btn){
+  // 點選班別快選時，自動切回「上班」模式（避免殘留特休狀態）
+  if(typeof batchKind!=='undefined' && batchKind!=='work' && typeof setBatchKind==='function') setBatchKind('work');
   document.getElementById('m-start').value=start;
   document.getElementById('m-end').value=end;
+  // 高亮目前選中的班別按鈕，讓使用者清楚看到已選哪個
+  document.querySelectorAll('.shift-quick-btn').forEach(b=>{
+    const on = b.dataset.start===start && b.dataset.end===end;
+    b.style.background = on ? 'var(--accent)' : '';
+    b.style.color = on ? '#fff' : '';
+    b.style.borderColor = on ? 'var(--accent)' : '';
+  });
 };
 
 // ── 編輯排班 Modal ──
