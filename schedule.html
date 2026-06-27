@@ -666,6 +666,12 @@ function renderCalendar(){
     if(holiday)cls+=' is-holiday';
 
     const dayShifts=(shifts[dateStr]||[]).filter(s=>filterEmpIds.size===0||filterEmpIds.has(String(s.empId)));
+    // 依上班時間由早到晚排序（特休排最後）
+    dayShifts.sort((a,b)=>{
+      if(a.kind==='annual' && b.kind!=='annual') return 1;
+      if(a.kind!=='annual' && b.kind==='annual') return -1;
+      return (a.startTime||'').localeCompare(b.startTime||'');
+    });
     const shiftsHtml=dayShifts.map((s,idx)=>{
       const c=getEmpColor(s.empId);
       const delBtn = isReadOnly ? '' : `<span class="del-btn" onclick="event.stopPropagation();deleteShift('${dateStr}',${idx})">✕</span>`;
