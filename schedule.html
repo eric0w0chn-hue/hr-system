@@ -856,7 +856,9 @@ function shiftTypeButtons(onSelect){
 // ── 新增排班 Modal ──
 window.openAddModal=function(dateStr=''){
   pendingBatches=[]; // 重置待儲存清單
-  const empOptions=getEmpOptions();
+  // 若目前篩選單一人員，預設帶入該人員
+  const defaultEmpId = filterEmpIds.size===1 ? [...filterEmpIds][0] : '';
+  const empOptions=getEmpOptions(defaultEmpId);
   const calHtml=buildBatchCalendar(dateStr);
 
   document.getElementById('modalArea').innerHTML=`
