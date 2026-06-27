@@ -1127,9 +1127,19 @@ function getEmpOptions(selectedId=''){
           || e.uid===currentUser?.uid;
       });
 
+  // 若 selectedId 對應的員工不在 locEmps 裡（例如跨店支援），強制加入
+  let empPool = [...locEmps];
+  if(selectedId){
+    const alreadyIn = empPool.some(e=>String(e.id)===String(selectedId));
+    if(!alreadyIn){
+      const found = allEmployees.find(e=>String(e.id)===String(selectedId));
+      if(found) empPool = [found, ...empPool];
+    }
+  }
+
   // 依 workLocation 分組
   const groups = {};
-  locEmps.forEach(e => {
+  empPool.forEach(e => {
     const loc = e.workLocation || '（未設定）';
     if(!groups[loc]) groups[loc] = [];
     groups[loc].push(e);
