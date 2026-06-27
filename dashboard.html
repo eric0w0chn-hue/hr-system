@@ -124,7 +124,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── Main content ── */
 .main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);height:100vh;overflow:hidden}
 .main{height:100%;padding:0}
-.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg)}
+.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg);opacity:1;transition:opacity .18s ease}
+.content-frame.loading{opacity:0}
+/* iframe loading overlay */
+.iframe-loader{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10}
+.iframe-loader.show{opacity:1}
+.iframe-loader-bar{width:180px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.iframe-loader-bar::after{content:'';display:block;height:100%;width:40%;background:var(--accent);border-radius:2px;animation:ibar .9s ease-in-out infinite alternate}
+@keyframes ibar{from{transform:translateX(-60%)}to{transform:translateX(300%)}}
+.iframe-loader-text{font-size:12px;color:var(--text3)}
+.main{height:100%;padding:0;position:relative}
 .main-header{margin-bottom:24px}
 .main-header h2{font-size:20px;font-weight:700;color:var(--text)}
 .main-header p{font-size:12px;color:var(--text3);margin-top:4px}
@@ -349,6 +358,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <span>👁</span>
         <span id="previewNoticeText">目前為預覽模式</span>
         <span style="margin-left:auto;cursor:pointer;opacity:.7" onclick="setPreview(realRole)">✕ 返回實際視角</span>
+      </div>
+      <div class="iframe-loader" id="iframeLoader">
+        <div class="iframe-loader-bar"></div>
+        <div class="iframe-loader-text" id="iframeLoaderText">載入中…</div>
       </div>
       <iframe id="contentFrame" class="content-frame" src="" title="功能頁面"></iframe>
     </div>
@@ -787,6 +800,10 @@ window.goTo=function(page){
   if(page === 'checkout.html'){ window.location.href = page; return; }
   const frame = document.getElementById('contentFrame');
   const sep = page.includes('?') ? '&' : '?';
+  // 換頁前顯示 loading overlay
+  const _loader = document.getElementById('iframeLoader');
+  if(_loader){ _loader.classList.add('show'); }
+  frame.classList.add('loading');
   frame.src = page + sep + 'embed=1&v=4';
   // iframe 載入後直接設 data-embed，繞過 URLSearchParams 安全限制
   frame.onload = function(){
@@ -796,6 +813,9 @@ window.goTo=function(page){
       // 把 iframe topbar 的功能按鈕搬到主框架
       _syncIframeActions(frame);
     }catch(_){}
+    // 隱藏 loading overlay
+    if(_loader){ _loader.classList.remove('show'); }
+    frame.classList.remove('loading');
   };
   document.querySelectorAll('.sidebar-item').forEach(el=>{
     el.classList.toggle('active', el.dataset.page === page);
@@ -1145,6 +1165,14 @@ function initGroupDrag(){
       touchSrc.classList.remove('dragging-group');
       touchSrc=null;
     },{passive:true});
+  });
+}
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js')
+      .catch(function(err){ console.warn('SW 註冊失敗:', err); });
   });
 }
 </script>
