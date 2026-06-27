@@ -72,12 +72,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .admin-mode .drag-handle{display:block}
 .sidebar-group.dragging-group{opacity:.4}
 .sidebar-group.drag-group-over{border-top:2px solid rgba(255,200,50,.6)}
-.sidebar-group-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0}
-.sidebar-group-name{font-size:12px;font-weight:600;color:rgba(255,255,255,.75);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-group-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0;display:none}
+.sidebar-group-name{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px}
 .sidebar-chevron{font-size:9px;color:rgba(255,255,255,.4);transition:transform .2s;flex-shrink:0}
 .sidebar-group.open .sidebar-chevron{transform:rotate(90deg)}
-.sidebar-group-items{overflow:hidden;max-height:0;transition:max-height .25s ease}
-.sidebar-group.open .sidebar-group-items{max-height:600px}
+.sidebar-group-items{overflow:hidden;max-height:0;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
+.sidebar-group.open .sidebar-group-items{max-height:1000px}
 .sidebar-item{display:flex;align-items:center;gap:8px;padding:7px 14px 7px 14px;cursor:pointer;transition:background .15s;text-decoration:none;position:relative}
 .sidebar-item:hover{background:rgba(255,255,255,.08)}
 .sidebar-item.active{background:rgba(255,255,255,.14)}
@@ -515,7 +515,12 @@ function renderMainCards(role, visKeys, groups){
 // ── 群組展開/收合 ──
 window.toggleGroup=function(id){
   const el=document.getElementById('sg_'+id);
-  if(el) el.classList.toggle('open');
+  if(!el) return;
+  const isOpen = el.classList.contains('open');
+  // 收合所有群組
+  document.querySelectorAll('.sidebar-group').forEach(g=>g.classList.remove('open'));
+  // 若原本是關閉的才打開（點已開啟的群組 → 收合）
+  if(!isOpen) el.classList.add('open');
 };
 
 // ── sidebar mobile toggle ──
