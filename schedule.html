@@ -284,6 +284,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
     <div id="empFilterBar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="emp-filter-label">篩選同仁：</span>
       <div class="emp-filter-wrap" id="empFilterBtns"></div>
+      <select id="shiftFilterSel" onchange="setShiftFilter(this.value)" style="font-size:12px;padding:4px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;height:32px">
+        <option value="">班別：全部</option>
+      </select>
     </div>
     <div class="content-wrap">
       <div class="cal-section">
@@ -368,6 +371,7 @@ let batchKind='work';  // 目前這批類型 work/annual
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
 let isReadOnly=false; // 同仁唯讀模式
 let filterEmpIds=new Set(); // 人員複選篩選
+let filterShift=''; // 班別篩選（格式：'HH:MM-HH:MM'，空字串=全部）
 
 // ── Toast ──
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
@@ -586,6 +590,7 @@ window.changeMonth=async function(dir){
 window.onLocationChange=async function(){
   selectedLocation=document.getElementById('locationFilter').value;
   filterEmpIds.clear(); // 重設篩選
+  filterShift=''; // 重設班別篩選
   shifts={}; // 先清空，避免顯示舊店資料
   renderCalendar();renderLegend();renderSidebar();
   await loadShiftTypes(); // 載入該店的班別設定
@@ -668,7 +673,8 @@ function renderCalendar(){
     // 先標記原始 index，排序後用原始 idx 對應 shifts[dateStr]
     const dayShifts=(shifts[dateStr]||[])
       .map((s,i)=>({...s,_origIdx:i}))
-      .filter(s=>filterEmpIds.size===0||filterEmpIds.has(String(s.empId)));
+      .filter(s=>filterEmpIds.size===0||filterEmpIds.has(String(s.empId)))
+      .filter(s=>!filterShift||(s.startTime&&s.endTime&&`${s.startTime}-${s.endTime}`===filterShift));
     // 依上班時間由早到晚排序（特休排最後）
     dayShifts.sort((a,b)=>{
       if(a.kind==='annual' && b.kind!=='annual') return 1;
@@ -738,6 +744,30 @@ function renderLegend(){
         <span class="${cls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${name}
       </button>`;
     }).join('')+batchDelBtn;
+  updateShiftFilterOptions();
+}
+
+// ── 班別篩選 ──
+window.setShiftFilter=function(val){
+  filterShift=val;
+  renderCalendar();renderLegend();renderSidebar();
+};
+
+// ── 更新班別下拉選項（依當月有出現的班別）──
+function updateShiftFilterOptions(){
+  const sel=document.getElementById('shiftFilterSel');
+  if(!sel) return;
+  // 收集當月所有不重複的上下班時間組合
+  const options=new Set();
+  Object.values(shifts).forEach(arr=>arr.forEach(s=>{
+    if(s.startTime&&s.endTime&&s.kind!=='annual') options.add(`${s.startTime}-${s.endTime}`);
+  }));
+  // 依 shiftTypes 順序排列（有名稱的優先），再補其他
+  const sorted=[];
+  shiftTypes.forEach(t=>{const k=`${t.start}-${t.end}`;if(options.has(k)){sorted.push({k,label:`${t.name} ${k}`});options.delete(k);}});
+  options.forEach(k=>sorted.push({k,label:k}));
+  const cur=sel.value;
+  sel.innerHTML=`<option value="">班別：全部</option>`+sorted.map(({k,label})=>`<option value="${k}"${k===cur?' selected':''}>${label}</option>`).join('');
 }
 
 window.setEmpFilter=function(empId){
@@ -1017,9 +1047,20 @@ window.updateBatchCount=function(){
 window.applyShiftType=function(start,end,btn){
   // 點選班別快選時，自動切回「上班」模式（避免殘留特休狀態）
   if(typeof batchKind!=='undefined' && batchKind!=='work' && typeof setBatchKind==='function') setBatchKind('work');
-  document.getElementById('m-start').value=start;
-  document.getElementById('m-end').value=end;
-  // 高亮目前選中的班別按鈕，讓使用者清楚看到已選哪個
+  // Toggle：若已選同一班別，再點一次取消選取並清空時間
+  const mStart=document.getElementById('m-start');
+  const mEnd=document.getElementById('m-end');
+  const isSame = mStart && mEnd && mStart.value===start && mEnd.value===end;
+  if(isSame){
+    // 取消選取 → 清空時間欄位
+    if(mStart) mStart.value='';
+    if(mEnd) mEnd.value='';
+    document.querySelectorAll('.shift-quick-btn').forEach(b=>{b.style.background='';b.style.color='';b.style.borderColor='';});
+    return;
+  }
+  if(mStart) mStart.value=start;
+  if(mEnd) mEnd.value=end;
+  // 高亮目前選中的班別按鈕
   document.querySelectorAll('.shift-quick-btn').forEach(b=>{
     const on = b.dataset.start===start && b.dataset.end===end;
     b.style.background = on ? 'var(--accent)' : '';
