@@ -109,7 +109,7 @@ tr:hover td{background:#FAFBFC}
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
-import { doc, getDoc, getDocs, setDoc, updateDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, getDocs, setDoc, updateDoc, collection, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 // 店面名稱正規化（異體字容錯：舖/鋪）
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 
@@ -127,7 +127,11 @@ window.doSearch=async function(){
   const status=document.getElementById('f-status').value;
   document.getElementById('tableWrap').innerHTML='<div class="empty-state">查詢中...</div>';
   try{
-    const snap=await getDocs(collection(db,'attendance_anomaly'));
+    // Firestore 端篩選：有指定日期就用 where 下推，否則用 orderBy+limit 上限保護
+    const _qc=[collection(db,'attendance_anomaly')];
+    if(date){ _qc.push(where('date','==',date)); }
+    else    { _qc.push(orderBy('occurredAt','desc'), limit(500)); }
+    const snap=await getDocs(query(..._qc));
     let results=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(loc) results=results.filter(r=>normLoc(r.workLocation)===normLoc(loc));
     if(date) results=results.filter(r=>r.date===date);
