@@ -513,49 +513,41 @@ let _dataVersion = null;
 
 async function saveData(action='', detail='') {
   try {
+    // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
+    let finalEmployees = employees;
+    let finalResigned  = resigned;
+    if((currentUserRole==='manager' || currentUserRole==='consultant') && currentUserLocations.length){
+      const [fullEmpSnap, fullResSnap] = await Promise.all([
+        getDoc(doc(db,'hr','employees')),
+        getDoc(doc(db,'hr','resigned')),
+      ]);
+      if(fullEmpSnap.exists()){
+        const fullList = fullEmpSnap.data().list || [];
+        const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation));
+        finalEmployees = [...employees, ...othersEmp];
+      }
+      if(fullResSnap.exists()){
+        const fullResList = fullResSnap.data().list || [];
+        const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation));
+        finalResigned = [...resigned, ...othersRes];
+      }
+    }
+
     await runTransaction(db, async tx => {
       const vRef = doc(db,'hr','_version');
       const vSnap = await tx.get(vRef);
       const remoteVer = vSnap.exists() ? vSnap.data().v : 0;
 
-      // 有人在我們之後修改過 → 先重新載入資料再存
       if(_dataVersion !== null && remoteVer !== _dataVersion){
-        // 重新拉取最新資料後合併（以 Firestore 版本為準，本地的最新操作會在上面重試）
         throw Object.assign(new Error('VERSION_CONFLICT'), {isConflict:true});
       }
 
       const nextVer = (remoteVer||0) + 1;
       tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
-      tx.set(doc(db,'hr','interviews'),{list:interviews});
-
-      // ── 店長/顧問只有部分店面權限：存檔前先讀完整員工清單，補回看不到的員工 ──
-      let finalEmployees = employees;
-      let finalResigned  = resigned;
-      if(currentUserRole==='manager' || currentUserRole==='consultant'){
-        const [fullEmpSnap, fullResSnap] = await Promise.all([
-          tx.get(doc(db,'hr','employees')),
-          tx.get(doc(db,'hr','resigned')),
-        ]);
-        if(fullEmpSnap.exists()){
-          const fullList = fullEmpSnap.data().list || [];
-          // 保留其他店的員工，用本地版本覆蓋自己負責的店
-          const othersEmp = fullList.filter(r =>
-            currentUserLocations.length && !currentUserLocations.includes(r.workLocation)
-          );
-          finalEmployees = [...employees, ...othersEmp];
-        }
-        if(fullResSnap.exists()){
-          const fullResList = fullResSnap.data().list || [];
-          const othersRes = fullResList.filter(r =>
-            currentUserLocations.length && !currentUserLocations.includes(r.workLocation)
-          );
-          finalResigned = [...resigned, ...othersRes];
-        }
-      }
-
-      tx.set(doc(db,'hr','employees'), {list:finalEmployees});
-      tx.set(doc(db,'hr','resigned'),  {list:finalResigned});
-      tx.set(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
+      tx.set(doc(db,'hr','interviews'), {list:interviews});
+      tx.set(doc(db,'hr','employees'),  {list:finalEmployees});
+      tx.set(doc(db,'hr','resigned'),   {list:finalResigned});
+      tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
       _dataVersion = nextVer;
     });
     if(action) writeOpLog(action, detail);
