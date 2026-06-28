@@ -523,12 +523,15 @@ async function saveData(action='', detail='') {
       ]);
       if(fullEmpSnap.exists()){
         const fullList = fullEmpSnap.data().list || [];
-        const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation));
+        // 其他店的員工（自己店的用本地版本，以 id 去重）
+        const myIds = new Set(employees.map(r=>r.id));
+        const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation) && !myIds.has(r.id));
         finalEmployees = [...employees, ...othersEmp];
       }
       if(fullResSnap.exists()){
         const fullResList = fullResSnap.data().list || [];
-        const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation));
+        const myResIds = new Set(resigned.map(r=>r.id));
+        const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation) && !myResIds.has(r.id));
         finalResigned = [...resigned, ...othersRes];
       }
     }
