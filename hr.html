@@ -370,6 +370,8 @@ window.cddSelect=function(safeId,inputId,val){
     menu.classList.remove('open');
     menu.style.cssText='';
   }
+  // 工作地點變更時觸發求職者比對提示
+  if(inputId==='m-workLocation') checkInterviewMatch();
 };
 window.cddDel=function(listName,val,safeId,inputId){
   if(!confirm(`確定要刪除「${val}」嗎？`))return;
@@ -525,8 +527,34 @@ async function saveData(action='', detail='') {
       const nextVer = (remoteVer||0) + 1;
       tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
       tx.set(doc(db,'hr','interviews'),{list:interviews});
-      tx.set(doc(db,'hr','employees'), {list:employees});
-      tx.set(doc(db,'hr','resigned'),  {list:resigned});
+
+      // ── 店長/顧問只有部分店面權限：存檔前先讀完整員工清單，補回看不到的員工 ──
+      let finalEmployees = employees;
+      let finalResigned  = resigned;
+      if(currentUserRole==='manager' || currentUserRole==='consultant'){
+        const [fullEmpSnap, fullResSnap] = await Promise.all([
+          tx.get(doc(db,'hr','employees')),
+          tx.get(doc(db,'hr','resigned')),
+        ]);
+        if(fullEmpSnap.exists()){
+          const fullList = fullEmpSnap.data().list || [];
+          // 保留其他店的員工，用本地版本覆蓋自己負責的店
+          const othersEmp = fullList.filter(r =>
+            currentUserLocations.length && !currentUserLocations.includes(r.workLocation)
+          );
+          finalEmployees = [...employees, ...othersEmp];
+        }
+        if(fullResSnap.exists()){
+          const fullResList = fullResSnap.data().list || [];
+          const othersRes = fullResList.filter(r =>
+            currentUserLocations.length && !currentUserLocations.includes(r.workLocation)
+          );
+          finalResigned = [...resigned, ...othersRes];
+        }
+      }
+
+      tx.set(doc(db,'hr','employees'), {list:finalEmployees});
+      tx.set(doc(db,'hr','resigned'),  {list:finalResigned});
       tx.set(doc(db,'hr','settings'),  {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
       _dataVersion = nextVer;
     });
@@ -1458,8 +1486,9 @@ function openModal(mode, targetId, extraIdx) {
     const defaultLoc = mode==='addEmployee' ? (availLocs[0]||'') : (r.workLocation||'');
     const wlocOpts=availLocs.map(l=>`<option value="${l}"${defaultLoc===l?' selected':''}>${l}</option>`).join('');
     const titleOpts=titleOptions.map(l=>`<option value="${l}"${r.title===l?' selected':''}>${l}</option>`).join('');
-    html=`<div class="fg">
-      <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div>
+    html=`<div id="interview-match-hint" style="display:none;background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#E65100"></div>
+    <div class="fg">
+      <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}" oninput="checkInterviewMatch()" autocomplete="off"></div>
       <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
       <div class="fr" style="grid-column:span 2">
         <label>工作地點</label>
@@ -1951,6 +1980,31 @@ window.removeLeaveDate=async function(id,date){
   render(); showToast('儲存中...'); await saveData(); showToast('已移除 ✓');
 };
 
+// ── 新增同仁時比對求職者資訊 ──
+window.checkInterviewMatch = function(){
+  const hint = document.getElementById('interview-match-hint');
+  if(!hint) return;
+  const nameEl = document.getElementById('m-name');
+  const locEl  = document.getElementById('m-workLocation');
+  if(!nameEl || !locEl) return;
+  const name = nameEl.value.trim();
+  const loc  = locEl.value.trim();
+  if(!name){ hint.style.display='none'; return; }
+  // 比對求職者：姓名相同 且（地點相同 或 地點未填）
+  const matched = interviews.filter(iv =>
+    iv.name === name && (!loc || !iv.location || iv.location === loc)
+  );
+  if(matched.length === 0){ hint.style.display='none'; return; }
+  const m = matched[0];
+  const locTxt = m.location ? `「${m.location}」` : '';
+  hint.style.display = 'block';
+  hint.innerHTML = `⚠️ 求職者資訊中已有同名人員${locTxt}（狀態：${m.status||'—'}），`
+    + `建議改由<b>求職者資訊</b>頁面使用「✦ 轉為在職同仁」功能，以保留面試紀錄。`
+    + (m.status==='錄取'
+      ? `<div style="margin-top:6px"><button class="btn btn-sm" style="background:#F59E0B;color:#fff;border-color:#F59E0B" onclick="closeModal();switchTab('interview')">前往求職者資訊</button></div>`
+      : '');
+};
+
 // ── 勞保明細匯入 ──
 window.openInsuranceImport = function(){
   const html = `<div style="margin-bottom:12px;font-size:13px;color:#5A6175">
@@ -2129,14 +2183,34 @@ window.removeExtraLeaveDate=async function(id,date){
 };
 window.transferToEmployee=async function(id){
   const r=interviews.find(x=>x.id===id); if(!r)return;
-  if(!confirm(`確定要將「${r.name}」轉為在職同仁嗎？\n基本資料會自動帶入，可再到在職同仁頁面補充到職日等資訊。`))return;
-  // 面試地點 → 工作地點（若存在於 workLocations 清單則直接帶入，否則也帶入）
-  const wl = r.location||'';
-  // 優先帶入職稱清單第一個（若有），面試資料無職稱欄位
-  const defaultTitle = '正職同仁';
+  // 讓使用者確認工作地點（從 workLocations 清單選，確保與過濾條件一致）
+  const locOpts = workLocations.length ? workLocations : (r.location ? [r.location] : []);
+  // 預設選中與面試地點最接近的
+  const suggested = locOpts.find(l=>l===r.location) || locOpts[0] || r.location || '';
+  const locOptHtml = locOpts.map(l=>`<option value="${l}"${l===suggested?' selected':''}>${l}</option>`).join('');
+  const extraOpt = (!locOpts.includes(r.location) && r.location) ? `<option value="${r.location}" selected>${r.location}（面試地點）</option>` : '';
+  const html = `<div style="font-size:13px;color:#5A6175;margin-bottom:14px">請確認工作地點，系統將以此比對管理員權限。</div>
+    <div class="fr"><label>姓名</label><input value="${r.name}" disabled style="background:#f5f5f5"></div>
+    <div class="fr"><label>工作地點</label>
+      <select id="t-wl" style="width:100%;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
+        ${extraOpt}${locOptHtml}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="confirmTransfer(${id})">✓ 確認轉為在職</button>
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">取消</button>
+    </div>`;
+  showCustomModal(`✦ 將「${r.name}」轉為在職同仁`, html);
+};
+
+window.confirmTransfer=async function(id){
+  const r=interviews.find(x=>x.id===id); if(!r)return;
+  const wlEl=document.getElementById('t-wl');
+  const wl=wlEl?wlEl.value:(r.location||'');
+  closeModal();
   const newEmp={
     id:Date.now(), name:r.name, phone:'', email:'',
-    education:r.education||'', workLocation:wl, title:defaultTitle, status:'在職',
+    education:r.education||'', workLocation:wl, title:'正職同仁', status:'在職',
     startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
     note:r.note||'', emergency:{name:'',relation:'',phone:''},
     salaryHistory:[], performance:[], leaves:[], trainings:[]
