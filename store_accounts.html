@@ -371,24 +371,20 @@ authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: d
   _locations = locations;
   _db = dbRef;
 
-  // admin 看全部店面
-  if (role === 'admin') {
-    try {
-      const settSnap = await getDoc(doc(dbRef, 'hr', 'settings'));
-      const allLocs = settSnap.exists() ? (settSnap.data().workLocations || []) : [];
-      if (allLocs.length > 0) _locations = allLocs;
-    } catch(e) {
-      console.warn('[store_accounts] 無法讀取 hr/settings:', e);
-    }
+  // admin 看全部店面：hr/settings 與隱藏設定互不依賴，並行讀取
+  const [settSnap, hidSnap] = await Promise.all([
+    (role === 'admin')
+      ? getDoc(doc(dbRef, 'hr', 'settings')).catch(e => { console.warn('[store_accounts] 無法讀取 hr/settings:', e); return null; })
+      : Promise.resolve(null),
+    getDoc(doc(dbRef, 'settings', 'store_accounts_hidden')).catch(() => null),
+  ]);
+
+  if (role === 'admin' && settSnap && settSnap.exists()) {
+    const allLocs = settSnap.data().workLocations || [];
+    if (allLocs.length > 0) _locations = allLocs;
   }
 
-  // 讀取隱藏設定
-  try {
-    const hidSnap = await getDoc(doc(dbRef, 'settings', 'store_accounts_hidden'));
-    _hiddenMap = hidSnap.exists() ? (hidSnap.data() || {}) : {};
-  } catch(e) {
-    _hiddenMap = {};
-  }
+  _hiddenMap = (hidSnap && hidSnap.exists()) ? (hidSnap.data() || {}) : {};
 
   const rc = document.getElementById('roleChip');
   if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
