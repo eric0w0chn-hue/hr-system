@@ -34,6 +34,11 @@ const app  = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// 將 auth 實例掛到 window，供同源 iframe 子頁借用已驗證狀態
+// （主框架 dashboard 載入後，iframe 內的 authGuard 可透過 window.parent.__lpAuth
+//   取得已就緒的登入狀態，省去每次換頁重新初始化 Auth 的等待）
+try { window.__lpAuth = auth; } catch (_) {}
+
 // ── 跨頁快取（sessionStorage）──
 // permissions 和 userData 在同一 session 只讀一次，換頁不重打
 const PERM_KEY     = 'lp_perm_v1';
@@ -211,16 +216,38 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     });
   }
 
-  // ── Auth 放行策略 ──
-  // 同一 session 內換頁時，auth.currentUser 通常已有值，直接放行，
-  // 不必等 onAuthStateChanged 再跟伺服器確認一次（省去每次換頁的等待）。
+  // ── Auth 放行策略（三層，由快到慢）──
+  // ① 自己的 currentUser 已就緒（同頁內再次呼叫）→ 直接放行
+  // ② iframe 場景：借用主框架(dashboard)已驗證的 user，跳過 iframe 內
+  //    Auth SDK 重新初始化的等待（這段在新 iframe context 約需 1-2 秒，是換頁卡頓主因）
+  // ③ 冷啟動（首次開啟、無 parent 或 parent 尚未就緒）→ 掛 onAuthStateChanged 等待
   // 若 token 實際已失效，後續 Firestore 讀取會失敗並走 catch 導回登入頁，安全。
-  // 冷啟動（首次開啟、currentUser 尚未就緒）才掛 onAuthStateChanged 等待。
   if (auth.currentUser) {
     handleUser(auth.currentUser);
-  } else {
-    onAuthStateChanged(auth, user => { handleUser(user); });
+    return;
   }
+
+  // ② 嘗試借用主框架的已登入 user
+  let parentUser = null;
+  try {
+    if (window.parent && window.parent !== window) {
+      // 主框架與 iframe 同源，可直接存取 parent 的 Firebase Auth 狀態
+      const parentAuth = window.parent.__lpAuth;
+      if (parentAuth && parentAuth.currentUser) {
+        parentUser = parentAuth.currentUser;
+      }
+    }
+  } catch (_) { /* 跨源或尚未就緒，忽略 */ }
+
+  if (parentUser) {
+    handleUser(parentUser);
+    // 背景仍掛一次 onAuthStateChanged，確保狀態變動（登出等）能反映
+    onAuthStateChanged(auth, user => { if (!user) { window.location.href = redirectTo; } });
+    return;
+  }
+
+  // ③ 冷啟動才等
+  onAuthStateChanged(auth, user => { handleUser(user); });
 }
 
 /**

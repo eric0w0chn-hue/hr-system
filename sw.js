@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v2';
+const CACHE_NAME = 'lp-xin-v3';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [

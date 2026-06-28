@@ -385,6 +385,8 @@ const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomai
 const app=getApps().length?getApp():initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
+// 將 auth 暴露給同源 iframe 子頁借用，省去子頁重新初始化 Auth 的等待
+try{ window.__lpAuth=auth; }catch(_){}
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
 const roleBadgeClass={admin:'role-admin',consultant:'role-consultant',manager:'role-manager',employee:'role-employee'};
 let realRole='employee';
