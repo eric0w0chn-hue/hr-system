@@ -631,12 +631,15 @@ function getList() {
       return String(va).localeCompare(String(vb),'zh-TW')*sortDir;
     });
   } else if(tab==='employee'){
-    // 預設排序：職稱（店長→副店長→其他）優先，次要年資（到職日早者在前）
+    // 預設排序：職稱階級優先，次要年資（到職日早者在前）
     const titleRank = t => {
       const s = t||'';
-      if(s.includes('店長') && !s.includes('副')) return 0;  // 店長
-      if(s.includes('副店長') || (s.includes('副') && s.includes('店長'))) return 1; // 副店長
-      return 2; // 其他
+      if(s.includes('營運總監')) return 0;
+      if(s.includes('央廚總監')) return 1;
+      if(s.includes('開發經營')||s.includes('開發經理')||s.includes('財務經理')||s.includes('助理')) return 2;
+      if((s.includes('店長')&&!s.includes('副'))||(s.includes('廠長')&&!s.includes('副'))) return 3;
+      if(s.includes('副店長')||s.includes('副廠長')) return 4;
+      return 5; // 其餘（正職同仁等）
     };
     list=[...list].sort((a,b)=>{
       const ra=titleRank(a.title), rb=titleRank(b.title);
