@@ -1878,11 +1878,9 @@ window.showInsAuditTable=async function(){
   const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
   if(!emps.length){showToast('此店面無在職同仁');return;}
   showToast('載入核對資料中…',8000);
-  const rows=[];
-  for(const emp of emps){
-    const rec=await loadRec(emp.id,viewYear,viewMonth);
-    rows.push(calcInsAuditRow(emp,rec));
-  }
+  // 並行讀取所有員工 rec（取代逐一 await，N人改為一次等待）
+  const _recs=await Promise.all(emps.map(emp=>loadRec(emp.id,viewYear,viewMonth)));
+  const rows=emps.map((emp,i)=>calcInsAuditRow(emp,_recs[i]));
   window._insAuditRows=rows;
   window._insAuditCompare=null; // 比對結果清空
 
