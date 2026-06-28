@@ -1479,6 +1479,11 @@ function openModal(mode, targetId, extraIdx) {
   } else if(mode==='addEmployee'||mode==='editEmployee'){
     const r=mode==='editEmployee'?employees.find(x=>x.id===targetId):{};
     title=(mode==='addEmployee'?'新增':'編輯')+'同仁';
+    // 從求職者轉來且尚未建帳號的提示
+    const needAccountHint = (mode==='editEmployee' && r && !r.uid)
+      ? `<div style="background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#E65100">
+          ⚠️ 此同仁尚未建立登入帳號，請補填<b>身分證號</b>與<b>生日</b>後儲存，系統將自動建立帳號。
+         </div>` : '';
     // manager/consultant 只能選自己負責的店面；新增時預設第一個
     const availLocs = (currentUserRole==='admin')
       ? workLocations
@@ -1486,7 +1491,7 @@ function openModal(mode, targetId, extraIdx) {
     const defaultLoc = mode==='addEmployee' ? (availLocs[0]||'') : (r.workLocation||'');
     const wlocOpts=availLocs.map(l=>`<option value="${l}"${defaultLoc===l?' selected':''}>${l}</option>`).join('');
     const titleOpts=titleOptions.map(l=>`<option value="${l}"${r.title===l?' selected':''}>${l}</option>`).join('');
-    html=`<div id="interview-match-hint" style="display:none;background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#E65100"></div>
+    html=`${needAccountHint}<div id="interview-match-hint" style="display:none;background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#E65100"></div>
     <div class="fg">
       <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}" oninput="checkInterviewMatch()" autocomplete="off"></div>
       <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
@@ -1638,6 +1643,41 @@ async function saveModal(){
     const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,hourlyRate:parseInt(g('m-hourlyRate'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),note:g('m-note')};
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
+      // 若是從求職者轉來（uid 為空），補齊 idNo+birthday 後自動建帳號
+      if(!r.uid && empFields.idNo && empFields.birthday){
+        const idNo = empFields.idNo.trim().toUpperCase();
+        const birthday = empFields.birthday;
+        const parts = birthday.split('-');
+        let password = '';
+        if(parts.length===3){
+          const rocYear = parseInt(parts[0]) - 1911;
+          password = String(rocYear) + parts[1] + parts[2];
+        }
+        if(password){
+          const fakeEmail = `${idNo.toLowerCase()}@liangpinghri.com`;
+          try{
+            showToast('建立帳號中...');
+            const { initializeApp: initApp2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+            const { getAuth: getAuth2, createUserWithEmailAndPassword: createUser2, signOut: signOut2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+            const app2 = initApp2(firebaseConfig, 'secondary-'+Date.now());
+            const auth2 = getAuth2(app2);
+            const uc = await createUser2(auth2, fakeEmail, password);
+            const uid = uc.user.uid;
+            await signOut2(auth2);
+            empFields.uid = uid;
+            await setDoc(doc(db,'users',uid),{empId:tid, idNo, name:empFields.name, role:'employee', createdAt:new Date().toISOString()});
+            showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);
+          } catch(err){
+            if(err.code==='auth/email-already-in-use'){
+              alert(`此身分證號（${empFields.idNo}）已有帳號，請確認是否重複。`);
+            } else {
+              console.error(err);
+              alert('帳號建立失敗：'+err.message);
+            }
+            return;
+          }
+        }
+      }
       Object.assign(r,empFields);
     } else {
       // ── 新增同仁：用次要 Firebase 實例建立帳號，避免切換登入狀態 ──
@@ -2213,13 +2253,16 @@ window.confirmTransfer=async function(id){
     education:r.education||'', workLocation:wl, title:'正職同仁', status:'在職',
     startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
     note:r.note||'', emergency:{name:'',relation:'',phone:''},
-    salaryHistory:[], performance:[], leaves:[], trainings:[]
+    uid:'', salaryHistory:[], performance:[], leaves:[], trainings:[]
   };
   employees.unshift(newEmp);
   interviews=interviews.filter(x=>x.id!==id);
-  selId=null; tab='employee';
+  selId=newEmp.id; tab='employee';
   render(); showToast('轉移中...');
-  await saveData(); showToast(`${r.name} 已轉為在職同仁 ✓`);
+  await saveData();
+  showToast(`${r.name} 已轉為在職同仁，請補填身分證號與生日以建立登入帳號`, 4000);
+  // 自動開啟編輯 modal，提示補齊資料
+  setTimeout(()=>openModal('editEmployee', newEmp.id), 400);
 };
 
 // ── 新增銀行 ──
