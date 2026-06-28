@@ -1334,9 +1334,13 @@ let _preloadToken=0;
 async function preloadSnapshots(emps){
   if(!emps||!emps.length)return;
   const token=++_preloadToken;
-  for(const e of emps){
+  // 並行預載當店所有員工（取代逐一 await，N人由序列累加改為一次等待）
+  const pending=emps.filter(e=>{
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
-    if(snapCache[snapKey]!=null)continue;
+    return snapCache[snapKey]==null;
+  });
+  await Promise.all(pending.map(async e=>{
+    const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     try{
       const[shifts,rec]=await Promise.all([loadShifts(e.id,viewYear,viewMonth),loadRec(e.id,viewYear,viewMonth)]);
       if(token!==_preloadToken)return; // 已切換店面/月份，放棄
@@ -1352,7 +1356,7 @@ async function preloadSnapshots(emps){
           opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(Math.round(c.netPay)).toLocaleString()}`;
         }}
     }catch(err){}
-  }
+  }));
 }
 
 async function loadAndRender(empId,doScroll){
