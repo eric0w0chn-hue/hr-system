@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>資料還原工具</title>
+<style>
+body{font-family:sans-serif;max-width:700px;margin:40px auto;padding:20px;background:#f5f5f5}
+.card{background:#fff;border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+h2{margin:0 0 16px;color:#2D3142}
+.warn{background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;padding:12px 16px;font-size:13px;color:#E65100;margin-bottom:16px}
+.info{background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:12px 16px;font-size:13px;color:#1565C0;margin-bottom:16px}
+.ok{background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px 16px;font-size:13px;color:#2E7D32;margin-bottom:16px}
+.err{background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:12px 16px;font-size:13px;color:#C62828;margin-bottom:16px}
+button{padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;margin-right:8px;margin-bottom:8px}
+.btn-primary{background:#2D3142;color:#fff}
+.btn-danger{background:#e53935;color:#fff}
+.btn-ok{background:#2E7D32;color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+select,input{padding:8px 12px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;width:100%;margin-bottom:12px}
+#log{font-size:12px;color:#333;max-height:400px;overflow-y:auto;background:#f9f9f9;border-radius:6px;padding:12px;margin-top:12px;white-space:pre-wrap;border:1px solid #eee}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th{background:#f0f0f0;padding:6px 10px;text-align:left;border-bottom:2px solid #ddd}
+td{padding:6px 10px;border-bottom:1px solid #eee}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🔄 人員資料還原工具</h2>
+  <div class="warn">⚠️ 僅限 Admin 使用。還原會覆蓋目前 Firestore 的 employees / resigned 資料，請確認後再執行。</div>
+  <div id="status" class="info">確認登入中...</div>
+
+  <div id="main" style="display:none">
+    <div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">選擇備份日期（備份時間：每天台灣時間凌晨1點）</label>
+      <select id="dateSelect" onchange="loadBackup()">
+        <option value="">-- 載入備份清單中 --</option>
+      </select>
+    </div>
+
+    <div id="backupInfo"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary" id="btnPreview" onclick="preview()" disabled>🔍 預覽備份內容</button>
+      <button class="btn-danger" id="btnRestore" onclick="restore()" disabled>✓ 執行還原</button>
+    </div>
+
+    <div id="preview"></div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",
+  authDomain: "liangpinghri.firebaseapp.com",
+  projectId: "liangpinghri",
+  storageBucket: "liangpinghri.firebasestorage.app",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let backupData = null;
+
+function log(msg){ const el=document.getElementById('log'); el.textContent += msg+'\n'; el.scrollTop=el.scrollHeight; }
+function setStatus(msg,type='info'){ const el=document.getElementById('status'); el.className=type; el.textContent=msg; }
+
+onAuthStateChanged(auth, async user => {
+  if(!user){ setStatus('❌ 未登入，請先到系統登入後再開此頁', 'warn'); return; }
+  const uSnap = await getDoc(doc(db,'users',user.uid));
+  const role = uSnap.exists() ? uSnap.data().role : '';
+  if(role !== 'admin'){ setStatus('❌ 需要 Admin 權限', 'warn'); return; }
+  setStatus('✅ Admin 確認：' + (uSnap.data().name||user.email), 'ok');
+  document.getElementById('main').style.display='block';
+  await loadBackupList();
+});
+
+async function loadBackupList(){
+  try {
+    const listRef = ref(storage, 'hr_backups');
+    const res = await listAll(listRef);
+    const dates = res.prefixes.map(p=>p.name).sort().reverse(); // 最新的在前
+    const sel = document.getElementById('dateSelect');
+    sel.innerHTML = '<option value="">-- 請選擇備份日期 --</option>'
+      + dates.map(d=>`<option value="${d}">${d}</option>`).join('');
+    log('找到 '+dates.length+' 份備份：'+dates.slice(0,5).join(', ')+(dates.length>5?'...':''));
+  } catch(e) {
+    log('載入備份清單失敗：'+e.message);
+    // 嘗試直接列舉根目錄
+    try {
+      const listRef2 = ref(storage, '/');
+      const res2 = await listAll(listRef2);
+      log('Storage 根目錄內容：'+res2.prefixes.map(p=>p.name).join(', '));
+    } catch(e2){ log('Storage 存取失敗：'+e2.message); }
+  }
+}
+
+window.loadBackup = async function(){
+  const date = document.getElementById('dateSelect').value;
+  if(!date) return;
+  backupData = null;
+  document.getElementById('btnPreview').disabled = true;
+  document.getElementById('btnRestore').disabled = true;
+  document.getElementById('backupInfo').innerHTML = '<div class="info">載入備份中...</div>';
+  try {
+    // 嘗試多種路徑格式
+    const paths = [
+      `hr_backups/${date}/employees.json`,
+      `hr_backups/${date}/hr_employees.json`,
+      `backups/${date}/employees.json`,
+      `${date}/employees.json`,
+    ];
+    let empUrl = null, empData = null;
+    for(const p of paths){
+      try {
+        empUrl = await getDownloadURL(ref(storage, p));
+        const res = await fetch(empUrl);
+        empData = await res.json();
+        log('找到備份路徑：'+p);
+        break;
+      } catch(e){ /* 繼續嘗試 */ }
+    }
+    if(!empData){
+      // 列出該日期目錄內容
+      try {
+        const dirRef = ref(storage, `hr_backups/${date}`);
+        const dirRes = await listAll(dirRef);
+        log('hr_backups/'+date+' 內容：');
+        dirRes.items.forEach(i=>log('  '+i.fullPath));
+        if(dirRes.items.length > 0){
+          empUrl = await getDownloadURL(dirRes.items[0]);
+          const res = await fetch(empUrl);
+          empData = await res.json();
+          log('使用第一個檔案');
+        }
+      } catch(e){ log('目錄列舉失敗：'+e.message); }
+    }
+    if(!empData){ document.getElementById('backupInfo').innerHTML='<div class="err">❌ 找不到此日期的備份檔案，請嘗試其他日期</div>'; return; }
+
+    backupData = empData;
+    const count = Array.isArray(empData) ? empData.length : (empData.list ? empData.list.length : '?');
+    document.getElementById('backupInfo').innerHTML = `<div class="ok">✅ 備份載入成功，共 ${count} 筆員工資料</div>`;
+    document.getElementById('btnPreview').disabled = false;
+  } catch(e) {
+    document.getElementById('backupInfo').innerHTML = '<div class="err">❌ 載入失敗：'+e.message+'</div>';
+    log('詳細錯誤：'+e.stack);
+  }
+};
+
+window.preview = function(){
+  if(!backupData) return;
+  const list = Array.isArray(backupData) ? backupData : (backupData.list||[]);
+  const sample = list.slice(0,10);
+  let html = '<div style="margin-top:16px"><b>前10筆預覽：</b><table><tr><th>姓名</th><th>工作地點</th><th>職稱</th><th>狀態</th><th>到職日</th></tr>';
+  sample.forEach(r=>{ html+=`<tr><td>${r.name||'—'}</td><td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.status||'—'}</td><td>${r.startDate||'—'}</td></tr>`; });
+  html += '</table></div>';
+  document.getElementById('preview').innerHTML = html;
+  document.getElementById('btnRestore').disabled = false;
+};
+
+window.restore = async function(){
+  const list = Array.isArray(backupData) ? backupData : (backupData.list||[]);
+  if(!confirm(`確定要將 employees 還原為此備份的 ${list.length} 筆資料？\n目前 Firestore 的資料將被覆蓋。`)) return;
+  document.getElementById('btnRestore').disabled = true;
+  log('開始還原...');
+  try {
+    await setDoc(doc(db,'hr','employees'), {list});
+    log('✅ employees 還原完成，共 '+list.length+' 筆');
+    setStatus('✅ 還原完成！請重新開啟人員資訊頁面確認', 'ok');
+  } catch(e) {
+    log('❌ 還原失敗：'+e.message);
+    document.getElementById('btnRestore').disabled = false;
+  }
+};
+</script>
+</body>
+</html>
