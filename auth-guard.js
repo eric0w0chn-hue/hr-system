@@ -117,7 +117,7 @@ export async function authGuard(moduleKey, onReady, options = {}) {
   }, timeoutMs);
   const _clearWatchdog = () => { _settled = true; clearTimeout(_watchdog); };
 
-  onAuthStateChanged(auth, async user => {
+  async function handleUser(user) {
     // ① 未登入
     if (!user) {
       window.location.href = redirectTo;
@@ -209,7 +209,18 @@ export async function authGuard(moduleKey, onReady, options = {}) {
       db,
       auth,
     });
-  });
+  }
+
+  // ── Auth 放行策略 ──
+  // 同一 session 內換頁時，auth.currentUser 通常已有值，直接放行，
+  // 不必等 onAuthStateChanged 再跟伺服器確認一次（省去每次換頁的等待）。
+  // 若 token 實際已失效，後續 Firestore 讀取會失敗並走 catch 導回登入頁，安全。
+  // 冷啟動（首次開啟、currentUser 尚未就緒）才掛 onAuthStateChanged 等待。
+  if (auth.currentUser) {
+    handleUser(auth.currentUser);
+  } else {
+    onAuthStateChanged(auth, user => { handleUser(user); });
+  }
 }
 
 /**
