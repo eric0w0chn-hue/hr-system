@@ -790,7 +790,7 @@ window.goTo=function(page){
   if(page === 'checkout.html'){ window.location.href = page; return; }
   const frame = document.getElementById('contentFrame');
   const sep = page.includes('?') ? '&' : '?';
-  frame.src = page + sep + 'embed=1&v=4';
+  frame.src = page + sep + 'embed=1&v=' + Date.now();
   // iframe 載入後直接設 data-embed，繞過 URLSearchParams 安全限制
   frame.onload = function(){
     try{
