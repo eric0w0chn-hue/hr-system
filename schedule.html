@@ -1194,10 +1194,25 @@ function getEmpOptions(selectedId=''){
   });
   if(groups['（未設定）']) sortedLocs.push('（未設定）');
 
+  const titleRank = t => {
+    const s = t||'';
+    if(s.includes('營運總監')) return 0;
+    if(s.includes('央廚總監')) return 1;
+    if(s.includes('開發經營')||s.includes('開發經理')||s.includes('財務經理')||s.includes('助理')) return 2;
+    if((s.includes('店長')&&!s.includes('副'))||(s.includes('廠長')&&!s.includes('副'))) return 3;
+    if(s.includes('副店長')||s.includes('副廠長')) return 4;
+    return 5;
+  };
+  const byTitleSeniority = (a,b) => {
+    const ra=titleRank(a.title), rb=titleRank(b.title);
+    if(ra!==rb) return ra-rb;
+    const ta=a.startDate?new Date(a.startDate).getTime():Infinity;
+    const tb=b.startDate?new Date(b.startDate).getTime():Infinity;
+    return ta-tb;
+  };
   return sortedLocs.map(loc => {
-    const emps = groups[loc]
-      .filter(e => !e.status || e.status==='在職')
-      .concat(groups[loc].filter(e => e.status && e.status!=='在職'));
+    const emps = groups[loc].filter(e => !e.status || e.status==='在職').sort(byTitleSeniority)
+      .concat(groups[loc].filter(e => e.status && e.status!=='在職').sort(byTitleSeniority));
     const opts = emps.map(e => {
       const label = e.status && e.status!=='在職' ? `${e.name}（${e.status}）` : e.name;
       return `<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${label}</option>`;
