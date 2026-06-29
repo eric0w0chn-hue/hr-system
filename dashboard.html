@@ -260,6 +260,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   .role-badge{font-size:9px;padding:1px 5px;flex-shrink:0}
   .btn-logout{font-size:10px;padding:4px 8px;white-space:nowrap;flex-shrink:0}
 }
+
+/* ── 未完成事項紅點提示 ── */
+.sidebar-item.has-alert .item-name::after,
+.sidebar-group.has-alert > .sidebar-group-header .sidebar-group-name::after{
+  content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#FC5A5A;margin-left:7px;vertical-align:middle;
+  box-shadow:0 0 0 2px rgba(252,90,90,.25);
+  animation:alertPulse 1.8s ease-in-out infinite;
+}
+@keyframes alertPulse{0%,100%{opacity:1}50%{opacity:.45}}
+
 </style>
 </head>
 <body>
@@ -383,7 +394,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <script type="module">
 import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app=getApps().length?getApp():initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -519,11 +530,90 @@ function renderAll(role){
 
   // main cards
   renderMainCards(role, visKeys, groups);
+  // 檢查未完成事項，亮紅點（非阻塞，背景執行）
+  checkUnfinishedAlerts();
 }
 
 function renderMainCards(role, visKeys, groups){
   // 右側只顯示品牌 Hero，不渲染功能卡片
 }
+
+// ── 未完成事項檢查 ──
+function _twToday(){ return new Date(Date.now()+8*3600000).toISOString().slice(0,10); }
+
+async function checkUnfinishedAlerts(){
+  const alerts = {}; // moduleKey -> true
+  const today = _twToday();
+  // 取得全店清單（菜價/監視器用）
+  let allStores = [];
+  try{
+    const hs = await getDoc(doc(db,'hr','settings'));
+    if(hs.exists()) allStores = (hs.data().workLocations||[]).filter(Boolean);
+  }catch(e){}
+
+  // 並行檢查，個別失敗不影響其他
+  await Promise.allSettled([
+    // ① 店務追蹤：pending/in_progress 且 dueDate 已過期
+    (async()=>{
+      try{
+        const snap = await getDocs(collection(db,'store_tasks'));
+        const has = snap.docs.some(d=>{
+          const t=d.data();
+          const active = t.status==='pending'||t.status==='in_progress';
+          return active && t.dueDate && t.dueDate < today;
+        });
+        if(has) alerts['task']=true;
+      }catch(e){}
+    })(),
+    // ② 菜價回報：今日有店面未填
+    (async()=>{
+      try{
+        if(!allStores.length) return;
+        const snap = await getDocs(query(collection(db,'price_reports'), where('date','==',today)));
+        const filled = new Set(snap.docs.map(d=>(d.data().workLocation||d.data().store||'')));
+        const allFilled = allStores.every(s=>filled.has(s));
+        if(!allFilled) alerts['price']=true;
+      }catch(e){}
+    })(),
+    // ③ 監視器回報：今日有店面未填
+    (async()=>{
+      try{
+        if(!allStores.length) return;
+        const snap = await getDocs(query(collection(db,'cctv_reports'), where('date','==',today)));
+        const filled = new Set(snap.docs.map(d=>(d.data().workLocation||d.data().store||'')));
+        const allFilled = allStores.every(s=>filled.has(s));
+        if(!allFilled) alerts['cctv']=true;
+      }catch(e){}
+    })(),
+    // ④ 配送人員回報：今日未填（任一筆即視為已填）
+    (async()=>{
+      try{
+        const snap = await getDocs(query(collection(db,'delivery_reports'), where('date','==',today)));
+        if(snap.empty) alerts['delivery_report']=true;
+      }catch(e){}
+    })()
+  ]);
+
+  applyAlerts(alerts);
+}
+
+function applyAlerts(alerts){
+  // 先清除舊的
+  document.querySelectorAll('.sidebar-item.has-alert').forEach(el=>el.classList.remove('has-alert'));
+  document.querySelectorAll('.sidebar-group.has-alert').forEach(el=>el.classList.remove('has-alert'));
+  // 子項目加紅點 + 其所屬群組也加
+  Object.keys(alerts).forEach(key=>{
+    if(!alerts[key]) return;
+    const item = document.querySelector('.sidebar-item[data-key="'+key+'"]');
+    if(item){
+      item.classList.add('has-alert');
+      const gid = item.getAttribute('data-gid');
+      const grp = document.getElementById('sg_'+gid);
+      if(grp) grp.classList.add('has-alert');
+    }
+  });
+}
+
 
 // ── 群組展開/收合 ──
 window.toggleGroup=function(id){
