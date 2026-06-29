@@ -597,12 +597,23 @@ async function checkUnfinishedAlerts(){
         if(!allFilled) alerts['cctv']=true;
       }catch(e){}
     })(),
-    // ④ 配送人員回報：明日（deliveryDate = tomorrow）未填
+    // ④ 配送人員回報：明日所有央廚都填了才熄燈
     (async()=>{
       try{
         const tomorrow = new Date(Date.now()+8*3600000+86400000).toISOString().slice(0,10);
+        // 取得央廚清單（type==='central'）
+        const permSnap = await getDoc(doc(db,'settings','permissions'));
+        const locTypes = permSnap.exists() ? (permSnap.data().locationTypes||{}) : {};
+        let centralStores = Object.entries(locTypes).filter(([l,t])=>t==='central').map(([l])=>l);
+        // 依角色決定要檢查的央廚範圍
+        if(!seeAll && myLocs.length){
+          centralStores = myLocs.filter(l=>centralStores.includes(l));
+        }
+        if(!centralStores.length) return; // 無央廚設定，略過
         const snap = await getDocs(query(collection(db,'delivery_reports'), where('deliveryDate','==',tomorrow)));
-        if(snap.empty) alerts['delivery_report']=true;
+        const filled = new Set(snap.docs.map(d=>normLoc(d.data().store||'')));
+        const allFilled = centralStores.every(s=>filled.has(normLoc(s)));
+        if(!allFilled) alerts['delivery_report']=true;
       }catch(e){}
     })()
   ]);
