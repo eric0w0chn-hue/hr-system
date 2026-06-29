@@ -83,11 +83,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .b-pri-high{background:#FFF1DC;color:var(--warn)}
 .b-pri-urgent{background:#FCE9E7;color:var(--danger)}
 .b-cat{background:var(--surface2);color:var(--text2)}
-.progress-track{height:7px;background:var(--surface2);border-radius:6px;overflow:hidden;margin:10px 0 8px}
-.progress-fill{height:100%;background:var(--info);border-radius:6px;transition:width .3s}
-.progress-fill.f-done{background:var(--ok)}
 .tc-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--text2);flex-wrap:wrap}
-.tc-meta .pct{font-weight:700;color:var(--text)}
 .empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:14px}
 
 /* ── Detail / timeline ── */
@@ -119,9 +115,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .form-row textarea{min-height:84px;resize:vertical}
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent)}
 .req::after{content:' *';color:var(--danger)}
-.range-wrap{display:flex;align-items:center;gap:12px}
-.range-wrap input[type=range]{flex:1;min-height:auto;padding:0;accent-color:var(--accent)}
-.range-val{font-size:18px;font-weight:800;min-width:54px;text-align:right}
 .modal-footer{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 .modal-footer .btn{flex:1;justify-content:center}
 
@@ -410,8 +403,8 @@ function cardHTML(t){
   if(f.stale) badges.push(`<span class="badge b-stale">${f.staleDays}天未更新</span>`);
   if(t.category) badges.push(`<span class="badge b-cat">${esc(t.category)}</span>`);
 
-  const pct = Math.max(0,Math.min(100, t.progress||0));
   const due = t.dueDate ? `預計 ${esc(t.dueDate)}` : '未設定完成日';
+  const lastNote = (t.updates||[]).slice().reverse().find(u=>u.type==='progress'&&u.note);
 
   return `<div class="task-card ${lv}" data-id="${t.id}">
     <div class="tc-top">
@@ -421,8 +414,8 @@ function cardHTML(t){
       </div>
     </div>
     <div class="badges">${badges.join('')}</div>
-    <div class="progress-track"><div class="progress-fill ${pct>=100?'f-done':''}" style="width:${pct}%"></div></div>
-    <div class="tc-meta"><span class="pct">${pct}%</span><span>${due}　·　建立：${esc(t.createdBy||'—')}</span></div>
+    ${lastNote?`<div style="font-size:12px;color:var(--text2);margin:8px 0 2px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">💬 ${esc(lastNote.note)}</div>`:''}
+    <div class="tc-meta" style="margin-top:8px"><span>${due}</span><span>建立：${esc(t.createdBy||'—')}</span></div>
   </div>`;
 }
 
@@ -438,7 +431,6 @@ function openDetail(id){
   rows+=drow('分類', esc(t.category||'—'));
   rows+=drow('優先', PRI[t.priority]||'一般');
   rows+=drow('預計完成', (t.dueDate?esc(t.dueDate):'未設定') + (f.overdue?' 🔴 已逾期':''));
-  rows+=drow('進度', pct+'%');
   rows+=drow('建立', esc(t.createdBy||'—')+'　'+fmt(t.createdAt));
   if(t.status==='completed') rows+=drow('完成', fmt(t.completedAt));
   if(t.status==='cancelled') rows+=drow('作廢', esc(t.cancelledBy||'—')+'　'+fmt(t.cancelledAt));
@@ -531,30 +523,26 @@ async function saveCreate(){
 
 /* ─── 更新進度 ─── */
 function openProgress(t){
-  const pct=Math.max(0,Math.min(100,t.progress||0));
   showModal(`
     <div class="modal-title">↻ 更新進度 — ${esc(t.title)}</div>
-    <div class="form-row"><label>目前進度</label>
-      <div class="range-wrap"><input type="range" id="pRange" min="0" max="100" step="5" value="${pct}"><span class="range-val" id="pVal">${pct}%</span></div></div>
     <div class="form-row"><label class="req">進度說明</label><textarea id="pNote" placeholder="這次進展、目前狀況、卡關點…"></textarea></div>
     <div class="modal-footer">
       <button class="btn" data-close>取消</button>
       <button class="btn btn-primary" id="pSave">儲存進度</button>
     </div>
   `);
-  const r=document.getElementById('pRange'); r.addEventListener('input',()=>document.getElementById('pVal').textContent=r.value+'%');
   document.getElementById('pSave').addEventListener('click',()=>saveProgress(t.id));
 }
 async function saveProgress(id){
-  const progress=parseInt(val('pRange'),10)||0; const note=val('pNote').trim();
+  const note=val('pNote').trim();
   if(!note){ toast('請填寫進度說明'); return; }
   busy('pSave',true);
   try{
     const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
     if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束，無法更新');
-    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'progress',note,progress}];
-    await updateDoc(doc(db,COLL,id), { progress, status:'in_progress', lastUpdate:serverTimestamp(), updates:ups });
-    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'更新進度', detail:`${fresh.store}｜${fresh.title}（${progress}%）` });
+    const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'progress',note}];
+    await updateDoc(doc(db,COLL,id), { status:'in_progress', lastUpdate:serverTimestamp(), updates:ups });
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'更新進度', detail:`${fresh.store}｜${fresh.title}` });
     closeModal(); toast('進度已更新'); await loadTasks();
   }catch(e){ console.error(e); toast('更新失敗：'+(e.message||e)); busy('pSave',false); }
 }
