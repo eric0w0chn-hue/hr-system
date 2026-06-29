@@ -869,7 +869,9 @@ function render() {
       <div class="sc"><div class="sl">現有店面數</div><div class="sn">${stores}</div></div>
     </div>`;
     const sopts=['','在職','留職停薪'].map(s=>`<option value="${s}"${sf===s?' selected':''}>${s||'全部狀態'}</option>`).join('');
-    const visibleLocs=[...new Set(visibleAll.map(r=>r.workLocation).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-TW'));
+    // 照 workLocations 設定順序；若有不在清單的店名，補到最後
+    const empLocs=new Set(visibleAll.map(r=>r.workLocation).filter(Boolean));
+    const visibleLocs=[...workLocations.filter(l=>empLocs.has(l)),...[...empLocs].filter(l=>!workLocations.includes(l))];
     const lopts=['<option value="">全部店面</option>',...visibleLocs.map(l=>`<option value="${l}"${sloc===l?' selected':''}>${l}</option>`)].join('');
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>

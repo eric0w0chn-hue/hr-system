@@ -730,7 +730,7 @@ async function loadEmployees(){
 }
 async function loadStores(locations,userData){
   try{const s=await getDoc(doc(db,'hr','settings'));
-    allStores=s.exists()?(s.data().workLocations||[]).filter(Boolean).sort():[];
+    allStores=s.exists()?(s.data().workLocations||[]).filter(Boolean):[];
     if(CU.role==='admin'||CU.role==='consultant'){viewableStores=[...allStores];}
     else{const my=Array.isArray(userData.locations)?userData.locations:[];
       viewableStores=allStores.filter(x=>my.some(l=>normStore(l)===normStore(x)));
