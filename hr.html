@@ -714,8 +714,6 @@ function render() {
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSf(this.value)">${sopts}</select>
-      <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
-      <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
       <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增求職者</button>
     </div>
     <div class="tw"><table>
@@ -795,7 +793,6 @@ function render() {
     </div>`;
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
-      <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
     </div>
     <div class="tw"><table>
       <thead><tr>
@@ -876,10 +873,7 @@ function render() {
     const lopts=['<option value="">全部店面</option>',...visibleLocs.map(l=>`<option value="${l}"${sloc===l?' selected':''}>${l}</option>`)].join('');
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
-      <select onchange="setSf(this.value)">${sopts}</select>
       <select onchange="setSloc(this.value)">${lopts}</select>
-      <button class="btn btn-outline" onclick="exportJSON()" title="備份資料">⬇ 備份</button>
-      <button class="btn btn-outline" onclick="importJSON()" title="還原資料">⬆ 還原</button>
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
