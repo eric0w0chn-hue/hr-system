@@ -677,11 +677,11 @@ function calcEmployedDays(emp,y,m,rec){
     inEmploy:(dayNum)=>partial?(dayNum>=sN&&dayNum<=eN):true
   };
 }
-// 退保日：預設離職日次日（可由 rec.unenrollOverride 覆蓋）
+// 退保日：預設與離職日同天（可由 rec.unenrollOverride 覆蓋）
 function getUnenrollDate(emp,rec,leaveDate){
   if(rec&&rec.unenrollOverride)return new Date(rec.unenrollOverride);
   if(!leaveDate)return null;
-  const d=new Date(leaveDate);d.setDate(d.getDate()+1);return d; // 預設離職次日退保
+  return new Date(leaveDate); // 預設與離職日同天
 }
 
 authGuard('salary',({user,uid,role,locations,userData})=>{
@@ -928,36 +928,32 @@ function calcSalary(emp,rec,shifts){
   if(_hd&&_hd.getFullYear()===viewYear&&(_hd.getMonth()+1)===viewMonth)autoInsMode='new';
   const insMode=rec?.insMode||autoInsMode;
 
-  // ── 勞保：按「在保天數」計算（不足月）──
-  // 在保天數 = 退保日 − 到職日(或月初)。退保日預設離職次日，故離職日當天仍在保。
+  // ── 勞保：在保天數 = 到職日到退保日（含頭尾）──
+  // 退保日可能等於離職日（當天辦）或晚一天（隔天才辦），以退保日為準
   const dim2=getDaysInMonth(viewYear,viewMonth);
-  let laborInMonth=laborMonthly; // 預設整月
+  let laborInMonth=laborMonthly;
   let laborInsuredDays=dim2;
-  let healthCharged=true;        // 健保是否扣（非足月時依退保日）
+  let healthCharged=true;
   let unenrollDate=null;
   if(isPartial){
-    // 在保起日
     const monthStart=new Date(viewYear,viewMonth-1,1);
-    const startD=emp2.hireDate&&new Date(emp2.hireDate)>monthStart?new Date(emp2.hireDate):monthStart;
-    // 退保日（離職者才有）
-    unenrollDate=getUnenrollDate(emp,rec,emp2.leaveDate);
     const monthEnd=new Date(viewYear,viewMonth-1,dim2);
-    let endInsured=monthEnd;
-    if(unenrollDate){
-      // 在保到「退保日前一天」；退保日落在當月內才縮短
-      const ub=new Date(unenrollDate);ub.setDate(ub.getDate()-1);
-      if(ub<monthEnd)endInsured=ub;
-    }
-    laborInsuredDays=Math.max(0,Math.round((endInsured-startD)/86400000)+1);
+    // 起日：到職日或月初（取較晚者）
+    const startD=emp2.hireDate&&new Date(emp2.hireDate)>monthStart?new Date(emp2.hireDate):monthStart;
+    // 退保日（有設定才用，否則用月底）
+    unenrollDate=getUnenrollDate(emp,rec,emp2.leaveDate);
+    let endD=monthEnd;
+    if(unenrollDate&&unenrollDate<monthEnd)endD=unenrollDate;
+    // 在保天數 = 到職日到退保日（含頭尾）
+    laborInsuredDays=Math.max(0,Math.round((endD-startD)/86400000)+1);
     laborInMonth=Math.round(laborMonthly/dim2*laborInsuredDays);
-    // ── 健保：只要退保日不是當月最後一天 → 不扣；退保=當月最後一天才扣整月 ──
+    // ── 健保：退保日是否為當月最後一天才決定扣整月 ──
     if(unenrollDate){
       const uYM=unenrollDate.getFullYear()===viewYear&&(unenrollDate.getMonth()+1)===viewMonth;
-      // 退保日在當月：若退保日 != 當月最後一天 → 不扣健保
       if(uYM){healthCharged=(unenrollDate.getDate()===dim2);}
-      else {healthCharged=true;} // 退保日已跨到次月 → 當月整月在保，扣
+      else{healthCharged=true;}
     } else {
-      healthCharged=true; // 純到職不足月（無離職），健保照扣整月
+      healthCharged=true;
     }
   }
 
@@ -1701,7 +1697,7 @@ function renderSheet(emp,rec,shifts,c){
             <div class="employ-item"><label>離職日</label><input type="date" value="${(c.leaveDate&&toDateInput(c.leaveDate))||''}" onchange="patchRec('leaveOverride',this.value||null)" ${dis}></div>
             <div class="employ-item"><label>退保日 <span style="color:var(--text3)">（預設離職次日）</span></label><input type="date" value="${c.unenrollDate?toDateInput(c.unenrollDate):''}" onchange="patchRec('unenrollOverride',this.value||null)" ${dis}></div>
           </div>
-          <div class="employ-note">手動設定後即覆蓋 HR 資料；退保日比離職日晚 1 天會多 1 天勞保。健保只有當月最後一天退保才扣整月。</div>`:''}
+          <div class="employ-note">在保天數 = 到職日到退保日（含頭尾）。退保日可與離職日同天或晚一天。健保只有退保日為當月最後一天才扣整月。</div>`:''}
         </div>
 
         <div class="ins-table">
