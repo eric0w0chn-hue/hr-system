@@ -1910,15 +1910,14 @@ window.exportSalaryXlsx=async function(){
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
       recMap.set(emp.id,Math.round(c.netPay));
     }));
-    // 建工作表資料（模仿你的格式）
-    // 第1列：標題列 鑫營-YYYY年 + 當月人數 + 會計 + 人員姓名...
-    // 第2列：空白 + 空白 + 空白 + 編號(1,2,3...)
-    // 第3列：月份 + 人數 + 合計 + 各人實領
-    const row1=['鑫營-'+viewYear+'年','當月人數','會計',...emps.map(e=>e.name)];
-    const row2=['','','', ...emps.map((_,i)=>i+1)];
+    // 建工作表資料（對應格式）
+    // A1=年份  B1起=人員姓名
+    // A2=當月人數  B2起=編號(1,2,3...)
+    // A3=月份  B3起=各人實領
+    const row1=[`${viewYear}年`, ...emps.map(e=>e.name)];
+    const row2=['當月人數', ...emps.map((_,i)=>i+1)];
     const netPays=emps.map(e=>recMap.get(e.id)||0);
-    const total=netPays.reduce((s,v)=>s+v,0);
-    const row3=[`${viewMonth}月`, emps.length, total, ...netPays];
+    const row3=[`${viewMonth}月`, ...netPays];
     const ws=XLSX.utils.aoa_to_sheet([row1,row2,row3]);
     // 欄寬設定
     ws['!cols']=[{wch:12},{wch:10},{wch:10},...emps.map(()=>({wch:10}))];
