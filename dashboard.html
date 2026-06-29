@@ -597,10 +597,11 @@ async function checkUnfinishedAlerts(){
         if(!allFilled) alerts['cctv']=true;
       }catch(e){}
     })(),
-    // ④ 配送人員回報：今日未填（任一筆即視為已填）
+    // ④ 配送人員回報：明日（deliveryDate = tomorrow）未填
     (async()=>{
       try{
-        const snap = await getDocs(query(collection(db,'delivery_reports'), where('date','==',today)));
+        const tomorrow = new Date(Date.now()+8*3600000+86400000).toISOString().slice(0,10);
+        const snap = await getDocs(query(collection(db,'delivery_reports'), where('deliveryDate','==',tomorrow)));
         if(snap.empty) alerts['delivery_report']=true;
       }catch(e){}
     })()
