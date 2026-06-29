@@ -542,16 +542,24 @@ function renderMainCards(role, visKeys, groups){
 function _twToday(){ return new Date(Date.now()+8*3600000).toISOString().slice(0,10); }
 
 async function checkUnfinishedAlerts(){
-  const alerts = {}; // moduleKey -> true
+  const alerts = {};
   const today = _twToday();
-  // 取得全店清單（菜價/監視器用）
-  let allStores = [];
+  const role = window._myRole || 'employee';
+  const myLocs = window._myLocations || [];
+  const seeAll = (role==='admin' || role==='consultant'); // 看全部店
+
+  // 店名正規化（處理 舖/鋪 異體字、去空白）
+  const normLoc = s => (s||'').replace(/鋪/g,'舖').replace(/\s/g,'').trim();
+
+  // 決定要檢查的店面清單
+  let targetStores = [];
   try{
     const hs = await getDoc(doc(db,'hr','settings'));
-    if(hs.exists()) allStores = (hs.data().workLocations||[]).filter(Boolean);
+    const allStores = hs.exists() ? (hs.data().workLocations||[]).filter(Boolean) : [];
+    targetStores = seeAll ? allStores : myLocs.filter(Boolean);
   }catch(e){}
+  const targetSet = new Set(targetStores.map(normLoc));
 
-  // 並行檢查，個別失敗不影響其他
   await Promise.allSettled([
     // ① 店務追蹤：pending/in_progress 且 dueDate 已過期
     (async()=>{
@@ -560,28 +568,32 @@ async function checkUnfinishedAlerts(){
         const has = snap.docs.some(d=>{
           const t=d.data();
           const active = t.status==='pending'||t.status==='in_progress';
-          return active && t.dueDate && t.dueDate < today;
+          if(!(active && t.dueDate && t.dueDate < today)) return false;
+          // 非看全部者，只看自己店的任務
+          if(seeAll) return true;
+          const tStore = normLoc(t.store||t.workLocation||t.location||'');
+          return !tStore || targetSet.has(tStore);
         });
         if(has) alerts['task']=true;
       }catch(e){}
     })(),
-    // ② 菜價回報：今日有店面未填
+    // ② 菜價回報：自己管轄的店今日有未填
     (async()=>{
       try{
-        if(!allStores.length) return;
+        if(!targetStores.length) return;
         const snap = await getDocs(query(collection(db,'price_reports'), where('date','==',today)));
-        const filled = new Set(snap.docs.map(d=>(d.data().workLocation||d.data().store||'')));
-        const allFilled = allStores.every(s=>filled.has(s));
+        const filled = new Set(snap.docs.map(d=>normLoc(d.data().store||d.data().workLocation||'')));
+        const allFilled = targetStores.every(s=>filled.has(normLoc(s)));
         if(!allFilled) alerts['price']=true;
       }catch(e){}
     })(),
-    // ③ 監視器回報：今日有店面未填
+    // ③ 監視器回報：自己管轄的店今日有未填
     (async()=>{
       try{
-        if(!allStores.length) return;
+        if(!targetStores.length) return;
         const snap = await getDocs(query(collection(db,'cctv_reports'), where('date','==',today)));
-        const filled = new Set(snap.docs.map(d=>(d.data().workLocation||d.data().store||'')));
-        const allFilled = allStores.every(s=>filled.has(s));
+        const filled = new Set(snap.docs.map(d=>normLoc(d.data().store||d.data().workLocation||'')));
+        const allFilled = targetStores.every(s=>filled.has(normLoc(s)));
         if(!allFilled) alerts['cctv']=true;
       }catch(e){}
     })(),
@@ -783,6 +795,7 @@ onAuthStateChanged(auth,async user=>{
       const role=data.role||'employee';
       const name=data.name||'使用者';
       realRole=role; _currentUid=user.uid;
+      window._myRole=role; window._myLocations=data.locations||[];
       document.getElementById('userAv').textContent=(name||'?').slice(0,1);
       document.getElementById('userName').textContent=name;
       document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
