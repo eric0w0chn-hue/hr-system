@@ -9,6 +9,7 @@
 <title>薪資計算 — 鑫系統</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;
@@ -1311,6 +1312,7 @@ function renderMain(){
       </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
       ${curEmps.length?`<button class="btn-sm o" onclick="showInsAuditTable()" title="全店勞健保核對總表" style="margin-left:auto;white-space:nowrap">📋 勞健保核對表</button>`:''}
+      ${curEmps.length?`<button class="btn-sm o" onclick="exportSalaryXlsx()" title="匯出全部店面本月實領薪資 Excel" style="white-space:nowrap">📊 匯出薪資總表</button>`:''}
       ${curEmps.length?`<button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單" style="white-space:nowrap">📦 批次匯出全店</button>`:''}
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
@@ -1882,7 +1884,57 @@ window.applyAllInsSuggest=async function(){
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
 };
 
-// ── 勞健保核對總表 ──
+// ── 匯出全部店面本月實領薪資 xlsx ──
+// 格式：每店一個工作表，欄=人員（系統清單順序），單月一列
+window.exportSalaryXlsx=async function(){
+  if(typeof XLSX==='undefined'){showToast('⚠️ SheetJS 尚未載入，請稍後再試');return;}
+  const allStores=viewableStores; // 目前使用者可見的全部店面
+  if(!allStores||!allStores.length){showToast('⚠️ 無法取得店面清單');return;}
+  showToast(`載入各店面薪資中，請稍候…`,30000);
+  const wb=XLSX.utils.book_new();
+  const monthLabel=`${viewYear}年${viewMonth}月`;
+  let totalSheets=0;
+  for(const store of allStores){
+    const emps=storeEmps(store).filter(e=>{
+      const e2=calcEmployedDays(e,viewYear,viewMonth,null);
+      return e2.days>0;
+    });
+    if(!emps.length)continue; // 無在職同仁的店跳過
+    // 讀取每人薪資紀錄
+    const recMap=new Map();
+    await Promise.all(emps.map(async emp=>{
+      const[shifts,rec]=await Promise.all([
+        loadShifts(emp.id,viewYear,viewMonth),
+        loadRec(emp.id,viewYear,viewMonth)
+      ]);
+      const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+      recMap.set(emp.id,Math.round(c.netPay));
+    }));
+    // 建工作表資料（模仿你的格式）
+    // 第1列：標題列 鑫營-YYYY年 + 當月人數 + 會計 + 人員姓名...
+    // 第2列：空白 + 空白 + 空白 + 編號(1,2,3...)
+    // 第3列：月份 + 人數 + 合計 + 各人實領
+    const row1=['鑫營-'+viewYear+'年','當月人數','會計',...emps.map(e=>e.name)];
+    const row2=['','','', ...emps.map((_,i)=>i+1)];
+    const netPays=emps.map(e=>recMap.get(e.id)||0);
+    const total=netPays.reduce((s,v)=>s+v,0);
+    const row3=[`${viewMonth}月`, emps.length, total, ...netPays];
+    const ws=XLSX.utils.aoa_to_sheet([row1,row2,row3]);
+    // 欄寬設定
+    ws['!cols']=[{wch:12},{wch:10},{wch:10},...emps.map(()=>({wch:10}))];
+    // 樣式：凍結前3欄方便橫向捲動查看人員
+    ws['!freeze']={xSplit:3,ySplit:2};
+    // 工作表名稱用店面名（去掉特殊字元）
+    const sheetName=store.replace(/[\\\/\?\*\[\]:]/g,'').substring(0,31);
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    totalSheets++;
+  }
+  if(!totalSheets){showToast('⚠️ 沒有任何有在職同仁的店面');return;}
+  // 下載
+  const filename=`實領薪資_${viewYear}年${viewMonth}月.xlsx`;
+  XLSX.writeFile(wb,filename);
+  showToast(`✓ 已匯出 ${totalSheets} 個店面的薪資總表`);
+};
 function calcInsAuditRow(emp,rec){
   const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const ins=insFromGrade(insGrade);
