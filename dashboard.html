@@ -280,7 +280,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <button class="preview-btn p-manager" onclick="setPreview('manager')">店長/副店長</button>
         <button class="preview-btn p-employee" onclick="setPreview('employee')">同仁</button>
       </div>
-      <div class="user-chip">
+      <div class="user-chip" style="display:none">
         <div class="user-av" id="userAv">—</div>
         <div class="user-name" id="userName">—</div>
         <div id="roleLabel"></div>
@@ -334,7 +334,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
   <div class="sidebar" id="sidebar">
     <div class="sidebar-greeting">
       <div class="greet" id="sidebarGreet">歡迎回來</div>
-      <div class="date" id="sidebarDate"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+        <div class="date" id="sidebarDate"></div>
+        <span id="sidebarRoleBadge" style="font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;display:none"></span>
+      </div>
     </div>
     <div id="sidebarContent"></div>
     <button class="sidebar-edit-toggle" id="editModeToggle" onclick="toggleEditMode()">✎ 編輯模式</button>
@@ -693,6 +696,14 @@ onAuthStateChanged(auth,async user=>{
       document.getElementById('userAv').textContent=(name||'?').slice(0,1);
       document.getElementById('userName').textContent=name;
       document.getElementById('roleLabel').innerHTML=`<span class="role-badge ${roleBadgeClass[role]||'role-employee'}">${roleNames[role]||role}</span>`;
+      // 同步左側 sidebar 身分別
+      const srb=document.getElementById('sidebarRoleBadge');
+      if(srb){
+        const badgeColors={admin:'background:#FFF4E0;color:#C47A00',consultant:'background:#F0EBFF;color:#6741D9',manager:'background:#E6FAF0;color:#087443',employee:'background:#E8EEFF;color:#3B5BDB'};
+        srb.textContent=roleNames[role]||role;
+        srb.style.cssText=(badgeColors[role]||'background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)')+';font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600';
+        srb.style.display='inline-block';
+      }
       const greetEl2=document.getElementById('greetText');
       if(greetEl2) greetEl2.textContent=`${gr}，${name} 👋`;
       document.getElementById('sidebarGreet').textContent=`${gr}，${name} 👋`;
