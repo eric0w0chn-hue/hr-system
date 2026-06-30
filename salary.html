@@ -1128,7 +1128,11 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     basePay, attendBonus,
     fixedOtHours, extraOtHours, fixedOtPay, extraOtPay, tempOtPay, otPayTotal, tempOtList, tempOtSegs,
     finalLabor, finalHealth, pensionRate, pensionAmt, insGrade, insMode, insMatched:ins.matched,
+    laborBase:finalLabor, healthBase:finalHealth, healthTotal:finalHealth,
     dependents:0, healthCharged:true, laborInsuredDays:0,
+    laborPrev:finalLabor, laborCurr:finalLabor, healthPrev:finalHealth, healthCurr:finalHealth,
+    hireDate:emp2.hireDate, leaveDate:emp2.leaveDate, unenrollDate:null,
+    depsFromHR:false, pensionFromHR:!!emp.insurance?.pensionRate,
     mgrPoints, mgrDeduct, mgrNoBonus,
     mealDays, mealAllowance, customAdds, customAddTotal, isCentral:isCen,
     gross, totalDeduct, totalAdd, netPay,
@@ -1309,7 +1313,7 @@ function renderMain(){
       </div>
       <span class="emp-count">共 ${curEmps.length} 位</span>
       ${curEmps.length?`<button class="btn-sm o" onclick="showInsAuditTable()" title="全店勞健保核對總表" style="margin-left:auto;white-space:nowrap">📋 勞健保核對表</button>`:''}
-      ${curEmps.length?`<button class="btn-sm o" onclick="exportSalaryXlsx()" title="匯出全部店面本月實領薪資 Excel" style="white-space:nowrap">📊 匯出薪資總表</button>`:''}
+      ${curEmps.length&&CU.role==='admin'?`<button class="btn-sm o" onclick="exportSalaryXlsx()" title="匯出全部店面本月實領薪資 Excel" style="white-space:nowrap">📊 匯出薪資總表</button>`:''}
       ${curEmps.length?`<button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單" style="white-space:nowrap">📦 批次匯出全店</button>`:''}
     </div>
     ${lockedBanner}${otPanelHtml}${sysPanelHtml}
@@ -1908,6 +1912,7 @@ window.applyAllStoresInsSuggest=async function(){
 // ── 匯出全部店面本月實領薪資 xlsx ──
 // 格式：每店一個工作表，欄=人員（系統清單順序），單月一列
 window.exportSalaryXlsx=async function(){
+  if(CU.role!=='admin'){showToast('⚠️ 此功能僅限管理員使用');return;}
   if(typeof XLSX==='undefined'){showToast('⚠️ SheetJS 尚未載入，請稍後再試');return;}
   const allStores=viewableStores; // 目前使用者可見的全部店面
   if(!allStores||!allStores.length){showToast('⚠️ 無法取得店面清單');return;}
