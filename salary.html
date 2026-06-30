@@ -1238,6 +1238,7 @@ function renderMain(){
         <span>🔧 系統設定（僅管理員）</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-sm o" onclick="applyAllInsSuggest()" title="清除所有人的手動覆蓋值，全部回到2026建議費率">↻ 全店套用${INS_YEAR}建議值</button>
+          <button class="btn-sm o" onclick="applyAllStoresInsSuggest()" title="清除全部店面所有人的手動覆蓋值，一次處理完所有店">↻ 全部店面套用${INS_YEAR}建議值</button>
           <button class="btn-sm p" onclick="doSaveConfig()">儲存全部設定</button>
         </div>
       </div>
@@ -1877,6 +1878,30 @@ window.applyAllInsSuggest=async function(){
     delete snapCache[snapKey];
   }
   showToast(`✓ 已完成 ${cnt} 位同仁的費率重設`);
+  if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
+};
+
+// 全部店面一次套用：清除所有店面所有人當月的勞健保手動覆蓋值（解決核對表沿用舊單份健保金額的問題）
+window.applyAllStoresInsSuggest=async function(){
+  const stores=viewableStores;
+  if(!stores||!stores.length){showToast('⚠️ 無法取得店面清單');return;}
+  const totalEmps=stores.reduce((s,st)=>s+storeEmps(st).length,0);
+  if(!totalEmps){showToast('沒有任何在職同仁');return;}
+  if(!confirm(`確定要將「全部 ${stores.length} 個店面」共 ${totalEmps} 位同仁的 ${viewYear}/${viewMonth} 勞健保全部重設為 ${INS_YEAR} 年度建議值？所有手動覆蓋的金額將被清除（此操作會修正舊資料健保未含眷屬的問題）。`))return;
+  showToast(`套用中，共 ${stores.length} 店 ${totalEmps} 人，請稍候…`,30000);
+  let cnt=0;
+  for(const store of stores){
+    const emps=storeEmps(store);
+    for(const emp of emps){
+      const rec=await loadRec(emp.id,viewYear,viewMonth)||{dailyData:{}};
+      rec.laborDeduct=null;rec.healthDeduct=null;
+      await saveRec(emp.id,viewYear,viewMonth,rec);
+      const snapKey=`${emp.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+      delete snapCache[snapKey];
+      cnt++;
+    }
+  }
+  showToast(`✓ 已完成全部 ${stores.length} 個店面、共 ${cnt} 位同仁的費率重設`);
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
 };
 
