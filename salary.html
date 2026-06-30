@@ -1934,12 +1934,15 @@ function calcInsAuditRow(emp,rec){
   const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const ins=insFromGrade(insGrade);
   const insMode=rec?.insMode||'normal';
+  const dependents=rec?.dependents!=null?rec.dependents:Number(emp.insurance?.dependents?.length||0);
+  const healthBase=ins.health; // 本人單份
+  const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷
   const laborSelf=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:ins.labor);
-  const healthSelf=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:ins.health);
+  const healthSelf=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:healthTotal);
   const laborEmployer=Math.round(insGrade*0.0894);
   const pension=Math.round(insGrade*0.06);
-  const healthEmployer=Math.round(insGrade*0.0517*0.6*1.56);
-  return {empId:emp.id,name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode};
+  const healthEmployer=Math.round(insGrade*0.0517*0.6*1.56); // 單位負擔用全民平均眷口係數，與個人眷屬數無關
+  return {empId:emp.id,name:emp.name||'—',grade:insGrade,laborSelf,laborEmployer,pension,healthSelf,healthEmployer,insMode,dependents};
 }
 
 window.showInsAuditTable=async function(){
