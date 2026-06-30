@@ -825,7 +825,7 @@ function calcSalary(emp,rec,shifts){
       if(lt.pay==='full'&&type!=='normal'){
         const label=LEAVE_TYPES[type].label;
         if(!paidLeaves[label])paidLeaves[label]=[];
-        paidLeaves[label].push(`${d}日`);
+        paidLeaves[label].push(`${viewMonth}/${d}`);
       }
       continue;
     }
@@ -840,12 +840,12 @@ function calcSalary(emp,rec,shifts){
         extraOtHours+=Number(r.ot167||0);
       } else {
         personalMins+=(8-worked)*60;
-        personalDates.push(`${d}日(早退${8-worked}h)`);
+        personalDates.push(`${viewMonth}/${d}(早退${8-worked}h)`);
       }
       // 遲到
       if(r.lateMins&&Number(r.lateMins)>0){
         const lm=Number(r.lateMins);const dm=Math.floor(lm/10)*10;
-        if(dm>0){personalMins+=dm;personalDates.push(`${d}日(遲到${lm}分)`);}
+        if(dm>0){personalMins+=dm;personalDates.push(`${viewMonth}/${d}(遲到${lm}分)`);}
       }
     } else {
       const worked=Number(r.workedHours||0);
@@ -857,15 +857,15 @@ function calcSalary(emp,rec,shifts){
         if(worked>0)workDays+=worked/8;
         const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';  // 小數第2位
         if(lt.pay==='none'){
-          if(type==='absent'){absentDays+=leaveH/8;absentDates.push(`${d}日${wh}`);}
-          else {personalMins+=leaveH*60;personalDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);}
+          if(type==='absent'){absentDays+=leaveH/8;absentDates.push(`${viewMonth}/${d}${wh}`);}
+          else {personalMins+=leaveH*60;personalDates.push(`${viewMonth}/${d}${LEAVE_TYPES[type].label}${wh}`);}
         } else if(lt.pay==='half'){
-          sickHours+=leaveH;sickDates.push(`${d}日${LEAVE_TYPES[type].label}${wh}`);
+          sickHours+=leaveH;sickDates.push(`${viewMonth}/${d}${LEAVE_TYPES[type].label}${wh}`);
         } else if(lt.pay==='full'){
           // 全薪假別（特休/婚/喪/紅字）：不扣薪，但要呈現
           const label=LEAVE_TYPES[type].label;
           if(!paidLeaves[label])paidLeaves[label]=[];
-          paidLeaves[label].push(`${d}日${wh}`);
+          paidLeaves[label].push(`${viewMonth}/${d}${wh}`);
         }
       }
     }
