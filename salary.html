@@ -899,9 +899,9 @@ function calcSalary(emp,rec,shifts){
     elastic=Math.round(target/(1+W/240))-BASE_FULL;
   }
 
-  // 時薪基礎（一律用足月底薪+彈性）
+  // 時薪基礎（一律用足月底薪+彈性，跟在職天數無關）
   const hourly=(BASE_FULL+elastic)/30/8;
-  const dailyBase=(base+elastic)/30; // 扣項用實得日薪
+  const dailyBase=(BASE_FULL+elastic)/30; // 扣項用「足月」日薪基準，不受不足月比例影響
 
   // 加班費
   const fixedOtPay=Math.round(hourly*fixedOtHours*1.34*10)/10;
