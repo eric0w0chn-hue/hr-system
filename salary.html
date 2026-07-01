@@ -1855,9 +1855,19 @@ function rerender(){
   const sy=window.scrollY;
   const c=calcSalary(emp,currentRec,curShifts);
   renderSheet(emp,currentRec,curShifts,c);
-  // 同步更新下拉的實領
+  // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
   snapCache[snapKey]=Math.round(c.netPay);
+  // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
+  const sel=document.getElementById('empSel');
+  if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
+    if(opt){const tgt=getTarget(emp,viewYear,viewMonth);const e2=calcEmployedDays(emp,viewYear,viewMonth,null);
+      const pt=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
+      const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
+      const headTxt=pt?(emp.hourlyRate?' 目標$'+Number(emp.hourlyRate).toLocaleString():''):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
+      opt.textContent=`${emp.name}${flag}${headTxt}\n實領$${Math.round(c.netPay).toLocaleString()}`;
+  }}
+  // 移除 cdd-net 更新（cdd 每次打開都從 empSel 重新讀，不需要單獨更新）
   window.scrollTo(0,sy);
 }
 function dayRec(ds){
