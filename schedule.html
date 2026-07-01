@@ -1336,20 +1336,21 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
     const nextYear=todayMonth===12?todayYear+1:todayYear;
 
     window._checkScheduleLock=function(){
-      if(currentRole==='admin') return false;
-      if(currentRole==='manager'||currentRole==='consultant') return false;
-
       const viewDate=viewYear*100+viewMonth;
       const currentDate=todayYear*100+todayMonth;
-      const nextDate=nextYear*100+nextMonth;
+      const nextDate=(todayMonth===12?todayYear+1:todayYear)*100+(todayMonth===12?1:todayMonth+1);
 
-      // 當月及過去 → 永遠鎖定
-      if(viewDate <= currentDate) return '當月及過去的班表已鎖定，無法修改';
+      // 過去月份（跨月）：只有 admin 可修改，其他角色全鎖
+      if(viewDate < currentDate){
+        if(currentRole==='admin') return false; // admin 可改
+        return '過去月份的班表已鎖定，如需調整請聯繫管理員。';
+      }
 
-      // 次月 → 25號後鎖定
-      if(viewDate===nextDate && todayDay>25) return '已超過25號，次月班表已鎖定，無法修改，如需異動請聯繫總公司';
+      // 當月及未來：employee 鎖當月，未來月份可改
+      if(currentRole==='employee'){
+        if(viewDate <= currentDate) return '當月及過去的班表已鎖定，無法修改';
+      }
 
-      // 第三個月以後 → 可預排
       return false;
     };
   } else {
