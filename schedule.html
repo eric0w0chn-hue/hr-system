@@ -267,7 +267,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
       <select id="locationFilter" onchange="onLocationChange()">
         <option value="">選擇店面</option>
       </select>
-      <div class="legend" id="empLegend"></div>
+      <div class="legend" id="empLegend" style="display:none"></div>
       <div class="ml-auto" style="display:flex;gap:8px" id="toolbarBtns">
         <button class="btn" onclick="openShiftTypesModal()">⚙ 班別設定</button>
         <button class="btn" id="exportBtn" onclick="exportToExcel()" style="display:none">📤 匯出 Excel</button>
@@ -873,16 +873,46 @@ function renderSidebar(){
     daySet[s.empId].add(dateStr);
     nameMap[s.empId]=s.empName;
   }));
-  if(!Object.keys(daySet).length){
-    list.innerHTML='<div class="sidebar-empty">本月尚無排班</div>';return;
+
+  // 應排班人員名單：該店在職員工 + 已排班者（含跨店支援）
+  const rosterMap={}; // empId -> name
+  allEmployees.forEach(e=>{
+    const belongsToStore = normLoc(e.workLocation)===normLoc(selectedLocation);
+    const inService = !e.status || e.status==='在職';
+    if(belongsToStore && inService) rosterMap[String(e.id)]=e.name;
+  });
+  // 也把已排班但不屬於本店的（跨店支援）加入
+  Object.keys(daySet).forEach(id=>{ if(!rosterMap[id]) rosterMap[id]=nameMap[id]; });
+
+  if(!Object.keys(rosterMap).length){
+    list.innerHTML='<div class="sidebar-empty">本店無在職人員</div>';return;
   }
-  const sorted=Object.entries(daySet).sort((a,b)=>b[1].size-a[1].size);
-  list.innerHTML=sorted.map(([id,dates])=>`
-    <div class="sidebar-item">
-      <div class="sidebar-dot ${getEmpColor(id)}"></div>
-      <span class="sidebar-name" title="${nameMap[id]}">${nameMap[id]}</span>
-      <span class="sidebar-days">${dates.size}</span>
-    </div>`).join('');
+
+  // 組裝：計算天數，未排班(0天)優先且標紅
+  const rows=Object.entries(rosterMap).map(([id,name])=>({
+    id, name, days: daySet[id]?daySet[id].size:0
+  }));
+  // 排序：0 天(未排班) 置頂，其餘依天數多到少
+  rows.sort((a,b)=>{
+    if(a.days===0 && b.days!==0) return -1;
+    if(a.days!==0 && b.days===0) return 1;
+    return b.days-a.days;
+  });
+
+  const unscheduled=rows.filter(r=>r.days===0).length;
+  const header = unscheduled>0
+    ? `<div style="font-size:12px;color:#C0392B;font-weight:600;padding:4px 0 8px;border-bottom:1px dashed var(--border);margin-bottom:6px">⚠ 尚有 ${unscheduled} 人未排班</div>`
+    : `<div style="font-size:12px;color:#2E9E5B;font-weight:600;padding:4px 0 8px;border-bottom:1px dashed var(--border);margin-bottom:6px">✓ 全員皆已排班</div>`;
+
+  list.innerHTML = header + rows.map(r=>{
+    const isZero = r.days===0;
+    return `
+    <div class="sidebar-item" ${isZero?'style="background:#FDECEC;border-radius:8px"':''}>
+      <div class="sidebar-dot ${getEmpColor(r.id)}"></div>
+      <span class="sidebar-name" title="${r.name}" ${isZero?'style="color:#C0392B;font-weight:600"':''}>${r.name}</span>
+      <span class="sidebar-days" ${isZero?'style="color:#C0392B;font-weight:700"':''}>${isZero?'未排':r.days}</span>
+    </div>`;
+  }).join('');
 }
 
 // ── 班別快選 HTML ──
