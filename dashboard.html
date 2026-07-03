@@ -613,6 +613,7 @@ async function checkUnfinishedAlerts(){
         const snap = await getDocs(query(collection(db,'delivery_reports'), where('deliveryDate','==',tomorrow)));
         const filled = new Set(snap.docs.map(d=>normLoc(d.data().store||'')));
         const allFilled = centralStores.every(s=>filled.has(normLoc(s)));
+        console.log('[配送紅點]', {tomorrow, centralStores, filled:[...filled], allFilled, myRole:window._myRole, seeAll});
         if(!allFilled) alerts['delivery_report']=true;
       }catch(e){}
     })()
