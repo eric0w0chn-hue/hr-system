@@ -149,7 +149,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 }
 /* ── embed 隱藏 topbar（iframe 模式必加）── */
 [data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
-
 /* ── 照片上傳 ── */
 .photo-upload-area{border:2px dashed var(--border2);border-radius:10px;padding:14px;cursor:pointer;text-align:center;color:var(--text3);font-size:13px;transition:border-color .15s;background:var(--surface2);user-select:none}
 .photo-upload-area:hover,.photo-upload-area.drag-over{border-color:var(--accent);color:var(--accent)}
@@ -157,22 +156,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-top:10px}
 .photo-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2);cursor:pointer}
 .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.photo-thumb .del-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1}
+.photo-thumb .del-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center}
 .photo-thumb .del-btn:hover{background:var(--danger)}
 .photo-section{margin-top:14px}
-.photo-section-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;letter-spacing:.3px;display:flex;align-items:center;gap:6px}
-.photo-section-title .req-badge{font-size:10px;color:var(--danger);font-weight:700}
+.photo-section-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;letter-spacing:.3px}
 .photo-view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:6px}
 .photo-view-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:zoom-in;background:var(--surface2)}
-.photo-view-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .1s}
+.photo-view-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .photo-view-thumb img:hover{opacity:.85}
-.photo-empty{font-size:12px;color:var(--text3);padding:8px 0}
-/* 燈箱 */
+.photo-empty{font-size:12px;color:var(--text3);padding:6px 0}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
-.lightbox img{max-width:94vw;max-height:90vh;border-radius:8px;object-fit:contain;box-shadow:0 4px 40px rgba(0,0,0,.5)}
-.lightbox-close{position:fixed;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;line-height:1;z-index:1000}
-/* 上傳進度 */
-.upload-prog{font-size:12px;color:var(--text2);margin-top:6px;text-align:center}
+.lightbox img{max-width:94vw;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:fixed;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;z-index:1000}
 </style>
 </head>
 <body>
@@ -221,7 +216,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 /* ─── 設定 ─── */
@@ -236,73 +231,49 @@ const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞
 
 /* ─── Storage ─── */
 const storage = getStorage();
-
-// 上傳一批 File 物件到指定路徑前綴，回傳 download URL 陣列
-async function uploadPhotos(files, pathPrefix, onProgress){
-  const urls = [];
+async function uploadPhotos(files, pathPrefix){
+  const urls=[];
   for(let i=0;i<files.length;i++){
-    if(onProgress) onProgress(i+1, files.length);
-    const f = files[i];
-    const ext = f.name.split('.').pop() || 'jpg';
-    const r = ref(storage, `${pathPrefix}_${Date.now()}_${i}.${ext}`);
-    await uploadBytes(r, f);
-    urls.push(await getDownloadURL(r));
+    const f=files[i]; const ext=f.name.split('.').pop()||'jpg';
+    const r=ref(storage,`${pathPrefix}_${Date.now()}_${i}.${ext}`);
+    await uploadBytes(r,f); urls.push(await getDownloadURL(r));
   }
   return urls;
 }
-
-// 建立照片上傳區塊（含拖曳 + 預覽 + 刪除），回傳操作物件
 function makePhotoUploader(containerId){
-  const state = { files:[] };
+  const state={files:[]};
   function render(){
-    const wrap = document.getElementById(containerId); if(!wrap) return;
-    wrap.innerHTML = '';
-    // 上傳觸發區
-    const area = document.createElement('div');
-    area.className='photo-upload-area';
+    const wrap=document.getElementById(containerId); if(!wrap) return;
+    wrap.innerHTML='';
+    const area=document.createElement('div'); area.className='photo-upload-area';
     area.innerHTML='<input type="file" accept="image/*" multiple id="fi_'+containerId+'">📷 點擊或拖曳上傳照片（可多張）';
-    area.addEventListener('click', ()=>document.getElementById('fi_'+containerId).click());
-    area.addEventListener('dragover', e=>{e.preventDefault();area.classList.add('drag-over');});
-    area.addEventListener('dragleave', ()=>area.classList.remove('drag-over'));
-    area.addEventListener('drop', e=>{e.preventDefault();area.classList.remove('drag-over');addFiles([...e.dataTransfer.files]);});
-    document.getElementById && area.querySelector('input') && area.querySelector('input').addEventListener('change', e=>addFiles([...e.target.files]));
+    area.addEventListener('click',()=>{ const inp=document.getElementById('fi_'+containerId); if(inp) inp.click(); });
+    area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag-over');});
+    area.addEventListener('dragleave',()=>area.classList.remove('drag-over'));
+    area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('drag-over');addFiles([...e.dataTransfer.files]);});
     wrap.appendChild(area);
-    // 綁定 input change（因為 innerHTML 後重新建立）
-    setTimeout(()=>{
-      const inp=document.getElementById('fi_'+containerId);
-      if(inp) inp.addEventListener('change', e=>addFiles([...e.target.files]));
-    },0);
-    // 縮圖 Grid
+    setTimeout(()=>{ const inp=document.getElementById('fi_'+containerId); if(inp) inp.addEventListener('change',e=>addFiles([...e.target.files])); },0);
     if(state.files.length){
       const grid=document.createElement('div'); grid.className='photo-grid';
       state.files.forEach((f,idx)=>{
         const url=URL.createObjectURL(f);
         const th=document.createElement('div'); th.className='photo-thumb';
         th.innerHTML=`<img src="${url}" loading="lazy"><button class="del-btn" data-i="${idx}">✕</button>`;
-        th.querySelector('.del-btn').addEventListener('click', e=>{e.stopPropagation();state.files.splice(idx,1);render();});
-        th.querySelector('img').addEventListener('click', ()=>openLightbox(url));
+        th.querySelector('.del-btn').addEventListener('click',e=>{e.stopPropagation();state.files.splice(idx,1);render();});
+        th.querySelector('img').addEventListener('click',()=>openLightbox(url));
         grid.appendChild(th);
       });
       wrap.appendChild(grid);
     }
   }
-  function addFiles(newFiles){
-    const imgs=newFiles.filter(f=>f.type.startsWith('image/'));
-    state.files.push(...imgs); render();
-  }
-  render();
-  return state;
+  function addFiles(newFiles){ state.files.push(...newFiles.filter(f=>f.type.startsWith('image/'))); render(); }
+  render(); return state;
 }
-
-// 燈箱
 function openLightbox(src){
   const lb=document.createElement('div'); lb.className='lightbox';
-  lb.innerHTML=`<span class="lightbox-close">✕</span><img src="${esc(src)}">`;
-  lb.addEventListener('click', ()=>lb.remove());
-  document.body.appendChild(lb);
+  lb.innerHTML=`<span class="lightbox-close">✕</span><img src="${src}">`;
+  lb.addEventListener('click',()=>lb.remove()); document.body.appendChild(lb);
 }
-
-// 顯示照片網格（唯讀，用於詳情頁）
 function photoViewGrid(urls){
   if(!urls||!urls.length) return `<div class="photo-empty">無照片</div>`;
   return `<div class="photo-view-grid">${urls.map(u=>`<div class="photo-view-thumb"><img src="${esc(u)}" loading="lazy" data-src="${esc(u)}"></div>`).join('')}</div>`;
@@ -555,12 +526,16 @@ function openDetail(id){
   } else if(isHQ()){
     acts.push(`<button class="btn btn-warn" data-act="reopen">↺ 重啟任務</button>`);
   }
+  // admin 可刪除已作廢任務
+  if(CUR.role==='admin' && t.status==='cancelled'){
+    acts.push(`<button class="btn btn-danger" data-act="harddelete" style="border-style:dashed">🗑 永久刪除</button>`);
+  }
 
   showModal(`
     <div class="modal-title">📌 ${esc(t.title)}</div>
     ${rows}
     ${t.description?`<div class="d-desc">${esc(t.description)}</div>`:''}
-    ${(t.photosBefore&&t.photosBefore.length)||( t.photosAfter&&t.photosAfter.length)?`
+    ${((t.photosBefore&&t.photosBefore.length)||(t.photosAfter&&t.photosAfter.length))?`
     <div class="photo-section">
       <div class="photo-section-title">📷 處理前照片</div>
       ${photoViewGrid(t.photosBefore)}
@@ -573,7 +548,6 @@ function openDetail(id){
     <div class="tl">${tl}</div>
     ${acts.length?`<div class="det-actions">${acts.join('')}</div>`:''}
   `);
-  // 燈箱綁定
   document.querySelectorAll('.photo-view-thumb img').forEach(img=>{
     img.addEventListener('click',()=>openLightbox(img.dataset.src));
   });
@@ -590,6 +564,7 @@ function handleAction(act, t){
   else if(act==='postpone') openPostpone(t);
   else if(act==='cancel') openCancel(t);
   else if(act==='reopen') openReopen(t);
+  else if(act==='harddelete') openHardDelete(t);
 }
 
 /* ─── 新增 ─── */
@@ -634,12 +609,9 @@ async function saveCreate(uploaderBefore){
       photosBefore:[], photosAfter:[],
       updates:[entry]
     });
-    // 上傳處理前照片
-    let photosBefore=[];
     if(uploaderBefore && uploaderBefore.files.length){
-      const prog=document.getElementById('cSave');
-      if(prog) prog.textContent='上傳照片中…';
-      photosBefore = await uploadPhotos(uploaderBefore.files, `task_photos/${docRef.id}/before`);
+      const btn=document.getElementById('cSave'); if(btn) btn.textContent='上傳照片中…';
+      const photosBefore = await uploadPhotos(uploaderBefore.files, `task_photos/${docRef.id}/before`);
       await updateDoc(docRef, { photosBefore });
     }
     await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'新增任務', detail:`${store}｜${title}` });
@@ -680,7 +652,7 @@ function openComplete(t){
     <div class="modal-title">✓ 標記完成 — ${esc(t.title)}</div>
     <div class="form-row"><label class="req">完成說明</label><textarea id="dNote" placeholder="完成結果、驗收狀況…"></textarea></div>
     <div class="form-row">
-      <label>✅ 處理後照片${hasBefore?'<span class="req-badge">（有處理前照片，此為必填）</span>':''}</label>
+      <label>✅ 處理後照片${hasBefore?'<span style="color:var(--danger);font-weight:700;margin-left:4px">（必填）</span>':''}</label>
       <div id="uploaderAfter"></div>
       ${hasBefore?'<div style="font-size:11px;color:var(--danger);margin-top:4px">⚠️ 此任務有處理前照片，完成時必須上傳處理後照片</div>':''}
     </div>
@@ -703,11 +675,9 @@ async function saveComplete(id, photosBefore, uploaderAfter){
   try{
     const fresh=await getFresh(id); if(!fresh) throw new Error('任務不存在');
     if(fresh.status==='completed'||fresh.status==='cancelled') throw new Error('此任務已結束');
-    // 上傳處理後照片
     let photosAfter=[];
     if(uploaderAfter && uploaderAfter.files.length){
-      const btn=document.getElementById('dSave');
-      if(btn) btn.textContent='上傳照片中…';
+      const btn=document.getElementById('dSave'); if(btn) btn.textContent='上傳照片中…';
       photosAfter = await uploadPhotos(uploaderAfter.files, `task_photos/${id}/after`);
     }
     const ups=[...(fresh.updates||[]), {at:new Date().toISOString(),by:CUR.name,role:CUR.role,type:'complete',note}];
@@ -802,6 +772,35 @@ async function saveReopen(id){
     await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'重啟任務', detail:`${fresh.store}｜${fresh.title}` });
     closeModal(); toast('任務已重啟'); await loadTasks();
   }catch(e){ console.error(e); toast('操作失敗：'+(e.message||e)); busy('rSave',false); }
+}
+
+/* ─── Admin 永久刪除（僅已作廢任務）─── */
+function openHardDelete(t){
+  if(CUR.role!=='admin'){ toast('僅管理員可執行此操作'); return; }
+  if(t.status!=='cancelled'){ toast('只能刪除已作廢的任務'); return; }
+  showModal(`
+    <div class="modal-title">🗑 永久刪除 — ${esc(t.title)}</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:8px">
+      此操作將從系統中<b style="color:var(--danger)">永久移除</b>這筆已作廢的任務，<b>無法復原</b>。<br>
+      請輸入任務名稱確認刪除：
+    </div>
+    <div class="form-row"><input id="delConfirm" placeholder="${esc(t.title)}"></div>
+    <div class="modal-footer">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-danger" id="delSave">確認永久刪除</button>
+    </div>
+  `);
+  document.getElementById('delSave').addEventListener('click',()=>saveHardDelete(t));
+}
+async function saveHardDelete(t){
+  const input=val('delConfirm').trim();
+  if(input!==t.title){ toast('名稱不符，請重新輸入'); return; }
+  busy('delSave',true);
+  try{
+    await deleteDoc(doc(db,COLL,t.id));
+    await writeOpLog({ editor:CUR.name, role:CUR.role, module:'task', action:'永久刪除任務', detail:`${t.store}｜${t.title}` });
+    closeModal(); toast('已永久刪除'); await loadTasks();
+  }catch(e){ console.error(e); toast('刪除失敗：'+(e.message||e)); busy('delSave',false); }
 }
 
 /* ─── 工具 ─── */
