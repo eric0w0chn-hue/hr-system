@@ -94,7 +94,7 @@ tr.data-row.selected td{background:var(--primary-light)}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
 .modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 60px rgba(15,23,42,.2)}
-.modal h2{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal h2,.modal-title{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border)}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
 .fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
@@ -2186,7 +2186,7 @@ window.applyInsuranceImport = async function(){
 function showCustomModal(title, html){
   // 複用現有 modal 機制
   const area = document.getElementById('modalArea');
-  area.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()">
+  area.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal" style="max-width:560px">
       <div class="modal-title">${title}</div>
       ${html}
@@ -2248,25 +2248,45 @@ window.transferToEmployee=async function(id){
   const suggested = locOpts.find(l=>l===r.location) || locOpts[0] || r.location || '';
   const locOptHtml = locOpts.map(l=>`<option value="${l}"${l===suggested?' selected':''}>${l}</option>`).join('');
   const extraOpt = (!locOpts.includes(r.location) && r.location) ? `<option value="${r.location}" selected>${r.location}（面試地點）</option>` : '';
-  const html = `<div style="font-size:13px;color:#5A6175;margin-bottom:14px">請確認工作地點，系統將以此比對管理員權限。</div>
+  const html = `<div id="transfer-form-anchor" style="font-size:13px;color:#5A6175;margin-bottom:14px">
+      ⚠️ 此操作會將求職者資料轉移為正式員工紀錄，原求職者紀錄將移除（可在轉移完成後短時間內復原）。請確認工作地點，系統將以此比對管理員權限。
+    </div>
     <div class="fr"><label>姓名</label><input value="${r.name}" disabled style="background:#f5f5f5"></div>
     <div class="fr"><label>工作地點</label>
       <select id="t-wl" style="width:100%;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
         ${extraOpt}${locOptHtml}
       </select>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:#5A6175;cursor:pointer">
+      <input type="checkbox" id="t-confirm-check" style="width:16px;height:16px" onchange="document.getElementById('t-confirm-btn').disabled=!this.checked">
+      我確認以上資訊正確，並要將此求職者轉為在職同仁
+    </label>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="confirmTransfer(${id})">✓ 確認轉為在職</button>
+      <button class="btn btn-primary" id="t-confirm-btn" disabled style="flex:1;justify-content:center" onclick="confirmTransfer(${id})">✓ 確認轉為在職</button>
       <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">取消</button>
     </div>`;
   showCustomModal(`✦ 將「${r.name}」轉為在職同仁`, html);
+  // 自動捲動到表單，避免使用者不知道發生了什麼事
+  setTimeout(()=>{
+    const el = document.getElementById('transfer-form-anchor');
+    if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 80);
 };
 
 window.confirmTransfer=async function(id){
   const r=interviews.find(x=>x.id===id); if(!r)return;
+  const checkEl=document.getElementById('t-confirm-check');
+  if(!checkEl || !checkEl.checked){ showToast('請先勾選確認'); return; }
+  // 二次確認：瀏覽器原生對話框，避免手滑誤觸
+  if(!confirm(`確定要將「${r.name}」轉為在職同仁嗎？\n\n轉移後求職者紀錄將移除，但可在完成後的復原視窗內一鍵撤銷。`)) return;
+
   const wlEl=document.getElementById('t-wl');
   const wl=wlEl?wlEl.value:(r.location||'');
   closeModal();
+
+  // 保留原求職者資料的完整備份，供復原使用
+  const interviewBackup = JSON.parse(JSON.stringify(r));
+
   const newEmp={
     id:Date.now(), name:r.name, phone:'', email:'',
     education:r.education||'', workLocation:wl, title:'正職同仁', status:'在職',
@@ -2280,8 +2300,58 @@ window.confirmTransfer=async function(id){
   render(); showToast('轉移中...');
   await saveData();
   showToast(`${r.name} 已轉為在職同仁，請補填身分證號與生日以建立登入帳號`, 4000);
+
+  // 顯示可復原橫幅（30 秒內可一鍵撤銷）
+  showUndoTransferBanner(newEmp.id, interviewBackup);
+
   // 自動開啟編輯 modal，提示補齊資料
   setTimeout(()=>openModal('editEmployee', newEmp.id), 400);
+};
+
+// ── 轉移復原機制 ──
+let _undoTransferTimer = null;
+function showUndoTransferBanner(empId, interviewBackup){
+  if(_undoTransferTimer) clearTimeout(_undoTransferTimer);
+  let banner = document.getElementById('undo-transfer-banner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'undo-transfer-banner';
+    banner.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2000;background:#1A1D23;color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);display:flex;align-items:center;gap:14px;font-size:13px;max-width:90vw';
+    document.body.appendChild(banner);
+  }
+  let remain = 30;
+  const render_ = () => {
+    banner.innerHTML = `<span>「${interviewBackup.name}」已轉為在職同仁</span>
+      <button onclick="undoTransfer(${empId})" style="background:#F59E0B;color:#1A1D23;border:none;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;white-space:nowrap">↩ 復原（${remain}s）</button>
+      <button onclick="dismissUndoBanner()" style="background:none;border:none;color:#9AA0B4;cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button>`;
+  };
+  render_();
+  window._pendingUndo = {empId, interviewBackup};
+  const tick = setInterval(()=>{
+    remain--;
+    if(remain<=0){ clearInterval(tick); dismissUndoBanner(); return; }
+    render_();
+  }, 1000);
+  _undoTransferTimer = tick;
+}
+window.dismissUndoBanner = function(){
+  if(_undoTransferTimer) clearInterval(_undoTransferTimer);
+  const banner = document.getElementById('undo-transfer-banner');
+  if(banner) banner.remove();
+  window._pendingUndo = null;
+};
+window.undoTransfer = async function(empId){
+  const pending = window._pendingUndo;
+  if(!pending || pending.empId !== empId){ showToast('復原逾時或狀態已變更'); return; }
+  if(!confirm(`確定要撤銷「${pending.interviewBackup.name}」的轉職，恢復為求職者資料嗎？`)) return;
+  employees = employees.filter(e=>e.id!==empId);
+  interviews.unshift(pending.interviewBackup);
+  selId = pending.interviewBackup.id;
+  tab = 'interview';
+  dismissUndoBanner();
+  render(); showToast('復原中...');
+  await saveData();
+  showToast(`已復原「${pending.interviewBackup.name}」為求職者資料 ✓`);
 };
 
 // ── 新增銀行 ──
