@@ -357,7 +357,7 @@ import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updat
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[],currentUserName='';
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
-let allEmployees=[],workLocations=[],shifts={},locationCodes={
+let allEmployees=[],allUsers=[],workLocations=[],shifts={},locationCodes={
   "梁平有限公司":"tw000","鑫耀鑫餐廳":"tw002","梁鑫雞肉飯專門店":"tw003",
   "鑫營雞肉本舖":"tw004","府中雞肉飯專門店":"tw005","景新雞肉飯專門店":"tw006",
   "天津雞肉飯":"tw008","鑫雞肉央廚":"tw001","大直讚雞肉飯":"tw009",
@@ -874,12 +874,19 @@ function renderSidebar(){
     nameMap[s.empId]=s.empName;
   }));
 
-  // 應排班人員名單：該店在職員工 + 已排班者（含跨店支援）
+  // 應排班人員名單：該店在職員工 + 管轄該店的顧問/店長 + 已排班者
   const rosterMap={}; // empId -> name
   allEmployees.forEach(e=>{
     const belongsToStore = normLoc(e.workLocation)===normLoc(selectedLocation);
     const inService = !e.status || e.status==='在職';
     if(belongsToStore && inService) rosterMap[String(e.id)]=e.name;
+  });
+  // 管轄該店的顧問/店長（users.locations 含此店）→ 對應到員工資料加入名單
+  allUsers.forEach(u=>{
+    if((u.role==='consultant'||u.role==='manager') && u.locations.some(l=>normLoc(l)===normLoc(selectedLocation))){
+      const emp = allEmployees.find(e=>e.name===u.name && (!e.status||e.status==='在職'));
+      if(emp) rosterMap[String(emp.id)]=emp.name;
+    }
   });
   // 也把已排班但不屬於本店的（跨店支援）加入
   Object.keys(daySet).forEach(id=>{ if(!rosterMap[id]) rosterMap[id]=nameMap[id]; });
@@ -1402,6 +1409,10 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
       }
     }),
     getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
+    getDocs(collection(db,'users')).then(snap=>{
+      allUsers=[];
+      snap.forEach(d=>{const u=d.data();allUsers.push({name:u.name,role:u.role,locations:u.locations||[]});});
+    }).catch(()=>{allUsers=[];}),
     loadHolidays(viewYear),
   ]);
 
