@@ -801,7 +801,7 @@ window.openBatchDeleteModal=function(empId, empName){
   const dateGroups={};
   empShifts.forEach(({dateStr,s})=>{
     if(!dateGroups[dateStr]) dateGroups[dateStr]=[];
-    dateGroups[dateStr].push(`${s.startTime}-${s.endTime}`);
+    dateGroups[dateStr].push(s.kind==='annual' ? '🌴 特休' : `${s.startTime}-${s.endTime}`);
   });
 
   const listHtml=Object.entries(dateGroups).map(([date,times])=>{
@@ -848,8 +848,12 @@ window.confirmBatchDelete=async function(empId){
   if(!selected.length){showToast('請至少選擇一個日期');return;}
   if(!confirm(`確定要刪除 ${selected.length} 天的排班記錄嗎？`)) return;
 
+  // 先找出這次刪除的日期中，哪些是特休（需同步移除 HR 特休記錄）
+  const annualDatesToRemove=[];
   selected.forEach(dateStr=>{
     if(shifts[dateStr]){
+      const removed=shifts[dateStr].filter(s=>s.empId==empId);
+      removed.forEach(s=>{ if(s.kind==='annual') annualDatesToRemove.push(dateStr); });
       shifts[dateStr]=shifts[dateStr].filter(s=>s.empId!=empId);
       if(!shifts[dateStr].length) delete shifts[dateStr];
     }
@@ -859,6 +863,8 @@ window.confirmBatchDelete=async function(empId){
   renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');
   await saveShifts();
+  // 同步移除 HR 特休記錄
+  if(annualDatesToRemove.length){await syncAnnualToHR(empId,annualDatesToRemove,false);}
   showToast(`已刪除 ${selected.length} 天排班 ✓`);
 };
 function renderSidebar(){
