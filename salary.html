@@ -736,26 +736,37 @@ function isCentral(store){
   return /央廚|中央廚房|廚房/.test(String(store));
 }
 let _allEmployeesRaw=[]; // 含離職的完整名單
+let _resignedRaw=[];     // hr/resigned 離職名單
 async function loadEmployees(){
-  try{const s=await getDoc(doc(db,'hr','employees'));
+  try{
+    const[s,r]=await Promise.all([
+      getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','resigned')).catch(()=>null)
+    ]);
     if(s.exists()){
       _allEmployeesRaw=(s.data().list||[]);
       employees=_allEmployeesRaw.filter(e=>e.status==='在職'||!e.status);
     }
+    // 離職員工（可能存在 hr/resigned 的 list，或 hr/employees 裡 status=離職）
+    _resignedRaw=[];
+    if(r&&r.exists())_resignedRaw=(r.data().list||r.data().resigned||[]);
+    // 也把 hr/employees 裡標記離職的納入
+    const inEmpResigned=_allEmployeesRaw.filter(e=>e.status&&e.status!=='在職');
+    _resignedRaw=[..._resignedRaw,...inEmpResigned];
   }catch(e){console.error(e);}
 }
 // 把「當月有薪資快照」的離職員工補進 employees（讓離職者仍可查閱/下載當月薪資單）
 async function mergeSnapshotEmployees(y,m){
   const ym=`${y}-${String(m).padStart(2,'0')}`;
-  // 現職員工 id 集合
   const activeIds=new Set(employees.map(e=>String(e.id)));
-  // 離職員工中，逐一檢查當月是否有快照
-  const resigned=_allEmployeesRaw.filter(e=>!(e.status==='在職'||!e.status)&&!activeIds.has(String(e.id)));
-  if(!resigned.length)return;
-  const checks=await Promise.all(resigned.map(async e=>{
+  // 離職名單（hr/resigned + hr/employees 標記離職者），排除已在現職清單的
+  const resigned=_resignedRaw.filter(e=>e&&e.id!=null&&!activeIds.has(String(e.id)));
+  // 去重（同一 id 只查一次）
+  const seen=new Set();const uniqResigned=resigned.filter(e=>{const k=String(e.id);if(seen.has(k))return false;seen.add(k);return true;});
+  if(!uniqResigned.length)return;
+  const checks=await Promise.all(uniqResigned.map(async e=>{
     try{const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
       if(snap.exists()&&snap.data().snapshot){
-        // 用快照裡的員工資料還原（避免現在 HR 資料已被改動）
         const es=snap.data().empSnapshot;
         return es?{...e,...es,_fromSnapshot:true}:{...e,_fromSnapshot:true};
       }
