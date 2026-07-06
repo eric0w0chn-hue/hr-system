@@ -590,7 +590,7 @@ const LEAVE_TYPES={
   dayoff:     {label:'公休',       pay:'none', ot:false },
 };
 
-// 115年(2026) 勞健保級距表：labor=員工勞保自負, health=員工健保自負(本人), pension6=公司勞退6%(參考)
+// 115年(2026) 勞健保級距表：labor=員工勞保自付, health=員工健保自付(本人), pension6=公司勞退6%(參考)
 let INS_YEAR=2026;
 let LABOR_TABLE=[
   {grade:1500,labor:277,health:458},{grade:3000,labor:277,health:458},{grade:4500,labor:277,health:458},
@@ -702,6 +702,7 @@ authGuard('salary',({user,uid,role,locations,userData})=>{
 
 async function init(locations,userData){
   await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes(),loadConfig()]);
+  await mergeSnapshotEmployees(viewYear,viewMonth);
   renderMain();
 }
 // 載入系統設定（底薪 + 費率表），僅 ADMIN 可改
@@ -734,10 +735,36 @@ function isCentral(store){
   // fallback：店名含「央廚」
   return /央廚|中央廚房|廚房/.test(String(store));
 }
+let _allEmployeesRaw=[]; // 含離職的完整名單
 async function loadEmployees(){
   try{const s=await getDoc(doc(db,'hr','employees'));
-    if(s.exists())employees=(s.data().list||[]).filter(e=>e.status==='在職'||!e.status);
+    if(s.exists()){
+      _allEmployeesRaw=(s.data().list||[]);
+      employees=_allEmployeesRaw.filter(e=>e.status==='在職'||!e.status);
+    }
   }catch(e){console.error(e);}
+}
+// 把「當月有薪資快照」的離職員工補進 employees（讓離職者仍可查閱/下載當月薪資單）
+async function mergeSnapshotEmployees(y,m){
+  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  // 現職員工 id 集合
+  const activeIds=new Set(employees.map(e=>String(e.id)));
+  // 離職員工中，逐一檢查當月是否有快照
+  const resigned=_allEmployeesRaw.filter(e=>!(e.status==='在職'||!e.status)&&!activeIds.has(String(e.id)));
+  if(!resigned.length)return;
+  const checks=await Promise.all(resigned.map(async e=>{
+    try{const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
+      if(snap.exists()&&snap.data().snapshot){
+        // 用快照裡的員工資料還原（避免現在 HR 資料已被改動）
+        const es=snap.data().empSnapshot;
+        return es?{...e,...es,_fromSnapshot:true}:{...e,_fromSnapshot:true};
+      }
+    }catch(_){}
+    return null;
+  }));
+  checks.filter(Boolean).forEach(e=>{
+    if(!employees.some(x=>String(x.id)===String(e.id)))employees.push(e);
+  });
 }
 async function loadStores(locations,userData){
   try{const s=await getDoc(doc(db,'hr','settings'));
@@ -922,7 +949,7 @@ function calcSalary(emp,rec,shifts){
   // 勞健保
   const insGrade=(rec&&rec.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const ins=insFromGrade(insGrade);
-  const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自負
+  const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自付
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
   // 自提%：salary 手動覆蓋優先，否則抓 hr insurance.pensionRate
   const hrPension=Number(emp.insurance?.pensionRate||0);
@@ -1272,7 +1299,7 @@ function renderMain(){
       </div>
       <div class="sys-rate-wrap">
         <table class="sys-rate-tbl">
-          <thead><tr><th>投保級距</th><th>勞保自負</th><th>健保自負(本人)</th><th></th></tr></thead>
+          <thead><tr><th>投保級距</th><th>勞保自付</th><th>健保自付(本人)</th><th></th></tr></thead>
           <tbody>${rateRows}</tbody>
         </table>
       </div>
@@ -1286,7 +1313,7 @@ function renderMain(){
     const pt=(e.title||'').includes('兼職')||(e.title||'').includes('工讀');
     const tgt=getTarget(e,viewYear,viewMonth);
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
-    const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
+    const flag=e._fromSnapshot?'（已離職）':(e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'')));
     const act=String(e.id)===String(selectedEmpId);
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     const net=snapCache[snapKey];
@@ -1334,7 +1361,13 @@ function renderMain(){
   if(selectedEmpId&&curEmps.find(e=>String(e.id)===String(selectedEmpId)))loadAndRender(selectedEmpId,false);
 }
 
-window.chgMonth=function(){viewYear=+document.getElementById('yearSel').value;viewMonth=+document.getElementById('monthSel').value;selectedEmpId=null;renderMain();};
+window.chgMonth=async function(){
+  viewYear=+document.getElementById('yearSel').value;viewMonth=+document.getElementById('monthSel').value;selectedEmpId=null;
+  // 移除上個月補進的快照離職員工，重新載入現職 + 當月快照
+  employees=employees.filter(e=>!e._fromSnapshot);
+  await mergeSnapshotEmployees(viewYear,viewMonth);
+  renderMain();
+};
 window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
 window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
@@ -1374,7 +1407,8 @@ async function preloadSnapshots(emps){
   await Promise.all(pending.map(async e=>{
     const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     try{
-      const[shifts,rec]=await Promise.all([loadShifts(e.id,viewYear,viewMonth),loadRec(e.id,viewYear,viewMonth)]);
+      const rec=await loadRec(e.id,viewYear,viewMonth);
+      const shifts=(e._fromSnapshot&&rec&&rec.shiftsSnapshot)?rec.shiftsSnapshot:await loadShifts(e.id,viewYear,viewMonth);
       if(token!==_preloadToken)return; // 已切換店面/月份，放棄
       const c=calcSalary(e,rec||{dailyData:{}},shifts);
       snapCache[snapKey]=Math.round(c.netPay);
@@ -1393,7 +1427,11 @@ async function preloadSnapshots(emps){
 
 async function loadAndRender(empId,doScroll){
   const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
-  const[shifts,rec]=await Promise.all([loadShifts(empId,viewYear,viewMonth),loadRec(empId,viewYear,viewMonth)]);
+  const rec=await loadRec(empId,viewYear,viewMonth);
+  // 離職員工（快照來源）用當初存下的排班快照，避免抓不到即時排班
+  let shifts;
+  if(emp._fromSnapshot&&rec&&rec.shiftsSnapshot){shifts=rec.shiftsSnapshot;}
+  else{shifts=await loadShifts(empId,viewYear,viewMonth);}
   currentRec=rec||{dailyData:{}};
   if(!currentRec.dailyData)currentRec.dailyData={};
   curShifts=shifts;
@@ -1721,7 +1759,7 @@ function renderSheet(emp,rec,shifts,c){
           <div class="ins-trow ins-thead"><div>項目</div><div style="text-align:center">設定</div><div style="text-align:right">本月實扣</div></div>
 
           <div class="ins-trow">
-            <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自負${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
+            <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自付${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
             ${c.insMode==='quit_prepay'?`
             <div class="prepay-inputs">
               <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.laborPrev}" onchange="patchRec('laborPrev',+this.value)" ${dis}></div>
@@ -2421,8 +2459,18 @@ window.saveSheet=async function(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const record=currentRec;const c=calcSalary(emp,record,curShifts);
   record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+  // 快照：員工基本資料 + 當月排班（離職後仍可查閱/下載）
+  record.empSnapshot={
+    id:emp.id, name:emp.name, workLocation:emp.workLocation, title:emp.title||'',
+    hireDate:getHireDate(emp)||null, leaveDate:getLeaveDate(emp)||null,
+    hourlyRate:emp.hourlyRate||null,
+    insurance:emp.insurance?JSON.parse(JSON.stringify(emp.insurance)):null,
+    salaryHistory:emp.salaryHistory?JSON.parse(JSON.stringify(emp.salaryHistory)):null,
+    snapAt:new Date().toISOString()
+  };
+  record.shiftsSnapshot=curShifts?JSON.parse(JSON.stringify(curShifts)):{};
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,record);
-  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存');}else showToast('⚠️ 儲存失敗');
+  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存（已鎖定本月資料）');}else showToast('⚠️ 儲存失敗');
   isSaving=false;
 };
 
@@ -2467,8 +2515,8 @@ ${c.mealAllowance>0?`<tr><td>餐費補助（${c.mealDays}天）</td><td>$${c.mea
 ${customRows}
 ${(c.finalLabor>0||c.finalHealth>0||c.pensionAmt>0||c.mgrDeduct>0)?`<tr><td class="sh" colspan="2">扣項</td></tr>`:''}
 ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
-${c.finalLabor>0?`<tr><td>勞保自負</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>`:''}
-${c.finalHealth>0?`<tr><td>健保自負</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>`:''}
+${c.finalLabor>0?`<tr><td>勞保自付</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>`:''}
+${c.finalHealth>0?`<tr><td>健保自付</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>`:''}
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
 <tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
 </table>`;
@@ -2489,8 +2537,8 @@ ${c.personalDeduct>0?`<tr><td>事假 ${fmtMin(c.personalMins)}${c.personalDates.
 ${c.sickDeduct>0?`<tr><td>病假 ${fmtMin(c.sickHours*60)}${c.sickDates.length?`<div class="sd">${c.sickDates.join('、')}</div>`:''}</td><td class="red">−$${c.sickDeduct.toLocaleString()}</td></tr>`:''}
 ${c.absentDeduct>0?`<tr><td>曠職 ${Math.round(c.absentDays*10)/10}天${c.absentDates.length?`<div class="sd">${c.absentDates.join('、')}</div>`:''}</td><td class="red">−$${c.absentDeduct.toLocaleString()}</td></tr>`:''}
 ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrNoBonus?'<div class="sd" style="color:#C0392B">當月無管理人員獎金</div>':''}</td><td class="red">−$${c.mgrDeduct.toLocaleString()}</td></tr>`:''}
-<tr><td>勞保自負${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.laborPrev.toLocaleString()}+${viewMonth}月$${c.laborCurr.toLocaleString()})`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
-<tr><td>健保自負${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.healthPrev.toLocaleString()}+${viewMonth}月$${c.healthCurr.toLocaleString()})`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
+<tr><td>勞保自付${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.laborPrev.toLocaleString()}+${viewMonth}月$${c.laborCurr.toLocaleString()})`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
+<tr><td>健保自付${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.healthPrev.toLocaleString()}+${viewMonth}月$${c.healthCurr.toLocaleString()})`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
 ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次扣 ${viewMonth-1<1?12:viewMonth-1} 月＋${viewMonth} 月兩個月保費，因離職後無薪資可扣，故提前一併扣除。</td></tr>`:''}
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
