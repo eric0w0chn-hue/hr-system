@@ -1025,11 +1025,11 @@ window.openLineImport = function(){
         <div class="import-step active" id="istep1">
           <div class="fr">
             <label>Apps Script 網址 <span style="font-size:11px;font-weight:400;color:var(--text3)">（從 Google Apps Script 部署後取得）</span></label>
-            <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." value="${savedUrl}" style="font-size:12px">
+            <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." value="${savedUrl}" style="font-size:12px" onblur="loadGroupsFromInput()">
           </div>
           <div class="fr">
             <label>存取密鑰</label>
-            <input type="text" id="scriptKey" placeholder="liangping2026（與 Apps Script 內設定一致）" value="${localStorage.getItem('lp_line_key')||'liangping2026'}">
+            <input type="text" id="scriptKey" placeholder="liangping2026（與 Apps Script 內設定一致）" value="${localStorage.getItem('lp_line_key')||'liangping2026'}" onblur="loadGroupsFromInput()">
           </div>
           <div class="row2">
             <div class="fr">
@@ -1102,6 +1102,12 @@ window.openLineImport = function(){
   if(url) fetchGroups(url, key);
 };
 
+window.loadGroupsFromInput = function(){
+  const url = (document.getElementById('scriptUrl')||{}).value||'';
+  const key = (document.getElementById('scriptKey')||{}).value||'liangping2026';
+  if(url) fetchGroups(url, key);
+};
+
 async function fetchGroups(url, key){
   try{
     const r = await fetch(`${url}?action=groups&key=${encodeURIComponent(key)}`);
@@ -1121,6 +1127,8 @@ async function fetchGroups(url, key){
 window.fetchImportMessages = async function(){
   const url   = document.getElementById('scriptUrl').value.trim();
   const key   = document.getElementById('scriptKey').value.trim();
+  // 確保群組清單已載入
+  if(url) await fetchGroups(url, key);
   const from  = document.getElementById('importDateFrom').value;
   const to    = document.getElementById('importDateTo').value;
   const group = document.getElementById('importGroup').value;
