@@ -886,8 +886,9 @@ window.doDelete = async function(id){
 
 
 // ─── 同步到 Google Sheets ─────────────────────
+const SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxncxxmSh2VpbH51ic5cDt2pA4cuw_HnXJ_B1_5TF8NqLFkIrn6-LVc3EoxPQmdBZsU/exec';
 async function syncToSheets(id, data){
-  const url = localStorage.getItem('lp_line_script_url');
+  const url = SHEETS_SCRIPT_URL;
   if(!url) return;
   try{
     await fetch(url, {
@@ -906,8 +907,8 @@ async function syncToSheets(id, data){
 }
 
 window.bulkSyncToSheets = async function(){
-  const url = localStorage.getItem('lp_line_script_url');
-  if(!url){ toast('請先在匯入設定填入 Apps Script 網址','err',4000); return; }
+  const url = SHEETS_SCRIPT_URL;
+  if(!url){ toast('Apps Script 網址未設定','err'); return; }
   if(!allRecords.length){ toast('目前沒有紀錄'); return; }
   const btn = document.getElementById('bulkSyncBtn');
   if(btn){ btn.disabled=true; btn.textContent='同步中…'; }
