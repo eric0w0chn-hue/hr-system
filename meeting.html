@@ -1323,6 +1323,12 @@ authGuard('meeting', async ({ user, role, locations, userData }) => {
   const _rc = document.getElementById('roleChip');
   if(_rc) _rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[currentRole] || currentRole || '—';
 
+  // LINE 匯入按鈕只給 admin
+  if(currentRole === 'admin'){
+    const _lb = document.getElementById('lineImportBtn');
+    if(_lb) _lb.style.display = '';
+  }
+
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 
