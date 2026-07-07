@@ -1027,10 +1027,7 @@ window.openLineImport = function(){
             <label>Apps Script 網址 <span style="font-size:11px;font-weight:400;color:var(--text3)">（從 Google Apps Script 部署後取得）</span></label>
             <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." value="${savedUrl}" style="font-size:12px" onblur="loadGroupsFromInput()">
           </div>
-          <div class="fr">
-            <label>存取密鑰</label>
-            <input type="text" id="scriptKey" placeholder="liangping2026（與 Apps Script 內設定一致）" value="${localStorage.getItem('lp_line_key')||'liangping2026'}" onblur="loadGroupsFromInput()">
-          </div>
+
           <div class="row2">
             <div class="fr">
               <label>開始日期</label>
@@ -1099,18 +1096,17 @@ window.openLineImport = function(){
   // 自動載入群組清單
   const url = savedUrl;
   const key = localStorage.getItem('lp_line_key') || 'liangping2026';
-  if(url) fetchGroups(url, key);
+  if(url) fetchGroups(url);
 };
 
 window.loadGroupsFromInput = function(){
   const url = (document.getElementById('scriptUrl')||{}).value||'';
-  const key = (document.getElementById('scriptKey')||{}).value||'liangping2026';
-  if(url) fetchGroups(url, key);
+  if(url) fetchGroups(url);
 };
 
-async function fetchGroups(url, key){
+async function fetchGroups(url){
   try{
-    const r = await fetch(`${url}?action=groups&key=${encodeURIComponent(key)}`);
+    const r = await fetch(`${url}?action=groups`);
     const d = await r.json();
     const sel = document.getElementById('importGroup');
     if(!sel) return;
@@ -1126,9 +1122,8 @@ async function fetchGroups(url, key){
 
 window.fetchImportMessages = async function(){
   const url   = document.getElementById('scriptUrl').value.trim();
-  const key   = document.getElementById('scriptKey').value.trim();
   // 確保群組清單已載入
-  if(url) await fetchGroups(url, key);
+  if(url) await fetchGroups(url);
   const from  = document.getElementById('importDateFrom').value;
   const to    = document.getElementById('importDateTo').value;
   const group = document.getElementById('importGroup').value;
@@ -1139,14 +1134,13 @@ window.fetchImportMessages = async function(){
 
   // 儲存設定
   localStorage.setItem('lp_line_script_url', url);
-  localStorage.setItem('lp_line_key', key);
   _importScriptUrl = url;
 
   const btn = document.querySelector('#istep1 .btn-primary');
   btn.disabled=true; btn.textContent='搜尋中…';
 
   try{
-    const params = new URLSearchParams({action:'query', key, dateFrom:from, dateTo:to});
+    const params = new URLSearchParams({action:'query', dateFrom:from, dateTo:to});
     if(group) params.set('group', group);
     const r = await fetch(`${url}?${params}`);
     const d = await r.json();
