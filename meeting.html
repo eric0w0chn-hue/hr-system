@@ -771,6 +771,9 @@ window.saveRecord = async function(){
       writeOpLog({editor:payload.updatedByName||'—', role:currentRole, module:'meeting', action:'新增會議紀錄', detail:payload.title||'—'});
     }
 
+    // 同步到 Google Sheets
+    syncToSheets(editingId || newDocRef?.id || null, { title, storeName:store, textContent:text, date:dateV, hasAudio:!!audioUrl });
+
     closeModal();
     await loadRecords();
   } catch(e){
@@ -903,6 +906,29 @@ window.doDelete = async function(id){
   } catch(e){ toast('刪除失敗：'+e.message,'err'); }
 };
 
+
+
+// ─── 同步到 Google Sheets ─────────────────────
+async function syncToSheets(id, data){
+  const url = localStorage.getItem('lp_line_script_url');
+  if(!url) return; // 未設定 Apps Script 網址就跳過
+  try{
+    await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'sync_meeting',
+        id: id || ('new_' + Date.now()),
+        date: data.date || '',
+        storeName: data.storeName || '',
+        title: data.title || '',
+        textContent: data.textContent || '',
+        hasAudio: !!data.hasAudio
+      })
+    });
+  } catch(e){
+    console.warn('Sheets 同步失敗（不影響主功能）:', e.message);
+  }
+}
 
 // ─── 封存管理 ──────────────────────────────
 function getArchiveMonths(){
