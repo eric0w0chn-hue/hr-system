@@ -617,6 +617,59 @@ async function checkUnfinishedAlerts(){
         console.log('[配送紅點]', {tomorrow, centralStores, filled:[...filled], allFilled, myRole:window._myRole, seeAll});
         if(!allFilled) alerts['delivery_report']=true;
       }catch(e){}
+    })(),
+    // ⑤ 獎金補助：管轄範圍內有到期未發放的獎金項目
+    (async()=>{
+      try{
+        const empSnap = await getDoc(doc(db,'hr','employees'));
+        if(!empSnap.exists()) return;
+        const emps = (empSnap.data().list||[]).filter(e=>!e.status||e.status==='在職');
+        const scoped = seeAll ? emps : emps.filter(e=>targetSet.has(normLoc(e.workLocation)));
+
+        // 節日日期（同 bonus.html）
+        const FESTIVALS = {
+          2026:{duanwu:'2026-06-19',midautumn:'2026-09-25'},
+          2027:{duanwu:'2027-06-09',midautumn:'2027-09-15'},
+          2028:{duanwu:'2028-05-27',midautumn:'2028-10-03'},
+          2029:{duanwu:'2029-06-16',midautumn:'2029-09-22'},
+          2030:{duanwu:'2030-06-05',midautumn:'2030-09-12'},
+        };
+        const now = new Date();
+        const yr = now.getFullYear();
+        const todayStr = now.toISOString().slice(5,10);
+        const todayFullStr = now.toISOString().slice(0,10);
+        const fest = FESTIVALS[yr] || {};
+
+        const hasPending = scoped.some(e=>{
+          const fi = e.fixedBonuses || {};
+          if(!e.startDate) return false;
+          const p = e.startDate.split('-');
+          const sd = new Date(+p[0],+p[1]-1,+p[2]);
+          const td = new Date();
+          let years = td.getFullYear()-sd.getFullYear();
+          let months = td.getMonth()-sd.getMonth();
+          if(td.getDate()<sd.getDate()) months--;
+          if(months<0){years--;months+=12;}
+          const totalMonths = years*12+months;
+          const over3mo = totalMonths >= 3;
+
+          // 到職週年當天需重發廚師鞋+健檢（每年）
+          // 廚師鞋：一次性；健檢：每年
+          if(over3mo && !fi.shoe) return true;
+          if(over3mo && !fi['health_'+yr] && !fi.health) return true;
+
+          const bdayStr = e.birthday ? e.birthday.slice(5,10) : '';
+          if(over3mo && bdayStr===todayStr && !fi['birthday_'+yr]) return true;
+          if(years>=2 && annivToday && !fi['tenure_'+yr]) return true;
+          if(over3mo && fest.duanwu===todayFullStr && !fi['duanwu_'+yr]) return true;
+          if(over3mo && fest.midautumn===todayFullStr && !fi['midautumn_'+yr]) return true;
+
+          // 自訂項目未發放
+          if((e.bonuses||[]).some(b=>b.status!=='已發放')) return true;
+          return false;
+        });
+        if(hasPending) alerts['bonus']=true;
+      }catch(e){ console.error('[bonus 紅點]', e); }
     })()
   ]);
 
