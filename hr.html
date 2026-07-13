@@ -962,7 +962,7 @@ function render() {
 
     const sel=employees.find(r=>r.id===selId);
     if(sel){
-      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理'],['bonus','獎金/補助']];
+      const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理']];
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">

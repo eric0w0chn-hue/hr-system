@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>獎金／補助管理</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="梁平鑫LOGO.png">
+<script>
+  (function(){
+    if(new URLSearchParams(location.search).get("embed")==="1"){
+      document.documentElement.setAttribute('data-embed','1');
+    }
+  })();
+</script>
+<style>
+:root{--bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;--text:#1A1D23;--text-2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.topbar{background:var(--accent);color:#fff;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2)}
+.topbar h1{font-size:15px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
+.back-btn{background:rgba(255,255,255,.1);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer}
+.back-btn:hover{background:rgba(255,255,255,.18)}
+.role-chip{background:rgba(255,255,255,.12);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px}
+[data-embed="1"] .topbar{display:none!important}
+.main{padding:20px}
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.filter-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.filter-row label{font-size:12px;color:var(--text-2);font-weight:600}
+select,input{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff}
+select:focus,input:focus{outline:none;border-color:var(--accent)}
+.btn{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:#fff;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-outline{background:#fff;color:var(--text)}
+.btn:hover{opacity:.88}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.sc{background:#fff;border-radius:12px;padding:14px 18px;border:1px solid var(--border)}
+.sl{font-size:12px;color:var(--text-2);margin-bottom:4px}
+.sn{font-size:24px;font-weight:700}
+.emp-row{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
+.emp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.emp-name{display:flex;align-items:center;gap:10px}
+.emp-avatar{width:36px;height:36px;border-radius:50%;background:#EDE9FE;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+.emp-info{font-size:12px;color:var(--text-2)}
+.emp-info b{color:var(--text);font-size:13px;font-weight:600;margin-right:8px}
+.bonus-items{display:flex;flex-direction:column;gap:8px}
+.bonus-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;font-size:13px}
+.bonus-item.paid{border-color:#86EFAC;background:#F0FDF4}
+.bonus-item.pending{border-color:#FCA5A5}
+.bonus-title{display:flex;align-items:center;gap:8px;font-weight:500}
+.bonus-amt{color:var(--text-2);font-size:12px}
+.check-lbl{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;user-select:none}
+.check-lbl input{width:16px;height:16px;accent-color:var(--accent)}
+.paid .check-lbl{color:#16A34A}
+.pending .check-lbl{color:#DC2626}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.b-tenure{background:#DBEAFE;color:#1E40AF}
+.b-birthday{background:#FEF3C7;color:#92400E}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:40px;color:var(--text3)}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.tab-btn{padding:10px 16px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;font-family:inherit;font-weight:500;white-space:nowrap}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab-btn .count{background:#F59E0B;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700}
+@media(max-width:600px){
+  .main{padding:12px}
+  .stats{grid-template-columns:1fr 1fr;gap:8px}
+  .sn{font-size:20px}
+  .card{padding:14px}
+  .emp-head{align-items:flex-start}
+  .bonus-item{flex-direction:column;align-items:stretch;gap:8px}
+  .check-lbl{align-self:flex-end}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+    <div class="tb-dv"></div>
+    <h1><img src="梁平鑫LOGO.png" style="width:24px;height:24px;border-radius:6px" onerror="this.style.display='none'"> 💰 獎金／補助管理</h1>
+  </div>
+  <span class="role-chip" id="roleChip">—</span>
+</div>
+<div class="main">
+  <div id="loading" class="loading">載入中...</div>
+  <div id="app" style="display:none">
+    <div class="stats">
+      <div class="sc"><div class="sl">本頁員工</div><div class="sn" id="stEmp">0</div></div>
+      <div class="sc"><div class="sl">待發放</div><div class="sn" id="stPending" style="color:#DC2626">0</div></div>
+      <div class="sc"><div class="sl">本月已發</div><div class="sn" id="stPaid" style="color:#16A34A">0</div></div>
+      <div class="sc"><div class="sl">今日提醒</div><div class="sn" id="stAlert" style="color:#F59E0B">0</div></div>
+    </div>
+
+    <div class="card">
+      <div class="filter-row">
+        <label>店面</label>
+        <select id="fStore" onchange="renderList()"><option value="">全部店面</option></select>
+        <label style="margin-left:12px">篩選</label>
+        <select id="fType" onchange="renderList()">
+          <option value="">全部</option>
+          <option value="pending">僅顯示待發放</option>
+          <option value="today">今日提醒（生日／久任）</option>
+          <option value="over3">已滿3個月（可領固定補助）</option>
+        </select>
+        <input type="text" id="fSearch" placeholder="搜尋姓名..." oninput="renderList()" style="flex:1;min-width:150px">
+      </div>
+      <div id="list"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { authGuard, db } from './auth-guard.js?v=3';
+import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+let allEmployees = [];
+let currentRole = '';
+let currentLocations = [];
+let workLocations = [];
+
+const roleTxt = {admin:'管理員', consultant:'顧問', manager:'店長', employee:'同仁'};
+
+authGuard('hr', async ({ role, locations }) => {
+  currentRole = role;
+  currentLocations = locations;
+  document.getElementById('roleChip').textContent = roleTxt[role] || role;
+  await load();
+});
+
+async function load(){
+  const [empSnap, setSnap] = await Promise.all([
+    getDoc(doc(db,'hr','employees')),
+    getDoc(doc(db,'hr','settings'))
+  ]);
+  allEmployees = empSnap.exists() ? (empSnap.data().list||[]).filter(e=>!e.status||e.status==='在職'||e.status==='留職停薪') : [];
+  const settings = setSnap.exists() ? setSnap.data() : {};
+  workLocations = settings.workLocations || [];
+
+  // 依權限過濾
+  if(currentLocations.length){
+    allEmployees = allEmployees.filter(e => currentLocations.includes(e.workLocation));
+  }
+
+  // 店面下拉
+  const empLocs = new Set(allEmployees.map(e=>e.workLocation).filter(Boolean));
+  const sortedLocs = [...workLocations.filter(l=>empLocs.has(l)), ...[...empLocs].filter(l=>!workLocations.includes(l))];
+  const fs = document.getElementById('fStore');
+  fs.innerHTML = '<option value="">全部店面</option>' + sortedLocs.map(l=>`<option value="${l}">${l}</option>`).join('');
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderList();
+}
+
+function empBonusInfo(e){
+  const fi = e.fixedBonuses || {shoe:false, health:false, healthAmt:'640', birthday:false, tenure:false};
+  const msOnJob = e.startDate ? Date.now()-new Date(e.startDate).getTime() : 0;
+  const monthsOnJob = Math.floor(msOnJob/(1000*60*60*24*30.44));
+  const over3mo = monthsOnJob >= 3;
+  const todayStr = new Date().toISOString().slice(5,10);
+  const birthdayStr = e.birthday ? e.birthday.slice(5,10) : '';
+  const sd = e.startDate ? (()=>{const p=e.startDate.split('-'); return new Date(+p[0],+p[1]-1,+p[2]);})() : null;
+  const todayD = new Date();
+  const yearsOnJob = sd && !isNaN(sd.getTime()) ? (todayD.getFullYear()-sd.getFullYear() - (todayD.getMonth()<sd.getMonth() || (todayD.getMonth()===sd.getMonth()&&todayD.getDate()<sd.getDate()) ? 1 : 0)) : 0;
+  const isBirthday = birthdayStr && todayStr===birthdayStr && yearsOnJob>=1;
+  const isAnnivToday = sd && !isNaN(sd.getTime()) && yearsOnJob>=2 && sd.getMonth()===todayD.getMonth() && sd.getDate()===todayD.getDate();
+  const tenureKey = 'tenure_'+todayD.getFullYear();
+  const tenureChecked = fi[tenureKey] || false;
+  return {fi, over3mo, monthsOnJob, isBirthday, isAnnivToday, yearsOnJob, tenureKey, tenureChecked};
+}
+
+window.renderList = function(){
+  const store = document.getElementById('fStore').value;
+  const type = document.getElementById('fType').value;
+  const q = document.getElementById('fSearch').value.trim();
+
+  let list = allEmployees;
+  if(store) list = list.filter(e=>e.workLocation===store);
+  if(q) list = list.filter(e=>e.name && e.name.includes(q));
+
+  // 排序：職稱階級 > 年資
+  const rank = t => {
+    const s = t||'';
+    if(s.includes('營運總監')) return 0;
+    if(s.includes('央廚總監')) return 1;
+    if(s.includes('開發經營')||s.includes('開發經理')||s.includes('財務經理')||s.includes('助理')) return 2;
+    if((s.includes('店長')&&!s.includes('副'))||(s.includes('廠長')&&!s.includes('副'))) return 3;
+    if(s.includes('副店長')||s.includes('副廠長')) return 4;
+    return 5;
+  };
+  list = [...list].sort((a,b)=>{
+    const ra = rank(a.title), rb = rank(b.title);
+    if(ra!==rb) return ra-rb;
+    const ta = a.startDate?new Date(a.startDate).getTime():Infinity;
+    const tb = b.startDate?new Date(b.startDate).getTime():Infinity;
+    return ta-tb;
+  });
+
+  // 額外類型篩選
+  if(type === 'pending'){
+    list = list.filter(e=>{
+      const i = empBonusInfo(e);
+      if(i.over3mo && (!i.fi.shoe || !i.fi.health)) return true;
+      if(i.isBirthday && !i.fi.birthday) return true;
+      if(i.isAnnivToday && !i.tenureChecked) return true;
+      return false;
+    });
+  } else if(type === 'today'){
+    list = list.filter(e=>{ const i=empBonusInfo(e); return i.isBirthday || i.isAnnivToday; });
+  } else if(type === 'over3'){
+    list = list.filter(e=>empBonusInfo(e).over3mo);
+  }
+
+  // 統計
+  let pending=0, paid=0, alert=0;
+  const monthKey = new Date().toISOString().slice(0,7);
+  allEmployees.forEach(e=>{
+    const i = empBonusInfo(e);
+    if(i.over3mo){
+      if(!i.fi.shoe) pending++; else paid++;
+      if(!i.fi.health) pending++; else paid++;
+    }
+    if(i.isBirthday){ alert++; if(!i.fi.birthday) pending++; else paid++; }
+    if(i.isAnnivToday){ alert++; if(!i.tenureChecked) pending++; else paid++; }
+  });
+  document.getElementById('stEmp').textContent = list.length;
+  document.getElementById('stPending').textContent = pending;
+  document.getElementById('stPaid').textContent = paid;
+  document.getElementById('stAlert').textContent = alert;
+
+  const html = list.length ? list.map(e=>renderEmp(e)).join('') : '<div class="empty-state">無符合條件的同仁</div>';
+  document.getElementById('list').innerHTML = html;
+};
+
+function renderEmp(e){
+  const i = empBonusInfo(e);
+  const initial = e.name ? e.name.slice(0,2) : '—';
+  const rows = [];
+
+  if(i.over3mo){
+    rows.push(bonusRow(e.id, 'shoe', '👟 廚師鞋補助', 2000, i.fi.shoe));
+    rows.push(bonusRow(e.id, 'health', '🏥 健康檢查補助', parseInt(i.fi.healthAmt||'640'), i.fi.health, true, i.fi.healthAmt||'640'));
+  } else {
+    rows.push(`<div class="bonus-item" style="background:#F9FAFB;color:var(--text3);font-size:12px">⏳ 到職 ${i.monthsOnJob} 個月，未滿 3 個月無固定補助</div>`);
+  }
+
+  if(i.isBirthday){
+    rows.push(bonusRow(e.id, 'birthday', '🎂 生日禮金 <span class="badge b-birthday">今天</span>', 1000, i.fi.birthday));
+  }
+  if(i.isAnnivToday){
+    rows.push(bonusRow(e.id, i.tenureKey, `🏆 久任獎金（${i.yearsOnJob} 週年） <span class="badge b-tenure">今天</span>`, null, i.tenureChecked));
+  }
+
+  return `<div class="emp-row">
+    <div class="emp-head">
+      <div class="emp-name">
+        <div class="emp-avatar">${initial}</div>
+        <div>
+          <div><b>${e.name}</b><span class="emp-info">${e.workLocation||'—'} · ${e.title||'—'}</span></div>
+          <div class="emp-info">到職 ${e.startDate||'—'}${e.startDate?' · '+i.monthsOnJob+' 個月':''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="bonus-items">${rows.join('')}</div>
+  </div>`;
+}
+
+function bonusRow(empId, key, label, amount, checked, showAmtSelect=false, curAmt='640'){
+  const amtHtml = amount!==null ? `<div class="bonus-amt">$${amount.toLocaleString()}</div>` : '<div class="bonus-amt">紀念禮</div>';
+  const amtSelect = showAmtSelect ? `<select onchange="updateHealthAmt('${empId}',this.value)" style="font-size:11px;padding:2px 6px;margin-left:6px">
+    <option value="640"${curAmt==='640'?' selected':''}>$640</option>
+    <option value="900"${curAmt==='900'?' selected':''}>$900</option>
+  </select>` : '';
+  return `<div class="bonus-item ${checked?'paid':'pending'}">
+    <div>
+      <div class="bonus-title">${label}</div>
+      <div style="display:flex;align-items:center">${amtHtml}${amtSelect}</div>
+    </div>
+    <label class="check-lbl">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleBonus('${empId}','${key}',this.checked)">
+      ${checked?'已發放':'待發放'}
+    </label>
+  </div>`;
+}
+
+window.toggleBonus = async function(empId, key, checked){
+  const e = allEmployees.find(x=>String(x.id)===String(empId));
+  if(!e) return;
+  if(!e.fixedBonuses) e.fixedBonuses = {shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
+  e.fixedBonuses[key] = checked;
+  renderList();
+  await saveEmployees();
+};
+
+window.updateHealthAmt = async function(empId, val){
+  const e = allEmployees.find(x=>String(x.id)===String(empId));
+  if(!e) return;
+  if(!e.fixedBonuses) e.fixedBonuses = {shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
+  e.fixedBonuses.healthAmt = val;
+  renderList();
+  await saveEmployees();
+};
+
+async function saveEmployees(){
+  try {
+    // 用 transaction 保護，manager/consultant 需合併其他店資料
+    let finalList = allEmployees;
+    if((currentRole==='manager'||currentRole==='consultant') && currentLocations.length){
+      const fullSnap = await getDoc(doc(db,'hr','employees'));
+      if(fullSnap.exists()){
+        const fullList = fullSnap.data().list || [];
+        const myIds = new Set(allEmployees.map(r=>r.id));
+        const othersEmp = fullList.filter(r => !currentLocations.includes(r.workLocation) && !myIds.has(r.id));
+        // 但 allEmployees 已過濾狀態，需保留離職者
+        const resignedRestored = fullList.filter(r => currentLocations.includes(r.workLocation) && r.status==='離職');
+        finalList = [...allEmployees, ...resignedRestored, ...othersEmp];
+      }
+    } else if(currentRole==='admin'){
+      // admin 需保留其他狀態員工（離職等）
+      const fullSnap = await getDoc(doc(db,'hr','employees'));
+      if(fullSnap.exists()){
+        const fullList = fullSnap.data().list || [];
+        const myIds = new Set(allEmployees.map(r=>r.id));
+        const others = fullList.filter(r=>!myIds.has(r.id));
+        finalList = [...allEmployees, ...others];
+      }
+    }
+    await runTransaction(db, async tx => {
+      const vRef = doc(db,'hr','_version');
+      const vSnap = await tx.get(vRef);
+      const nextVer = ((vSnap.exists()?vSnap.data().v:0)||0) + 1;
+      tx.set(vRef, {v:nextVer, lastEditor:'bonus-page', lastEditAt:new Date().toISOString()});
+      tx.set(doc(db,'hr','employees'), {list: finalList});
+    });
+  } catch(err){
+    console.error(err);
+    alert('儲存失敗：'+err.message);
+  }
+}
+</script>
+</body>
+</html>
