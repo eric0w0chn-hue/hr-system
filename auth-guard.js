@@ -125,7 +125,7 @@ export async function authGuard(moduleKey, onReady, options = {}) {
   async function handleUser(user) {
     // ① 未登入
     if (!user) {
-      window.location.href = redirectTo;
+      if (window.self !== window.top) { try { window.top.location.href = redirectTo; } catch(_){} } else { window.location.href = redirectTo; }
       return;
     }
 
@@ -140,7 +140,7 @@ export async function authGuard(moduleKey, onReady, options = {}) {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (!snap.exists() || snap.data().disabled) {
           await signOut(auth);
-          window.location.href = redirectTo + '?disabled=1';
+          if (window.self !== window.top) { try { window.top.location.href = redirectTo + '?disabled=1'; } catch(_){} } else { window.location.href = redirectTo + '?disabled=1'; }
           return;
         }
         userData = snap.data();
@@ -148,7 +148,7 @@ export async function authGuard(moduleKey, onReady, options = {}) {
       }
     } catch (e) {
       console.error('[auth-guard] 讀取使用者失敗', e);
-      window.location.href = redirectTo;
+      if (window.self !== window.top) { try { window.top.location.href = redirectTo; } catch(_){} } else { window.location.href = redirectTo; }
       return;
     }
 
@@ -164,7 +164,12 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     const modPerm  = modules[moduleKey];
     const allowed  = modPerm?.roles;
     if (allowed !== undefined && allowed.length > 0 && !allowed.includes(role)) {
-      window.location.href = noPermRedirect;
+      // iframe 內：跳到最上層避免嵌套；獨立開：直接跳
+      if (window.self !== window.top) {
+        try { window.top.location.href = noPermRedirect; } catch(_){ window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*'); }
+      } else {
+        window.location.href = noPermRedirect;
+      }
       return;
     }
 
@@ -180,7 +185,11 @@ export async function authGuard(moduleKey, onReady, options = {}) {
         return t === locType;
       });
       if (!hasMatch) {
-        window.location.href = noPermRedirect;
+        if (window.self !== window.top) {
+          try { window.top.location.href = noPermRedirect; } catch(_){ window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*'); }
+        } else {
+          window.location.href = noPermRedirect;
+        }
         return;
       }
     }
