@@ -21,56 +21,69 @@ body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var
 .tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2)}
 .topbar h1{font-size:15px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px}
 .back-btn{background:rgba(255,255,255,.1);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer}
-.back-btn:hover{background:rgba(255,255,255,.18)}
 .role-chip{background:rgba(255,255,255,.12);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px}
 [data-embed="1"] .topbar{display:none!important}
-.main{padding:20px}
-.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.main{padding:20px;max-width:1400px;margin:0 auto}
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:20px;margin-bottom:16px}
 .filter-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .filter-row label{font-size:12px;color:var(--text-2);font-weight:600}
-select,input{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff}
-select:focus,input:focus{outline:none;border-color:var(--accent)}
+select,input,textarea{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff}
 .btn{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:#fff;font-family:inherit}
 .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-outline{background:#fff;color:var(--text)}
-.btn:hover{opacity:.88}
+.btn-danger{background:#fff;color:#DC2626;border-color:#FCA5A5}
+.btn:hover{opacity:.9}
+.btn-sm{padding:5px 10px;font-size:12px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .sc{background:#fff;border-radius:12px;padding:14px 18px;border:1px solid var(--border)}
 .sl{font-size:12px;color:var(--text-2);margin-bottom:4px}
 .sn{font-size:24px;font-weight:700}
-.emp-row{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
-.emp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.emp-name{display:flex;align-items:center;gap:10px}
-.emp-avatar{width:36px;height:36px;border-radius:50%;background:#EDE9FE;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
-.emp-info{font-size:12px;color:var(--text-2)}
-.emp-info b{color:var(--text);font-size:13px;font-weight:600;margin-right:8px}
-.bonus-items{display:flex;flex-direction:column;gap:8px}
-.bonus-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;font-size:13px}
-.bonus-item.paid{border-color:#86EFAC;background:#F0FDF4}
-.bonus-item.pending{border-color:#FCA5A5}
-.bonus-title{display:flex;align-items:center;gap:8px;font-weight:500}
-.bonus-amt{color:var(--text-2);font-size:12px}
-.check-lbl{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;user-select:none}
-.check-lbl input{width:16px;height:16px;accent-color:var(--accent)}
-.paid .check-lbl{color:#16A34A}
-.pending .check-lbl{color:#DC2626}
-.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-.b-tenure{background:#DBEAFE;color:#1E40AF}
-.b-birthday{background:#FEF3C7;color:#92400E}
-.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
-.loading{text-align:center;padding:40px;color:var(--text3)}
 .tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;overflow-x:auto}
 .tab-btn{padding:10px 16px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;font-family:inherit;font-weight:500;white-space:nowrap}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
-.tab-btn .count{background:#F59E0B;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700}
+
+.emp-row{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px}
+.emp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.emp-name{display:flex;align-items:center;gap:10px}
+.emp-avatar{width:36px;height:36px;border-radius:50%;background:#EDE9FE;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+.emp-info{font-size:12px;color:var(--text-2)}
+.emp-info b{color:var(--text);font-size:14px;font-weight:600;margin-right:8px}
+.bonus-items{display:flex;flex-direction:column;gap:8px}
+.bonus-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;font-size:13px;gap:10px}
+.bonus-item.pending{border-color:#FCA5A5;background:#FEF2F2}
+.bonus-item.alert{border-color:#FCD34D;background:#FFFBEB}
+.bonus-title{font-weight:500}
+.bonus-amt{color:var(--text-2);font-size:12px;margin-top:2px}
+.check-lbl{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;user-select:none;white-space:nowrap}
+.check-lbl input{width:16px;height:16px;accent-color:var(--accent)}
+.pending .check-lbl{color:#DC2626}
+.alert .check-lbl{color:#92400E}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-left:6px}
+.b-tenure{background:#DBEAFE;color:#1E40AF}
+.b-birthday{background:#FEF3C7;color:#92400E}
+.b-festival{background:#FEE2E2;color:#991B1B}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:40px;color:var(--text3)}
+.custom-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;font-size:13px;margin-bottom:6px}
+.custom-row.pending{border-color:#FCA5A5;background:#FEF2F2}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;font-weight:600;font-size:13px;color:var(--text-2)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal h3{margin:0 0 16px;font-size:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.fr{margin-bottom:12px}
+.fr label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px}
+.fr input,.fr select,.fr textarea{width:100%}
+.log-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F9FAFB;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;font-size:13px}
+.log-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#DBEAFE;color:#1E40AF;margin-right:6px}
 @media(max-width:600px){
   .main{padding:12px}
   .stats{grid-template-columns:1fr 1fr;gap:8px}
   .sn{font-size:20px}
   .card{padding:14px}
-  .emp-head{align-items:flex-start}
   .bonus-item{flex-direction:column;align-items:stretch;gap:8px}
   .check-lbl{align-self:flex-end}
+  .filter-row select,.filter-row input{width:100%}
 }
 </style>
 </head>
@@ -79,97 +92,228 @@ select:focus,input:focus{outline:none;border-color:var(--accent)}
   <div class="topbar-left">
     <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
     <div class="tb-dv"></div>
-    <h1><img src="梁平鑫LOGO.png" style="width:24px;height:24px;border-radius:6px" onerror="this.style.display='none'"> 💰 獎金／補助管理</h1>
+    <h1><img src="梁平鑫LOGO.png" style="width:24px;height:24px;border-radius:6px" onerror="this.style.display='none'"> 🎁 獎金／補助管理</h1>
   </div>
   <span class="role-chip" id="roleChip">—</span>
 </div>
 <div class="main">
   <div id="loading" class="loading">載入中...</div>
   <div id="app" style="display:none">
-    <div class="stats">
-      <div class="sc"><div class="sl">本頁員工</div><div class="sn" id="stEmp">0</div></div>
-      <div class="sc"><div class="sl">待發放</div><div class="sn" id="stPending" style="color:#DC2626">0</div></div>
-      <div class="sc"><div class="sl">本月已發</div><div class="sn" id="stPaid" style="color:#16A34A">0</div></div>
-      <div class="sc"><div class="sl">今日提醒</div><div class="sn" id="stAlert" style="color:#F59E0B">0</div></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-t="pending" onclick="switchTab('pending')">📋 待發放</button>
+      <button class="tab-btn" data-t="log" onclick="switchTab('log')">📜 發放紀錄</button>
     </div>
 
-    <div class="card">
-      <div class="filter-row">
-        <label>店面</label>
-        <select id="fStore" onchange="renderList()"><option value="">全部店面</option></select>
-        <label style="margin-left:12px">篩選</label>
-        <select id="fType" onchange="renderList()">
-          <option value="">全部</option>
-          <option value="pending">僅顯示待發放</option>
-          <option value="today">今日提醒（生日／久任）</option>
-          <option value="over3">已滿3個月（可領固定補助）</option>
-        </select>
-        <input type="text" id="fSearch" placeholder="搜尋姓名..." oninput="renderList()" style="flex:1;min-width:150px">
+    <div id="tab-pending">
+      <div class="stats">
+        <div class="sc"><div class="sl">列表員工</div><div class="sn" id="stEmp">0</div></div>
+        <div class="sc"><div class="sl">待發放筆數</div><div class="sn" id="stPending" style="color:#DC2626">0</div></div>
+        <div class="sc"><div class="sl">今日特別提醒</div><div class="sn" id="stAlert" style="color:#F59E0B">0</div></div>
+        <div class="sc"><div class="sl">本月已發總額</div><div class="sn" id="stAmt" style="color:#16A34A">$0</div></div>
       </div>
-      <div id="list"></div>
+      <div class="card">
+        <div class="filter-row">
+          <label>店面</label>
+          <select id="fStore" onchange="renderList()"><option value="">全部店面</option></select>
+          <label style="margin-left:12px">篩選</label>
+          <select id="fType" onchange="renderList()">
+            <option value="all">全部（僅顯示未發放）</option>
+            <option value="alert">今日提醒（生日／久任／節日）</option>
+            <option value="fixed">固定補助（廚師鞋／健康檢查）</option>
+            <option value="custom">自訂項目</option>
+          </select>
+          <input type="text" id="fSearch" placeholder="搜尋姓名..." oninput="renderList()" style="flex:1;min-width:150px">
+        </div>
+        <div id="list"></div>
+      </div>
+    </div>
+
+    <div id="tab-log" style="display:none">
+      <div class="card">
+        <div class="filter-row">
+          <label>年月</label>
+          <select id="logMonth" onchange="renderLog()"></select>
+          <label style="margin-left:12px">店面</label>
+          <select id="logStore" onchange="renderLog()"><option value="">全部店面</option></select>
+          <input type="text" id="logSearch" placeholder="搜尋姓名..." oninput="renderLog()" style="flex:1;min-width:150px">
+        </div>
+        <div id="logList"></div>
+      </div>
     </div>
   </div>
 </div>
 
+<div id="modalArea"></div>
+
 <script type="module">
-import { authGuard, db } from './auth-guard.js?v=3';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
 import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-let allEmployees = [];
-let currentRole = '';
-let currentLocations = [];
-let workLocations = [];
+let allEmployees = [], workLocations = [], bonusLog = [];
+let currentRole = '', currentLocations = [], currentUserName = '';
+let currentTab = 'pending';
 
 const roleTxt = {admin:'管理員', consultant:'顧問', manager:'店長', employee:'同仁'};
 
-authGuard('hr', async ({ role, locations }) => {
+// ── 久任獎金金額表（依附圖）──
+function tenureAmount(years){
+  if(years < 2) return 0;
+  if(years === 2) return 3000;
+  if(years === 3) return 5000;
+  if(years === 4) return 7000;
+  if(years === 5) return 10000;
+  // 六年開始每年 +1000（六年 11000, 七年 12000 ...）
+  return 10000 + (years - 5) * 1000;
+}
+
+// ── 農曆節日日期表：中秋、端午（2026~2030 手動維護）──
+const FESTIVALS = {
+  2026: { duanwu: '2026-06-19', midautumn: '2026-09-25' },
+  2027: { duanwu: '2027-06-09', midautumn: '2027-09-15' },
+  2028: { duanwu: '2028-05-27', midautumn: '2028-10-03' },
+  2029: { duanwu: '2029-06-16', midautumn: '2029-09-22' },
+  2030: { duanwu: '2030-06-05', midautumn: '2030-09-12' },
+};
+
+authGuard('bonus', async ({ role, locations, userData }) => {
   currentRole = role;
   currentLocations = locations;
+  currentUserName = userData?.name || userData?.idNo || 'Unknown';
   document.getElementById('roleChip').textContent = roleTxt[role] || role;
   await load();
 });
 
 async function load(){
-  const [empSnap, setSnap] = await Promise.all([
+  const [empSnap, setSnap, logSnap] = await Promise.all([
     getDoc(doc(db,'hr','employees')),
-    getDoc(doc(db,'hr','settings'))
+    getDoc(doc(db,'hr','settings')),
+    getDoc(doc(db,'hr','bonus_log'))
   ]);
   allEmployees = empSnap.exists() ? (empSnap.data().list||[]).filter(e=>!e.status||e.status==='在職'||e.status==='留職停薪') : [];
   const settings = setSnap.exists() ? setSnap.data() : {};
   workLocations = settings.workLocations || [];
+  bonusLog = logSnap.exists() ? (logSnap.data().list||[]) : [];
 
-  // 依權限過濾
   if(currentLocations.length){
     allEmployees = allEmployees.filter(e => currentLocations.includes(e.workLocation));
   }
 
-  // 店面下拉
   const empLocs = new Set(allEmployees.map(e=>e.workLocation).filter(Boolean));
   const sortedLocs = [...workLocations.filter(l=>empLocs.has(l)), ...[...empLocs].filter(l=>!workLocations.includes(l))];
-  const fs = document.getElementById('fStore');
-  fs.innerHTML = '<option value="">全部店面</option>' + sortedLocs.map(l=>`<option value="${l}">${l}</option>`).join('');
+  const storeOptHtml = '<option value="">全部店面</option>' + sortedLocs.map(l=>`<option value="${l}">${l}</option>`).join('');
+  document.getElementById('fStore').innerHTML = storeOptHtml;
+  document.getElementById('logStore').innerHTML = storeOptHtml;
+
+  // 發放紀錄月份下拉：近12個月
+  const now = new Date();
+  const months = [];
+  for(let i=0; i<12; i++){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  document.getElementById('logMonth').innerHTML = '<option value="">全部月份</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
 
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   renderList();
 }
 
-function empBonusInfo(e){
-  const fi = e.fixedBonuses || {shoe:false, health:false, healthAmt:'640', birthday:false, tenure:false};
-  const msOnJob = e.startDate ? Date.now()-new Date(e.startDate).getTime() : 0;
-  const monthsOnJob = Math.floor(msOnJob/(1000*60*60*24*30.44));
-  const over3mo = monthsOnJob >= 3;
-  const todayStr = new Date().toISOString().slice(5,10);
-  const birthdayStr = e.birthday ? e.birthday.slice(5,10) : '';
-  const sd = e.startDate ? (()=>{const p=e.startDate.split('-'); return new Date(+p[0],+p[1]-1,+p[2]);})() : null;
-  const todayD = new Date();
-  const yearsOnJob = sd && !isNaN(sd.getTime()) ? (todayD.getFullYear()-sd.getFullYear() - (todayD.getMonth()<sd.getMonth() || (todayD.getMonth()===sd.getMonth()&&todayD.getDate()<sd.getDate()) ? 1 : 0)) : 0;
-  const isBirthday = birthdayStr && todayStr===birthdayStr && yearsOnJob>=1;
-  const isAnnivToday = sd && !isNaN(sd.getTime()) && yearsOnJob>=2 && sd.getMonth()===todayD.getMonth() && sd.getDate()===todayD.getDate();
-  const tenureKey = 'tenure_'+todayD.getFullYear();
-  const tenureChecked = fi[tenureKey] || false;
-  return {fi, over3mo, monthsOnJob, isBirthday, isAnnivToday, yearsOnJob, tenureKey, tenureChecked};
+window.switchTab = function(t){
+  currentTab = t;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
+  document.getElementById('tab-pending').style.display = t==='pending' ? 'block' : 'none';
+  document.getElementById('tab-log').style.display = t==='log' ? 'block' : 'none';
+  if(t==='log') renderLog();
+};
+
+// ── 計算年月字串 ──
+function calcYearsMonths(startDate){
+  if(!startDate) return {years:0, months:0, str:'—', totalMonths:0};
+  const p = startDate.split('-');
+  const sd = new Date(+p[0], +p[1]-1, +p[2]);
+  const td = new Date();
+  let years = td.getFullYear() - sd.getFullYear();
+  let months = td.getMonth() - sd.getMonth();
+  if(td.getDate() < sd.getDate()) months--;
+  if(months < 0){ years--; months += 12; }
+  const totalMonths = years*12 + months;
+  const str = years > 0 ? `${years}年${months}個月` : `${months}個月`;
+  return {years, months, str, totalMonths};
 }
+
+// ── 員工當前狀態計算 ──
+function empBonusInfo(e){
+  const fi = e.fixedBonuses || {};
+  const ym = calcYearsMonths(e.startDate);
+  const over3mo = ym.totalMonths >= 3;
+  const todayStr = new Date().toISOString().slice(5,10);
+  const todayFullStr = new Date().toISOString().slice(0,10);
+  const birthdayStr = e.birthday ? e.birthday.slice(5,10) : '';
+
+  // 生日禮金：到職滿3個月 + 生日當天
+  const isBirthday = over3mo && birthdayStr && todayStr === birthdayStr;
+  const birthdayKey = 'birthday_' + new Date().getFullYear();
+  const birthdayPaid = fi[birthdayKey] || false;
+
+  // 久任獎金：到職滿2年 + 到職週年當天
+  const sd = e.startDate ? (()=>{const p=e.startDate.split('-'); return new Date(+p[0],+p[1]-1,+p[2]);})() : null;
+  const td = new Date();
+  const isAnnivToday = sd && !isNaN(sd.getTime()) && ym.years >= 2 &&
+    sd.getMonth() === td.getMonth() && sd.getDate() === td.getDate();
+  const tenureKey = 'tenure_' + td.getFullYear();
+  const tenurePaid = fi[tenureKey] || false;
+  const tenureAmt = isAnnivToday ? tenureAmount(ym.years) : 0;
+
+  // 節日禮金：中秋、端午
+  const fest = FESTIVALS[td.getFullYear()] || {};
+  const isDuanwu = over3mo && fest.duanwu === todayFullStr;
+  const isMidautumn = over3mo && fest.midautumn === todayFullStr;
+  const duanwuKey = 'duanwu_' + td.getFullYear();
+  const midautumnKey = 'midautumn_' + td.getFullYear();
+  const duanwuPaid = fi[duanwuKey] || false;
+  const midautumnPaid = fi[midautumnKey] || false;
+
+  return {
+    fi, ym, over3mo,
+    isBirthday, birthdayKey, birthdayPaid,
+    isAnnivToday, tenureKey, tenurePaid, tenureAmt,
+    isDuanwu, duanwuKey, duanwuPaid,
+    isMidautumn, midautumnKey, midautumnPaid
+  };
+}
+
+// ── 建立該員工待發放項目列表 ──
+function pendingBonusesOf(e){
+  const i = empBonusInfo(e);
+  const items = [];
+  if(i.over3mo){
+    if(!i.fi.shoe) items.push({key:'shoe', label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
+    if(!i.fi.health) items.push({key:'health', label:'🏥 健康檢查補助', amount:parseInt(i.fi.healthAmt||'640'), cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
+  }
+  if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:'今天'});
+  if(i.isAnnivToday && !i.tenurePaid) items.push({key:i.tenureKey, label:`🏆 久任獎金（${i.ym.years} 週年）`, amount:i.tenureAmt, cat:'alert', tag:'今天'});
+  if(i.isDuanwu && !i.duanwuPaid) items.push({key:i.duanwuKey, label:'🎏 端午節禮金', amount:1000, cat:'alert', tag:'今天'});
+  if(i.isMidautumn && !i.midautumnPaid) items.push({key:i.midautumnKey, label:'🥮 中秋節禮金', amount:1000, cat:'alert', tag:'今天'});
+
+  // 自訂項目（未發放的）
+  const customs = (e.bonuses||[]).filter(b => b.status !== '已發放');
+  customs.forEach((b, idx) => {
+    items.push({key:'custom_'+idx, label:'💵 '+b.title, amount:b.amount||0, cat:'custom', customIdx:idx, note:b.note||''});
+  });
+
+  return items;
+}
+
+// ── 職稱階級排序 ──
+const rank = t => {
+  const s = t||'';
+  if(s.includes('營運總監')) return 0;
+  if(s.includes('央廚總監')) return 1;
+  if(s.includes('開發經營')||s.includes('開發經理')||s.includes('財務經理')||s.includes('助理')) return 2;
+  if((s.includes('店長')&&!s.includes('副'))||(s.includes('廠長')&&!s.includes('副'))) return 3;
+  if(s.includes('副店長')||s.includes('副廠長')) return 4;
+  return 5;
+};
 
 window.renderList = function(){
   const store = document.getElementById('fStore').value;
@@ -180,16 +324,6 @@ window.renderList = function(){
   if(store) list = list.filter(e=>e.workLocation===store);
   if(q) list = list.filter(e=>e.name && e.name.includes(q));
 
-  // 排序：職稱階級 > 年資
-  const rank = t => {
-    const s = t||'';
-    if(s.includes('營運總監')) return 0;
-    if(s.includes('央廚總監')) return 1;
-    if(s.includes('開發經營')||s.includes('開發經理')||s.includes('財務經理')||s.includes('助理')) return 2;
-    if((s.includes('店長')&&!s.includes('副'))||(s.includes('廠長')&&!s.includes('副'))) return 3;
-    if(s.includes('副店長')||s.includes('副廠長')) return 4;
-    return 5;
-  };
   list = [...list].sort((a,b)=>{
     const ra = rank(a.title), rb = rank(b.title);
     if(ra!==rb) return ra-rb;
@@ -198,60 +332,36 @@ window.renderList = function(){
     return ta-tb;
   });
 
-  // 額外類型篩選
-  if(type === 'pending'){
-    list = list.filter(e=>{
-      const i = empBonusInfo(e);
-      if(i.over3mo && (!i.fi.shoe || !i.fi.health)) return true;
-      if(i.isBirthday && !i.fi.birthday) return true;
-      if(i.isAnnivToday && !i.tenureChecked) return true;
-      return false;
-    });
-  } else if(type === 'today'){
-    list = list.filter(e=>{ const i=empBonusInfo(e); return i.isBirthday || i.isAnnivToday; });
-  } else if(type === 'over3'){
-    list = list.filter(e=>empBonusInfo(e).over3mo);
-  }
+  // 為每個員工計算待發放，並依 type 過濾
+  const rowsData = list.map(e => ({e, items: pendingBonusesOf(e)}));
+  let filtered = rowsData.filter(r => r.items.length > 0);
+  if(type === 'alert') filtered = filtered.map(r=>({e:r.e, items:r.items.filter(x=>x.cat==='alert')})).filter(r=>r.items.length>0);
+  if(type === 'fixed') filtered = filtered.map(r=>({e:r.e, items:r.items.filter(x=>x.cat==='fixed')})).filter(r=>r.items.length>0);
+  if(type === 'custom') filtered = filtered.map(r=>({e:r.e, items:r.items.filter(x=>x.cat==='custom')})).filter(r=>r.items.length>0);
 
   // 統計
-  let pending=0, paid=0, alert=0;
-  const monthKey = new Date().toISOString().slice(0,7);
-  allEmployees.forEach(e=>{
-    const i = empBonusInfo(e);
-    if(i.over3mo){
-      if(!i.fi.shoe) pending++; else paid++;
-      if(!i.fi.health) pending++; else paid++;
-    }
-    if(i.isBirthday){ alert++; if(!i.fi.birthday) pending++; else paid++; }
-    if(i.isAnnivToday){ alert++; if(!i.tenureChecked) pending++; else paid++; }
+  let totalPending = 0, totalAlert = 0;
+  rowsData.forEach(r => {
+    totalPending += r.items.length;
+    totalAlert += r.items.filter(x=>x.cat==='alert').length;
   });
-  document.getElementById('stEmp').textContent = list.length;
-  document.getElementById('stPending').textContent = pending;
-  document.getElementById('stPaid').textContent = paid;
-  document.getElementById('stAlert').textContent = alert;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const monthAmt = bonusLog.filter(l=>l.date && l.date.startsWith(thisMonth)).reduce((s,l)=>s+(l.amount||0), 0);
 
-  const html = list.length ? list.map(e=>renderEmp(e)).join('') : '<div class="empty-state">無符合條件的同仁</div>';
-  document.getElementById('list').innerHTML = html;
+  document.getElementById('stEmp').textContent = filtered.length;
+  document.getElementById('stPending').textContent = totalPending;
+  document.getElementById('stAlert').textContent = totalAlert;
+  document.getElementById('stAmt').textContent = '$'+monthAmt.toLocaleString();
+
+  document.getElementById('list').innerHTML = filtered.length
+    ? filtered.map(r=>renderEmp(r.e, r.items)).join('')
+    : '<div class="empty-state">目前沒有待發放的項目 🎉</div>';
 };
 
-function renderEmp(e){
+function renderEmp(e, items){
   const i = empBonusInfo(e);
   const initial = e.name ? e.name.slice(0,2) : '—';
-  const rows = [];
-
-  if(i.over3mo){
-    rows.push(bonusRow(e.id, 'shoe', '👟 廚師鞋補助', 2000, i.fi.shoe));
-    rows.push(bonusRow(e.id, 'health', '🏥 健康檢查補助', parseInt(i.fi.healthAmt||'640'), i.fi.health, true, i.fi.healthAmt||'640'));
-  } else {
-    rows.push(`<div class="bonus-item" style="background:#F9FAFB;color:var(--text3);font-size:12px">⏳ 到職 ${i.monthsOnJob} 個月，未滿 3 個月無固定補助</div>`);
-  }
-
-  if(i.isBirthday){
-    rows.push(bonusRow(e.id, 'birthday', '🎂 生日禮金 <span class="badge b-birthday">今天</span>', 1000, i.fi.birthday));
-  }
-  if(i.isAnnivToday){
-    rows.push(bonusRow(e.id, i.tenureKey, `🏆 久任獎金（${i.yearsOnJob} 週年） <span class="badge b-tenure">今天</span>`, null, i.tenureChecked));
-  }
+  const rowsHtml = items.map(it => bonusRow(e.id, it)).join('');
 
   return `<div class="emp-row">
     <div class="emp-head">
@@ -259,85 +369,228 @@ function renderEmp(e){
         <div class="emp-avatar">${initial}</div>
         <div>
           <div><b>${e.name}</b><span class="emp-info">${e.workLocation||'—'} · ${e.title||'—'}</span></div>
-          <div class="emp-info">到職 ${e.startDate||'—'}${e.startDate?' · '+i.monthsOnJob+' 個月':''}</div>
+          <div class="emp-info">到職 ${e.startDate||'—'} · 年資 ${i.ym.str}</div>
         </div>
       </div>
+      <button class="btn btn-sm btn-outline" onclick="openAddCustomModal('${e.id}','${(e.name||'').replace(/'/g,"\\'")}')">＋ 新增獎金項目</button>
     </div>
-    <div class="bonus-items">${rows.join('')}</div>
+    <div class="bonus-items">${rowsHtml}</div>
   </div>`;
 }
 
-function bonusRow(empId, key, label, amount, checked, showAmtSelect=false, curAmt='640'){
-  const amtHtml = amount!==null ? `<div class="bonus-amt">$${amount.toLocaleString()}</div>` : '<div class="bonus-amt">紀念禮</div>';
-  const amtSelect = showAmtSelect ? `<select onchange="updateHealthAmt('${empId}',this.value)" style="font-size:11px;padding:2px 6px;margin-left:6px">
-    <option value="640"${curAmt==='640'?' selected':''}>$640</option>
-    <option value="900"${curAmt==='900'?' selected':''}>$900</option>
+function bonusRow(empId, it){
+  const cls = it.cat === 'alert' ? 'alert' : 'pending';
+  const amtSelect = it.hasAmt ? `<select onchange="updateHealthAmt('${empId}',this.value)" style="font-size:11px;padding:2px 6px;margin-left:6px">
+    <option value="640"${it.curAmt==='640'?' selected':''}>$640</option>
+    <option value="900"${it.curAmt==='900'?' selected':''}>$900</option>
   </select>` : '';
-  return `<div class="bonus-item ${checked?'paid':'pending'}">
-    <div>
-      <div class="bonus-title">${label}</div>
-      <div style="display:flex;align-items:center">${amtHtml}${amtSelect}</div>
+  const tag = it.tag ? `<span class="badge ${it.cat==='alert'?'b-birthday':''}">${it.tag}</span>` : '';
+  const note = it.note ? `<div class="bonus-amt" style="font-style:italic">${it.note}</div>` : '';
+  const rmBtn = it.cat === 'custom' ? `<button class="btn btn-sm btn-danger" onclick="removeCustom('${empId}',${it.customIdx})">✕</button>` : '';
+
+  return `<div class="bonus-item ${cls}">
+    <div style="flex:1">
+      <div class="bonus-title">${it.label}${tag}</div>
+      <div style="display:flex;align-items:center"><div class="bonus-amt">$${it.amount.toLocaleString()}</div>${amtSelect}</div>
+      ${note}
     </div>
-    <label class="check-lbl">
-      <input type="checkbox" ${checked?'checked':''} onchange="toggleBonus('${empId}','${key}',this.checked)">
-      ${checked?'已發放':'待發放'}
-    </label>
+    <div style="display:flex;align-items:center;gap:8px">
+      ${rmBtn}
+      <label class="check-lbl">
+        <input type="checkbox" onchange="markPaid('${empId}','${it.key}','${it.cat}',${it.amount},'${it.label.replace(/'/g,"\\'")}',this)">
+        標記已發
+      </label>
+    </div>
   </div>`;
 }
 
-window.toggleBonus = async function(empId, key, checked){
+window.markPaid = async function(empId, key, cat, amount, label, checkbox){
+  if(!checkbox.checked) return; // 只處理勾選動作
   const e = allEmployees.find(x=>String(x.id)===String(empId));
-  if(!e) return;
-  if(!e.fixedBonuses) e.fixedBonuses = {shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
-  e.fixedBonuses[key] = checked;
+  if(!e){ checkbox.checked = false; return; }
+
+  if(!confirm(`確定要標記「${e.name} - ${label}」為已發放？\n金額 $${amount.toLocaleString()}\n\n確認後將移至發放紀錄，主畫面不再顯示。`)){
+    checkbox.checked = false;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+
+  if(cat === 'custom'){
+    // 自訂項目：修改 bonuses 陣列的 status
+    const customIdx = parseInt(key.split('_')[1]);
+    if(e.bonuses && e.bonuses[customIdx]){
+      e.bonuses[customIdx].status = '已發放';
+      e.bonuses[customIdx].date = today;
+    }
+  } else {
+    // 固定項目：寫 fixedBonuses[key] = true
+    if(!e.fixedBonuses) e.fixedBonuses = {};
+    e.fixedBonuses[key] = true;
+  }
+
+  // 加入發放紀錄
+  bonusLog.unshift({
+    id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    empId: e.id,
+    empName: e.name,
+    workLocation: e.workLocation || '',
+    label,
+    key,
+    cat,
+    amount,
+    date: today,
+    operator: currentUserName,
+    createdAt: new Date().toISOString()
+  });
+
   renderList();
-  await saveEmployees();
+  await saveAll();
 };
 
 window.updateHealthAmt = async function(empId, val){
   const e = allEmployees.find(x=>String(x.id)===String(empId));
   if(!e) return;
-  if(!e.fixedBonuses) e.fixedBonuses = {shoe:false,health:false,healthAmt:'640',birthday:false,tenure:false};
+  if(!e.fixedBonuses) e.fixedBonuses = {};
   e.fixedBonuses.healthAmt = val;
   renderList();
-  await saveEmployees();
+  await saveEmployeesOnly();
 };
 
-async function saveEmployees(){
-  try {
-    // 用 transaction 保護，manager/consultant 需合併其他店資料
-    let finalList = allEmployees;
-    if((currentRole==='manager'||currentRole==='consultant') && currentLocations.length){
-      const fullSnap = await getDoc(doc(db,'hr','employees'));
-      if(fullSnap.exists()){
-        const fullList = fullSnap.data().list || [];
-        const myIds = new Set(allEmployees.map(r=>r.id));
-        const othersEmp = fullList.filter(r => !currentLocations.includes(r.workLocation) && !myIds.has(r.id));
-        // 但 allEmployees 已過濾狀態，需保留離職者
-        const resignedRestored = fullList.filter(r => currentLocations.includes(r.workLocation) && r.status==='離職');
-        finalList = [...allEmployees, ...resignedRestored, ...othersEmp];
+// ── 新增自訂獎金項目 ──
+window.openAddCustomModal = function(empId, empName){
+  const html = `<h3>💵 新增獎金項目 — ${empName}</h3>
+    <div class="fr"><label>項目名稱 *</label><input id="cb-title" placeholder="例：績效獎金、加班補助"></div>
+    <div class="fr"><label>金額 *</label><input id="cb-amount" type="number" placeholder="1000"></div>
+    <div class="fr"><label>備註（選填）</label><textarea id="cb-note" rows="2" placeholder="說明或條件"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveCustom('${empId}')">儲存</button>
+      <button class="btn" style="flex:1" onclick="closeModal()">取消</button>
+    </div>`;
+  document.getElementById('modalArea').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;
+};
+
+window.closeModal = function(){ document.getElementById('modalArea').innerHTML = ''; };
+
+window.saveCustom = async function(empId){
+  const title = document.getElementById('cb-title').value.trim();
+  const amount = parseInt(document.getElementById('cb-amount').value) || 0;
+  const note = document.getElementById('cb-note').value.trim();
+  if(!title || !amount){ alert('請填入項目名稱與金額'); return; }
+  const e = allEmployees.find(x=>String(x.id)===String(empId));
+  if(!e) return;
+  if(!e.bonuses) e.bonuses = [];
+  e.bonuses.unshift({title, amount, note, status:'未發放', date:''});
+  closeModal();
+  renderList();
+  await saveEmployeesOnly();
+};
+
+window.removeCustom = async function(empId, idx){
+  const e = allEmployees.find(x=>String(x.id)===String(empId));
+  if(!e || !e.bonuses || !e.bonuses[idx]) return;
+  if(!confirm(`確定要移除「${e.bonuses[idx].title}」？`)) return;
+  e.bonuses.splice(idx, 1);
+  renderList();
+  await saveEmployeesOnly();
+};
+
+// ── 發放紀錄 ──
+window.renderLog = function(){
+  const month = document.getElementById('logMonth').value;
+  const store = document.getElementById('logStore').value;
+  const q = document.getElementById('logSearch').value.trim();
+
+  let list = [...bonusLog];
+  if(currentLocations.length) list = list.filter(l => currentLocations.includes(l.workLocation));
+  if(month) list = list.filter(l => l.date && l.date.startsWith(month));
+  if(store) list = list.filter(l => l.workLocation === store);
+  if(q) list = list.filter(l => l.empName && l.empName.includes(q));
+  list.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+
+  const total = list.reduce((s,l)=>s+(l.amount||0), 0);
+  const summary = list.length
+    ? `<div style="margin-bottom:12px;font-size:13px;color:var(--text-2)">共 <b>${list.length}</b> 筆，總額 <b style="color:#16A34A">$${total.toLocaleString()}</b></div>`
+    : '';
+
+  const html = list.length ? list.map(l=>`<div class="log-row">
+    <div>
+      <div><span class="log-tag">${l.date||'—'}</span><b>${l.empName}</b> <span style="color:var(--text-2);font-size:12px">${l.workLocation||''}</span></div>
+      <div style="font-size:12px;color:var(--text-2);margin-top:3px">${l.label} · 經手：${l.operator||'—'}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-weight:600;color:#16A34A">$${(l.amount||0).toLocaleString()}</div>
+      ${currentRole==='admin'?`<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="revertLog('${l.id}')">↩ 撤銷</button>`:''}
+    </div>
+  </div>`).join('') : '<div class="empty-state">尚無發放紀錄</div>';
+
+  document.getElementById('logList').innerHTML = summary + html;
+};
+
+window.revertLog = async function(logId){
+  const log = bonusLog.find(l=>l.id===logId);
+  if(!log) return;
+  if(!confirm(`確定要撤銷「${log.empName} - ${log.label} $${(log.amount||0).toLocaleString()}」？\n該項目將重新回到待發放列表。`)) return;
+
+  const e = allEmployees.find(x=>String(x.id)===String(log.empId));
+  if(e){
+    if(log.cat === 'custom'){
+      // 自訂：把 bonus 找回改回未發放（若還在陣列中）
+      const b = (e.bonuses||[]).find(x => x.title === log.label.replace('💵 ','') && x.amount === log.amount);
+      if(b){ b.status = '未發放'; b.date = ''; }
+      else {
+        // 若已移除，補一筆
+        if(!e.bonuses) e.bonuses = [];
+        e.bonuses.unshift({title: log.label.replace('💵 ',''), amount:log.amount, note:'(撤銷重建)', status:'未發放', date:''});
       }
-    } else if(currentRole==='admin'){
-      // admin 需保留其他狀態員工（離職等）
-      const fullSnap = await getDoc(doc(db,'hr','employees'));
-      if(fullSnap.exists()){
-        const fullList = fullSnap.data().list || [];
-        const myIds = new Set(allEmployees.map(r=>r.id));
-        const others = fullList.filter(r=>!myIds.has(r.id));
-        finalList = [...allEmployees, ...others];
-      }
+    } else {
+      // 固定：把 fixedBonuses[key] 設 false
+      if(e.fixedBonuses) e.fixedBonuses[log.key] = false;
     }
+  }
+  bonusLog = bonusLog.filter(l => l.id !== logId);
+  renderLog();
+  renderList();
+  await saveAll();
+};
+
+// ── 存檔 ──
+async function buildFinalEmployees(){
+  // manager/consultant 需保留其他店員工不覆蓋
+  const fullSnap = await getDoc(doc(db,'hr','employees'));
+  if(!fullSnap.exists()) return allEmployees;
+  const fullList = fullSnap.data().list || [];
+  const myIds = new Set(allEmployees.map(r=>r.id));
+  const others = fullList.filter(r => !myIds.has(r.id));
+  return [...allEmployees, ...others];
+}
+
+async function saveEmployeesOnly(){
+  try {
+    const finalList = await buildFinalEmployees();
     await runTransaction(db, async tx => {
       const vRef = doc(db,'hr','_version');
       const vSnap = await tx.get(vRef);
       const nextVer = ((vSnap.exists()?vSnap.data().v:0)||0) + 1;
-      tx.set(vRef, {v:nextVer, lastEditor:'bonus-page', lastEditAt:new Date().toISOString()});
+      tx.set(vRef, {v:nextVer, lastEditor:currentUserName, lastEditAt:new Date().toISOString()});
       tx.set(doc(db,'hr','employees'), {list: finalList});
     });
-  } catch(err){
-    console.error(err);
-    alert('儲存失敗：'+err.message);
-  }
+  } catch(err){ console.error(err); alert('儲存失敗：'+err.message); }
+}
+
+async function saveAll(){
+  try {
+    const finalList = await buildFinalEmployees();
+    await runTransaction(db, async tx => {
+      const vRef = doc(db,'hr','_version');
+      const vSnap = await tx.get(vRef);
+      const nextVer = ((vSnap.exists()?vSnap.data().v:0)||0) + 1;
+      tx.set(vRef, {v:nextVer, lastEditor:currentUserName, lastEditAt:new Date().toISOString()});
+      tx.set(doc(db,'hr','employees'), {list: finalList});
+      tx.set(doc(db,'hr','bonus_log'), {list: bonusLog});
+    });
+    try { writeOpLog({editor:currentUserName, role:currentRole, module:'bonus', action:'更新獎金發放', detail:''}); } catch(e){}
+  } catch(err){ console.error(err); alert('儲存失敗：'+err.message); }
 }
 </script>
 </body>
