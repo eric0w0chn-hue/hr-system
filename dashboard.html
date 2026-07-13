@@ -652,8 +652,8 @@ async function checkUnfinishedAlerts(){
           if(months<0){years--;months+=12;}
           const totalMonths = years*12+months;
           const over3mo = totalMonths >= 3;
+          const annivToday = sd.getMonth()===td.getMonth() && sd.getDate()===td.getDate();
 
-          // 到職週年當天需重發廚師鞋+健檢（每年）
           // 廚師鞋：一次性；健檢：每年
           if(over3mo && !fi.shoe) return true;
           if(over3mo && !fi['health_'+yr] && !fi.health) return true;
