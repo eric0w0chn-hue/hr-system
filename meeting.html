@@ -489,14 +489,36 @@ window.filterRecords = function(){
   renderList(list);
 };
 
+let _visibleCount = 10; // 目前顯示筆數
+let _lastFilteredList = [];  // 記住當前過濾後的完整清單
+
 function renderList(list){
   const el = document.getElementById('recordsList');
   if(!list.length){
     el.innerHTML = `<div class="empty"><div class="ic">📋</div><p>尚無會議紀錄${activeStore!=='all'?'（'+activeStore+'）':''}</p></div>`;
     return;
   }
-  el.innerHTML = `<div class="records-list">${list.map(r=>renderCard(r)).join('')}</div>`;
+  // 記住並重置為前 10 筆
+  _lastFilteredList = list;
+  _visibleCount = 10;
+  _renderVisibleRecords();
 }
+
+function _renderVisibleRecords(){
+  const el = document.getElementById('recordsList');
+  const list = _lastFilteredList;
+  const shown = list.slice(0, _visibleCount);
+  const remaining = list.length - shown.length;
+  const moreBtn = remaining > 0
+    ? `<div style="text-align:center;margin:16px 0"><button onclick="_showMoreRecords()" class="btn-more" style="padding:10px 24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);cursor:pointer;font-weight:500">↓ 載入更多（還有 ${remaining} 筆）</button></div>`
+    : (list.length > 10 ? '<div style="text-align:center;margin:16px 0;color:var(--text3);font-size:12px">— 已顯示全部 ${list.length} 筆 —</div>'.replace('${list.length}', list.length) : '');
+  el.innerHTML = `<div class="records-list">${shown.map(r=>renderCard(r)).join('')}</div>${moreBtn}`;
+}
+
+window._showMoreRecords = function(){
+  _visibleCount += 10;
+  _renderVisibleRecords();
+};
 
 function renderCard(r){
   const badges = [];
