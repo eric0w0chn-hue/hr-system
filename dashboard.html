@@ -87,7 +87,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sidebar-item.active{background:rgba(255,255,255,.14)}
 .sidebar-item .item-drag-handle{display:none;cursor:grab;color:rgba(255,255,255,.2);font-size:10px;flex-shrink:0;padding:0 2px;line-height:1}
 .sidebar-item .item-drag-handle:active{cursor:grabbing}
-.admin-mode .sidebar-item[draggable] .item-drag-handle{display:block}
+.admin-mode .sidebar-item .item-drag-handle{display:inline-flex;align-items:center;color:rgba(255,255,255,.5);font-size:12px}
+.admin-mode .sidebar-item::before{display:none}
 .sidebar-item .item-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0;display:none}
 .sidebar-item::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25);flex-shrink:0;margin:0 5px;transition:background .15s}
 .sidebar-item:hover::before{background:rgba(255,255,255,.6)}
@@ -1175,7 +1176,7 @@ function initItemDrag(){
 
     // Touch 拖拉（手機）
     let tSrc=null, tClone=null, tTimer=null;
-    itemsWrap.querySelectorAll('.sidebar-item[draggable]').forEach(el=>{
+    itemsWrap.querySelectorAll('.sidebar-item').forEach(el=>{
       el.addEventListener('touchstart', e=>{
         if(!e.target.closest('.item-drag-handle')) return;
         tTimer = setTimeout(()=>{
