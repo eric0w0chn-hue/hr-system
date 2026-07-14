@@ -287,24 +287,29 @@ function empBonusInfo(e){
   const shoePaid = fi[shoeKey] || false;
   const healthPaid = fi[healthKey] || false;
 
-  // 生日禮金：到職滿3個月 + 生日當天
+  // 生日禮金：到職滿3個月 + 今年生日已到達（含當天，未過的話明年再說）
   const birthdayStr = e.birthday ? e.birthday.slice(5,10) : '';
-  const isBirthday = over3mo && birthdayStr && todayStr === birthdayStr;
+  const birthdayThisYear = birthdayStr ? (yr + '-' + birthdayStr) : '';
+  const isBirthday = over3mo && birthdayThisYear && birthdayThisYear <= todayFullStr;
   const birthdayKey = 'birthday_' + yr;
   const birthdayPaid = fi[birthdayKey] || false;
 
-  // 久任獎金：到職週年當天 + 滿2年
+  // 久任獎金：滿2年 + 今年到職週年已到達（週年當天起顯示，直到勾選發放）
   const sd = e.startDate ? (()=>{const p=e.startDate.split('-'); return new Date(+p[0],+p[1]-1,+p[2]);})() : null;
-  const isAnnivToday = sd && !isNaN(sd.getTime()) && sd.getMonth() === td.getMonth() && sd.getDate() === td.getDate() && ym.years >= 1;
-  const isTenureToday = isAnnivToday && ym.years >= 2;
+  const annivThisYear = sd && !isNaN(sd.getTime()) ? (yr + '-' + String(sd.getMonth()+1).padStart(2,'0') + '-' + String(sd.getDate()).padStart(2,'0')) : '';
+  const annivReached = annivThisYear && annivThisYear <= todayFullStr;
+  const isAnnivToday = annivReached;
+  // 週年當天以「今日」計算年資（避免比週年日晚一天卻少算1年）
+  const yearsAtAnniv = sd ? (yr - sd.getFullYear()) : 0;
+  const isTenureToday = annivReached && yearsAtAnniv >= 2;
   const tenureKey = 'tenure_' + yr;
   const tenurePaid = fi[tenureKey] || false;
-  const tenureAmt = isTenureToday ? tenureAmount(ym.years) : 0;
+  const tenureAmt = isTenureToday ? tenureAmount(yearsAtAnniv) : 0;
 
-  // 節日
+  // 節日：今年節日已到達
   const fest = FESTIVALS[yr] || {};
-  const isDuanwu = over3mo && fest.duanwu === todayFullStr;
-  const isMidautumn = over3mo && fest.midautumn === todayFullStr;
+  const isDuanwu = over3mo && fest.duanwu && fest.duanwu <= todayFullStr;
+  const isMidautumn = over3mo && fest.midautumn && fest.midautumn <= todayFullStr;
   const duanwuKey = 'duanwu_' + yr;
   const midautumnKey = 'midautumn_' + yr;
   const duanwuPaid = fi[duanwuKey] || false;
@@ -333,10 +338,21 @@ function pendingBonusesOf(e){
       items.push({key:i.healthKey, label:'🏥 健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
     }
   }
-  if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:'今天'});
-  if(i.isTenureToday && !i.tenurePaid) items.push({key:i.tenureKey, label:`🏆 久任獎金（${i.ym.years} 週年）`, amount:i.tenureAmt, cat:'alert', tag:'今天'});
-  if(i.isDuanwu && !i.duanwuPaid) items.push({key:i.duanwuKey, label:'🎏 端午節禮金', amount:1000, cat:'alert', tag:'今天'});
-  if(i.isMidautumn && !i.midautumnPaid) items.push({key:i.midautumnKey, label:'🥮 中秋節禮金', amount:1000, cat:'alert', tag:'今天'});
+  if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
+  if(i.isTenureToday && !i.tenurePaid){
+    // 用週年當天的年資計算獎金
+    const p = e.startDate.split('-');
+    const yearsAtAnniv = i.yr - parseInt(p[0]);
+    items.push({key:i.tenureKey, label:`🏆 久任獎金（${yearsAtAnniv} 週年）`, amount:i.tenureAmt, cat:'alert', tag:i.yr+'/'+p[1]+'/'+p[2]});
+  }
+  if(i.isDuanwu && !i.duanwuPaid){
+    const fest = FESTIVALS[i.yr] || {};
+    items.push({key:i.duanwuKey, label:'🎏 端午節禮金', amount:1000, cat:'alert', tag:fest.duanwu||''});
+  }
+  if(i.isMidautumn && !i.midautumnPaid){
+    const fest = FESTIVALS[i.yr] || {};
+    items.push({key:i.midautumnKey, label:'🥮 中秋節禮金', amount:1000, cat:'alert', tag:fest.midautumn||''});
+  }
 
   const customs = (e.bonuses||[]).filter(b => b.status !== '已發放');
   customs.forEach((b, idx) => {

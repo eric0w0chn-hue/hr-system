@@ -87,8 +87,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .sidebar-item.active{background:rgba(255,255,255,.14)}
 .sidebar-item .item-drag-handle{display:none;cursor:grab;color:rgba(255,255,255,.2);font-size:10px;flex-shrink:0;padding:0 2px;line-height:1}
 .sidebar-item .item-drag-handle:active{cursor:grabbing}
-.admin-mode .sidebar-item .item-drag-handle{display:inline-flex;align-items:center;color:rgba(255,255,255,.5);font-size:12px}
-.admin-mode .sidebar-item::before{display:none}
+.admin-mode .sidebar-item[draggable] .item-drag-handle{display:block}
 .sidebar-item .item-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0;display:none}
 .sidebar-item::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25);flex-shrink:0;margin:0 5px;transition:background .15s}
 .sidebar-item:hover::before{background:rgba(255,255,255,.6)}
@@ -653,17 +652,20 @@ async function checkUnfinishedAlerts(){
           if(months<0){years--;months+=12;}
           const totalMonths = years*12+months;
           const over3mo = totalMonths >= 3;
-          const annivToday = sd.getMonth()===td.getMonth() && sd.getDate()===td.getDate();
 
           // 廚師鞋：一次性；健檢：每年
           if(over3mo && !fi.shoe) return true;
           if(over3mo && !fi['health_'+yr] && !fi.health) return true;
 
-          const bdayStr = e.birthday ? e.birthday.slice(5,10) : '';
-          if(over3mo && bdayStr===todayStr && !fi['birthday_'+yr]) return true;
-          if(years>=2 && annivToday && !fi['tenure_'+yr]) return true;
-          if(over3mo && fest.duanwu===todayFullStr && !fi['duanwu_'+yr]) return true;
-          if(over3mo && fest.midautumn===todayFullStr && !fi['midautumn_'+yr]) return true;
+          // 以下：達到日期後持續顯示，直到勾選發放
+          const bdayThisYr = e.birthday ? (yr + '-' + e.birthday.slice(5,10)) : '';
+          if(over3mo && bdayThisYr && bdayThisYr <= todayFullStr && !fi['birthday_'+yr]) return true;
+
+          const annivThisYr = yr + '-' + String(sd.getMonth()+1).padStart(2,'0') + '-' + String(sd.getDate()).padStart(2,'0');
+          const yearsAtAnniv = yr - sd.getFullYear();
+          if(yearsAtAnniv >= 2 && annivThisYr <= todayFullStr && !fi['tenure_'+yr]) return true;
+          if(over3mo && fest.duanwu && fest.duanwu <= todayFullStr && !fi['duanwu_'+yr]) return true;
+          if(over3mo && fest.midautumn && fest.midautumn <= todayFullStr && !fi['midautumn_'+yr]) return true;
 
           // 自訂項目未發放
           if((e.bonuses||[]).some(b=>b.status!=='已發放')) return true;
@@ -1176,7 +1178,7 @@ function initItemDrag(){
 
     // Touch 拖拉（手機）
     let tSrc=null, tClone=null, tTimer=null;
-    itemsWrap.querySelectorAll('.sidebar-item').forEach(el=>{
+    itemsWrap.querySelectorAll('.sidebar-item[draggable]').forEach(el=>{
       el.addEventListener('touchstart', e=>{
         if(!e.target.closest('.item-drag-handle')) return;
         tTimer = setTimeout(()=>{
