@@ -631,16 +631,17 @@ function insFromGrade(grade){
 function getHireDate(e){return e.hireDate||e.startDate||e.onboardDate||e.到職日||e.entryDate||null;}
 function getLeaveDate(e){return e.leaveDate||e.resignDate||e.離職日||e.quitDate||null;}
 function getInsGrade(e,y,m){
-  // 6月薪資繳的是5月費用 → 抓「上個月最後一天」之前最新的投保級距
+  // 投保級距調整需提前1個月生效，且薪資是繳「上個月」的保費
+  // → 7月薪資繳6月保費，6月保費用的級距＝5月底最新的級距（6月才申報的調整7月才生效，不算）
+  // 因此 cutoff 抓「前兩個月」最後一天
   const hist=e.insurance?.gradeHistory;
   if(y&&m&&Array.isArray(hist)&&hist.length){
-    // 上個月
-    let py=y, pm=m-1; if(pm<1){pm=12;py=y-1;}
+    let py=y, pm=m-2; if(pm<1){pm+=12;py-=1;} if(pm<1){pm+=12;py-=1;}
     const cutoff=`${py}-${String(pm).padStart(2,'0')}-${String(getDaysInMonth(py,pm)).padStart(2,'0')}`;
     const sorted=hist.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     const valid=sorted.find(r=>String(r.date)<=cutoff);
     if(valid)return Number(valid.grade);
-    // 沒有上月(含)以前的紀錄 → 取最早一筆
+    // 沒有前兩月(含)以前的紀錄 → 取最早一筆
     return Number(sorted[sorted.length-1].grade);
   }
   return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);

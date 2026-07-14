@@ -476,22 +476,60 @@ function showLoading(show) {
 async function loadData() {
   try {
     showLoading(true);
-    const [ivSnap,evSnap,rsSnap,locSnap,verSnap] = await Promise.all([
-      getDoc(doc(db,'hr','interviews')),
-      getDoc(doc(db,'hr','employees')),
-      getDoc(doc(db,'hr','resigned')),
-      getDoc(doc(db,'hr','settings')),
-      getDoc(doc(db,'hr','_version')),
-    ]);
-    interviews       = ivSnap.exists() ? ivSnap.data().list : [];
-    employees        = evSnap.exists() ? evSnap.data().list : [];
-    resigned         = rsSnap.exists() ? rsSnap.data().list : [];
-    _dataVersion     = verSnap.exists() ? verSnap.data().v : 0;
-    interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
-    workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
-    titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
-    bankOptions        = locSnap.exists() ? (locSnap.data().bankOptions||[]) : [];
-    insuranceGrades    = locSnap.exists() ? (locSnap.data().insuranceGrades||[]) : [];
+    // ── 5 分鐘快取：先讀 _version 判斷資料是否有變，同 version + 5 分內直接用 sessionStorage ──
+    const CACHE_KEY = 'hr_cache_v1';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
+    let cachedData = null;
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if(raw){
+        const c = JSON.parse(raw);
+        if(c && (Date.now() - c.ts) < CACHE_TTL) cachedData = c;
+      }
+    } catch(e) {}
+
+    // 先讀 _version 檢查資料是否過期（單一 doc 讀取，很快）
+    const verSnap = await getDoc(doc(db,'hr','_version'));
+    const remoteVer = verSnap.exists() ? verSnap.data().v : 0;
+
+    if(cachedData && cachedData.v === remoteVer){
+      // 命中快取，直接用
+      interviews         = cachedData.interviews||[];
+      employees          = cachedData.employees||[];
+      resigned           = cachedData.resigned||[];
+      _dataVersion       = cachedData.v;
+      interviewLocations = cachedData.interviewLocations||[];
+      workLocations      = cachedData.workLocations||[];
+      titleOptions       = cachedData.titleOptions||[];
+      bankOptions        = cachedData.bankOptions||[];
+      insuranceGrades    = cachedData.insuranceGrades||[];
+    } else {
+      // 快取失效或不存在，重讀
+      const [ivSnap,evSnap,rsSnap,locSnap] = await Promise.all([
+        getDoc(doc(db,'hr','interviews')),
+        getDoc(doc(db,'hr','employees')),
+        getDoc(doc(db,'hr','resigned')),
+        getDoc(doc(db,'hr','settings')),
+      ]);
+      interviews       = ivSnap.exists() ? ivSnap.data().list : [];
+      employees        = evSnap.exists() ? evSnap.data().list : [];
+      resigned         = rsSnap.exists() ? rsSnap.data().list : [];
+      _dataVersion     = remoteVer;
+      interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
+      workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
+      titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
+      bankOptions        = locSnap.exists() ? (locSnap.data().bankOptions||[]) : [];
+      insuranceGrades    = locSnap.exists() ? (locSnap.data().insuranceGrades||[]) : [];
+      // 存入快取
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          ts: Date.now(),
+          v: remoteVer,
+          interviews, employees, resigned,
+          interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
+        }));
+      } catch(e) { /* 可能超出 sessionStorage 上限，忽略 */ }
+    }
   } catch(e) {
     console.error(e);
     showToast('載入資料失敗，請重新整理');
@@ -562,6 +600,14 @@ async function saveData(action='', detail='') {
       tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
       _dataVersion = nextVer;
     });
+    // 儲存成功後同步刷新 sessionStorage 快取（避免下次進來還用舊資料）
+    try {
+      sessionStorage.setItem('hr_cache_v1', JSON.stringify({
+        ts: Date.now(), v: _dataVersion,
+        interviews, employees, resigned,
+        interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
+      }));
+    } catch(e) {}
     if(action) writeOpLog(action, detail);
   } catch(e) {
     if(e.isConflict){
@@ -1352,7 +1398,8 @@ function render() {
               <div class="hist-dot green"></div>
               <div style="flex:1">
                 <div style="font-size:13px;font-weight:500">$${Number(h.grade).toLocaleString()}</div>
-                <div class="hist-meta">${h.date}</div>
+                <input type="date" value="${h.date}" onchange="updateInsuranceHistoryDate(${sel.id},${i},this.value)"
+                  style="font-size:12px;padding:3px 6px;border:1px solid #DDE1E9;border-radius:6px;margin-top:4px;color:#5A6175">
               </div>
               <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
             </div>`).join('')}
@@ -1995,6 +2042,13 @@ window.deleteInsuranceHistory=async function(empId,idx){
   if(!r||!r.insurance||!r.insurance.gradeHistory)return;
   r.insurance.gradeHistory.splice(idx,1);
   render(); showToast('儲存中...'); await saveData(); showToast('已刪除 ✓');
+};
+
+window.updateInsuranceHistoryDate=async function(empId,idx,newDate){
+  const r=employees.find(x=>x.id===empId);
+  if(!r||!r.insurance||!r.insurance.gradeHistory||!r.insurance.gradeHistory[idx])return;
+  r.insurance.gradeHistory[idx].date=newDate;
+  showToast('儲存中...'); await saveData(); showToast('日期已更新 ✓');
 };
 
 window.savePensionRate=async function(empId){
