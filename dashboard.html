@@ -641,6 +641,9 @@ async function checkUnfinishedAlerts(){
         const fest = FESTIVALS[yr] || {};
 
         const hasPending = scoped.some(e=>{
+          // 只檢查正職／兼職（管理職不發獎金）
+          const t = e.title || '';
+          if(!t.includes('正職') && !t.includes('兼職')) return false;
           const fi = e.fixedBonuses || {};
           if(!e.startDate) return false;
           const p = e.startDate.split('-');

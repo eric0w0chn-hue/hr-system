@@ -145,6 +145,12 @@ let currentRole = '', currentLocations = [], currentUserName = '';
 
 const roleTxt = {admin:'管理員', consultant:'顧問', manager:'店長', employee:'同仁'};
 
+// ── 只有正職／兼職才需要獎金發放（管理職不用）──
+function needsBonus(title){
+  const t = title || '';
+  return t.includes('正職') || t.includes('兼職');
+}
+
 function tenureAmount(years){
   if(years < 2) return 0;
   if(years === 2) return 3000;
@@ -379,7 +385,7 @@ window.renderList = function(){
   const type = document.getElementById('fType').value;
   const q = document.getElementById('fSearch').value.trim();
 
-  let list = allEmployees;
+  let list = allEmployees.filter(e => needsBonus(e.title));
   if(store) list = list.filter(e=>e.workLocation===store);
   if(q) list = list.filter(e=>e.name && e.name.includes(q));
 
@@ -398,7 +404,14 @@ window.renderList = function(){
   if(type === 'custom') filtered = filtered.map(r=>({e:r.e, items:r.items.filter(x=>x.cat==='custom')})).filter(r=>r.items.length>0);
 
   let totalPending = 0, totalAlert = 0;
-  rowsData.forEach(r => {
+  const bonusEligible = allEmployees.filter(e => needsBonus(e.title));
+  bonusEligible.forEach(e => {
+    const its = pendingBonusesOf(e);
+    totalPending += its.length;
+    totalAlert += its.filter(x=>x.cat==='alert').length;
+  });
+  // 移除下方原本的統計迴圈（用上面的取代）
+  false && rowsData.forEach(r => {
     totalPending += r.items.length;
     totalAlert += r.items.filter(x=>x.cat==='alert').length;
   });
