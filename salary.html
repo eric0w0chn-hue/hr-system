@@ -630,6 +630,15 @@ function insFromGrade(grade){
 // 取員工欄位（多重 fallback）
 function getHireDate(e){return e.hireDate||e.startDate||e.onboardDate||e.到職日||e.entryDate||null;}
 function getLeaveDate(e){return e.leaveDate||e.resignDate||e.離職日||e.quitDate||null;}
+// 取「到職當下」的投保級距（用於當月到職即離職的情況，無法用前兩月回推）
+function getHireGrade(e){
+  const hist=e.insurance?.gradeHistory;
+  if(Array.isArray(hist)&&hist.length){
+    const sorted=hist.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    return Number(sorted[0].grade);
+  }
+  return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);
+}
 function getInsGrade(e,y,m){
   // 投保級距調整需提前1個月生效，且薪資是繳「上個月」的保費
   // → 7月薪資繳6月保費，6月保費用的級距＝5月底最新的級距（6月才申報的調整7月才生效，不算）
@@ -958,8 +967,21 @@ function calcSalary(emp,rec,shifts){
   const absentDeduct=Math.round(dailyBase*absentDays);
   const sickDeduct=Math.round(dailyBase/8*sickHours*0.5);
 
+  // 繳費狀態：手動設定優先；否則依到職/離職日自動判斷
+  //   當月到職+當月離職 → same_month（用到職當下的投保級距）
+  //   當月到職（非當月離職）→ new（首月免扣）
+  let autoInsMode='normal';
+  const _hd=emp2.hireDate?new Date(emp2.hireDate):null;
+  const _ld=emp2.leaveDate?new Date(emp2.leaveDate):null;
+  const hiredThisMonth=_hd&&_hd.getFullYear()===viewYear&&(_hd.getMonth()+1)===viewMonth;
+  const leftThisMonth=_ld&&_ld.getFullYear()===viewYear&&(_ld.getMonth()+1)===viewMonth;
+  if(hiredThisMonth&&leftThisMonth)autoInsMode='same_month';
+  else if(hiredThisMonth)autoInsMode='new';
+  const insMode=rec?.insMode||autoInsMode;
+
   // 勞健保
-  const insGrade=(rec&&rec.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
+  // 當月到職即離職：不適用「前兩月」回推邏輯，直接用到職當下的投保級距
+  const insGrade=(rec&&rec.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
   const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自付
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
@@ -971,11 +993,6 @@ function calcSalary(emp,rec,shifts){
   const hrDeps=Array.isArray(emp.insurance?.dependents)?emp.insurance.dependents.length:0;
   const dependents=rec?.dependents!=null?rec.dependents:hrDeps;
   const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷整月健保
-  // 繳費狀態：手動設定優先；否則若到職日 = 當前薪資年月 → 自動新人首月免扣
-  let autoInsMode='normal';
-  const _hd=emp2.hireDate?new Date(emp2.hireDate):null;
-  if(_hd&&_hd.getFullYear()===viewYear&&(_hd.getMonth()+1)===viewMonth)autoInsMode='new';
-  const insMode=rec?.insMode||autoInsMode;
 
   // ── 勞保：在保天數 = 到職日到退保日（含頭尾）──
   // 退保日可能等於離職日（當天辦）或晚一天（隔天才辦），以退保日為準
@@ -1144,12 +1161,12 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const attendBonus=Math.round(attendBonusHours*ATTEND_BONUS);
 
   // 勞健保（兼職一樣可投保，沿用設定；預設不扣，由 rec 手動設定）
-  const ins=insFromGrade((rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth));
   const insMode=rec?.insMode||'normal';
+  const insGrade=(rec?.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
+  const ins=insFromGrade(insGrade);
   const finalLabor=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:0);
   const finalHealth=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:0);
   const pensionRate=rec?.pensionRate!=null?rec.pensionRate:Number(emp.insurance?.pensionRate||0);
-  const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
   const pensionAmt=pensionRate>0?Math.round(insGrade*pensionRate):0;
 
   // 管理扣點
@@ -1632,8 +1649,8 @@ function renderSheet(emp,rec,shifts,c){
     }
   }
 
-  const insModeLabel={normal:'正常',new:'新人（首月免扣）',quit_prepay:'離職預扣次月'};
-  const insModeTag=c.insMode==='new'?`<span class="prepay-tag prepay-new">首月免扣</span>`:c.insMode==='quit_prepay'?`<span class="prepay-tag prepay-quit">預扣次月</span>`:'';
+  const insModeLabel={normal:'正常',new:'新人（首月免扣）',quit_prepay:'離職預扣次月',same_month:'當月到職/離職'};
+  const insModeTag=c.insMode==='new'?`<span class="prepay-tag prepay-new">首月免扣</span>`:c.insMode==='quit_prepay'?`<span class="prepay-tag prepay-quit">預扣次月</span>`:c.insMode==='same_month'?`<span class="prepay-tag prepay-new">當月到離職</span>`:'';
 
   // 自訂加項
   const customAddRows=(c.customAdds||[]).map((a,i)=>`<div class="add-item">
@@ -1806,6 +1823,7 @@ function renderSheet(emp,rec,shifts,c){
 
         ${c.insMode==='new'?`<div class="ins-banner ins-banner-g">🆕 新人首月：勞健保由次月繳費單才產生，本月不扣（已歸零）。薪資單會註明。</div>`:''}
         ${c.insMode==='quit_prepay'?`<div class="ins-banner ins-banner-o">⚠️ 離職預扣說明：每月薪資扣除的是「上個月」的保費。此次同時扣 ${viewMonth-1<1?12:viewMonth-1} 月（上月）+ ${viewMonth} 月（本月）兩個月保費，因離職後無薪資可扣故提前一併扣除。上方可分別填入兩個月的實際金額（不足月時各自調整）。勞保 $${c.laborPrev.toLocaleString()}+$${c.laborCurr.toLocaleString()}、健保 $${c.healthPrev.toLocaleString()}+$${c.healthCurr.toLocaleString()}，合計 −$${(c.finalLabor+c.finalHealth).toLocaleString()}。</div>`:''}
+        ${c.insMode==='same_month'?`<div class="ins-banner ins-banner-g">🔁 當月到職即離職：無法用「前兩月」回推投保級距，直接使用到職當下設定的投保級距 $${c.insGrade.toLocaleString()} 計算本月保費。</div>`:''}
         `:''}
       </div>
 
@@ -2033,9 +2051,14 @@ window.exportSalaryXlsx=async function(){
   showToast(`✓ 已匯出 ${totalSheets} 個店面的薪資總表`);
 };
 function calcInsAuditRow(emp,rec){
-  const insGrade=(rec?.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
+  const _hd2=emp.hireDate?new Date(emp.hireDate):null;
+  const _ld2=emp.leaveDate?new Date(emp.leaveDate):null;
+  const hiredThisMo=_hd2&&_hd2.getFullYear()===viewYear&&(_hd2.getMonth()+1)===viewMonth;
+  const leftThisMo=_ld2&&_ld2.getFullYear()===viewYear&&(_ld2.getMonth()+1)===viewMonth;
+  const autoMode=(hiredThisMo&&leftThisMo)?'same_month':(hiredThisMo?'new':'normal');
+  const insMode=rec?.insMode||autoMode;
+  const insGrade=(rec?.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
   const ins=insFromGrade(insGrade);
-  const insMode=rec?.insMode||'normal';
   const dependents=rec?.dependents!=null?rec.dependents:Number(emp.insurance?.dependents?.length||0);
   const healthBase=ins.health; // 本人單份
   const healthTotal=healthBase+Math.round(healthBase*dependents*HEALTH_DEP_RATIO); // 含眷
@@ -2347,7 +2370,7 @@ window.batchExportSlips=async function(){
     try{
       const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-      const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
+      const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
       const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
       const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
       const slipHtml=buildSlipHtml(c,customRows,fmtMin);
@@ -2489,7 +2512,7 @@ window.saveSheet=async function(){
 window.exportSlip=async function(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
   const c=calcSalary(emp,currentRec,curShifts);
-  const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣'}[c.insMode]||'';
+  const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
   const slipHtml=buildSlipHtml(c,customRows);
   const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;

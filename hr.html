@@ -2029,8 +2029,8 @@ window.saveInsuranceGrade=async function(empId){
   if(!r.insurance.gradeHistory)r.insurance.gradeHistory=[];
   const newGrade=el.value;
   if(newGrade===r.insurance.grade){showToast('級距未變更');return;}
-  // 記錄變更
-  const today=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Taipei'});
+  // 記錄變更（ISO 格式 YYYY-MM-DD，才能正確帶入 <input type="date">）
+  const today=new Date().toISOString().slice(0,10);
   r.insurance.gradeHistory.unshift({grade:newGrade, date:today});
   r.insurance.grade=newGrade;
   render(); showToast('儲存中...'); await saveData(); showToast('投保級距已更新 ✓');
