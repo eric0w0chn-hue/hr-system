@@ -107,7 +107,7 @@ select,input,textarea{padding:8px 12px;border:1px solid var(--border);border-rad
       <div class="card">
         <div class="filter-row">
           <label>店面</label>
-          <select id="fStore" onchange="renderList()"><option value="">全部店面</option></select>
+          <select id="fStore" onchange="document.getElementById('logStore').value=this.value;renderList()"><option value="">全部店面</option></select>
           <label style="margin-left:12px">篩選</label>
           <select id="fType" onchange="renderList()">
             <option value="all">全部（僅顯示未發放）</option>
@@ -125,7 +125,7 @@ select,input,textarea{padding:8px 12px;border:1px solid var(--border);border-rad
       <div class="card">
         <div class="filter-row">
           <label>店面</label>
-          <select id="logStore" onchange="clearLogEmp()"><option value="">全部店面</option></select>
+          <select id="logStore" onchange="document.getElementById('fStore').value=this.value;clearLogEmp()"><option value="">全部店面</option></select>
           <input type="text" id="logSearch" placeholder="搜尋姓名..." oninput="clearLogEmp()" style="flex:1;min-width:150px">
         </div>
         <div id="logList"></div>
@@ -260,7 +260,14 @@ window.switchTab = function(t){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
   document.getElementById('tab-pending').style.display = t==='pending' ? 'block' : 'none';
   document.getElementById('tab-log').style.display = t==='log' ? 'block' : 'none';
-  if(t==='log') renderLog();
+  // 分頁間同步店面篩選
+  if(t==='log'){
+    document.getElementById('logStore').value = document.getElementById('fStore').value;
+    renderLog();
+  } else {
+    document.getElementById('fStore').value = document.getElementById('logStore').value;
+    renderList();
+  }
 };
 
 function calcYearsMonths(startDate){
