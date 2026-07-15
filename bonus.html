@@ -205,79 +205,52 @@ async function load(){
   renderList();
 }
 
-// ── 舊資料遷移：fi.shoe/fi.health 是無年份的舊欄位，補進紀錄並轉為當年份 key ──
+// ── 清理／撤回：把「資料遷移」自動塞進發放紀錄的固定補助（廚師鞋＋健檢）全部撤回，
+//    並清除舊制無年份旗標。發放紀錄之後只保留「人工實際發放」的紀錄；
+//    待發放改完全依規則顯示（廚師鞋＝到職滿3個月；健檢＝每年到職週年日一次，須滿3個月）。──
 async function migrateLegacyBonuses(){
-  const thisYear = new Date().getFullYear();
-  let migrated = 0;
-  for(const e of allEmployees){
-    if(!e.fixedBonuses) continue;
-    const fi = e.fixedBonuses;
-    // 舊廚師鞋（一次性）：保留 fi.shoe，只補紀錄一筆
-    if(fi.shoe === true){
-      const has = bonusLog.some(l => l.empId === e.id && l.key === 'shoe');
-      if(!has){
-        bonusLog.push({
-          id:'migrate_'+e.id+'_shoe', empId:e.id, empName:e.name, workLocation:e.workLocation||'',
-          label:'👟 廚師鞋補助', key:'shoe', cat:'fixed', amount:2000,
-          date: e.startDate || new Date().toISOString().slice(0,10),
-          operator:'（資料遷移）', createdAt:new Date().toISOString()
-        });
-        migrated++;
-      }
-    }
-    // 舊健檢：C 規則 —— 只有「今年到職週年已到達且滿3個月」才視為已發放並補進紀錄；
-    //          週年未到者不建紀錄、不設已發放，僅清除舊 flag，讓它於週年日以待發放跳提示
-    if(fi.health === true){
-      const healthYearKey = 'health_' + thisYear;
-      const todayFull = new Date().toISOString().slice(0,10);
-      const annivStr = e.startDate ? applyYear(e.startDate, thisYear) : todayFull;
-      let s3str = '';
-      if(e.startDate){
-        const _p = e.startDate.split('-');
-        const _d = new Date(+_p[0], +_p[1]-1+3, +_p[2]);
-        s3str = _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
-      }
-      const dueThisYear = !!(e.startDate && s3str && annivStr >= s3str && annivStr <= todayFull);
-      if(dueThisYear && !fi[healthYearKey]){
-        fi[healthYearKey] = true;
-        const amt = parseInt(fi.healthAmt||'640');
-        const has = bonusLog.some(l => l.empId === e.id && l.key === healthYearKey);
-        if(!has){
-          bonusLog.push({
-            id:'migrate_'+e.id+'_health_'+thisYear, empId:e.id, empName:e.name, workLocation:e.workLocation||'',
-            label:'🏥 '+thisYear+'健康檢查補助', key:healthYearKey, cat:'fixed', amount:amt,
-            date: annivStr,
-            operator:'（資料遷移）', createdAt:new Date().toISOString()
-          });
-        }
-      }
-      delete fi.health;
-      migrated++;
-    }
-  }
-  // ── 補正(C)：已寫入發放紀錄、但到職週年日尚未到（date 在今天之後）的健檢 → 撤回回待發放 ──
-  const _todayC = new Date().toISOString().slice(0,10);
-  const _revert = bonusLog.filter(l => l && l.cat === 'fixed' && typeof l.key === 'string'
-      && l.key.indexOf('health_') === 0 && l.date && l.date > _todayC);
-  if(_revert.length){
-    for(const l of _revert){
+  let changed = 0;
+
+  // ① 撤回所有 operator='（資料遷移）' 的固定補助紀錄（廚師鞋 shoe / 健檢 health_YYYY），
+  //    並把對應已發放旗標設回 false → 回到待發放
+  const migIds = [];
+  for(const l of bonusLog){
+    if(l && l.operator === '（資料遷移）' && l.cat === 'fixed' && typeof l.key === 'string'
+        && (l.key === 'shoe' || l.key.indexOf('health_') === 0)){
+      migIds.push(l.id);
       const emp = allEmployees.find(x => String(x.id) === String(l.empId));
-      if(emp && emp.fixedBonuses) emp.fixedBonuses[l.key] = false;
+      if(emp){ if(!emp.fixedBonuses) emp.fixedBonuses = {}; emp.fixedBonuses[l.key] = false; }
     }
-    const _rids = new Set(_revert.map(l => l.id));
-    bonusLog = bonusLog.filter(l => !_rids.has(l.id));
-    migrated += _revert.length;
   }
-  // ── 補正：已存在發放紀錄裡的健檢 label 沒帶年度 → 依 key（health_YYYY）的年份補上，冪等 ──
+  if(migIds.length){
+    const s = new Set(migIds);
+    bonusLog = bonusLog.filter(l => !s.has(l.id));
+    changed += migIds.length;
+  }
+
+  // ② 清除舊制無年份旗標，改由待發放邏輯顯示
+  for(const e of allEmployees){
+    const fi = e.fixedBonuses; if(!fi) continue;
+    // 舊 fi.shoe（無對應「人工發放」紀錄者）視為未發放 → 回待發放（滿3個月顯示）
+    if(fi.shoe === true){
+      const hasReal = bonusLog.some(l => String(l.empId) === String(e.id) && l.key === 'shoe' && l.operator !== '（資料遷移）');
+      if(!hasReal){ fi.shoe = false; changed++; }
+    }
+    // 舊 fi.health（無年份）一律清除，改依 health_YYYY + 到職週年判斷
+    if(fi.health === true){ delete fi.health; changed++; }
+  }
+
+  // ③ 既有「人工發放」的健檢紀錄 label 補年度（冪等）
   for(const l of bonusLog){
     if(l && l.cat === 'fixed' && typeof l.key === 'string' && l.key.indexOf('health_') === 0){
       const y = l.key.replace('health_', '');
       const want = '🏥 ' + y + '健康檢查補助';
-      if(l.label !== want){ l.label = want; migrated++; }
+      if(l.label !== want){ l.label = want; changed++; }
     }
   }
-  if(migrated > 0){
-    console.log('遷移 '+migrated+' 筆舊獎金紀錄');
+
+  if(changed > 0){
+    console.log('清理/撤回自動遷移 ' + changed + ' 筆');
     await saveAll(true);
   }
 }
