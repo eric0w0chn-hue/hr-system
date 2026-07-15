@@ -441,7 +441,14 @@ window.renderList = function(){
     totalAlert += r.items.filter(x=>x.cat==='alert').length;
   });
   const thisMonth = new Date().toISOString().slice(0,7);
-  const monthAmt = bonusLog.filter(l=>l.date && l.date.startsWith(thisMonth)).reduce((s,l)=>s+(l.amount||0), 0);
+  // 本月已發總額：比照清單範圍 —— 先套權限（currentLocations），再套所選店面（fStore）
+  //   ‧ admin：currentLocations 為空 → 全店；選定某店 → 該店
+  //   ‧ 顧問/店長：currentLocations 為所屬店面 → 加總所屬；選定某店 → 該店
+  const selStore = document.getElementById('fStore').value;
+  let paidScope = bonusLog.filter(l => l.date && l.date.startsWith(thisMonth));
+  if(currentLocations.length) paidScope = paidScope.filter(l => currentLocations.includes(l.workLocation));
+  if(selStore) paidScope = paidScope.filter(l => l.workLocation === selStore);
+  const monthAmt = paidScope.reduce((s,l)=>s+(l.amount||0), 0);
 
   document.getElementById('stEmp').textContent = filtered.length;
   document.getElementById('stPending').textContent = totalPending;
