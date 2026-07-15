@@ -245,6 +245,14 @@ async function migrateLegacyBonuses(){
       migrated++;
     }
   }
+  // ── 補正：已存在發放紀錄裡的健檢 label 沒帶年度 → 依 key（health_YYYY）的年份補上，冪等 ──
+  for(const l of bonusLog){
+    if(l && l.cat === 'fixed' && typeof l.key === 'string' && l.key.indexOf('health_') === 0){
+      const y = l.key.replace('health_', '');
+      const want = '🏥 ' + y + '健康檢查補助';
+      if(l.label !== want){ l.label = want; migrated++; }
+    }
+  }
   if(migrated > 0){
     console.log('遷移 '+migrated+' 筆舊獎金紀錄');
     await saveAll(true);
