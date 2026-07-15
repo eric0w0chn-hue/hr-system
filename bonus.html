@@ -225,10 +225,20 @@ async function migrateLegacyBonuses(){
         migrated++;
       }
     }
-    // 舊健檢
+    // 舊健檢：C 規則 —— 只有「今年到職週年已到達且滿3個月」才視為已發放並補進紀錄；
+    //          週年未到者不建紀錄、不設已發放，僅清除舊 flag，讓它於週年日以待發放跳提示
     if(fi.health === true){
       const healthYearKey = 'health_' + thisYear;
-      if(!fi[healthYearKey]){
+      const todayFull = new Date().toISOString().slice(0,10);
+      const annivStr = e.startDate ? applyYear(e.startDate, thisYear) : todayFull;
+      let s3str = '';
+      if(e.startDate){
+        const _p = e.startDate.split('-');
+        const _d = new Date(+_p[0], +_p[1]-1+3, +_p[2]);
+        s3str = _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
+      }
+      const dueThisYear = !!(e.startDate && s3str && annivStr >= s3str && annivStr <= todayFull);
+      if(dueThisYear && !fi[healthYearKey]){
         fi[healthYearKey] = true;
         const amt = parseInt(fi.healthAmt||'640');
         const has = bonusLog.some(l => l.empId === e.id && l.key === healthYearKey);
@@ -236,7 +246,7 @@ async function migrateLegacyBonuses(){
           bonusLog.push({
             id:'migrate_'+e.id+'_health_'+thisYear, empId:e.id, empName:e.name, workLocation:e.workLocation||'',
             label:'🏥 '+thisYear+'健康檢查補助', key:healthYearKey, cat:'fixed', amount:amt,
-            date: e.startDate ? applyYear(e.startDate, thisYear) : new Date().toISOString().slice(0,10),
+            date: annivStr,
             operator:'（資料遷移）', createdAt:new Date().toISOString()
           });
         }
@@ -244,6 +254,19 @@ async function migrateLegacyBonuses(){
       delete fi.health;
       migrated++;
     }
+  }
+  // ── 補正(C)：已寫入發放紀錄、但到職週年日尚未到（date 在今天之後）的健檢 → 撤回回待發放 ──
+  const _todayC = new Date().toISOString().slice(0,10);
+  const _revert = bonusLog.filter(l => l && l.cat === 'fixed' && typeof l.key === 'string'
+      && l.key.indexOf('health_') === 0 && l.date && l.date > _todayC);
+  if(_revert.length){
+    for(const l of _revert){
+      const emp = allEmployees.find(x => String(x.id) === String(l.empId));
+      if(emp && emp.fixedBonuses) emp.fixedBonuses[l.key] = false;
+    }
+    const _rids = new Set(_revert.map(l => l.id));
+    bonusLog = bonusLog.filter(l => !_rids.has(l.id));
+    migrated += _revert.length;
   }
   // ── 補正：已存在發放紀錄裡的健檢 label 沒帶年度 → 依 key（health_YYYY）的年份補上，冪等 ──
   for(const l of bonusLog){
@@ -336,6 +359,9 @@ function empBonusInfo(e){
   const tenurePaid = fi[tenureKey] || false;
   const tenureAmt = isTenureToday ? tenureAmount(yearsAtAnniv) : 0;
 
+  // 健檢：每年「到職週年日」跳一次，須滿3個月（週年日 >= 到職滿3個月日）+ 週年已到達
+  const isHealthDue = !!(annivThisYear && startPlus3moStr && annivThisYear >= startPlus3moStr && annivThisYear <= todayFullStr);
+
   // 節日：節日「當天」須到職滿3個月 + 今年節日已到達
   const fest = FESTIVALS[yr] || {};
   const isDuanwu = fest.duanwu && startPlus3moStr && fest.duanwu >= startPlus3moStr && fest.duanwu <= todayFullStr;
@@ -346,9 +372,9 @@ function empBonusInfo(e){
   const midautumnPaid = fi[midautumnKey] || false;
 
   return {
-    fi, ym, over3mo, reached3mo, yr,
+    fi, ym, over3mo, reached3mo, yr, annivThisYear,
     shoeKey, shoePaid,
-    healthKey, healthPaid,
+    healthKey, healthPaid, isHealthDue,
     isBirthday, birthdayKey, birthdayPaid,
     isTenureToday, isAnnivToday, tenureKey, tenurePaid, tenureAmt,
     isDuanwu, duanwuKey, duanwuPaid,
@@ -360,13 +386,11 @@ function pendingBonusesOf(e){
   const i = empBonusInfo(e);
   const items = [];
 
-  // 廚師鞋、健檢：到職滿3個月日已到達且當年未發放
-  if(i.reached3mo){
-    if(!i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
-    if(!i.healthPaid){
-      const amt = parseInt(i.fi.healthAmt||'640');
-      items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
-    }
+  // 廚師鞋：到職滿3個月一次性；健檢：每年到職週年日觸發（須滿3個月）
+  if(i.reached3mo && !i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
+  if(i.isHealthDue && !i.healthPaid){
+    const amt = parseInt(i.fi.healthAmt||'640');
+    items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
   }
   if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
   if(i.isTenureToday && !i.tenurePaid){

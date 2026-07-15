@@ -659,16 +659,17 @@ async function checkUnfinishedAlerts(){
           const s3 = new Date(sd.getFullYear(), sd.getMonth()+3, sd.getDate());
           const startPlus3moStr = s3.getFullYear()+'-'+String(s3.getMonth()+1).padStart(2,'0')+'-'+String(s3.getDate()).padStart(2,'0');
 
-          // 廚師鞋：一次性；健檢：每年
+          // 到職週年日（今年）：健檢與久任的觸發基準
+          const annivThisYr = yr + '-' + String(sd.getMonth()+1).padStart(2,'0') + '-' + String(sd.getDate()).padStart(2,'0');
+          // 廚師鞋：到職滿3個月一次性；健檢：每年到職週年日觸發（須滿3個月）
           const reached3mo = startPlus3moStr <= todayFullStr;
           if(reached3mo && !fi.shoe) return true;
-          if(reached3mo && !fi['health_'+yr] && !fi.health) return true;
+          if(annivThisYr >= startPlus3moStr && annivThisYr <= todayFullStr && !fi['health_'+yr] && !fi.health) return true;
 
           // 以下：達到日期後持續顯示，直到勾選發放
           const bdayThisYr = e.birthday ? (yr + '-' + e.birthday.slice(5,10)) : '';
           if(bdayThisYr && bdayThisYr >= startPlus3moStr && bdayThisYr <= todayFullStr && !fi['birthday_'+yr]) return true;
 
-          const annivThisYr = yr + '-' + String(sd.getMonth()+1).padStart(2,'0') + '-' + String(sd.getDate()).padStart(2,'0');
           const yearsAtAnniv = yr - sd.getFullYear();
           if(yearsAtAnniv >= 2 && annivThisYr <= todayFullStr && !fi['tenure_'+yr]) return true;
           if(fest.duanwu && fest.duanwu >= startPlus3moStr && fest.duanwu <= todayFullStr && !fi['duanwu_'+yr]) return true;
