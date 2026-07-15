@@ -660,8 +660,9 @@ async function checkUnfinishedAlerts(){
           const startPlus3moStr = s3.getFullYear()+'-'+String(s3.getMonth()+1).padStart(2,'0')+'-'+String(s3.getDate()).padStart(2,'0');
 
           // 廚師鞋：一次性；健檢：每年
-          if(over3mo && !fi.shoe) return true;
-          if(over3mo && !fi['health_'+yr] && !fi.health) return true;
+          const reached3mo = startPlus3moStr <= todayFullStr;
+          if(reached3mo && !fi.shoe) return true;
+          if(reached3mo && !fi['health_'+yr] && !fi.health) return true;
 
           // 以下：達到日期後持續顯示，直到勾選發放
           const bdayThisYr = e.birthday ? (yr + '-' + e.birthday.slice(5,10)) : '';

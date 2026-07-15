@@ -235,7 +235,7 @@ async function migrateLegacyBonuses(){
         if(!has){
           bonusLog.push({
             id:'migrate_'+e.id+'_health_'+thisYear, empId:e.id, empName:e.name, workLocation:e.workLocation||'',
-            label:'🏥 健康檢查補助', key:healthYearKey, cat:'fixed', amount:amt,
+            label:'🏥 '+thisYear+'健康檢查補助', key:healthYearKey, cat:'fixed', amount:amt,
             date: e.startDate ? applyYear(e.startDate, thisYear) : new Date().toISOString().slice(0,10),
             operator:'（資料遷移）', createdAt:new Date().toISOString()
           });
@@ -300,6 +300,8 @@ function empBonusInfo(e){
   const yr = td.getFullYear();
   const todayStr = td.toISOString().slice(5,10);
   const todayFullStr = td.toISOString().slice(0,10);
+  // 是否已到達「到職滿3個月」的日期（廚師鞋/健檢等非日期型獎金的基本門檻，與日期型同一套判斷）
+  const reached3mo = !!(startPlus3moStr && startPlus3moStr <= todayFullStr);
 
   // 廚師鞋：一次性（無年份）；健檢：每年（有年份）
   const shoeKey = 'shoe';
@@ -336,7 +338,7 @@ function empBonusInfo(e){
   const midautumnPaid = fi[midautumnKey] || false;
 
   return {
-    fi, ym, over3mo, yr,
+    fi, ym, over3mo, reached3mo, yr,
     shoeKey, shoePaid,
     healthKey, healthPaid,
     isBirthday, birthdayKey, birthdayPaid,
@@ -350,12 +352,12 @@ function pendingBonusesOf(e){
   const i = empBonusInfo(e);
   const items = [];
 
-  // 廚師鞋、健檢：到職滿3個月且當年未發放
-  if(i.over3mo){
+  // 廚師鞋、健檢：到職滿3個月日已到達且當年未發放
+  if(i.reached3mo){
     if(!i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
     if(!i.healthPaid){
       const amt = parseInt(i.fi.healthAmt||'640');
-      items.push({key:i.healthKey, label:'🏥 健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
+      items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
     }
   }
   if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
