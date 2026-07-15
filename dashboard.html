@@ -664,7 +664,9 @@ async function checkUnfinishedAlerts(){
           // 廚師鞋：到職滿3個月一次性；健檢：每年到職週年日觸發（須滿3個月）
           const reached3mo = startPlus3moStr <= todayFullStr;
           if(reached3mo && !fi.shoe) return true;
-          if(annivThisYr >= startPlus3moStr && annivThisYr <= todayFullStr && !fi['health_'+yr] && !fi.health) return true;
+          // 健檢：每年一次，觸發日 = max(今年到職週年日, 到職滿3個月日)
+          const healthTrigger = annivThisYr >= startPlus3moStr ? annivThisYr : startPlus3moStr;
+          if(healthTrigger <= todayFullStr && !fi['health_'+yr] && !fi.health) return true;
 
           // 以下：達到日期後持續顯示，直到勾選發放
           const bdayThisYr = e.birthday ? (yr + '-' + e.birthday.slice(5,10)) : '';

@@ -332,8 +332,12 @@ function empBonusInfo(e){
   const tenurePaid = fi[tenureKey] || false;
   const tenureAmt = isTenureToday ? tenureAmount(yearsAtAnniv) : 0;
 
-  // 健檢：每年「到職週年日」跳一次，須滿3個月（週年日 >= 到職滿3個月日）+ 週年已到達
-  const isHealthDue = !!(annivThisYear && startPlus3moStr && annivThisYear >= startPlus3moStr && annivThisYear <= todayFullStr);
+  // 健檢：每年一次。觸發日 = max(今年到職週年日, 到職滿3個月日)
+  //   ‧ 今年到職（第一年）：週年日=到職日 < 滿3個月日 → 取滿3個月日（滿3個月才跳）
+  //   ‧ 去年以前到職：週年日 >> 滿3個月日 → 取週年日（每年到職日跳一次）
+  const healthTriggerStr = (annivThisYear && startPlus3moStr)
+    ? (annivThisYear >= startPlus3moStr ? annivThisYear : startPlus3moStr) : '';
+  const isHealthDue = !!(healthTriggerStr && healthTriggerStr <= todayFullStr);
 
   // 節日：節日「當天」須到職滿3個月 + 今年節日已到達
   const fest = FESTIVALS[yr] || {};
