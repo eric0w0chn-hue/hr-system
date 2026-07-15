@@ -289,6 +289,13 @@ function empBonusInfo(e){
   const fi = e.fixedBonuses || {};
   const ym = calcYearsMonths(e.startDate);
   const over3mo = ym.totalMonths >= 3;
+  // 到職滿3個月的日期（所有日期型獎金的基本門檻：觸發日「當天」須已滿3個月）
+  let startPlus3moStr = '';
+  if(e.startDate){
+    const _p3 = e.startDate.split('-');
+    const _s3 = new Date(+_p3[0], +_p3[1]-1+3, +_p3[2]);
+    startPlus3moStr = _s3.getFullYear()+'-'+String(_s3.getMonth()+1).padStart(2,'0')+'-'+String(_s3.getDate()).padStart(2,'0');
+  }
   const td = new Date();
   const yr = td.getFullYear();
   const todayStr = td.toISOString().slice(5,10);
@@ -300,10 +307,10 @@ function empBonusInfo(e){
   const shoePaid = fi[shoeKey] || false;
   const healthPaid = fi[healthKey] || false;
 
-  // 生日禮金：到職滿3個月 + 今年生日已到達（含當天，未過的話明年再說）
+  // 生日禮金：生日「當天」須到職滿3個月 + 今年生日已到達（含當天）
   const birthdayStr = e.birthday ? e.birthday.slice(5,10) : '';
   const birthdayThisYear = birthdayStr ? (yr + '-' + birthdayStr) : '';
-  const isBirthday = over3mo && birthdayThisYear && birthdayThisYear <= todayFullStr;
+  const isBirthday = birthdayThisYear && startPlus3moStr && birthdayThisYear >= startPlus3moStr && birthdayThisYear <= todayFullStr;
   const birthdayKey = 'birthday_' + yr;
   const birthdayPaid = fi[birthdayKey] || false;
 
@@ -319,10 +326,10 @@ function empBonusInfo(e){
   const tenurePaid = fi[tenureKey] || false;
   const tenureAmt = isTenureToday ? tenureAmount(yearsAtAnniv) : 0;
 
-  // 節日：今年節日已到達
+  // 節日：節日「當天」須到職滿3個月 + 今年節日已到達
   const fest = FESTIVALS[yr] || {};
-  const isDuanwu = over3mo && fest.duanwu && fest.duanwu <= todayFullStr;
-  const isMidautumn = over3mo && fest.midautumn && fest.midautumn <= todayFullStr;
+  const isDuanwu = fest.duanwu && startPlus3moStr && fest.duanwu >= startPlus3moStr && fest.duanwu <= todayFullStr;
+  const isMidautumn = fest.midautumn && startPlus3moStr && fest.midautumn >= startPlus3moStr && fest.midautumn <= todayFullStr;
   const duanwuKey = 'duanwu_' + yr;
   const midautumnKey = 'midautumn_' + yr;
   const duanwuPaid = fi[duanwuKey] || false;

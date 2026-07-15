@@ -655,6 +655,9 @@ async function checkUnfinishedAlerts(){
           if(months<0){years--;months+=12;}
           const totalMonths = years*12+months;
           const over3mo = totalMonths >= 3;
+          // 到職滿3個月的日期（日期型獎金：觸發日「當天」須已滿3個月）
+          const s3 = new Date(sd.getFullYear(), sd.getMonth()+3, sd.getDate());
+          const startPlus3moStr = s3.getFullYear()+'-'+String(s3.getMonth()+1).padStart(2,'0')+'-'+String(s3.getDate()).padStart(2,'0');
 
           // 廚師鞋：一次性；健檢：每年
           if(over3mo && !fi.shoe) return true;
@@ -662,13 +665,13 @@ async function checkUnfinishedAlerts(){
 
           // 以下：達到日期後持續顯示，直到勾選發放
           const bdayThisYr = e.birthday ? (yr + '-' + e.birthday.slice(5,10)) : '';
-          if(over3mo && bdayThisYr && bdayThisYr <= todayFullStr && !fi['birthday_'+yr]) return true;
+          if(bdayThisYr && bdayThisYr >= startPlus3moStr && bdayThisYr <= todayFullStr && !fi['birthday_'+yr]) return true;
 
           const annivThisYr = yr + '-' + String(sd.getMonth()+1).padStart(2,'0') + '-' + String(sd.getDate()).padStart(2,'0');
           const yearsAtAnniv = yr - sd.getFullYear();
           if(yearsAtAnniv >= 2 && annivThisYr <= todayFullStr && !fi['tenure_'+yr]) return true;
-          if(over3mo && fest.duanwu && fest.duanwu <= todayFullStr && !fi['duanwu_'+yr]) return true;
-          if(over3mo && fest.midautumn && fest.midautumn <= todayFullStr && !fi['midautumn_'+yr]) return true;
+          if(fest.duanwu && fest.duanwu >= startPlus3moStr && fest.duanwu <= todayFullStr && !fi['duanwu_'+yr]) return true;
+          if(fest.midautumn && fest.midautumn >= startPlus3moStr && fest.midautumn <= todayFullStr && !fi['midautumn_'+yr]) return true;
 
           // 自訂項目未發放
           if((e.bonuses||[]).some(b=>b.status!=='已發放')) return true;
