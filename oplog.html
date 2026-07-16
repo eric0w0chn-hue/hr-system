@@ -176,6 +176,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="delivery_report">🚚 配送回報</option>
         <option value="store_accounts">🏪 店內帳號</option>
         <option value='salary'>💰 薪資計算</option>
+        <option value="bonus">🎁 獎金補助</option>
         <option value="task">📌 店務追蹤</option>
         <option value='backup'>💾 備份管理</option>
       </select>
@@ -245,7 +246,7 @@ function showToast(msg){ const t=document.getElementById('toast');t.textContent=
 // ── Module badge ──
 const MODULE_MAP = {
   hr:'👥 人員', account:'🔑 帳號', schedule:'📅 排班',
-  meeting:'📝 會議', price:'💰 物價', anomaly:'⚠️ 異常', cctv:'📹 監視器', delivery_report:'🚚 配送回報', store_accounts:'🏪 店內帳號', salary:'💰 薪資計算', task:'📌 店務追蹤', backup:'💾 備份管理', '—':'—'
+  meeting:'📝 會議', price:'💰 物價', anomaly:'⚠️ 異常', cctv:'📹 監視器', delivery_report:'🚚 配送回報', store_accounts:'🏪 店內帳號', salary:'💰 薪資計算', bonus:'🎁 獎金補助', task:'📌 店務追蹤', backup:'💾 備份管理', '—':'—'
 };
 function modBadge(mod){
   const label = MODULE_MAP[mod] || mod || '—';

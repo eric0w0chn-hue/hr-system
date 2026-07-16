@@ -1958,19 +1958,18 @@ window.applyAllInsSuggest=async function(){
   const emps=storeEmps(store);
   if(!emps.length){showToast('此店面無在職同仁');return;}
   if(!confirm(`確定要將「${store}」${emps.length} 位同仁的 ${viewYear}/${viewMonth} 勞健保全部重設為 ${INS_YEAR} 年度建議值？手動覆蓋的金額將被清除。`))return;
-  showToast(`套用中，共 ${emps.length} 人…`,5000);
+  showToast(`套用中，共 ${emps.length} 人…`,60000);
+  // 並行讀寫（取代逐人序列等待），完成即時顯示進度
   let cnt=0;
-  for(const emp of emps){
+  await Promise.all(emps.map(async emp=>{
     const rec=await loadRec(emp.id,viewYear,viewMonth)||{dailyData:{}};
     rec.laborDeduct=null;rec.healthDeduct=null;
     await saveRec(emp.id,viewYear,viewMonth,rec);
-    cnt++;
-  }
-  // 更新快取
-  for(const emp of emps){
     const snapKey=`${emp.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
     delete snapCache[snapKey];
-  }
+    cnt++;
+    showToast(`套用中… ${cnt}/${emps.length} 人`,60000);
+  }));
   showToast(`✓ 已完成 ${cnt} 位同仁的費率重設`);
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}
 };
@@ -1982,18 +1981,22 @@ window.applyAllStoresInsSuggest=async function(){
   const totalEmps=stores.reduce((s,st)=>s+storeEmps(st).length,0);
   if(!totalEmps){showToast('沒有任何在職同仁');return;}
   if(!confirm(`確定要將「全部 ${stores.length} 個店面」共 ${totalEmps} 位同仁的 ${viewYear}/${viewMonth} 勞健保全部重設為 ${INS_YEAR} 年度建議值？所有手動覆蓋的金額將被清除（此操作會修正舊資料健保未含眷屬的問題）。`))return;
-  showToast(`套用中，共 ${stores.length} 店 ${totalEmps} 人，請稍候…`,30000);
-  let cnt=0;
+  showToast(`套用中，共 ${stores.length} 店 ${totalEmps} 人，請稍候…`,120000);
+  // 逐店處理、店內並行（避免一次爆量寫入，又比逐人快 10 倍以上）
+  let cnt=0, sIdx=0;
   for(const store of stores){
+    sIdx++;
     const emps=storeEmps(store);
-    for(const emp of emps){
+    if(!emps.length) continue;
+    showToast(`套用中… 第 ${sIdx}/${stores.length} 店（${store}），累計 ${cnt} 人`,120000);
+    await Promise.all(emps.map(async emp=>{
       const rec=await loadRec(emp.id,viewYear,viewMonth)||{dailyData:{}};
       rec.laborDeduct=null;rec.healthDeduct=null;
       await saveRec(emp.id,viewYear,viewMonth,rec);
       const snapKey=`${emp.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
       delete snapCache[snapKey];
       cnt++;
-    }
+    }));
   }
   showToast(`✓ 已完成全部 ${stores.length} 個店面、共 ${cnt} 位同仁的費率重設`);
   if(selectedEmpId){const r=await loadRec(selectedEmpId,viewYear,viewMonth);currentRec=r||{dailyData:{}};rerender();}

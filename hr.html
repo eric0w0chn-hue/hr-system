@@ -148,7 +148,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 .cdd-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-2);font-size:11px}
 .cdd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:2000;max-height:200px;overflow-y:auto;overflow-x:hidden;display:none;scrollbar-width:thin}
 .cdd-menu.open{display:block}
-.cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text)}
+.cdd-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text);touch-action:pan-y}
 .cdd-item:hover{background:#FFF8F0}
 .cdd-item.selected{background:var(--primary-light);color:var(--accent);font-weight:500}
 .cdd-item .cdd-del{background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:14px;line-height:1;padding:2px 5px;border-radius:4px;flex-shrink:0;transition:all .1s}
