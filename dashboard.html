@@ -622,7 +622,10 @@ async function checkUnfinishedAlerts(){
         const empSnap = await getDoc(doc(db,'hr','employees'));
         if(!empSnap.exists()) return;
         const emps = (empSnap.data().list||[]).filter(e=>!e.status||e.status==='在職');
-        const scoped = seeAll ? emps : emps.filter(e=>targetSet.has(normLoc(e.workLocation)));
+        // 獎金範圍：與 bonus.html 一致 —— 有指定所屬店面(myLocs)就只看該範圍(顧問/店長)，
+        //           否則(admin，myLocs 為空)看全部。不沿用全域 seeAll（顧問不看全部店的獎金）
+        const bonusSet = new Set((myLocs||[]).map(normLoc));
+        const scoped = myLocs.length ? emps.filter(e=>bonusSet.has(normLoc(e.workLocation))) : emps;
 
         // 節日日期（同 bonus.html）
         const FESTIVALS = {
