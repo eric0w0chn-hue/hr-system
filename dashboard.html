@@ -570,8 +570,8 @@ async function checkUnfinishedAlerts(){
           if(!(active && t.dueDate && t.dueDate < today)) return false;
           // 非看全部者，只看自己店的任務
           if(seeAll) return true;
-          const tStore = normLoc(t.store||t.workLocation||t.location||'');
-          return !tStore || targetSet.has(tStore);
+          const tStore = normLoc(t.store||'');
+          return targetSet.has(tStore);
         });
         if(has) alerts['task']=true;
       }catch(e){}

@@ -324,18 +324,18 @@ async function loadAllStores(){
 }
 
 async function init(){
-  // 總公司（admin/consultant）若沒有指定店面 → 視為可檢視/建立全部店面
-  if(isHQ() && VIEW_LOCS.length === 0){
-    VIEW_LOCS = await loadAllStores();
-  }
-  // 建立任務的店面來源：總公司用可檢視範圍；店長用自身所屬店面（無則退回可檢視範圍）
-  if(OWN_LOCS.length === 0) OWN_LOCS = VIEW_LOCS.slice();
+  // OWN_LOCS：新增任務的店面清單
+  // HQ(locations 為空)→ 讀全站店面；manager → userData.locations（已在 authGuard callback 設好）
+  if(OWN_LOCS.length === 0) OWN_LOCS = await loadAllStores();
 
-  // 店面篩選下拉（看得到一間以上才顯示「全部店面」）
+  // 店面篩選下拉：manager 只看自己 VIEW_LOCS；HQ(VIEW_LOCS 空) 看全部 OWN_LOCS
+  const dropdownStores = VIEW_LOCS.length ? VIEW_LOCS : OWN_LOCS;
   const fs = document.getElementById('fStore');
-  if(VIEW_LOCS.length > 1){
+  if(dropdownStores.length > 1){
     fs.style.display = '';
-    fs.innerHTML = '<option value="__all__">全部店面</option>' + VIEW_LOCS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    fs.innerHTML = '<option value="__all__">全部店面</option>' + dropdownStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  } else if(dropdownStores.length === 1){
+    fs.style.display = 'none';  // 只有一間，不需要下拉
   } else {
     fs.style.display = 'none';
   }
@@ -360,7 +360,7 @@ async function loadTasks(){
     TASKS = [];
     snap.forEach(d=>{
       const t = { id:d.id, ...d.data() };
-      if(isHQ() || VIEW_LOCS.includes(t.store)) TASKS.push(t);   // 總公司看全部，其餘僅可檢視店面
+      if(!VIEW_LOCS.length || VIEW_LOCS.includes(t.store)) TASKS.push(t);  // bonus 模式：空=看全部，有值=只看自己店
     });
     render();
   }catch(e){
@@ -569,7 +569,7 @@ function handleAction(act, t){
 
 /* ─── 新增 ─── */
 function openCreate(){
-  const stores = (isHQ()? VIEW_LOCS : OWN_LOCS);
+  const stores = OWN_LOCS;
   if(!stores.length){ toast('沒有可建立任務的店面'); return; }
   const today = new Date(); const minD = today.toISOString().slice(0,10);
   showModal(`
