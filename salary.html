@@ -1221,18 +1221,24 @@ function getExtraLeaveSet(emp,y){
   if(Array.isArray(arr))arr.forEach(d=>s.add(d));
   return s;
 }
-// 決定某天有效假別：salary_records 手動 type 優先；否則 hr 特休 or 排班特休帶為 annual；否則 normal
-// r.type 存在(含'normal')=手動設定過 → 優先；不存在=未設定 → 可被 extraLeave / 排班特休 覆蓋
+// 決定某天有效假別：
+// - 手動設定「非 normal 的假別」(特休/婚/喪等) → 最優先
+// - 排班特休 or HR特休 → 次優先（會覆蓋殘留的 normal，因 normal 常為系統預設非使用者本意）
+// - 手動 normal → 再次
+// - 都沒有 → normal
 function getEffectiveType(emp,r,ds,shifts){
-  if(r&&r.type!=null&&r.type!=='')return r.type; // 手動設定優先
+  // 手動設定「明確假別」(非 normal) 最優先
+  if(r&&r.type!=null&&r.type!==''&&r.type!=='normal')return r.type;
+  // 檢查是否為特休（排班 kind:annual 或 HR extraLeave）
   const y=Number(ds.slice(0,4));
   const exSet=getExtraLeaveSet(emp,y);
-  if(exSet.has(ds))return 'annual'; // HR 特休自動帶入
-  // 直接檢查排班表當天是否有此員工的特休（防 extraLeave 未同步）
-  if(shifts&&Array.isArray(shifts[ds])){
-    const hasAnnual=shifts[ds].some(s=>s.kind==='annual'&&(String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name)));
-    if(hasAnnual)return 'annual';
+  let isAnnual = exSet.has(ds);
+  if(!isAnnual && shifts&&Array.isArray(shifts[ds])){
+    isAnnual = shifts[ds].some(s=>s.kind==='annual'&&(String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name)));
   }
+  if(isAnnual)return 'annual'; // 特休優先於殘留的 normal
+  // 手動 normal（使用者明確設為正常）
+  if(r&&r.type==='normal')return 'normal';
   return 'normal';
 }
 function _titleRank(t){
