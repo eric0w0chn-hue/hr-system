@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聯絡信箱設定 — 鑫系統</title>
+<style>
+:root{--bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;overflow:hidden}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.back-btn{font-size:12px;padding:0 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;min-height:44px;display:flex;align-items:center}
+.tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+.main{max-width:480px;margin:0 auto;padding:32px 20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px}
+.status-icon{font-size:36px;margin-bottom:12px;text-align:center}
+.status-title{font-size:16px;font-weight:700;margin-bottom:6px;text-align:center}
+.status-desc{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:22px;text-align:center}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:6px}
+input[type="email"]{width:100%;font-size:14px;padding:11px 14px;border:1px solid var(--border2);border-radius:9px;font-family:inherit;margin-bottom:14px}
+.btn-save{width:100%;background:var(--accent);color:#fff;font-weight:600;font-size:14px;padding:12px;border-radius:10px;border:none;cursor:pointer}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.saved-tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#2ecc71;margin-top:10px;justify-content:center;width:100%}
+.hint{font-size:11px;color:var(--text3);margin-top:14px;line-height:1.7;text-align:center}
+#loading{display:flex;align-items:center;justify-content:center;height:60vh;color:var(--text3);font-size:13px}
+</style>
+</head>
+<body>
+<div id="loading">載入中…</div>
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+      <div class="tb-dv"></div>
+      <h1>📧 聯絡信箱設定</h1>
+    </div>
+    <div class="topbar-right">
+      <span class="role-chip" id="roleChip">—</span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="card">
+      <div class="status-icon">📧</div>
+      <div class="status-title">未完成事項提醒信箱</div>
+      <div class="status-desc">系統若在指定時間偵測到你負責的店面有未完成事項（任務／回報等），會寄信到這個信箱通知你。登入帳號本身無法收信，請填寫平時常用的信箱。</div>
+      <label>聯絡信箱</label>
+      <input type="email" id="emailInput" placeholder="example@gmail.com">
+      <button class="btn-save" id="saveBtn" onclick="saveEmail()">儲存</button>
+      <div id="savedTag" class="saved-tag" style="display:none">✓ 已儲存</div>
+    </div>
+    <div class="hint">之後若要更換信箱，隨時回這頁修改即可。</div>
+  </div>
+</div>
+
+<script type="module">
+import { authGuard, db } from './auth-guard.js?v=2';
+import { doc, getDoc, setDoc } from
+  "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+authGuard('email_bind', async ({ uid, role, userData }) => {
+  const rc = document.getElementById('roleChip');
+  if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role;
+
+  const snap = await getDoc(doc(db, 'users', uid));
+  const existing = snap.exists() ? (snap.data().alertEmail || '') : '';
+  document.getElementById('emailInput').value = existing;
+
+  window.saveEmail = async function(){
+    const val = document.getElementById('emailInput').value.trim();
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (val && !re.test(val)) { alert('信箱格式不正確'); return; }
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+    await setDoc(doc(db, 'users', uid), { alertEmail: val }, { merge: true });
+    btn.disabled = false; btn.textContent = '儲存';
+    const tag = document.getElementById('savedTag');
+    tag.style.display = 'flex';
+    setTimeout(() => tag.style.display = 'none', 2500);
+  };
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+});
+</script>
+</body>
+</html>

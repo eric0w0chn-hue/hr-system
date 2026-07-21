@@ -421,12 +421,12 @@ const ALL_MODULES=[
   {key:'checkout', icon:'💰', name:'結帳系統', desc:'跳轉至梁平結帳系統', page:'checkout.html', active:true},
   {key:'task',    icon:'📌', name:'店務追蹤',  desc:'記錄並追蹤各店執行中的事項與進度，逾期/停滯自動標記', page:'task.html', active:true},
   {key:'alert_settings', icon:'🔔', name:'提醒排程設定', desc:'設定未完成事項的 LINE 主動提醒時間與檢查項目', page:'alert_settings.html', active:true, adminOnly:true},
-  {key:'line_bind', icon:'💬', name:'LINE 綁定', desc:'綁定個人 LINE 帳號，接收未完成事項主動提醒', page:'line_bind.html', active:true},
+  {key:'email_bind', icon:'📧', name:'聯絡信箱設定', desc:'設定個人聯絡信箱，接收未完成事項主動提醒', page:'email_bind.html', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','schedule','price','meeting','salary','bonus','account','cctv','delivery_report','permissions','store_accounts','checkout','task','alert_settings','line_bind'],
-  consultant:['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','line_bind'],
-  manager:  ['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','line_bind'],
+  admin:    ['hr','schedule','price','meeting','salary','bonus','account','cctv','delivery_report','permissions','store_accounts','checkout','task','alert_settings','email_bind'],
+  consultant:['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','email_bind'],
+  manager:  ['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','email_bind'],
   employee: ['schedule']
 };
 

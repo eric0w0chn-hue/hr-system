@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提醒排程設定 — 鑫系統</title>
+<style>
+:root{--bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;overflow:hidden}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.back-btn{font-size:12px;padding:0 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;min-height:44px;display:flex;align-items:center}
+.tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+.main{max-width:640px;margin:0 auto;padding:24px 20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.row-label{font-size:13px}
+.row-desc{font-size:11px;color:var(--text3);margin-top:2px}
+input[type="time"]{font-size:14px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-family:inherit}
+.switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--border2);border-radius:24px;cursor:pointer;transition:.2s}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked + .slider{background:var(--accent)}
+input:checked + .slider::before{transform:translateX(20px)}
+.btn{font-size:13px;padding:10px 20px;border-radius:9px;cursor:pointer;font-family:inherit;font-weight:600;border:none;background:var(--accent);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.bind-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:13px}
+.bind-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.bind-yes{background:#2ecc71}
+.bind-no{background:#e74c3c}
+#loading{display:flex;align-items:center;justify-content:center;height:60vh;color:var(--text3);font-size:13px}
+</style>
+</head>
+<body>
+<div id="loading">載入中…</div>
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+      <div class="tb-dv"></div>
+      <h1>🔔 提醒排程設定</h1>
+    </div>
+    <div class="topbar-right">
+      <button class="btn" id="saveBtn" onclick="saveConfig()" disabled>儲存變更</button>
+      <span class="role-chip" id="roleChip">—</span>
+    </div>
+  </div>
+  <div class="main">
+
+    <div class="card">
+      <h3>⏰ 觸發設定</h3>
+      <div class="row">
+        <div><div class="row-label">啟用 Email 主動提醒</div><div class="row-desc">關閉後不會發送任何郵件</div></div>
+        <label class="switch"><input type="checkbox" id="cfgEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div><div class="row-label">每日檢查時間</div><div class="row-desc">台灣時間，到此時間仍有未完成事項才發送</div></div>
+        <input type="time" id="cfgTime" value="23:00">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>✅ 檢查項目</h3>
+      <div class="row"><div class="row-label">📌 店務追蹤（逾期任務）</div><label class="switch"><input type="checkbox" id="item_task"><span class="slider"></span></label></div>
+      <div class="row"><div class="row-label">🥬 菜價回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_price"><span class="slider"></span></label></div>
+      <div class="row"><div class="row-label">📹 監視器回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_cctv"><span class="slider"></span></label></div>
+      <div class="row"><div class="row-label">🚚 配送人員回報（明日未填）</div><label class="switch"><input type="checkbox" id="item_delivery"><span class="slider"></span></label></div>
+    </div>
+
+    <div class="card">
+      <h3>📊 發送狀態</h3>
+      <div id="statusInfo" style="font-size:13px;color:var(--text2);line-height:1.8"></div>
+    </div>
+
+    <div class="card">
+      <h3>📧 管理人員 Email 綁定狀況</h3>
+      <div id="bindList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { authGuard, db } from './auth-guard.js?v=2';
+import { doc, getDoc, setDoc, collection, getDocs } from
+  "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+let hasChanges = false;
+function markChanged(){ hasChanges = true; document.getElementById('saveBtn').disabled = false; }
+
+authGuard('alert_settings', async ({ role }) => {
+  const rc = document.getElementById('roleChip');
+  if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role;
+
+  // 讀現有設定
+  const cfgSnap = await getDoc(doc(db, 'settings', 'alert_config'));
+  const cfg = cfgSnap.exists() ? cfgSnap.data() : {};
+  document.getElementById('cfgEnabled').checked = !!cfg.enabled;
+  document.getElementById('cfgTime').value = cfg.checkTime || '23:00';
+  const items = cfg.items || { task: true, price: true, cctv: true, delivery: true };
+  ['task', 'price', 'cctv', 'delivery'].forEach(k => {
+    document.getElementById('item_' + k).checked = items[k] !== false;
+  });
+  ['cfgEnabled','cfgTime','item_task','item_price','item_cctv','item_delivery'].forEach(id => {
+    document.getElementById(id).addEventListener('change', markChanged);
+  });
+
+  document.getElementById('statusInfo').innerHTML = cfg.lastSentAt
+    ? `上次發送：${new Date(cfg.lastSentAt).toLocaleString('zh-TW')}　（共 ${cfg.lastSentCount ?? 0} 人收到）`
+    : '尚未發送過';
+
+  // 綁定狀況：只列 admin/consultant/manager
+  const usersSnap = await getDocs(collection(db, 'users'));
+  const relevant = [];
+  usersSnap.forEach(d => {
+    const u = d.data();
+    if (u.disabled) return;
+    if (!['admin', 'consultant', 'manager'].includes(u.role)) return;
+    relevant.push(u);
+  });
+  const roleLabel = { admin: '管理員', consultant: '顧問', manager: '店長/副店長' };
+  document.getElementById('bindList').innerHTML = relevant.map(u => `
+    <div class="bind-item">
+      <span><span class="bind-dot ${u.alertEmail ? 'bind-yes' : 'bind-no'}"></span>${u.name || '（未命名）'}（${roleLabel[u.role] || u.role}）</span>
+      <span style="color:var(--text3)">${u.alertEmail ? '已設定' : '未設定'}</span>
+    </div>
+  `).join('') || '<div style="color:var(--text3);font-size:13px">目前沒有符合條件的人員</div>';
+
+  window.saveConfig = async function(){
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+    await setDoc(doc(db, 'settings', 'alert_config'), {
+      enabled: document.getElementById('cfgEnabled').checked,
+      checkTime: document.getElementById('cfgTime').value,
+      items: {
+        task: document.getElementById('item_task').checked,
+        price: document.getElementById('item_price').checked,
+        cctv: document.getElementById('item_cctv').checked,
+        delivery: document.getElementById('item_delivery').checked,
+      },
+    }, { merge: true });
+    hasChanges = false;
+    btn.textContent = '儲存變更';
+  };
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+});
+</script>
+</body>
+</html>
