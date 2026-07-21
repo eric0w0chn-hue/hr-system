@@ -49,7 +49,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .cal-head-cell.sun{color:#E05252}
 .cal-head-cell.sat{color:#5B8EDB}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
-.cal-cell{min-height:110px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;transition:background .1s;vertical-align:top}
+.cal-cell{min-height:110px;min-width:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;position:relative;transition:background .1s;vertical-align:top;box-sizing:border-box}
 .cal-cell:nth-child(7n){border-right:none}
 .cal-cell.other-month{background:#FAFBFC;opacity:.5}
 .cal-cell.today{background:#F0F2FF}

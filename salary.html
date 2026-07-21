@@ -861,7 +861,7 @@ function calcSalary(emp,rec,shifts){
     const ds=dateStr(viewYear,viewMonth,d);
     const shift=getShift(shifts,emp,ds);
     const r=dd[ds]||{};
-    const type=getEffectiveType(emp,r,ds);
+    const type=getEffectiveType(emp,r,ds,shifts);
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
 
     // 未排班日臨時加班（支援多段費率）
@@ -1111,7 +1111,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     const ds=dateStr(viewYear,viewMonth,d);
     const shift=getShift(shifts,emp,ds);
     const r=dd[ds]||{};
-    const type=getEffectiveType(emp,r,ds);
+    const type=getEffectiveType(emp,r,ds,shifts);
 
     // 未排班日臨時加班
     if(!shift){
@@ -1221,13 +1221,18 @@ function getExtraLeaveSet(emp,y){
   if(Array.isArray(arr))arr.forEach(d=>s.add(d));
   return s;
 }
-// 決定某天有效假別：salary_records 手動 type 優先；否則 hr 特休帶為 annual；否則 normal
-// r.type 存在(含'normal')=手動設定過 → 優先；不存在=未設定 → 可被 extraLeave 覆蓋
-function getEffectiveType(emp,r,ds){
+// 決定某天有效假別：salary_records 手動 type 優先；否則 hr 特休 or 排班特休帶為 annual；否則 normal
+// r.type 存在(含'normal')=手動設定過 → 優先；不存在=未設定 → 可被 extraLeave / 排班特休 覆蓋
+function getEffectiveType(emp,r,ds,shifts){
   if(r&&r.type!=null&&r.type!=='')return r.type; // 手動設定優先
   const y=Number(ds.slice(0,4));
   const exSet=getExtraLeaveSet(emp,y);
   if(exSet.has(ds))return 'annual'; // HR 特休自動帶入
+  // 直接檢查排班表當天是否有此員工的特休（防 extraLeave 未同步）
+  if(shifts&&Array.isArray(shifts[ds])){
+    const hasAnnual=shifts[ds].some(s=>s.kind==='annual'&&(String(s.empId)===String(emp.id)||normStore(s.empName)===normStore(emp.name)));
+    if(hasAnnual)return 'annual';
+  }
   return 'normal';
 }
 function _titleRank(t){
@@ -1490,7 +1495,7 @@ function renderSheet(emp,rec,shifts,c){
     const isWknd=dow===0||dow===6;
     const shift=getShift(shifts,emp,ds);
     const r=dd[ds]||{};
-    const type=getEffectiveType(emp,r,ds);
+    const type=getEffectiveType(emp,r,ds,shifts);
     const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
     const inEmp=emp2.inEmploy(d);
     const noShift=!shift;
@@ -2415,7 +2420,7 @@ window.updType=function(el){
   const type=el.value,ds=el.dataset.date;
   const r=dayRec(ds);
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
-  const prevEff=getEffectiveType(emp,r,ds); // 變更前的有效假別（含HR帶入）
+  const prevEff=getEffectiveType(emp,r,ds,typeof curShifts!=='undefined'?curShifts:null); // 變更前的有效假別（含HR帶入）
   r.type=type;
   if(type==='normal'){delete r.workedHours;r.workedHours=null;} // 切回正常清掉請假時數
   // 特休假 ↔ 同步 HR 臨時特休
