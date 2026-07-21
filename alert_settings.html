@@ -74,6 +74,7 @@ input:checked + .slider::before{transform:translateX(20px)}
       <div class="row"><div class="row-label">🥬 菜價回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_price"><span class="slider"></span></label></div>
       <div class="row"><div class="row-label">📹 監視器回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_cctv"><span class="slider"></span></label></div>
       <div class="row"><div class="row-label">🚚 配送人員回報（明日未填）</div><label class="switch"><input type="checkbox" id="item_delivery"><span class="slider"></span></label></div>
+      <div class="row"><div class="row-label">💰 獎金補助（有待發放項目）</div><label class="switch"><input type="checkbox" id="item_bonus"><span class="slider"></span></label></div>
     </div>
 
     <div class="card">
@@ -106,11 +107,11 @@ authGuard('alert_settings', async ({ role }) => {
   const cfg = cfgSnap.exists() ? cfgSnap.data() : {};
   document.getElementById('cfgEnabled').checked = !!cfg.enabled;
   document.getElementById('cfgTime').value = cfg.checkTime || '23:00';
-  const items = cfg.items || { task: true, price: true, cctv: true, delivery: true };
-  ['task', 'price', 'cctv', 'delivery'].forEach(k => {
+  const items = cfg.items || { task: true, price: true, cctv: true, delivery: true, bonus: false };
+  ['task', 'price', 'cctv', 'delivery', 'bonus'].forEach(k => {
     document.getElementById('item_' + k).checked = items[k] !== false;
   });
-  ['cfgEnabled','cfgTime','item_task','item_price','item_cctv','item_delivery'].forEach(id => {
+  ['cfgEnabled','cfgTime','item_task','item_price','item_cctv','item_delivery','item_bonus'].forEach(id => {
     document.getElementById(id).addEventListener('change', markChanged);
   });
 
@@ -146,6 +147,7 @@ authGuard('alert_settings', async ({ role }) => {
         price: document.getElementById('item_price').checked,
         cctv: document.getElementById('item_cctv').checked,
         delivery: document.getElementById('item_delivery').checked,
+        bonus: document.getElementById('item_bonus').checked,
       },
     }, { merge: true });
     hasChanges = false;
