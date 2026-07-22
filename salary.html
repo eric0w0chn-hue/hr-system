@@ -529,6 +529,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
     <h1>💰 薪資計算</h1>
   </div>
   <div class="topbar-right">
+    <button class="back-btn" onclick="openManual()" style="font-size:12px">📖 操作說明</button>
     <span class="role-chip" id="roleChip">—</span>
   </div>
 </div>
@@ -703,6 +704,244 @@ function getUnenrollDate(emp,rec,leaveDate){
   if(!leaveDate)return null;
   return new Date(leaveDate); // 預設與離職日同天
 }
+
+
+// ══════════════════════════════════════════════════════
+// ── 操作說明書（可由 admin 編輯，存 settings/salary_manual）──
+// ══════════════════════════════════════════════════════
+const MANUAL_DEFAULT = `# 💰 薪資計算 — 店長操作說明書
+
+> 適用對象：各店管理人員（店長／副店長）
+> 你們主要負責：**填寫出缺勤** 和 **登記加班**，其他系統會自動算。
+
+---
+
+## 一、進入畫面
+
+1. 左側選單 →「人事資料」→「**薪資計算**」
+2. 選擇 **月份** 和 **店面**
+3. 點選要處理的 **同仁**
+
+---
+
+## 二、看懂每日出勤
+
+畫面分「上半月 (1–15)」「下半月 (16–31)」兩頁，每一天一列：
+
+| 顯示 | 意思 | 需要做什麼 |
+|---|---|---|
+| \`09:30-16:00 正常出勤\` | 有排班且正常上班 | ✅ 不用動 |
+| \`未排班\` | 當天沒排班 | 通常不用動；若臨時有上班 → 填臨時加班 |
+| \`特休假（HR特休）\` | 排班系統排的特休 | ✅ 自動帶入，不用動 |
+| 黃色底 + ⚠ | 有異常（如颱風假） | 需要確認處理 |
+
+> 💡 **正常日會自動帶入固定加班**，你只需要處理「請假」和「異常」。
+
+---
+
+## 三、幫同仁登記請假
+
+1. 找到請假那天，點右側「**＋**」展開
+2. 在「假別」下拉選擇：事假、病假、特休…等
+3. 若是遲到，填寫遲到分鐘數
+4. 系統會自動計算扣款，**改完會自動儲存**
+
+---
+
+## 四、登記加班（重點！）
+
+點開當天「＋」→ 點「**加班**」→ 填時數並選**倍率**。
+
+### 我們有兩種休假制度，倍率不一樣：
+
+---
+
+### 🗓 週休三日的店面
+**（正常每週上 4 天班）**
+
+當週如果**多上一天班（上到 5 天）**，那天的加班這樣填：
+
+| 時段 | 倍率 |
+|---|---|
+| 前 8 小時 | **1.0** |
+| 第 9–10 小時 | **1.34** |
+
+**範例**：多上一天班共 10 小時
+- 第 1 段：8 時 0 分 × **1.0**
+- 點「＋加一段費率」
+- 第 2 段：2 時 0 分 × **1.34**
+
+---
+
+### 🗓 週休二日的店面
+**（正常每週上 5 天班）**
+
+當週如果**多上一天班（上到 6 天）**，那天的加班這樣填：
+
+| 時段 | 倍率 |
+|---|---|
+| 第 1–2 小時 | **1.34** |
+| 第 3–8 小時 | **1.67** |
+| 第 9–12 小時 | **2.67** |
+
+**範例**：多上一天班共 10 小時
+- 第 1 段：2 時 0 分 × **1.34**
+- 點「＋加一段費率」
+- 第 2 段：6 時 0 分 × **1.67**
+- 點「＋加一段費率」
+- 第 3 段：2 時 0 分 × **2.67**
+
+---
+
+### 多段費率怎麼加？
+
+一天的加班如果跨不同倍率，用「**＋加一段費率**」按鈕分段填：
+
+\`\`\`
+第1段 [2]時[0]分 × [1.34]
+第2段 [6]時[0]分 × [1.67]
+第3段 [2]時[0]分 × [2.67]
+\`\`\`
+
+每一段的時數 × 對應倍率，系統自動加總算錢。
+
+---
+
+## 五、常見問題
+
+**Q：特休怎麼沒出現？**
+A：特休由排班管理排定後自動帶入。若沒出現，先按 \`Ctrl+Shift+R\` 重新整理。還是沒有的話聯繫總公司。
+
+**Q：填錯了怎麼辦？**
+A：直接點開那天改掉即可，系統會自動儲存最新的。
+
+**Q：上面的統計（出勤 X 天）跟實際不符？**
+A：確認每一天的班次和假別是否正確。特休不算出勤天數。
+
+**Q：不確定該用哪個倍率？**
+A：先確認你的店是週休二日還是週休三日，再對照上面表格。真的不確定就問總公司，**不要亂猜**，會影響同仁薪水。
+
+---
+
+## 六、每月操作時程建議
+
+| 時間 | 要做的事 |
+|---|---|
+| 每天／每週 | 有請假、異常、加班就即時登記 |
+| 月底前 | 檢查整月出缺勤是否都正確 |
+| 月初（發薪前） | 最後確認上月資料，之後不要再改 |
+
+---
+
+*梁平鑫系統 — 薪資計算模組操作說明*
+*如有其他問題請聯繫總公司管理員*
+`;
+let _manualContent = null;
+
+// 極簡 Markdown → HTML（支援標題/粗體/表格/清單/引言/分隔線/程式碼）
+function mdToHtml(md){
+  const esc = s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = md.split('\n');
+  let html='', inTable=false, inUl=false, inCode=false, tableRows=[];
+  const flushTable=()=>{
+    if(!tableRows.length)return;
+    let t='<table style="border-collapse:collapse;width:100%;margin:8px 0;font-size:13px">';
+    tableRows.forEach((r,i)=>{
+      if(/^[\s|:-]+$/.test(r))return; // 分隔線列
+      const cells=r.split('|').filter((c,idx,a)=>!(idx===0&&c.trim()==='')&&!(idx===a.length-1&&c.trim()===''));
+      const tag = i===0?'th':'td';
+      t+='<tr>'+cells.map(c=>`<${tag} style="border:1px solid var(--border);padding:6px 10px;text-align:left;${tag==='th'?'background:var(--surface2);font-weight:600':''}">${inlineMd(c.trim())}</${tag}>`).join('')+'</tr>';
+    });
+    t+='</table>'; html+=t; tableRows=[];
+  };
+  const inlineMd=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>');
+  const flushUl=()=>{ if(inUl){html+='</ul>';inUl=false;} };
+  lines.forEach(ln=>{
+    if(ln.trim().startsWith('```')){
+      if(inCode){html+='</pre>';inCode=false;}else{html+='<pre style="background:var(--surface2);padding:10px 14px;border-radius:8px;font-size:12px;overflow-x:auto;white-space:pre-wrap">';inCode=true;}
+      return;
+    }
+    if(inCode){html+=esc(ln)+'\n';return;}
+    if(ln.includes('|')&&ln.trim().startsWith('|')){inTable=true;tableRows.push(ln);return;}
+    else if(inTable){flushTable();inTable=false;}
+    if(/^#{1,6}\s/.test(ln)){flushUl();const lv=ln.match(/^#+/)[0].length;const txt=ln.replace(/^#+\s/,'');const sz=[0,20,17,15,14,13,13][lv];html+=`<h${lv} style="font-size:${sz}px;font-weight:700;margin:14px 0 8px">${inlineMd(txt)}</h${lv}>`;return;}
+    if(/^>\s/.test(ln)){flushUl();html+=`<blockquote style="border-left:3px solid var(--border2);padding:4px 12px;margin:6px 0;color:var(--text2);font-size:13px">${inlineMd(ln.replace(/^>\s/,''))}</blockquote>`;return;}
+    if(/^---+$/.test(ln.trim())){flushUl();html+='<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">';return;}
+    if(/^[-*]\s/.test(ln)){if(!inUl){html+='<ul style="margin:6px 0;padding-left:22px;font-size:13px">';inUl=true;}html+=`<li style="margin:3px 0">${inlineMd(ln.replace(/^[-*]\s/,''))}</li>`;return;}
+    flushUl();
+    if(ln.trim()==='')return;
+    html+=`<p style="margin:6px 0;font-size:13px;line-height:1.6">${inlineMd(ln)}</p>`;
+  });
+  flushTable();flushUl();
+  return html;
+}
+
+async function loadManual(){
+  if(_manualContent!==null)return _manualContent;
+  try{
+    const snap=await getDoc(doc(db,'settings','salary_manual'));
+    _manualContent = snap.exists()&&snap.data().content ? snap.data().content : MANUAL_DEFAULT;
+  }catch(e){ _manualContent = MANUAL_DEFAULT; }
+  return _manualContent;
+}
+
+window.openManual=async function(){
+  const content=await loadManual();
+  const isAdmin = CU.role==='admin';
+  const ov=document.createElement('div');
+  ov.className='slip-overlay';
+  ov.id='manualOverlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:720px;max-height:88vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:16px;font-weight:700">📖 薪資計算操作說明</div>
+      <div style="display:flex;gap:8px">
+        ${isAdmin?`<button class="btn-sm o" onclick="editManual()" id="manualEditBtn">✏️ 編輯</button>`:''}
+        <button class="btn-sm" onclick="closeManual()">關閉</button>
+      </div>
+    </div>
+    <div id="manualBody" style="padding:20px;overflow-y:auto;flex:1">${mdToHtml(content)}</div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeManual();};
+  document.body.appendChild(ov);
+};
+
+window.editManual=function(){
+  const body=document.getElementById('manualBody');
+  const content=_manualContent||MANUAL_DEFAULT;
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">使用 Markdown 格式編輯（# 標題、**粗體**、- 清單、表格用 | 分隔）</div>
+    <textarea id="manualEditor" style="width:100%;height:52vh;font-family:monospace;font-size:13px;padding:12px;border:1px solid var(--border);border-radius:8px;line-height:1.5;box-sizing:border-box">${content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn-sm" onclick="openManual();closeManualEditorReopen()">取消</button>
+      <button class="btn-sm o" onclick="resetManual()">還原預設</button>
+      <button class="btn-sm primary" onclick="saveManual()" style="background:var(--accent);color:#fff">💾 儲存</button>
+    </div>`;
+  const btn=document.getElementById('manualEditBtn');if(btn)btn.style.display='none';
+};
+function closeManualEditorReopen(){/* openManual 已重繪，無需額外動作 */}
+
+window.resetManual=function(){
+  const ed=document.getElementById('manualEditor');
+  if(ed && confirm('確定要還原成預設說明內容？（尚未儲存前不會影響現有內容）')) ed.value=MANUAL_DEFAULT;
+};
+
+window.saveManual=async function(){
+  const ed=document.getElementById('manualEditor');
+  if(!ed)return;
+  const val=ed.value;
+  try{
+    await setDoc(doc(db,'settings','salary_manual'),{content:val,updatedAt:new Date().toISOString(),updatedBy:CU.name},{merge:true});
+    _manualContent=val;
+    if(typeof writeOpLog==='function'){try{writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'編輯操作說明',detail:'薪資計算說明書'});}catch(e){}}
+    closeManual();
+    openManual();
+    if(typeof showToast==='function')showToast('說明已更新 ✓');
+  }catch(e){ alert('儲存失敗：'+e.message); }
+};
+
+window.closeManual=function(){
+  const ov=document.getElementById('manualOverlay');if(ov)ov.remove();
+};
 
 authGuard('salary',({user,uid,role,locations,userData})=>{
   CU={name:userData.name||user.email,role,uid};
