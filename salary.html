@@ -864,13 +864,13 @@ function mdToHtml(md){
     if(inCode){html+=esc(ln)+'\n';return;}
     if(ln.includes('|')&&ln.trim().startsWith('|')){inTable=true;tableRows.push(ln);return;}
     else if(inTable){flushTable();inTable=false;}
-    if(/^#{1,6}\s/.test(ln)){flushUl();const lv=ln.match(/^#+/)[0].length;const txt=ln.replace(/^#+\s/,'');const sz=[0,20,17,15,14,13,13][lv];html+=`<h${lv} style="font-size:${sz}px;font-weight:700;margin:14px 0 8px">${inlineMd(txt)}</h${lv}>`;return;}
-    if(/^>\s/.test(ln)){flushUl();html+=`<blockquote style="border-left:3px solid var(--border2);padding:4px 12px;margin:6px 0;color:var(--text2);font-size:13px">${inlineMd(ln.replace(/^>\s/,''))}</blockquote>`;return;}
+    if(/^#{1,6}\s/.test(ln)){flushUl();const lv=ln.match(/^#+/)[0].length;const txt=ln.replace(/^#+\s/,'');const sz=[0,20,17,15,14,13,13][lv];html+=`<h${lv} style="font-size:${sz}px;font-weight:700;margin:20px 0 10px">${inlineMd(txt)}</h${lv}>`;return;}
+    if(/^>\s/.test(ln)){flushUl();html+=`<blockquote style="border-left:3px solid var(--border2);padding:6px 14px;margin:10px 0;color:var(--text2);font-size:13px">${inlineMd(ln.replace(/^>\s/,''))}</blockquote>`;return;}
     if(/^---+$/.test(ln.trim())){flushUl();html+='<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">';return;}
-    if(/^[-*]\s/.test(ln)){if(!inUl){html+='<ul style="margin:6px 0;padding-left:22px;font-size:13px">';inUl=true;}html+=`<li style="margin:3px 0">${inlineMd(ln.replace(/^[-*]\s/,''))}</li>`;return;}
+    if(/^[-*]\s/.test(ln)){if(!inUl){html+='<ul style="margin:10px 0;padding-left:22px;font-size:13px">';inUl=true;}html+=`<li style="margin:6px 0">${inlineMd(ln.replace(/^[-*]\s/,''))}</li>`;return;}
     flushUl();
-    if(ln.trim()==='')return;
-    html+=`<p style="margin:6px 0;font-size:13px;line-height:1.6">${inlineMd(ln)}</p>`;
+    if(ln.trim()===''){html+='<div style="height:10px"></div>';return;}
+    html+=`<p style="margin:10px 0;font-size:13px;line-height:1.7">${inlineMd(ln)}</p>`;
   });
   flushTable();flushUl();
   return html;
