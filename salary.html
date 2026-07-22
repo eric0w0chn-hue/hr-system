@@ -1553,6 +1553,7 @@ function renderSheet(emp,rec,shifts,c){
           <option value="1.34"${sg.rate==1.34?' selected':''}>1.34</option>
           <option value="1.67"${sg.rate==1.67?' selected':''}>1.67</option>
           <option value="2"${sg.rate==2?' selected':''}>2.0</option>
+          <option value="2.67"${sg.rate==2.67?' selected':''}>2.67</option>
         </select>
         ${segs.length>1&&!locked?`<span class="add-del" style="padding:1px 5px" onclick="delTempSeg('${ds}',${si})">×</span>`:''}
       </div>`).join('');
