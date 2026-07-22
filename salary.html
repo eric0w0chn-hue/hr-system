@@ -1614,6 +1614,7 @@ function renderMain(){
       ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${s}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
       ${(CU.role==='admin'||CU.role==='consultant')?`<button class="btn-sm o" style="margin-left:auto" onclick="toggleOtPanel()">⚙️ 加班設定</button>`:''}
       ${CU.role==='admin'?`<button class="btn-sm o" onclick="toggleSysPanel()">🔧 系統設定</button>`:''}
+      <button class="btn-sm o" onclick="openManual()" style="${(CU.role==='admin'||CU.role==='consultant')?'':'margin-left:auto'}">📖 操作說明</button>
     </div>
     <div class="emp-picker-bar">
       <span class="fl">選擇同仁</span>
