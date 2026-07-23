@@ -566,6 +566,19 @@ let showFmlPanel=false, showInsPanel=false; // 計算公式、勞健保預設收
 let showDedPanel=false; // 扣項明細預設收闔
 let currentRec=null; // 記憶體快取，避免 setDoc 後立刻 getDoc 的延遲
 let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
+
+// ── 實領薪資中繼表同步（存檔後自動推送單筆到 Google Sheet；失敗不影響存檔）──
+const SALARY_SHEETS_URL='https://script.google.com/macros/s/AKfycbyYnkqKHjsQPEtMHrLp70cC2MkuINbclPKH5CxDAG9L27Z0gTOeSId25izOLGXEt4RO-Q/exec';
+async function pushNetPayToSheet(store,year,month,name,netPay){
+  if(!SALARY_SHEETS_URL||!store||!name)return;
+  try{
+    await fetch(SALARY_SHEETS_URL,{
+      method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({store,year,month,name,netPay})
+    });
+  }catch(e){ /* 中繼表推送失敗不影響 Firestore 存檔，可重存重推 */ }
+}
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -2760,7 +2773,7 @@ window.saveSheet=async function(){
   };
   record.shiftsSnapshot=curShifts?JSON.parse(JSON.stringify(curShifts)):{};
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,record);
-  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存（已鎖定本月資料）');}else showToast('⚠️ 儲存失敗');
+  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存（已鎖定本月資料）');pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,Math.round(c.netPay));}else showToast('⚠️ 儲存失敗');
   isSaving=false;
 };
 
