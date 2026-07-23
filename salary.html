@@ -1645,6 +1645,7 @@ function renderMain(){
       ${curEmps.length?`<div class="emp-action-row">
         <button class="btn-sm o" onclick="showInsAuditTable()" title="全店勞健保核對總表">📋 勞健保核對表</button>
         ${CU.role==='admin'?`<button class="btn-sm o" onclick="exportSalaryXlsx()" title="匯出全部店面本月實領薪資 Excel">📊 匯出薪資總表</button>`:''}
+        ${CU.role==='admin'?`<button class="btn-sm o" onclick="syncAllToSheet()" title="將全部店面本月實領薪資同步到中繼表單">🔄 同步至中繼表</button>`:''}
         <button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單">📦 批次匯出全店</button>
       </div>`:''}
     </div>
@@ -2317,6 +2318,32 @@ window.exportSalaryXlsx=async function(){
   const filename=`實領薪資_${viewYear}年${viewMonth}月.xlsx`;
   XLSX.writeFile(wb,filename);
   showToast(`✓ 已匯出 ${totalSheets} 個店面的薪資總表`);
+};
+
+// ── 全部店面本月實領一次同步到中繼表（admin）──
+window.syncAllToSheet=async function(){
+  if(CU.role!=='admin'){showToast('⚠️ 此功能僅限管理員使用');return;}
+  const allStores=viewableStores;
+  if(!allStores||!allStores.length){showToast('⚠️ 無法取得店面清單');return;}
+  if(!confirm(`確定要將全部 ${allStores.length} 個店面 ${viewYear}/${viewMonth} 的實領薪資同步到中繼表單？`))return;
+  showToast(`同步中，請稍候…`,120000);
+  let cnt=0, sIdx=0, storeCnt=0;
+  for(const store of allStores){
+    sIdx++;
+    const emps=storeEmps(store).filter(e=>calcEmployedDays(e,viewYear,viewMonth,null).days>0);
+    if(!emps.length)continue;
+    storeCnt++;
+    showToast(`同步中… 第 ${sIdx}/${allStores.length} 店（${store}），累計 ${cnt} 人`,120000);
+    // 店內並行讀取實領
+    const results=await Promise.all(emps.map(async emp=>{
+      const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
+      const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+      return{name:emp.name,netPay:Math.round(c.netPay),store:emp.workLocation};
+    }));
+    // 逐筆推送（no-cors 無回傳，序列送避免瞬間爆量）
+    for(const r of results){ await pushNetPayToSheet(r.store,viewYear,viewMonth,r.name,r.netPay); cnt++; }
+  }
+  showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁至中繼表`);
 };
 function calcInsAuditRow(emp,rec){
   const _hd2=emp.hireDate?new Date(emp.hireDate):null;
