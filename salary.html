@@ -1341,6 +1341,17 @@ function calcSalary(emp,rec,shifts){
   };
 }
 
+// 班次時數：依班表 startTime~endTime 實算（支援跨夜班）；無法解析時 fallback 8h
+// 時段超過 4h 的班自動扣 1h 休息（例：09:00-17:00 → 7h；09:00-13:00 → 4h 不扣）
+function shiftSpanHours(shift){
+  if(!shift||!shift.startTime||!shift.endTime)return 8;
+  const p=t=>{const m=String(t).match(/^(\d{1,2}):?(\d{2})?$/);return m?Number(m[1])+Number(m[2]||0)/60:null;};
+  const s=p(shift.startTime),e=p(shift.endTime);
+  if(s==null||e==null)return 8;
+  let h=e-s;if(h<=0)h+=24; // 跨夜班
+  if(h>4)h-=1; // 超過 4h 扣 1h 休息
+  return Math.round(h*100)/100;
+}
 // ─── 兼職（時薪制）計算 ───
 // 規則：實領 = Σ(實際上班時數×(時薪+10出勤獎勵)) + 加班費(純時薪×倍率) + 加項 − 勞健保 − 管理扣點
 // 請假不扣（只算實際出勤）；無底薪/彈性補貼/目標薪資/不足月概念
@@ -1349,13 +1360,12 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const dd=rec?.dailyData||{};
   const hourlyRate=Number(rec?.hourlyOverride??emp.hourlyRate??0); // 純時薪
   const ATTEND_BONUS=10; // 每小時出勤獎勵
-  const SHIFT_HOURS=8;   // 一個班次預設時數（無填寫實際上班時用）
 
   let workedHoursTotal=0;  // 實際上班總時數（含出勤獎勵基準）
   let fixedOtHours=0, extraOtHours=0, tempOtSegs={};
   let scheduledDays=0, workDays=0;
   let workDates=[]; // 出勤日明細
-  let scheduledHoursTotal=0; // 排班總時數（含請假日，用於判斷是否達136h）
+  let scheduledHoursTotal=0; // 排班總時數（依班表 startTime~endTime 實算）
   let hasAbnormal=false;     // 是否有非正常出勤（請假/缺勤等）
 
   for(let d=1;d<=days;d++){
@@ -1373,7 +1383,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     }
     if(type==='dayoff')continue;
     scheduledDays++;
-    scheduledHoursTotal+=SHIFT_HOURS; // 每個排班日算 8h（排班基準）
+    scheduledHoursTotal+=shiftSpanHours(shift); // 依班表時段實算（無法解析時 fallback 8h）
 
     // 判斷非正常出勤：有請假（type !== normal）就標記
     if(type!=='normal')hasAbnormal=true;
@@ -1381,19 +1391,20 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     // 實際出勤時數（只算真正上班的）
     let worked;
     if(r.workedHours!=null)worked=Number(r.workedHours);
-    else if(type==='normal')worked=SHIFT_HOURS;
+    else if(type==='normal')worked=shiftSpanHours(shift); // 預設=當天班表時數
     else worked=0; // 請假當天若沒特別填，當天沒上班
     if(worked>0){
       workedHoursTotal+=worked;workDays++;
       workDates.push(`${d}日(${Math.round(worked*100)/100}h)`);
       fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):0); // 兼職預設 0，不套用店面固定加班設定
       extraOtHours+=Number(r.ot167||0);
+    }else if(type==='normal'){
+      hasAbnormal=true; // 排班日填 0h＝未出席，全勤破功
     }
   }
 
-  // 出勤獎勵條件：排班總時數 ≥ 136h 且當月無任何非正常出勤
-  const ATTEND_THRESHOLD=136;
-  const attendQualified=scheduledHoursTotal>=ATTEND_THRESHOLD&&!hasAbnormal;
+  // 出勤獎勵條件：當月所有排班日皆正常出席（無請假/缺勤），不設最低時數門檻
+  const attendQualified=scheduledDays>0&&!hasAbnormal;
 
   // 薪資組成
   const basePay=Math.round(workedHoursTotal*hourlyRate);                            // 純時薪部分
@@ -1440,7 +1451,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
 
   return{
     isPartTime:true, hourlyRate, attendBonusRate:ATTEND_BONUS,
-    attendQualified, scheduledHoursTotal, hasAbnormal, attendThreshold:ATTEND_THRESHOLD,
+    attendQualified, scheduledHoursTotal, hasAbnormal,
     attendBonusHours, otHoursTotal,
     workedHoursTotal, workDays, workDates, scheduledDays,
     basePay, attendBonus,
@@ -1781,14 +1792,15 @@ function renderSheet(emp,rec,shifts,c){
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
     } else if(c.isPartTime&&shift&&inEmp&&type==='normal'){
-      // 兼職正常日：填實際上班時數（時薪計算依此）
+      // 兼職正常日：填實際上班時數（時薪計算依此）；預設=當天班表時數
+      const _defH=shiftSpanHours(shift);
       subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--green-bg);border-color:var(--green-border)">
         <span style="color:var(--green);font-weight:600">實際上班時數</span>
         <div class="hm-wrap">
-          <input type="number" min="0" max="23" inputmode="numeric" value="${r.workedHours!=null?hPart(r.workedHours):''}" class="hm-h" placeholder="8" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','h',this.value)" ${dis}><span class="hm-sep">時</span>
-          <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
+          <input type="number" min="0" max="23" inputmode="numeric" value="${r.workedHours!=null?hPart(r.workedHours):''}" class="hm-h" placeholder="${Math.floor(_defH)}" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','h',this.value)" ${dis}><span class="hm-sep">時</span>
+          <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="${Math.round((_defH%1)*60)}" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
         </div>
-        <span style="color:var(--text3);font-size:11px">未填預設 8h</span>
+        <span style="color:var(--text3);font-size:11px">未填預設 ${Math.round(_defH*100)/100}h（班表時段）</span>
       </div></div>`;
     }
     // 未排班日臨時加班子欄（多段費率）
@@ -1955,7 +1967,7 @@ function renderSheet(emp,rec,shifts,c){
         ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
-          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（${c.scheduledHoursTotal}h≥${c.attendThreshold}h）出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有非正常出勤':'排班未達'+c.attendThreshold+'h（'+c.scheduledHoursTotal+'h）'}，不發放`}</div></div>
+          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（排班${c.scheduledDays}天皆出席）出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有請假/缺勤，未全勤':'本月無排班'}，不發放`}</div></div>
           <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${c.fixedOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.34</div></div>
           <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div></div>
         </div>
