@@ -206,6 +206,9 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .half-btn{flex:1;font-size:13px;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s}
 .half-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .daily-hd-row{display:grid;grid-template-columns:46px minmax(0,1fr) 90px 110px 110px 62px;gap:4px;padding:3px 8px;font-size:10px;color:var(--text3);font-weight:600}
+/* 兼職：無固定加班欄，改 5 欄 */
+.daily-hd-row.pt-row{grid-template-columns:46px minmax(0,1fr) 90px 110px 62px}
+.d-row.pt-row{grid-template-columns:46px minmax(0,1fr) 90px 110px 62px}
 .d-row{display:grid;grid-template-columns:46px minmax(0,1fr) 90px 110px 110px 62px;gap:4px;align-items:center;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:3px}
 .d-row:hover{background:#EDEEF3}
 .d-row.weekend{background:#FFF8F8;border-color:#FDDADA}
@@ -244,6 +247,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 @media(max-width:700px){
   .daily-hd-row{display:none}
   .d-row{grid-template-columns:40px minmax(0,1fr) 80px 102px 102px 58px;gap:3px;padding:6px 7px}
+  .d-row.pt-row{grid-template-columns:40px minmax(0,1fr) 80px 102px 58px}
   .hm-wrap input.hm-h,.hm-wrap input.hm-m{width:30px;font-size:12px;padding:4px 2px;min-height:30px}
   .hm-wrap{gap:1px}
   .hm-wrap .hm-sep{font-size:10px}
@@ -1535,7 +1539,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     // 占位（給共用 UI/薪資單用，兼職不適用的欄位給空）
     paidLeaves:{}, personalDeduct:0, sickDeduct:0, absentDeduct:0,
     personalDates:[], sickDates:[], absentDates:[], personalMins:0, sickHours:0, absentDays:0,
-    base:0, elastic:0, target:0, proratedTarget:0, hourly:hourlyRate, defOt,
+    base:0, elastic:0, target:0, proratedTarget:0, hourly:hourlyRate, defOt:0, // 兼職不套用店面固定加班預設，UI 預設顯示 0
     annualComp:0,autoAnnualComp:0,redComp:0,autoRedComp:0,
     gradeOverride:rec?.gradeOverride
   };
@@ -1939,16 +1943,16 @@ function renderSheet(emp,rec,shifts,c){
       continue;
     }
 
-    rows+=`<div class="d-row${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
+    rows+=`<div class="d-row${c.isPartTime?' pt-row':''}${isWknd?' weekend':''}${noShift&&!isWknd?' no-shift':''}${!inEmp?' out-employ':''}${locked?' locked':''}">
       <div class="d-date"><div class="d-num" style="color:${dow===0?'#E05252':dow===6?'#5B8EDB':'var(--text)'}">${d}</div><div class="d-wday">${WD[dow]}</div></div>
       <div class="d-shift">${shiftTxt}${inEmp&&!locked?` <span class="d-collapse" onclick="collapseDay('${ds}')">收合</span>`:''}</div>
       <div class="d-field" data-label="假別"><select class="${selCls}" data-date="${ds}" onchange="updType(this)" ${(noShift&&type==='normal')||!inEmp?'disabled':dis}>
         ${typeOpts.replace(`value="${type}"`,`value="${type}" selected`)}
       </select></div>
-      <div class="d-field" data-label="固定加班"><div class="hm-wrap">
+      ${c.isPartTime?'':`<div class="d-field" data-label="固定加班"><div class="hm-wrap">
         <input type="number" min="0" max="23" inputmode="numeric" value="${hasFixedOt?hPart(autoOt):''}" class="hm-h ${hasFixedOt&&autoOt?'fill-orange':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','autoOt','h',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">時</span>
         <input type="number" min="0" max="59" inputmode="numeric" value="${hasFixedOt?mPart(autoOt):''}" class="hm-m ${hasFixedOt&&autoOt?'fill-orange':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','autoOt','m',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">分</span>
-      </div></div>
+      </div></div>`}
       <div class="d-field col-ot2" data-label="額外加班"><div class="hm-wrap">
         <input type="number" min="0" max="23" inputmode="numeric" value="${ot167?hPart(ot167):''}" class="hm-h ${ot167?'fill-red':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','ot167','h',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">時</span>
         <input type="number" min="0" max="59" inputmode="numeric" value="${ot167?mPart(ot167):''}" class="hm-m ${ot167?'fill-red':''}" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','ot167','m',this.value)" ${!hasFixedOt||dis?'disabled':''}><span class="hm-sep">分</span>
@@ -2034,8 +2038,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
           <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（排班${c.scheduledDays}天皆出席）出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有請假/缺勤，未全勤':'本月無排班'}，不發放`}</div></div>
-          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${c.fixedOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.34</div></div>
-          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.67</div></div>
         </div>
         <div class="eq-bar">
           <span>出勤天數</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
@@ -2086,8 +2089,8 @@ function renderSheet(emp,rec,shifts,c){
           <button class="half-btn${halfView==='first'?' active':''}" onclick="setHalf('first')">上半月 (1–15)</button>
           <button class="half-btn${halfView==='second'?' active':''}" onclick="setHalf('second')">下半月 (16–${days})</button>
         </div>
-        <div class="daily-hd-row"><div style="text-align:center">日期</div><div>班次</div><div>假別</div>
-          <div style="text-align:right">固定加班</div><div style="text-align:right" class="col-ot2">額外加班</div><div style="text-align:right" class="col-late">遲到</div></div>
+        <div class="daily-hd-row${c.isPartTime?' pt-row':''}"><div style="text-align:center">日期</div><div>班次</div><div>假別</div>
+          ${c.isPartTime?'':`<div style="text-align:right">固定加班</div>`}<div style="text-align:right" class="col-ot2">額外加班</div><div style="text-align:right" class="col-late">遲到</div></div>
         <div id="dailyGrid">${rows}</div>
       </div>
 
@@ -2915,7 +2918,7 @@ function buildSlipHtml(c,customRows){
     return `<table>
 <tr><td class="sh" colspan="2">加項（時薪制）</td></tr>
 <tr><td>時薪 $${c.hourlyRate} × ${Math.round(c.workedHoursTotal*100)/100}h</td><td>$${c.basePay.toLocaleString()}</td></tr>
-${c.attendBonus>0?`<tr><td>出勤獎勵 +$${c.attendBonusRate}/h × ${Math.round(c.workedHoursTotal*100)/100}h（全勤${c.scheduledHoursTotal}h達標）</td><td>$${c.attendBonus.toLocaleString()}</td></tr>`:''}
+${c.attendBonus>0?`<tr><td>出勤獎勵 +$${c.attendBonusRate}/h × ${Math.round(c.workedHoursTotal*100)/100}h（全勤達標：排班${c.scheduledDays}天皆出席）</td><td>$${c.attendBonus.toLocaleString()}</td></tr>`:''}
 ${c.fixedOtPay>0?`<tr><td>加班費 ×1.34（${c.fixedOtHours}h）</td><td>$${c.fixedOtPay.toLocaleString()}</td></tr>`:''}
 ${c.extraOtPay>0?`<tr><td>額外加班 ×1.67（${c.extraOtHours}h）</td><td>$${c.extraOtPay.toLocaleString()}</td></tr>`:''}
 ${c.tempOtPay>0?`<tr><td>臨時加班</td><td>$${c.tempOtPay.toLocaleString()}</td></tr>`:''}
