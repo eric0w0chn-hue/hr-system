@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>104排程 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
+  --ok:#1F9D55;--warn:#D98A00;--danger:#C0392B;--info:#2D6CDF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;overflow:hidden}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.back-btn{font-size:12px;padding:0 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;min-height:44px;display:flex;align-items:center}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.tb-dv{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap;flex-shrink:0}
+
+/* ── Main ── */
+.main{max-width:1040px;margin:0 auto;padding:24px 20px}
+.hint{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.6}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tab{font-size:13px;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;min-height:38px}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar select{font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
+.toolbar select:focus{outline:none;border-color:var(--accent)}
+
+/* ── Button ── */
+.btn{font-size:13px;padding:0 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);min-height:44px;white-space:nowrap}
+.btn:hover{background:var(--accent-light);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#3D4158}
+.btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-ok:hover{background:#188044}
+.btn-danger{background:#FEECEB;color:#C0392B;border-color:#FCA5A5}
+.btn-sm{min-height:36px;font-size:12px;padding:0 12px}
+
+/* ── 排程卡片 ── */
+.slist{display:flex;flex-direction:column;gap:12px}
+.day-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;border-left:4px solid var(--border2)}
+.day-card.is-today{border-left-color:var(--info);box-shadow:0 2px 12px rgba(45,108,223,.10)}
+.day-card.is-done{border-left-color:var(--ok)}
+.day-card.is-past{border-left-color:var(--danger)}
+.dc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dc-date{font-size:15px;font-weight:800}
+.dc-date .wd{font-size:12px;font-weight:600;color:var(--text2);margin-left:4px}
+.today-tag{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#E5EEFB;color:var(--info);font-weight:700}
+.badge{font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-wait{background:#FFF1DC;color:var(--warn)}
+.b-done{background:#E3F5EA;color:var(--ok)}
+.b-miss{background:#FCE9E7;color:var(--danger)}
+.dc-actions{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.chip{font-size:12px;padding:4px 11px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-weight:600}
+.dc-note{font-size:12px;color:var(--text2);margin-top:8px;white-space:pre-wrap;line-height:1.5}
+.dc-done-info{font-size:11.5px;color:var(--ok);margin-top:8px;font-weight:600}
+.empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:14px}
+
+/* ── 店家需求卡片 ── */
+.store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.store-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 16px;border-left:4px solid var(--border2);display:flex;flex-direction:column;gap:10px}
+.store-card.on{border-left-color:var(--ok)}
+.sc-head{display:flex;align-items:center;gap:10px}
+.sc-name{font-size:14px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-pos{display:flex;flex-direction:column;gap:6px}
+.pos-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface2);border-radius:8px;padding:8px 12px}
+.pos-row .cnt{font-weight:800;color:var(--accent);white-space:nowrap}
+.sc-empty{font-size:12px;color:var(--text3);padding:4px 0}
+.sc-off-mask{opacity:.45}
+.sc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
+.sc-upd{font-size:10.5px;color:var(--text3)}
+
+/* ── Toggle switch ── */
+.switch{position:relative;width:44px;height:26px;flex-shrink:0;cursor:pointer}
+.switch input{opacity:0;width:0;height:0}
+.switch .sl{position:absolute;inset:0;background:var(--border2);border-radius:26px;transition:.2s}
+.switch .sl::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch input:checked + .sl{background:var(--ok)}
+.switch input:checked + .sl::before{transform:translateX(18px)}
+.switch input:disabled + .sl{cursor:not-allowed;opacity:.55}
+
+/* ── 店面挑選 chip（排程 modal 用，避免 iOS 原生多選）── */
+.pick-wrap{display:flex;gap:7px;flex-wrap:wrap}
+.pick{font-size:12.5px;padding:8px 13px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-weight:600;min-height:38px;font-family:inherit}
+.pick.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── 職缺編輯列 ── */
+.pe-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.pe-row input[type=text]{flex:1}
+.pe-row input[type=number]{width:84px;flex-shrink:0}
+.pe-del{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--danger);cursor:pointer;font-size:14px;flex-shrink:0}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:flex-end;justify-content:center;z-index:500;padding:0;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.15);max-height:92vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;letter-spacing:.3px}
+.form-row input,.form-row select,.form-row textarea{width:100%;font-size:13px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
+.form-row textarea{min-height:70px;resize:vertical}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent)}
+.req::after{content:' *';color:var(--danger)}
+.modal-footer{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.modal-footer .btn{flex:1;justify-content:center}
+
+/* ── 照片上傳 ── */
+.photo-upload-area{border:2px dashed var(--border2);border-radius:10px;padding:14px;cursor:pointer;text-align:center;color:var(--text3);font-size:13px;transition:border-color .15s;background:var(--surface2);user-select:none}
+.photo-upload-area:hover,.photo-upload-area.drag-over{border-color:var(--accent);color:var(--accent)}
+.photo-upload-area input[type=file]{display:none}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-top:10px}
+.photo-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2);cursor:pointer}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-thumb .del-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center}
+.photo-thumb .del-btn:hover{background:var(--danger)}
+.photo-view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px;margin-top:9px}
+.photo-view-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:zoom-in;background:var(--surface2)}
+.photo-view-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-view-thumb img:hover{opacity:.85}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.lightbox img{max-width:94vw;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:fixed;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;z-index:1000}
+
+/* ── Toast / Loading ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#loading{display:flex;align-items:center;justify-content:center;height:100vh;gap:8px;font-size:13px;color:var(--text3)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ── RWD ── */
+@media(max-width:600px){
+  .topbar{padding:0 12px;gap:6px;height:52px}
+  .topbar h1{font-size:13px}
+  .back-btn{font-size:11px;padding:0 10px;min-height:36px}
+  .role-chip{font-size:10px;padding:2px 8px}
+  #btnNew .btn-label{display:none}
+  #btnNew{padding:0 11px;min-width:36px;justify-content:center}
+  .main{padding:12px}
+  .toolbar select{width:100%}
+  .store-grid{grid-template-columns:1fr}
+  .dc-actions{width:100%;margin-left:0;margin-top:9px}
+  .dc-actions .btn{flex:1;justify-content:center}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh}
+}
+@media(min-width:601px){
+  .overlay{align-items:center;padding:16px}
+  .modal{border-radius:16px;max-height:88vh}
+}
+/* ── embed 隱藏 topbar（iframe 模式必加）── */
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div>載入中…</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+      <div class="tb-dv"></div>
+      <h1>📣 104排程</h1>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" id="btnNew" style="display:none">＋<span class="btn-label"> 新增排程</span></button>
+      <span class="role-chip" id="roleChip">—</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="hint" id="hintBox">
+      📣 總部依各店需求錯開日期發放 104 履歷；發放完成後上傳截圖存證。各店可於「各店需求」設定是否開啟 104、職缺與需求人數，全部店面互相可見。
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tabSched">📆 發放排程</button>
+      <button class="tab" id="tabStores">🏪 各店需求</button>
+    </div>
+
+    <!-- 排程分頁 -->
+    <div id="viewSched">
+      <div class="toolbar">
+        <select id="fMonth"></select>
+      </div>
+      <div class="slist" id="slist"></div>
+    </div>
+
+    <!-- 各店需求分頁 -->
+    <div id="viewStores" style="display:none">
+      <div class="store-grid" id="storeGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { collection, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+/* ─── 設定 ─── */
+const SCHED_COLL   = 'recruit104_schedule';           // 排程集合（date: YYYY-MM-DD 字串）
+const SETTINGS_DOC = ['settings','recruit104'];        // 各店需求設定（單一文件）
+const FETCH_LIMIT  = 400;
+const WD = ['日','一','二','三','四','五','六'];
+const normLoc = s => String(s||'').replace(/鋪/g,'舖').replace(/\s/g,'').trim();
+// 後備店名清單：僅在讀取 hr/settings.workLocations 失敗時使用（沿用全站 hardcode fallback 模式）
+const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞肉本舖','府中雞肉飯專門店','景新雞肉飯專門店','鑫雞肉央廚','大直讚雞肉飯','心惦雞肉飯','幸福雞肉飯','福城雞肉飯','泉州鑫廚房','新莊央廚','巷日雞肉飯'];
+
+/* ─── Storage ─── */
+const storage = getStorage();
+async function uploadPhotos(files, pathPrefix){
+  const urls=[];
+  for(let i=0;i<files.length;i++){
+    const f=files[i]; const ext=f.name.split('.').pop()||'jpg';
+    const r=ref(storage,`${pathPrefix}_${Date.now()}_${i}.${ext}`);
+    await uploadBytes(r,f); urls.push(await getDownloadURL(r));
+  }
+  return urls;
+}
+function makePhotoUploader(containerId){
+  const state={files:[]};
+  function render(){
+    const wrap=document.getElementById(containerId); if(!wrap) return;
+    wrap.innerHTML='';
+    const area=document.createElement('div'); area.className='photo-upload-area';
+    area.innerHTML='<input type="file" accept="image/*" multiple id="fi_'+containerId+'">📷 點擊上傳發放截圖（可多張）';
+    area.addEventListener('click',()=>{ const inp=document.getElementById('fi_'+containerId); if(inp) inp.click(); });
+    area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag-over');});
+    area.addEventListener('dragleave',()=>area.classList.remove('drag-over'));
+    area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('drag-over');addFiles([...e.dataTransfer.files]);});
+    wrap.appendChild(area);
+    setTimeout(()=>{ const inp=document.getElementById('fi_'+containerId); if(inp) inp.addEventListener('change',e=>addFiles([...e.target.files])); },0);
+    if(state.files.length){
+      const grid=document.createElement('div'); grid.className='photo-grid';
+      state.files.forEach((f,idx)=>{
+        const url=URL.createObjectURL(f);
+        const th=document.createElement('div'); th.className='photo-thumb';
+        th.innerHTML=`<img src="${url}" loading="lazy"><button class="del-btn" data-i="${idx}">✕</button>`;
+        th.querySelector('.del-btn').addEventListener('click',e=>{e.stopPropagation();state.files.splice(idx,1);render();});
+        th.querySelector('img').addEventListener('click',()=>openLightbox(url));
+        grid.appendChild(th);
+      });
+      wrap.appendChild(grid);
+    }
+  }
+  function addFiles(newFiles){ state.files.push(...newFiles.filter(f=>f.type.startsWith('image/'))); render(); }
+  render(); return state;
+}
+function openLightbox(src){
+  const lb=document.createElement('div'); lb.className='lightbox';
+  lb.innerHTML=`<span class="lightbox-close">✕</span><img src="${src}">`;
+  lb.addEventListener('click',()=>lb.remove()); document.body.appendChild(lb);
+}
+
+/* ─── 狀態 ─── */
+let CUR = { name:'', role:'', uid:'' };
+let OWN_LOCS = [];            // 自身所屬店面（店長判斷可否編輯需求用）
+let ALL_STORES = [];          // 全站店面清單
+let SETTINGS = { stores:{} }; // settings/recruit104
+let SCHEDS = [];              // 目前範圍的排程
+let curTab = 'sched';
+let curMonth = '__recent__';  // __recent__ = 今日-7 ~ 今日+30
+
+function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
+function canEditStore(name){
+  if(isHQ()) return true;
+  if(CUR.role!=='manager') return false;
+  const n = normLoc(name);
+  return OWN_LOCS.some(l=>normLoc(l)===n);
+}
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200); }
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function addDays(dateStr, n){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDate(ds){ const [y,m,d]=ds.split('-'); const wd=WD[new Date(ds+'T00:00:00').getDay()]; return `${+m}/${+d}<span class="wd">（${wd}）</span>`; }
+
+/* ─── 入口 ─── */
+authGuard('recruit104', ({ uid, role, locations, userData }) => {
+  CUR.role = role; CUR.name = userData?.name || '—'; CUR.uid = uid;
+  OWN_LOCS = (userData?.locations && userData.locations.length) ? userData.locations.slice() : [];
+
+  const rc = document.getElementById('roleChip');
+  if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
+  if(isHQ()){
+    const b=document.getElementById('btnNew');
+    b.style.display=''; b.addEventListener('click',()=>openSchedModal(null));
+  }
+  init();
+});
+
+/* ─── 載入 ─── */
+async function loadAllStores(){
+  try{
+    const s = await getDoc(doc(db,'hr','settings'));
+    if(s.exists()){
+      const wl = s.data().workLocations;
+      if(Array.isArray(wl) && wl.length){
+        const names = wl.map(x=> typeof x==='string' ? x : (x?.name||x?.store||x?.label||'')).filter(Boolean);
+        if(names.length) return names;
+      }
+    }
+  }catch(e){ console.warn('loadAllStores:', e); }
+  return FALLBACK_STORES.slice();
+}
+async function loadSettings(){
+  try{
+    const s = await getDoc(doc(db, ...SETTINGS_DOC));
+    return s.exists() ? (s.data()||{stores:{}}) : {stores:{}};
+  }catch(e){ console.warn('loadSettings:', e); return {stores:{}}; }
+}
+function monthRange(){
+  if(curMonth==='__recent__'){
+    const t=todayStr();
+    return [addDays(t,-7), addDays(t,30)];
+  }
+  const [y,m]=curMonth.split('-').map(Number);
+  const last=new Date(y,m,0).getDate();
+  return [`${curMonth}-01`, `${curMonth}-${String(last).padStart(2,'0')}`];
+}
+async function loadScheds(){
+  const [start,end]=monthRange();
+  const snap = await getDocs(query(collection(db,SCHED_COLL),
+    where('date','>=',start), where('date','<=',end), orderBy('date','asc'), limit(FETCH_LIMIT)));
+  return snap.docs.map(d=>({id:d.id, ...d.data()}));
+}
+async function init(){
+  const [stores, settings, scheds] = await Promise.all([loadAllStores(), loadSettings(), loadScheds()]);
+  ALL_STORES=stores; SETTINGS=settings.stores?settings:{stores:{}}; if(!SETTINGS.stores) SETTINGS.stores={};
+  SCHEDS=scheds;
+  buildMonthSelect();
+  renderSched(); renderStores();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='';
+  document.getElementById('tabSched').addEventListener('click',()=>switchTab('sched'));
+  document.getElementById('tabStores').addEventListener('click',()=>switchTab('stores'));
+}
+function switchTab(t){
+  curTab=t;
+  document.getElementById('tabSched').classList.toggle('active',t==='sched');
+  document.getElementById('tabStores').classList.toggle('active',t==='stores');
+  document.getElementById('viewSched').style.display = t==='sched'?'':'none';
+  document.getElementById('viewStores').style.display = t==='stores'?'':'none';
+}
+function buildMonthSelect(){
+  const sel=document.getElementById('fMonth');
+  const now=new Date(); const opts=['<option value="__recent__">📆 近期（前7天～後30天）</option>'];
+  for(let off=1; off>=-3; off--){
+    const d=new Date(now.getFullYear(), now.getMonth()+off, 1);
+    const v=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    opts.push(`<option value="${v}">${d.getFullYear()}年${d.getMonth()+1}月</option>`);
+  }
+  sel.innerHTML=opts.join('');
+  sel.value=curMonth;
+  sel.onchange=async ()=>{ curMonth=sel.value; SCHEDS=await loadScheds(); renderSched(); };
+}
+
+/* ─── 排程渲染 ─── */
+function schedStateOf(s){
+  const t=todayStr();
+  if(s.status==='done') return 'done';
+  if(s.date < t) return 'miss';       // 已過期未發放
+  return 'wait';
+}
+function renderSched(){
+  const box=document.getElementById('slist');
+  if(!SCHEDS.length){ box.innerHTML='<div class="empty">此範圍尚無排程</div>'; return; }
+  const t=todayStr();
+  box.innerHTML = SCHEDS.map(s=>{
+    const st=schedStateOf(s);
+    const cls = s.date===t ? 'is-today' : (st==='done'?'is-done':(st==='miss'?'is-past':''));
+    const badge = st==='done' ? '<span class="badge b-done">✅ 已發放</span>'
+                : st==='miss' ? '<span class="badge b-miss">⚠️ 未發放</span>'
+                :               '<span class="badge b-wait">待發放</span>';
+    const chips=(s.stores||[]).map(n=>`<span class="chip">${esc(n)}</span>`).join('');
+    const shots=(s.screenshots&&s.screenshots.length)
+      ? `<div class="photo-view-grid">${s.screenshots.map(u=>`<div class="photo-view-thumb"><img src="${esc(u)}" loading="lazy" data-lb="${esc(u)}"></div>`).join('')}</div>` : '';
+    const doneInfo = st==='done' ? `<div class="dc-done-info">由 ${esc(s.doneBy||'—')} 於 ${esc((s.doneAtLocal||'').slice(5,16).replace('T',' '))} 完成</div>` : '';
+    const acts = isHQ() ? `
+      <div class="dc-actions">
+        ${st!=='done' ? `<button class="btn btn-ok btn-sm" data-done="${s.id}">✅ 完成發放</button>` : `<button class="btn btn-sm" data-undone="${s.id}">↩ 還原待發放</button>`}
+        <button class="btn btn-sm" data-edit="${s.id}">✏️ 編輯</button>
+        <button class="btn btn-danger btn-sm" data-del="${s.id}">🗑</button>
+      </div>` : '';
+    return `<div class="day-card ${cls}">
+      <div class="dc-head">
+        <span class="dc-date">${fmtDate(s.date)}</span>
+        ${s.date===t?'<span class="today-tag">今天</span>':''}
+        ${badge}
+        ${acts}
+      </div>
+      <div class="chips">${chips||'<span class="sc-empty">未指定店家</span>'}</div>
+      ${s.note?`<div class="dc-note">${esc(s.note)}</div>`:''}
+      ${doneInfo}${shots}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-lb]').forEach(img=>img.addEventListener('click',()=>openLightbox(img.dataset.lb)));
+  box.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openSchedModal(SCHEDS.find(x=>x.id===b.dataset.edit))));
+  box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delSched(b.dataset.del)));
+  box.querySelectorAll('[data-done]').forEach(b=>b.addEventListener('click',()=>openDoneModal(SCHEDS.find(x=>x.id===b.dataset.done))));
+  box.querySelectorAll('[data-undone]').forEach(b=>b.addEventListener('click',()=>undoDone(b.dataset.undone)));
+}
+
+/* ─── 排程 新增/編輯 modal ─── */
+function openSchedModal(existing){
+  const isEdit=!!existing;
+  const picked=new Set((existing?.stores||[]).map(normLoc));
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-title">${isEdit?'✏️ 編輯排程':'＋ 新增排程'}</div>
+    <div class="form-row"><label class="req">發放日期</label><input type="date" id="mDate" value="${esc(existing?.date||todayStr())}"></div>
+    <div class="form-row"><label class="req">發放店家（點選，可複選）</label><div class="pick-wrap" id="mPick"></div></div>
+    <div class="form-row"><label>備註（如：內場、配送）</label><input type="text" id="mNote" value="${esc(existing?.note||'')}" placeholder="選填"></div>
+    <div class="modal-footer">
+      <button class="btn" id="mCancel">取消</button>
+      <button class="btn btn-primary" id="mSave">儲存</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  const pick=ov.querySelector('#mPick');
+  pick.innerHTML=ALL_STORES.map(n=>`<button type="button" class="pick ${picked.has(normLoc(n))?'on':''}" data-s="${esc(n)}">${esc(n)}</button>`).join('');
+  pick.querySelectorAll('.pick').forEach(b=>b.addEventListener('click',()=>{
+    const k=normLoc(b.dataset.s);
+    if(picked.has(k)){picked.delete(k);b.classList.remove('on');}else{picked.add(k);b.classList.add('on');}
+  }));
+  ov.querySelector('#mCancel').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#mSave').addEventListener('click',async ()=>{
+    const date=ov.querySelector('#mDate').value;
+    const stores=ALL_STORES.filter(n=>picked.has(normLoc(n)));
+    const note=ov.querySelector('#mNote').value.trim();
+    if(!date){ showToast('請選擇日期'); return; }
+    if(!stores.length){ showToast('請至少選擇一間店'); return; }
+    const btn=ov.querySelector('#mSave'); btn.disabled=true;
+    try{
+      if(isEdit){
+        await updateDoc(doc(db,SCHED_COLL,existing.id),{date,stores,note,updatedAt:serverTimestamp(),updatedBy:CUR.name});
+        writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`${date} ${stores.join('、')}`});
+      }else{
+        await addDoc(collection(db,SCHED_COLL),{date,stores,note,status:'pending',screenshots:[],createdAt:serverTimestamp(),createdBy:CUR.name});
+        writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'新增排程',detail:`${date} ${stores.join('、')}`});
+      }
+      ov.remove(); SCHEDS=await loadScheds(); renderSched(); showToast('已儲存');
+    }catch(e){ console.error(e); showToast('儲存失敗'); btn.disabled=false; }
+  });
+}
+async function delSched(id){
+  const s=SCHEDS.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`確定刪除 ${s.date} 的排程？`)) return;
+  try{
+    await deleteDoc(doc(db,SCHED_COLL,id));
+    writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'刪除排程',detail:`${s.date} ${(s.stores||[]).join('、')}`});
+    SCHEDS=await loadScheds(); renderSched(); showToast('已刪除');
+  }catch(e){ console.error(e); showToast('刪除失敗'); }
+}
+
+/* ─── 完成發放（上傳截圖）─── */
+function openDoneModal(s){
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-title">✅ 完成發放 — ${fmtDate(s.date)}</div>
+    <div class="chips" style="margin:0 0 12px">${(s.stores||[]).map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</div>
+    <div class="form-row"><label>發放截圖（存證，可多張）</label><div id="donePhotos"></div></div>
+    <div class="modal-footer">
+      <button class="btn" id="dCancel">取消</button>
+      <button class="btn btn-ok" id="dSave">確認完成</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  const up=makePhotoUploader('donePhotos');
+  ov.querySelector('#dCancel').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#dSave').addEventListener('click',async ()=>{
+    const btn=ov.querySelector('#dSave'); btn.disabled=true; btn.textContent='上傳中…';
+    try{
+      let urls=[];
+      if(up.files.length) urls=await uploadPhotos(up.files,`recruit104_photos/${s.id}/shot`);
+      const now=new Date(); const local=`${todayStr()}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      await updateDoc(doc(db,SCHED_COLL,s.id),{status:'done',screenshots:[...(s.screenshots||[]),...urls],doneBy:CUR.name,doneAt:serverTimestamp(),doneAtLocal:local});
+      writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`完成發放 ${s.date} ${(s.stores||[]).join('、')}`});
+      ov.remove(); SCHEDS=await loadScheds(); renderSched(); showToast('已標記完成');
+    }catch(e){ console.error(e); showToast('上傳失敗'); btn.disabled=false; btn.textContent='確認完成'; }
+  });
+}
+async function undoDone(id){
+  const s=SCHEDS.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`將 ${s.date} 還原為「待發放」？（已上傳截圖會保留）`)) return;
+  try{
+    await updateDoc(doc(db,SCHED_COLL,id),{status:'pending'});
+    writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`還原待發放 ${s.date}`});
+    SCHEDS=await loadScheds(); renderSched(); showToast('已還原');
+  }catch(e){ console.error(e); showToast('操作失敗'); }
+}
+
+/* ─── 各店需求 ─── */
+function storeConf(name){
+  const key=Object.keys(SETTINGS.stores).find(k=>normLoc(k)===normLoc(name));
+  return key ? SETTINGS.stores[key] : null;
+}
+function renderStores(){
+  const grid=document.getElementById('storeGrid');
+  grid.innerHTML = ALL_STORES.map(name=>{
+    const c=storeConf(name)||{enabled:false,positions:[]};
+    const on=!!c.enabled;
+    const editable=canEditStore(name);
+    const pos=(c.positions||[]).length
+      ? (c.positions||[]).map(p=>`<div class="pos-row"><span>${esc(p.title)}</span><span class="cnt">×${esc(p.count)}</span></div>`).join('')
+      : `<div class="sc-empty">尚未設定職缺</div>`;
+    const upd=c.updatedBy?`<span class="sc-upd">${esc(c.updatedBy)} 更新於 ${esc((c.updatedAtLocal||'').slice(0,10))}</span>`:'<span></span>';
+    return `<div class="store-card ${on?'on':''}">
+      <div class="sc-head">
+        <div class="sc-name">${esc(name)}</div>
+        <label class="switch"><input type="checkbox" data-tg="${esc(name)}" ${on?'checked':''} ${editable?'':'disabled'}><span class="sl"></span></label>
+      </div>
+      <div class="sc-pos ${on?'':'sc-off-mask'}">${pos}</div>
+      <div class="sc-foot">
+        ${upd}
+        ${editable?`<button class="btn btn-sm" data-pe="${esc(name)}">✏️ 編輯職缺</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('[data-tg]').forEach(cb=>cb.addEventListener('change',()=>toggleStore(cb.dataset.tg,cb.checked,cb)));
+  grid.querySelectorAll('[data-pe]').forEach(b=>b.addEventListener('click',()=>openPosModal(b.dataset.pe)));
+}
+async function saveSettings(name, patch, action){
+  const key=Object.keys(SETTINGS.stores).find(k=>normLoc(k)===normLoc(name)) || name;
+  const now=new Date();
+  const cur=SETTINGS.stores[key]||{enabled:false,positions:[]};
+  SETTINGS.stores[key]={...cur,...patch,updatedBy:CUR.name,updatedAtLocal:todayStr()+'T'+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')};
+  await setDoc(doc(db,...SETTINGS_DOC),{stores:SETTINGS.stores,updatedAt:serverTimestamp()},{merge:true});
+  writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯店家需求',detail:`${name}：${action}`});
+}
+async function toggleStore(name, on, cb){
+  try{
+    await saveSettings(name,{enabled:on},on?'開啟104':'關閉104');
+    renderStores(); showToast(`${name} 已${on?'開啟':'關閉'} 104`);
+  }catch(e){ console.error(e); cb.checked=!on; showToast('儲存失敗'); }
+}
+function openPosModal(name){
+  const c=storeConf(name)||{positions:[]};
+  let rows=(c.positions||[]).map(p=>({title:p.title,count:p.count}));
+  if(!rows.length) rows=[{title:'',count:1}];
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-title">✏️ ${esc(name)} — 職缺需求</div>
+    <div class="form-row"><label>職缺與需求人數</label><div id="peRows"></div>
+      <button type="button" class="btn btn-sm" id="peAdd">＋ 新增職缺</button></div>
+    <div class="modal-footer">
+      <button class="btn" id="pCancel">取消</button>
+      <button class="btn btn-primary" id="pSave">儲存</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  const box=ov.querySelector('#peRows');
+  function draw(){
+    box.innerHTML=rows.map((r,i)=>`<div class="pe-row">
+      <input type="text" data-t="${i}" value="${esc(r.title)}" placeholder="職缺名稱（如：內場人員）">
+      <input type="number" data-c="${i}" value="${esc(r.count)}" min="1" inputmode="numeric">
+      <button type="button" class="pe-del" data-d="${i}">✕</button>
+    </div>`).join('');
+    box.querySelectorAll('[data-t]').forEach(inp=>inp.addEventListener('input',()=>{rows[+inp.dataset.t].title=inp.value;}));
+    box.querySelectorAll('[data-c]').forEach(inp=>inp.addEventListener('input',()=>{rows[+inp.dataset.c].count=inp.value;}));
+    box.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{rows.splice(+b.dataset.d,1);if(!rows.length)rows=[{title:'',count:1}];draw();}));
+  }
+  draw();
+  ov.querySelector('#peAdd').addEventListener('click',()=>{rows.push({title:'',count:1});draw();});
+  ov.querySelector('#pCancel').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#pSave').addEventListener('click',async ()=>{
+    const positions=rows.map(r=>({title:String(r.title||'').trim(),count:Math.max(1,parseInt(r.count,10)||1)})).filter(r=>r.title);
+    const btn=ov.querySelector('#pSave'); btn.disabled=true;
+    try{
+      await saveSettings(name,{positions},`職缺 ${positions.length} 筆`);
+      ov.remove(); renderStores(); showToast('已儲存');
+    }catch(e){ console.error(e); showToast('儲存失敗'); btn.disabled=false; }
+  });
+}
+</script>
+</body>
+</html>
