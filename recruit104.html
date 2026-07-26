@@ -301,13 +301,12 @@ let curTab = 'sched';
 let LOAD_ERR = '';
 let curMonth = '__recent__';  // __recent__ = 今日-7 ~ 今日+30
 
-function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
 function isAdmin(){ return CUR.role==='admin'; }
 function canEditStore(name){
-  if(isHQ()) return true;
-  if(CUR.role!=='manager') return false;
+  if(isAdmin()) return true;                      // 管理員：全店可編輯
+  if(CUR.role!=='consultant' && CUR.role!=='manager') return false;  // 同仁：唯讀
   const n = normLoc(name);
-  return OWN_LOCS.some(l=>normLoc(l)===n);
+  return OWN_LOCS.some(l=>normLoc(l)===n);        // 顧問／店長：僅自身負責店面
 }
 const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200); }
