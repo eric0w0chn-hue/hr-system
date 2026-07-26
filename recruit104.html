@@ -44,6 +44,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .btn-primary:hover{background:#3D4158}
 .btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
 .btn-ok:hover{background:#188044}
+.btn-warn{background:#FFF4E0;color:#9A6200;border-color:#F2CE8A}
+.btn-warn:hover{background:#FDE9C8;color:#9A6200}
 .btn-danger{background:#FEECEB;color:#C0392B;border-color:#FCA5A5}
 .btn-sm{min-height:36px;font-size:12px;padding:0 12px}
 
@@ -72,6 +74,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .store-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 16px;border-left:4px solid var(--border2);display:flex;flex-direction:column;gap:10px}
 .store-card.on{border-left-color:var(--ok)}
+.store-card.hold{border-left-color:var(--warn)}
+.sc-caret{display:none;font-size:12px;color:var(--text3);flex-shrink:0;transition:transform .18s}
 .sc-head{display:flex;align-items:center;gap:10px}
 .sc-name{font-size:14px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-pos{display:flex;flex-direction:column;gap:6px}
@@ -81,6 +85,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .sc-off-mask{opacity:.45}
 .sc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
 .sc-upd{font-size:10.5px;color:var(--text3)}
+.b-hold{background:#FFF1DC;color:var(--warn)}
+.chip.hold{background:#FFF1DC;border-color:#F2CE8A;color:#9A6200}
+.hold-note{font-size:11.5px;color:#9A6200;background:#FFF7EA;border:1px solid #F2CE8A;border-radius:8px;padding:6px 10px;font-weight:600}
 
 /* ── Toggle switch ── */
 .switch{position:relative;width:44px;height:26px;flex-shrink:0;cursor:pointer}
@@ -150,6 +157,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   .main{padding:12px}
   .toolbar select{width:100%}
   .store-grid{grid-template-columns:1fr}
+  .sc-foot{flex-wrap:wrap;gap:8px}
+  .sc-foot>span{flex:1;justify-content:flex-end}
+  /* 未開啟 104 的店面：手機預設收闔，點卡片可展開 */
+  .store-card.collapsed{padding:12px 14px;gap:0}
+  .store-card.collapsed .sc-head{cursor:pointer}
+  .store-card.collapsed .sc-caret{display:block}
+  .store-card.collapsed .sc-pos,.store-card.collapsed .sc-foot,.store-card.collapsed .hold-note{display:none}
+  .store-card.collapsed.expanded{gap:10px}
+  .store-card.collapsed.expanded .sc-pos{display:flex}
+  .store-card.collapsed.expanded .sc-foot{display:flex}
+  .store-card.collapsed.expanded .sc-caret{transform:rotate(180deg)}
   .dc-actions{width:100%;margin-left:0;margin-top:9px}
   .dc-actions .btn{flex:1;justify-content:center}
   .modal{border-radius:16px 16px 0 0;max-height:92vh}
@@ -180,7 +198,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 
   <div class="main">
     <div class="hint" id="hintBox">
-      📣 總部依各店需求錯開日期發放 104 履歷；發放完成後上傳截圖存證。各店可於「各店需求」設定是否開啟 104、職缺與需求人數，全部店面互相可見。
+      📣 總公司依各店需求錯開日期發放 104 履歷；發放完成後上傳截圖存證。各店可於「各店需求」設定是否開啟 104、職缺與需求人數，全部店面互相可見，<b style="color:var(--danger)">請各店務必於發放日前回覆前一梯次求職者訊息，避免訊息被覆蓋！</b>
     </div>
 
     <div class="tabs">
@@ -384,7 +402,12 @@ function renderSched(){
     const badge = st==='done' ? '<span class="badge b-done">✅ 已發放</span>'
                 : st==='miss' ? '<span class="badge b-miss">⚠️ 未發放</span>'
                 :               '<span class="badge b-wait">待發放</span>';
-    const chips=(s.stores||[]).map(n=>`<span class="chip">${esc(n)}</span>`).join('');
+    const chips=(s.stores||[]).map(n=>{
+      const hd=isHold(n);
+      return `<span class="chip${hd?' hold':''}">${hd?'⏸ ':''}${esc(n)}</span>`;
+    }).join('');
+    const holdList=(s.stores||[]).filter(isHold);
+    const holdNote=holdList.length?`<div class="hold-note" style="margin-top:9px">⏸ ${esc(holdList.join('、'))} 有待錄取人員，本梯次<b>暫不主動發信</b>給求職者</div>`:'';
     const shots=(s.screenshots&&s.screenshots.length)
       ? `<div class="photo-view-grid">${s.screenshots.map(u=>`<div class="photo-view-thumb"><img src="${esc(u)}" loading="lazy" data-lb="${esc(u)}"></div>`).join('')}</div>` : '';
     const doneInfo = st==='done' ? `<div class="dc-done-info">由 ${esc(s.doneBy||'—')} 於 ${esc((s.doneAtLocal||'').slice(5,16).replace('T',' '))} 完成</div>` : '';
@@ -403,7 +426,7 @@ function renderSched(){
       </div>
       <div class="chips">${chips||'<span class="sc-empty">未指定店家</span>'}</div>
       ${s.note?`<div class="dc-note">${esc(s.note)}</div>`:''}
-      ${doneInfo}${shots}
+      ${holdNote}${doneInfo}${shots}
     </div>`;
   }).join('');
   box.querySelectorAll('[data-lb]').forEach(img=>img.addEventListener('click',()=>openLightbox(img.dataset.lb)));
@@ -505,6 +528,10 @@ async function undoDone(id){
 }
 
 /* ─── 各店需求 ─── */
+function isHold(name){
+  const c=storeConf(name);
+  return !!(c && c.enabled && c.holdMail);
+}
 function storeConf(name){
   const key=Object.keys(SETTINGS.stores).find(k=>normLoc(k)===normLoc(name));
   return key ? SETTINGS.stores[key] : null;
@@ -519,20 +546,35 @@ function renderStores(){
       ? (c.positions||[]).map(p=>`<div class="pos-row"><span>${esc(p.title)}</span><span class="cnt">×${esc(p.count)}</span></div>`).join('')
       : `<div class="sc-empty">尚未設定職缺</div>`;
     const upd=c.updatedBy?`<span class="sc-upd">${esc(c.updatedBy)} 更新於 ${esc((c.updatedAtLocal||'').slice(0,10))}</span>`:'<span></span>';
-    return `<div class="store-card ${on?'on':''}">
+    const hold=on&&!!c.holdMail;
+    return `<div class="store-card ${on?'on':'collapsed'} ${hold?'hold':''}">
       <div class="sc-head">
         <div class="sc-name">${esc(name)}</div>
+        ${hold?'<span class="badge b-hold">⏸ 暫不發信</span>':''}
+        <span class="sc-caret">▾</span>
         <label class="switch"><input type="checkbox" data-tg="${esc(name)}" ${on?'checked':''} ${editable?'':'disabled'}><span class="sl"></span></label>
       </div>
       <div class="sc-pos ${on?'':'sc-off-mask'}">${pos}</div>
+      ${hold?'<div class="hold-note">⏸ 有待錄取人員，請總公司本梯次暫不主動發信</div>':''}
       <div class="sc-foot">
         ${upd}
-        ${editable?`<button class="btn btn-sm" data-pe="${esc(name)}">✏️ 編輯職缺</button>`:''}
+        <span style="display:flex;gap:6px">
+          ${(editable&&on)?`<button class="btn btn-sm ${hold?'btn-warn':''}" data-hm="${esc(name)}">${hold?'▶ 恢復發信':'⏸ 暫不發信'}</button>`:''}
+          ${editable?`<button class="btn btn-sm" data-pe="${esc(name)}">✏️ 編輯職缺</button>`:''}
+        </span>
       </div>
     </div>`;
   }).join('');
-  grid.querySelectorAll('[data-tg]').forEach(cb=>cb.addEventListener('change',()=>toggleStore(cb.dataset.tg,cb.checked,cb)));
+  grid.querySelectorAll('[data-tg]').forEach(cb=>{
+    cb.addEventListener('change',()=>toggleStore(cb.dataset.tg,cb.checked,cb));
+    cb.closest('.switch').addEventListener('click',e=>e.stopPropagation());
+  });
   grid.querySelectorAll('[data-pe]').forEach(b=>b.addEventListener('click',()=>openPosModal(b.dataset.pe)));
+  grid.querySelectorAll('[data-hm]').forEach(b=>b.addEventListener('click',()=>toggleHold(b.dataset.hm)));
+  // 手機收闔：點標題列展開／收合（未開啟 104 的店面）
+  grid.querySelectorAll('.store-card.collapsed .sc-head').forEach(h=>{
+    h.addEventListener('click',()=>h.closest('.store-card').classList.toggle('expanded'));
+  });
 }
 async function saveSettings(name, patch, action){
   const key=Object.keys(SETTINGS.stores).find(k=>normLoc(k)===normLoc(name)) || name;
@@ -547,6 +589,16 @@ async function toggleStore(name, on, cb){
     await saveSettings(name,{enabled:on},on?'開啟104':'關閉104');
     renderStores(); showToast(`${name} 已${on?'開啟':'關閉'} 104`);
   }catch(e){ console.error(e); cb.checked=!on; showToast('儲存失敗'); }
+}
+async function toggleHold(name){
+  const c=storeConf(name)||{};
+  const next=!c.holdMail;
+  if(next && !confirm(`${name}：標記為「有待錄取人員，暫不發信」？\n104 職缺維持開放，僅提醒總公司本梯次不要主動發信給求職者。`)) return;
+  try{
+    await saveSettings(name,{holdMail:next},next?'標記暫不發信':'恢復發信');
+    renderStores(); renderSched();
+    showToast(next?`${name} 已標記暫不發信`:`${name} 已恢復發信`);
+  }catch(e){ console.error(e); showToast('儲存失敗'); }
 }
 function openPosModal(name){
   const c=storeConf(name)||{positions:[]};
