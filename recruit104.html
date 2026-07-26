@@ -102,6 +102,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .pick-wrap{display:flex;gap:7px;flex-wrap:wrap}
 .pick{font-size:12.5px;padding:8px 13px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-weight:600;min-height:38px;font-family:inherit}
 .pick.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pick.hold{border-color:#F2CE8A;background:#FFF7EA;color:#9A6200}
+.pick.hold.on{background:var(--warn);color:#fff;border-color:var(--warn)}
+.pick.off{border-style:dashed;color:var(--text3)}
+.pick-legend{margin-top:8px;display:flex;flex-wrap:wrap;gap:10px}
+.pick-legend .lg{font-size:11px;color:var(--text2)}
+.pick-legend .lg-hold{color:#9A6200}
 
 /* ── 職缺編輯列 ── */
 .pe-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
@@ -235,6 +241,8 @@ const FETCH_LIMIT  = 400;
 const WD = ['日','一','二','三','四','五','六'];
 const normLoc = s => String(s||'').replace(/鋪/g,'舖').replace(/\s/g,'').trim();
 // 後備店名清單：僅在讀取 hr/settings.workLocations 失敗時使用（沿用全站 hardcode fallback 模式）
+// 不納入 104 需求管理的單位（非門市／不招募）
+const HIDE_STORES = ['梁平有限公司'];
 const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞肉本舖','府中雞肉飯專門店','景新雞肉飯專門店','鑫雞肉央廚','大直讚雞肉飯','心惦雞肉飯','幸福雞肉飯','福城雞肉飯','泉州鑫廚房','新莊央廚','巷日雞肉飯'];
 
 /* ─── Storage ─── */
@@ -293,6 +301,7 @@ let curTab = 'sched';
 let curMonth = '__recent__';  // __recent__ = 今日-7 ~ 今日+30
 
 function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
+function isAdmin(){ return CUR.role==='admin'; }
 function canEditStore(name){
   if(isHQ()) return true;
   if(CUR.role!=='manager') return false;
@@ -312,7 +321,7 @@ authGuard('recruit104', ({ uid, role, locations, userData }) => {
 
   const rc = document.getElementById('roleChip');
   if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
-  if(isHQ()){
+  if(isAdmin()){
     const b=document.getElementById('btnNew');
     b.style.display=''; b.addEventListener('click',()=>openSchedModal(null));
   }
@@ -320,6 +329,10 @@ authGuard('recruit104', ({ uid, role, locations, userData }) => {
 });
 
 /* ─── 載入 ─── */
+function stripHidden(list){
+  const hid=HIDE_STORES.map(normLoc);
+  return list.filter(n=>!hid.includes(normLoc(n)));
+}
 async function loadAllStores(){
   try{
     const s = await getDoc(doc(db,'hr','settings'));
@@ -327,11 +340,11 @@ async function loadAllStores(){
       const wl = s.data().workLocations;
       if(Array.isArray(wl) && wl.length){
         const names = wl.map(x=> typeof x==='string' ? x : (x?.name||x?.store||x?.label||'')).filter(Boolean);
-        if(names.length) return names;
+        if(names.length) return stripHidden(names);
       }
     }
   }catch(e){ console.warn('loadAllStores:', e); }
-  return FALLBACK_STORES.slice();
+  return stripHidden(FALLBACK_STORES.slice());
 }
 async function loadSettings(){
   try{
@@ -411,7 +424,7 @@ function renderSched(){
     const shots=(s.screenshots&&s.screenshots.length)
       ? `<div class="photo-view-grid">${s.screenshots.map(u=>`<div class="photo-view-thumb"><img src="${esc(u)}" loading="lazy" data-lb="${esc(u)}"></div>`).join('')}</div>` : '';
     const doneInfo = st==='done' ? `<div class="dc-done-info">由 ${esc(s.doneBy||'—')} 於 ${esc((s.doneAtLocal||'').slice(5,16).replace('T',' '))} 完成</div>` : '';
-    const acts = isHQ() ? `
+    const acts = isAdmin() ? `
       <div class="dc-actions">
         ${st!=='done' ? `<button class="btn btn-ok btn-sm" data-done="${s.id}">✅ 完成發放</button>` : `<button class="btn btn-sm" data-undone="${s.id}">↩ 還原待發放</button>`}
         <button class="btn btn-sm" data-edit="${s.id}">✏️ 編輯</button>
@@ -444,7 +457,8 @@ function openSchedModal(existing){
   ov.innerHTML=`<div class="modal">
     <div class="modal-title">${isEdit?'✏️ 編輯排程':'＋ 新增排程'}</div>
     <div class="form-row"><label class="req">發放日期</label><input type="date" id="mDate" value="${esc(existing?.date||todayStr())}"></div>
-    <div class="form-row"><label class="req">發放店家（點選，可複選）</label><div class="pick-wrap" id="mPick"></div></div>
+    <div class="form-row"><label class="req">發放店家（點選，可複選）</label><div class="pick-wrap" id="mPick"></div>
+      <div class="pick-legend"><span class="lg lg-hold">⏸ 橘色＝有待錄取人員，暫不發信</span></div></div>
     <div class="form-row"><label>備註（如：內場、配送）</label><input type="text" id="mNote" value="${esc(existing?.note||'')}" placeholder="選填"></div>
     <div class="modal-footer">
       <button class="btn" id="mCancel">取消</button>
@@ -454,7 +468,17 @@ function openSchedModal(existing){
   document.body.appendChild(ov);
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
   const pick=ov.querySelector('#mPick');
-  pick.innerHTML=ALL_STORES.map(n=>`<button type="button" class="pick ${picked.has(normLoc(n))?'on':''}" data-s="${esc(n)}">${esc(n)}</button>`).join('');
+  // 僅列出已開啟 104 的店家；若編輯中的排程含已關閉店家，仍保留供調整
+  const pickable=ALL_STORES.filter(n=>isEnabled(n)||picked.has(normLoc(n)));
+  if(!pickable.length){
+    pick.innerHTML='<div class="sc-empty">目前沒有任何店家開啟 104，請先至「各店需求」開啟</div>';
+  }else{
+    pick.innerHTML=pickable.map(n=>{
+      const hd=isHold(n), off=!isEnabled(n);
+      const cls=['pick', picked.has(normLoc(n))?'on':'', hd?'hold':'', off?'off':''].filter(Boolean).join(' ');
+      return `<button type="button" class="${cls}" data-s="${esc(n)}">${hd?'⏸ ':''}${off?'✕ ':''}${esc(n)}</button>`;
+    }).join('');
+  }
   pick.querySelectorAll('.pick').forEach(b=>b.addEventListener('click',()=>{
     const k=normLoc(b.dataset.s);
     if(picked.has(k)){picked.delete(k);b.classList.remove('on');}else{picked.add(k);b.classList.add('on');}
@@ -514,7 +538,11 @@ function openDoneModal(s){
       await updateDoc(doc(db,SCHED_COLL,s.id),{status:'done',screenshots:[...(s.screenshots||[]),...urls],doneBy:CUR.name,doneAt:serverTimestamp(),doneAtLocal:local});
       writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`完成發放 ${s.date} ${(s.stores||[]).join('、')}`});
       ov.remove(); SCHEDS=await loadScheds(); renderSched(); showToast('已標記完成');
-    }catch(e){ console.error(e); showToast('上傳失敗'); btn.disabled=false; btn.textContent='確認完成'; }
+    }catch(e){
+      console.error('[recruit104] 上傳/儲存失敗:', e?.code, e?.message, e);
+      showToast('上傳失敗：'+(e?.code||e?.message||'未知錯誤'));
+      btn.disabled=false; btn.textContent='確認完成';
+    }
   });
 }
 async function undoDone(id){
@@ -528,6 +556,10 @@ async function undoDone(id){
 }
 
 /* ─── 各店需求 ─── */
+function isEnabled(name){
+  const c=storeConf(name);
+  return !!(c && c.enabled);
+}
 function isHold(name){
   const c=storeConf(name);
   return !!(c && c.enabled && c.holdMail);
