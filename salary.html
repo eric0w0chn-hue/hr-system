@@ -349,6 +349,10 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .ins-head-lbl{font-size:11px;color:var(--text3)}
 .ins-head-val{font-size:15px;font-weight:700;color:var(--accent)}
 .ins-head-note{font-size:10px;color:var(--text3)}
+/* 投保級距手動覆蓋標示 */
+.ins-ovr-tag{font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:5px;padding:2px 6px}
+.ded-input.ins-ovr-in{border-color:var(--orange-border);background:var(--orange-bg);color:var(--orange);font-weight:600}
+.btn-sm.ins-ovr-clr{font-size:10px;padding:3px 7px;min-height:26px}
 .ins-table{border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .ins-trow{display:grid;grid-template-columns:1.1fr 1.6fr 1fr;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border)}
 .ins-trow:last-child{border-bottom:none}
@@ -1303,7 +1307,8 @@ function calcSalary(emp,rec,shifts){
 
   // 勞健保
   // 當月到職即離職：不適用「前兩月」回推邏輯，直接用到職當下的投保級距
-  const insGrade=(rec&&rec.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
+  const autoGrade=(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
+  const insGrade=(rec&&rec.gradeOverride)||autoGrade;
   const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自付
   const healthBase=rec?.healthDeduct!=null?rec.healthDeduct:ins.health;  // 本人整月健保
@@ -1407,7 +1412,7 @@ function calcSalary(emp,rec,shifts){
     annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
     isCentral:isCen,scheduledDays,mealDays,mealAllowance,
     gross,totalDeduct,totalAdd,netPay,verifySum,
-    insGrade,insMatched:ins.matched,gradeOverride:rec?.gradeOverride,elasticManual:rec?.elasticManual
+    insGrade,insMatched:ins.matched,autoGrade,gradeOverride:rec?.gradeOverride,elasticManual:rec?.elasticManual
   };
 }
 
@@ -1495,7 +1500,8 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
 
   // 勞健保（兼職一樣可投保，沿用設定；預設不扣，由 rec 手動設定）
   const insMode=rec?.insMode||'normal';
-  const insGrade=(rec?.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
+  const autoGrade=(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
+  const insGrade=(rec?.gradeOverride)||autoGrade;
   const ins=insFromGrade(insGrade);
   const finalLabor=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:0);
   const finalHealth=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:0);
@@ -1541,7 +1547,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     personalDates:[], sickDates:[], absentDates:[], personalMins:0, sickHours:0, absentDays:0,
     base:0, elastic:0, target:0, proratedTarget:0, hourly:hourlyRate, defOt:0, // 兼職不套用店面固定加班預設，UI 預設顯示 0
     annualComp:0,autoAnnualComp:0,redComp:0,autoRedComp:0,
-    gradeOverride:rec?.gradeOverride
+    gradeOverride:rec?.gradeOverride, autoGrade
   };
 }
 function getDaysInMonth(y,m){return new Date(y,m,0).getDate();}
@@ -2108,9 +2114,14 @@ function renderSheet(emp,rec,shifts,c){
         <div class="ins-headbar">
           <div class="ins-head-cell">
             <span class="ins-head-lbl">投保級距</span>
-            ${c.insGrade?`<span class="ins-head-val">$${c.insGrade.toLocaleString()}</span>${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}`
-              :`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ 未抓到級距</span>
-              <input class="ded-input" style="width:90px" type="number" placeholder="手動輸入" value="${c.gradeOverride||''}" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>`}
+            ${c.insGrade?`<span class="ins-head-val">$${c.insGrade.toLocaleString()}</span>`
+              :`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ 未抓到級距</span>`}
+            ${c.gradeOverride?`<span class="ins-ovr-tag">手動覆蓋</span>
+              <input class="ded-input ins-ovr-in" style="width:90px" type="number" placeholder="手動輸入" value="${c.gradeOverride}" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>
+              ${!locked?`<button class="btn-sm o ins-ovr-clr" onclick="clearGradeOverride()" title="改回依人事資料自動帶入">✕ 取消覆蓋</button>`:''}
+              <span class="ins-head-note">${c.autoGrade?`人事資料 $${c.autoGrade.toLocaleString()}`:'人事資料無級距'}</span>`
+              :`${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}
+              <input class="ded-input" style="width:90px" type="number" placeholder="手動覆蓋" value="" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>`}
           </div>
           <div class="ins-head-cell"><span class="ins-head-lbl">繳費狀態</span>
             <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis}>
@@ -2838,6 +2849,12 @@ window.patchDayParts=function(ds,field,part,val){
   persist();rerender();
 };
 window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
+// 取消投保級距手動覆蓋 → 改回依人事資料（hr）自動帶入，之後人員資訊調整即會同步
+window.clearGradeOverride=function(){
+  if(!currentRec)return;
+  currentRec.gradeOverride=null;persist();
+  showToast('✓ 已取消手動覆蓋，改依人事資料自動帶入');rerender();
+};
 window.toggleTempOt=function(ds){
   if(!currentRec)return;const r=dayRec(ds);
   r.hasTempOt=!r.hasTempOt;
