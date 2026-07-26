@@ -298,6 +298,7 @@ let ALL_STORES = [];          // 全站店面清單
 let SETTINGS = { stores:{} }; // settings/recruit104
 let SCHEDS = [];              // 目前範圍的排程
 let curTab = 'sched';
+let LOAD_ERR = '';
 let curMonth = '__recent__';  // __recent__ = 今日-7 ~ 今日+30
 
 function isHQ(){ return CUR.role==='admin' || CUR.role==='consultant'; }
@@ -363,20 +364,37 @@ function monthRange(){
 }
 async function loadScheds(){
   const [start,end]=monthRange();
-  const snap = await getDocs(query(collection(db,SCHED_COLL),
-    where('date','>=',start), where('date','<=',end), orderBy('date','asc'), limit(FETCH_LIMIT)));
-  return snap.docs.map(d=>({id:d.id, ...d.data()}));
+  try{
+    const snap = await getDocs(query(collection(db,SCHED_COLL),
+      where('date','>=',start), where('date','<=',end), orderBy('date','desc'), limit(FETCH_LIMIT)));
+    return snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){
+    // 讀取失敗（多為 Firestore 規則未放行）→ 不可讓整頁卡在載入中
+    console.error('[recruit104] 排程讀取失敗:', e?.code, e?.message, e);
+    LOAD_ERR = e?.code || e?.message || '讀取失敗';
+    return [];
+  }
 }
 async function init(){
-  const [stores, settings, scheds] = await Promise.all([loadAllStores(), loadSettings(), loadScheds()]);
-  ALL_STORES=stores; SETTINGS=settings.stores?settings:{stores:{}}; if(!SETTINGS.stores) SETTINGS.stores={};
-  SCHEDS=scheds;
-  buildMonthSelect();
-  renderSched(); renderStores();
-  document.getElementById('loading').style.display='none';
-  document.getElementById('app').style.display='';
-  document.getElementById('tabSched').addEventListener('click',()=>switchTab('sched'));
-  document.getElementById('tabStores').addEventListener('click',()=>switchTab('stores'));
+  try{
+    const [stores, settings, scheds] = await Promise.all([loadAllStores(), loadSettings(), loadScheds()]);
+    ALL_STORES=stores; SETTINGS=settings.stores?settings:{stores:{}}; if(!SETTINGS.stores) SETTINGS.stores={};
+    SCHEDS=scheds;
+    buildMonthSelect();
+    renderSched(); renderStores();
+  }catch(e){
+    console.error('[recruit104] 初始化失敗:', e?.code, e?.message, e);
+    LOAD_ERR = LOAD_ERR || e?.code || e?.message || '初始化失敗';
+    if(!ALL_STORES.length) ALL_STORES = stripHidden(FALLBACK_STORES.slice());
+    try{ buildMonthSelect(); renderSched(); renderStores(); }catch(_){}
+  }finally{
+    // 無論成敗都要顯示畫面，避免永遠停在「載入中」
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='';
+    document.getElementById('tabSched').addEventListener('click',()=>switchTab('sched'));
+    document.getElementById('tabStores').addEventListener('click',()=>switchTab('stores'));
+    if(LOAD_ERR) showToast('資料讀取失敗：'+LOAD_ERR);
+  }
 }
 function switchTab(t){
   curTab=t;
@@ -407,7 +425,12 @@ function schedStateOf(s){
 }
 function renderSched(){
   const box=document.getElementById('slist');
-  if(!SCHEDS.length){ box.innerHTML='<div class="empty">此範圍尚無排程</div>'; return; }
+  if(!SCHEDS.length){
+    box.innerHTML = LOAD_ERR
+      ? `<div class="empty">排程讀取失敗（${esc(LOAD_ERR)}）<br><span style="font-size:12px">請確認 Firestore 規則已放行 recruit104_schedule</span></div>`
+      : '<div class="empty">此範圍尚無排程</div>';
+    return;
+  }
   const t=todayStr();
   box.innerHTML = SCHEDS.map(s=>{
     const st=schedStateOf(s);
