@@ -1230,6 +1230,12 @@ function calcSalary(emp,rec,shifts){
       } else {
         const leaveH=8-worked;
         if(worked>0)workDays+=worked/8;
+        // 有出勤且非全薪假 → 固定加班照給（政府規定：基本工時外的固定加班不因部分請假取消）
+        // 完全沒出勤（worked=0）或全薪假（特休/婚/喪/紅字）→ 不給固定加班
+        if(worked>0&&lt.pay!=='full'){
+          fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
+          extraOtHours+=Number(r.ot167||0);
+        }
         const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';  // 小數第2位
         if(lt.pay==='none'){
           if(type==='absent'){absentDays+=leaveH/8;absentDates.push(`${viewMonth}/${d}${wh}`);}
@@ -1889,9 +1895,9 @@ function renderSheet(emp,rec,shifts,c){
     const lateMins=r.lateMins||'';
     const selCls=`type-sel${lt.cls?' t-'+lt.cls:''}`;
 
-    // 請假出勤時數子欄（請假且非全薪/或需要部分出勤時）
+    // 請假出勤時數子欄（半薪假/不給薪假才需填部分出勤；全薪假為整日假，不提供出勤輸入）
     let subRow='';
-    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'){
+    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&(LEAVE_TYPES[type]||{}).pay!=='full'){
       subRow=`<div class="sub-row"><div class="sub-leave">
         <span>當天實際上班</span>
         <div class="hm-wrap">
@@ -1899,6 +1905,11 @@ function renderSheet(emp,rec,shifts,c){
           <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
         </div>
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
+      </div></div>`;
+    } else if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&(LEAVE_TYPES[type]||{}).pay==='full'){
+      // 全薪假為整日假別（特休/婚/喪/紅字），不會有出勤，不提供出勤輸入
+      subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--accent-light);border-color:var(--border)">
+        <span style="color:var(--text2)">${LEAVE_TYPES[type].label}為整日假別（全薪，不含出勤）</span>
       </div></div>`;
     } else if(c.isPartTime&&shift&&inEmp&&type==='normal'){
       // 兼職正常日：填實際上班時數（時薪計算依此）；預設=當天班表時數
@@ -2836,6 +2847,7 @@ window.updType=function(el){
   const prevEff=getEffectiveType(emp,r,ds,typeof curShifts!=='undefined'?curShifts:null); // 變更前的有效假別（含HR帶入）
   r.type=type;
   if(type==='normal'){delete r.workedHours;r.workedHours=null;} // 切回正常清掉請假時數
+  else if((LEAVE_TYPES[type]||{}).pay==='full'){r.workedHours=null;} // 全薪假為整日假別，清掉殘留出勤時數
   // 特休假 ↔ 同步 HR 臨時特休
   if(type==='annual'&&prevEff!=='annual'){syncAnnualToHR(ds,true);}
   else if(prevEff==='annual'&&type!=='annual'){syncAnnualToHR(ds,false);}
