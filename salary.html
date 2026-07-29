@@ -1442,6 +1442,10 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   let workDates=[]; // 出勤日明細
   let scheduledHoursTotal=0; // 排班總時數（依班表 startTime~endTime 實算）
   let hasAbnormal=false;     // 是否有非正常出勤（請假/缺勤等）
+  // 請假給薪（比照正職規則：全薪假給全額、病假/生理假半薪、事假/曠職不給薪）
+  let fullLeaveHours=0, halfLeaveHours=0, unpaidLeaveHours=0;
+  let paidLeaves={};          // {假別label:[日期]} 全薪假
+  let halfLeaveDates=[], unpaidLeaveDates=[];
 
   for(let d=1;d<=days;d++){
     if(!emp2.inEmploy(d))continue;
@@ -1460,8 +1464,8 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     scheduledDays++;
     scheduledHoursTotal+=shiftSpanHours(shift); // 依班表時段實算（無法解析時 fallback 8h）
 
-    // 判斷非正常出勤：有請假（type !== normal）就標記
-    if(type!=='normal')hasAbnormal=true;
+    // 全勤判定：全薪假（特休/婚/喪/紅字）視為出席，不影響全勤；半薪假與不給薪假才破功
+    if(type!=='normal'&&(LEAVE_TYPES[type]||{}).pay!=='full')hasAbnormal=true;
 
     // 實際出勤時數（只算真正上班的）
     let worked;
@@ -1476,13 +1480,39 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     }else if(type==='normal'){
       hasAbnormal=true; // 排班日填 0h＝未出席，全勤破功
     }
+
+    // 請假時數＝當天班表時數 − 實際上班時數（比照正職，依 LEAVE_TYPES.pay 分類）
+    if(type!=='normal'){
+      const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
+      const leaveH=Math.max(0,shiftSpanHours(shift)-worked);
+      if(leaveH>0){
+        const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';
+        const lbl=lt.label;
+        if(lt.pay==='full'){
+          fullLeaveHours+=leaveH;
+          if(!paidLeaves[lbl])paidLeaves[lbl]=[];
+          paidLeaves[lbl].push(`${viewMonth}/${d}${wh}`);
+        }else if(lt.pay==='half'){
+          halfLeaveHours+=leaveH;
+          halfLeaveDates.push(`${viewMonth}/${d}${lbl}${wh}`);
+        }else{
+          unpaidLeaveHours+=leaveH;
+          unpaidLeaveDates.push(`${viewMonth}/${d}${lbl}${wh}`);
+        }
+      }
+    }
   }
 
-  // 出勤獎勵條件：當月所有排班日皆正常出席（無請假/缺勤），不設最低時數門檻
+  // 出勤獎勵條件：排班日皆出席（全薪假視為出席），無半薪/不給薪假別；不設最低時數門檻
+  // 注意：獎勵基數只含實際出勤＋加班時數，全薪假時數本身不給 $10/h
   const attendQualified=scheduledDays>0&&!hasAbnormal;
 
   // 薪資組成
   const basePay=Math.round(workedHoursTotal*hourlyRate);                            // 純時薪部分
+  // 請假給薪（全薪假 100%、病假/生理假 50%、事假/曠職 0）
+  const fullLeavePay=Math.round(fullLeaveHours*hourlyRate);
+  const halfLeavePay=Math.round(halfLeaveHours*hourlyRate*0.5);
+  const leavePayTotal=fullLeavePay+halfLeavePay;
   // 加班費（純時薪基礎，比照正職倍率）
   const fixedOtPay=Math.round(hourlyRate*fixedOtHours*1.34);
   const extraOtPay=Math.round(hourlyRate*extraOtHours*1.67);
@@ -1520,7 +1550,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const customAdds=rec?.customAdds||[];
   const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
 
-  const gross=basePay+attendBonus+otPayTotal;
+  const gross=basePay+leavePayTotal+attendBonus+otPayTotal;
   const totalDeduct=finalLabor+finalHealth+pensionAmt+mgrDeduct;
   const totalAdd=mealAllowance+customAddTotal;
   const netPay=gross-totalDeduct+totalAdd;
@@ -1542,8 +1572,11 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     mealDays, mealAllowance, customAdds, customAddTotal, isCentral:isCen,
     gross, totalDeduct, totalAdd, netPay,
     employedDays:emp2.days, isPartial:false,
+    // 請假給薪（比照正職規則）
+    fullLeaveHours, fullLeavePay, halfLeaveHours, halfLeavePay, leavePayTotal,
+    unpaidLeaveHours, halfLeaveDates, unpaidLeaveDates, paidLeaves,
     // 占位（給共用 UI/薪資單用，兼職不適用的欄位給空）
-    paidLeaves:{}, personalDeduct:0, sickDeduct:0, absentDeduct:0,
+    personalDeduct:0, sickDeduct:0, absentDeduct:0,
     personalDates:[], sickDates:[], absentDates:[], personalMins:0, sickHours:0, absentDays:0,
     base:0, elastic:0, target:0, proratedTarget:0, hourly:hourlyRate, defOt:0, // 兼職不套用店面固定加班預設，UI 預設顯示 0
     annualComp:0,autoAnnualComp:0,redComp:0,autoRedComp:0,
@@ -2043,8 +2076,9 @@ function renderSheet(emp,rec,shifts,c){
         ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪 ×出勤時數</div><div class="fi-val">${Math.round(c.workedHoursTotal*100)/100}h → $${c.basePay.toLocaleString()}</div><div class="fi-sub">純時薪 $${c.hourlyRate}</div></div>
-          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（排班${c.scheduledDays}天皆出席）出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有請假/缺勤，未全勤':'本月無排班'}，不發放`}</div></div>
+          <div class="fml-item"><div class="fi-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="fi-val ${c.attendQualified?'c-green':'c-red'}">$${c.attendBonus.toLocaleString()}</div><div class="fi-sub">${c.attendQualified?`全勤達標（排班${c.scheduledDays}天皆出席${c.fullLeaveHours?'，全薪假視為出席':''}）獎勵基數：出勤${Math.round(c.workedHoursTotal*100)/100}h+加班${Math.round(c.otHoursTotal*100)/100}h`:`${c.hasAbnormal?'有半薪／不給薪假別，未全勤':'本月無排班'}，不發放`}</div></div>
           <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${c.extraOtPay.toLocaleString()}</div><div class="fi-sub">純時薪×1.67</div></div>
+          <div class="fml-item"><div class="fi-lbl">請假給薪</div><div class="fi-val ${c.leavePayTotal>0?'c-green':''}">$${c.leavePayTotal.toLocaleString()}</div><div class="fi-sub">${(c.fullLeaveHours||c.halfLeaveHours||c.unpaidLeaveHours)?[c.fullLeaveHours?`全薪${Math.round(c.fullLeaveHours*100)/100}h`:'',c.halfLeaveHours?`半薪${Math.round(c.halfLeaveHours*100)/100}h`:'',c.unpaidLeaveHours?`不給薪${Math.round(c.unpaidLeaveHours*100)/100}h`:''].filter(Boolean).join('／'):'本月無請假'}</div></div>
         </div>
         <div class="eq-bar">
           <span>出勤天數</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
@@ -2935,10 +2969,13 @@ function buildSlipHtml(c,customRows){
     return `<table>
 <tr><td class="sh" colspan="2">加項（時薪制）</td></tr>
 <tr><td>時薪 $${c.hourlyRate} × ${Math.round(c.workedHoursTotal*100)/100}h</td><td>$${c.basePay.toLocaleString()}</td></tr>
-${c.attendBonus>0?`<tr><td>出勤獎勵 +$${c.attendBonusRate}/h × ${Math.round(c.workedHoursTotal*100)/100}h（全勤達標：排班${c.scheduledDays}天皆出席）</td><td>$${c.attendBonus.toLocaleString()}</td></tr>`:''}
+${c.attendBonus>0?`<tr><td>出勤獎勵 +$${c.attendBonusRate}/h × ${Math.round((c.workedHoursTotal+c.otHoursTotal)*100)/100}h（全勤達標${c.fullLeaveHours?'，全薪假視為出席':''}）</td><td>$${c.attendBonus.toLocaleString()}</td></tr>`:''}
 ${c.fixedOtPay>0?`<tr><td>加班費 ×1.34（${c.fixedOtHours}h）</td><td>$${c.fixedOtPay.toLocaleString()}</td></tr>`:''}
 ${c.extraOtPay>0?`<tr><td>額外加班 ×1.67（${c.extraOtHours}h）</td><td>$${c.extraOtPay.toLocaleString()}</td></tr>`:''}
 ${c.tempOtPay>0?`<tr><td>臨時加班</td><td>$${c.tempOtPay.toLocaleString()}</td></tr>`:''}
+${c.fullLeavePay>0?`<tr><td>全薪假 ${Math.round(c.fullLeaveHours*100)/100}h${Object.keys(c.paidLeaves||{}).length?`<div class="sd">${Object.entries(c.paidLeaves).map(([l,ds])=>`${l}：${ds.join('、')}`).join('｜')}</div>`:''}</td><td>$${c.fullLeavePay.toLocaleString()}</td></tr>`:''}
+${c.halfLeavePay>0?`<tr><td>病假/生理假 ${Math.round(c.halfLeaveHours*100)/100}h × 半薪${c.halfLeaveDates?.length?`<div class="sd">${c.halfLeaveDates.join('、')}</div>`:''}</td><td>$${c.halfLeavePay.toLocaleString()}</td></tr>`:''}
+${c.unpaidLeaveHours>0?`<tr><td>不給薪假 ${Math.round(c.unpaidLeaveHours*100)/100}h${c.unpaidLeaveDates?.length?`<div class="sd">${c.unpaidLeaveDates.join('、')}</div>`:''}</td><td>$0</td></tr>`:''}
 ${c.mealAllowance>0?`<tr><td>餐費補助（${c.mealDays}天）</td><td>$${c.mealAllowance.toLocaleString()}</td></tr>`:''}
 ${customRows}
 ${(c.finalLabor>0||c.finalHealth>0||c.pensionAmt>0||c.mgrDeduct>0)?`<tr><td class="sh" colspan="2">扣項</td></tr>`:''}
