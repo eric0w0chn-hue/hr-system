@@ -1889,7 +1889,10 @@ function renderSheet(emp,rec,shifts,c){
     let shiftTxt = shift?`${shift.startTime||''}-${shift.endTime||''}`
       : `<span style="color:var(--text3)">未排班</span>`;
 
-    const hasFixedOt=type==='normal'&&shift&&inEmp;
+    // 固定加班可編輯條件：正常日，或「半薪/不給薪假 + 當天有出勤」（比照計算：有出勤就給固定加班）
+    // 全薪假不含出勤、整日請假(worked=0)不給加班 → 皆不可編輯
+    const _leaveWorked=type!=='normal'&&type!=='dayoff'&&r.workedHours!=null&&Number(r.workedHours)>0&&(LEAVE_TYPES[type]||{}).pay!=='full';
+    const hasFixedOt=(type==='normal'||_leaveWorked)&&shift&&inEmp;
     const autoOt=r.autoOt!=null?Number(r.autoOt):defOt;
     const ot167=r.ot167||'';
     const lateMins=r.lateMins||'';
