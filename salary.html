@@ -587,6 +587,21 @@ async function pushNetPayToSheet(store,year,month,name,netPay){
     });
   }catch(e){ /* 中繼表推送失敗不影響 Firestore 存檔，可重存重推 */ }
 }
+
+// ── 自動同步（僅 admin）：切換員工或頁面內調整重算時，停止操作 2 秒後自動推該員工當下實領 ──
+// 效果：admin 打開/瀏覽/調整某人某月薪資，中繼表即時反映即時金額，不需手動儲存。
+let _autoSyncTimers={};
+function autoSyncNetPay(emp,year,month,netPay){
+  if(CU.role!=='admin')return;                 // 只有 admin 觸發自動同步
+  if(!emp||!emp.workLocation||!emp.name)return;
+  if(emp._fromSnapshot)return;                 // 離職快照來源不自動推（避免覆蓋歷史）
+  const key=`${emp.name}_${emp.workLocation}_${year}-${month}`;
+  if(_autoSyncTimers[key])clearTimeout(_autoSyncTimers[key]); // 防抖：連續重算只推最後一次
+  _autoSyncTimers[key]=setTimeout(()=>{
+    delete _autoSyncTimers[key];
+    pushNetPayToSheet(emp.workLocation,year,month,emp.name,Math.round(netPay));
+  },2000);
+}
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -1855,7 +1870,9 @@ async function loadAndRender(empId,doScroll){
   currentRec=rec||{dailyData:{}};
   if(!currentRec.dailyData)currentRec.dailyData={};
   curShifts=shifts;
-  renderSheet(emp,currentRec,shifts,calcSalary(emp,currentRec,shifts));
+  const _c=calcSalary(emp,currentRec,shifts);
+  renderSheet(emp,currentRec,shifts,_c);
+  autoSyncNetPay(emp,viewYear,viewMonth,_c.netPay); // admin 切到該員工 → 自動同步中繼表
   if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
@@ -2332,6 +2349,7 @@ function rerender(){
   // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
   snapCache[snapKey]=Math.round(c.netPay);
+  autoSyncNetPay(emp,viewYear,viewMonth,c.netPay); // admin 頁面內調整重算 → 防抖後自動同步
   // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
