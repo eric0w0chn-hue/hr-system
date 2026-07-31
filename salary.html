@@ -587,6 +587,22 @@ async function pushNetPayToSheet(store,year,month,name,netPay){
     });
   }catch(e){ /* 中繼表推送失敗不影響 Firestore 存檔，可重存重推 */ }
 }
+
+// ── 自動同步中繼表（僅 admin）──
+// 切換員工或頁面內調整重算時，停止操作 2 秒後自動推該員工當下實領，不需按儲存。
+// 防抖：連續調整只推最後一次，避免狂打 Apps Script 撞配額。
+let _autoSyncTimers={};
+function autoSyncNetPay(emp,year,month,netPay){
+  if(CU.role!=='admin')return;                 // 只有 admin 觸發自動同步
+  if(!emp||!emp.workLocation||!emp.name)return;
+  if(emp._fromSnapshot)return;                 // 離職快照來源不自動推（避免覆蓋歷史）
+  const key=`${emp.name}_${emp.workLocation}_${year}-${month}`;
+  if(_autoSyncTimers[key])clearTimeout(_autoSyncTimers[key]);
+  _autoSyncTimers[key]=setTimeout(()=>{
+    delete _autoSyncTimers[key];
+    pushNetPayToSheet(emp.workLocation,year,month,emp.name,Math.round(netPay));
+  },2000);
+}
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -691,6 +707,22 @@ function getTarget(e,y,m){
     return Number(h[0].amount);
   }
   return Number(e.salary||e.targetSalary||0);
+}
+
+// ── 規則生效分界 ──
+// 2026-07 起適用新規則；2026-06 及以前一律維持舊規則，避免追溯改動已發放薪資。
+// （7月薪資尚未正式發放，仍可調整，故分界設在 7 月；要改分界只改下面這一行）
+// 涵蓋：兼職班表時數/全勤/請假給薪、正職請假日固定加班、彈性補貼滿額反推、特休判定順序。
+const RULE_NEW_FROM = { y: 2026, m: 7 };
+function isNewRule(y, m) {
+  const yy = Number(y), mm = Number(m);
+  if (yy > RULE_NEW_FROM.y) return true;
+  if (yy < RULE_NEW_FROM.y) return false;
+  return mm >= RULE_NEW_FROM.m;
+}
+// 由日期字串（YYYY-MM-DD）判斷
+function isNewRuleDs(ds) {
+  return isNewRule(Number(String(ds).slice(0, 4)), Number(String(ds).slice(5, 7)));
 }
 
 function isMonthLocked(y,m){
@@ -1158,6 +1190,8 @@ async function loadShifts(empId,y,m){
 
 // ─── 計算核心 ───
 function calcSalary(emp,rec,shifts){
+  // 規則分界：2026-08 起用新規則，6月及以前維持舊規則
+  const _newRule=isNewRule(viewYear,viewMonth);
   // 兼職（時薪制）判定
   const isPartTime=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
   const target=getTarget(emp,viewYear,viewMonth);
@@ -1232,9 +1266,10 @@ function calcSalary(emp,rec,shifts){
       } else {
         const leaveH=8-worked;
         if(worked>0)workDays+=worked/8;
-        // 有出勤且非全薪假 → 固定加班照給（政府規定：基本工時外的固定加班不因部分請假取消）
+        // 【2026-07 起】有出勤且非全薪假 → 固定加班照給（政府規定：基本工時外的固定加班不因部分請假取消）
         // 完全沒出勤（worked=0）或全薪假（特休/婚/喪/紅字）→ 不給固定加班
-        if(worked>0&&lt.pay!=='full'){
+        // （6月及以前維持舊行為：請假未滿8h一律不給固定加班）
+        if(_newRule&&worked>0&&lt.pay!=='full'){
           fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
           fullFixedOtHours+=defOt; // 滿額基準：有出勤日仍應計滿額固定加班
           extraOtHours+=Number(r.ot167||0);
@@ -1256,7 +1291,9 @@ function calcSalary(emp,rec,shifts){
   }
 
   // 加權時數：彈性補貼用「排定滿額」固定加班反推（鎖定目標薪資基準），實付加班費另用「實際」固定加班
-  const W=fullFixedOtHours*1.34;      // 滿額基準：決定彈性補貼（目標薪資鎖定在做滿加班的前提）
+  // 加權時數：【2026-07 起】彈性補貼用「排定滿額」固定加班反推（鎖定目標薪資基準），實付加班費另用「實際」固定加班
+  // （6月及以前維持舊行為：用實際固定加班反推，總額會被補回目標薪資）
+  const W=(_newRule?fullFixedOtHours:fixedOtHours)*1.34;
 
   // 彈性補貼
   let elastic, base;
@@ -1265,7 +1302,7 @@ function calcSalary(emp,rec,shifts){
     base=Math.round(BASE_FULL/30*emp2.days);
     // 不足月加班費（用足月時薪基礎先算）
     const hourlyFull=BASE_FULL/30/8; // 足月時薪，不依賴 elastic
-    const fixedOtPayFull=Math.round(hourlyFull*fullFixedOtHours*1.34*10)/10; // 滿額基準加班費，鎖定按比例目標
+    const fixedOtPayFull=Math.round(hourlyFull*(_newRule?fullFixedOtHours:fixedOtHours)*1.34*10)/10; // 【2026-07起】用滿額基準鎖定按比例目標
     const proratedTgt=Math.round(target/30*emp2.days);
     // 自動計算彈性補貼 = 按比例目標 − 底薪 − 滿額固定加班費（做滿的基準）
     const autoElastic=proratedTgt-base-fixedOtPayFull;
@@ -1440,6 +1477,10 @@ function shiftSpanHours(shift){
 // 規則：實領 = Σ(實際上班時數×(時薪+10出勤獎勵)) + 加班費(純時薪×倍率) + 加項 − 勞健保 − 管理扣點
 // 請假不扣（只算實際出勤）；無底薪/彈性補貼/目標薪資/不足月概念
 function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
+  // 規則分界：2026-08 起用新規則，6月及以前維持舊規則
+  const _newRule=isNewRule(viewYear,viewMonth);
+  // 班次時數：新制依班表時段實算（超4h扣1h休）；舊制一律 8h
+  const spanH=(shift)=>_newRule?shiftSpanHours(shift):8;
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
   const hourlyRate=Number(rec?.hourlyOverride??emp.hourlyRate??0); // 純時薪
@@ -1471,15 +1512,16 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     }
     if(type==='dayoff')continue;
     scheduledDays++;
-    scheduledHoursTotal+=shiftSpanHours(shift); // 依班表時段實算（無法解析時 fallback 8h）
+    scheduledHoursTotal+=spanH(shift); // 新制依班表時段實算；舊制固定8h
 
     // 全勤判定：全薪假（特休/婚/喪/紅字）視為出席，不影響全勤；半薪假與不給薪假才破功
-    if(type!=='normal'&&(LEAVE_TYPES[type]||{}).pay!=='full')hasAbnormal=true;
+    // 【2026-07起】全薪假視為出席；舊制：任何請假都破功
+    if(type!=='normal'&&(_newRule?((LEAVE_TYPES[type]||{}).pay!=='full'):true))hasAbnormal=true;
 
     // 實際出勤時數（只算真正上班的）
     let worked;
     if(r.workedHours!=null)worked=Number(r.workedHours);
-    else if(type==='normal')worked=shiftSpanHours(shift); // 預設=當天班表時數
+    else if(type==='normal')worked=spanH(shift); // 預設=當天班表時數（舊制8h）
     else worked=0; // 請假當天若沒特別填，當天沒上班
     if(worked>0){
       workedHoursTotal+=worked;workDays++;
@@ -1493,7 +1535,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     // 請假時數＝當天班表時數 − 實際上班時數（比照正職，依 LEAVE_TYPES.pay 分類）
     if(type!=='normal'){
       const lt=LEAVE_TYPES[type]||LEAVE_TYPES.normal;
-      const leaveH=Math.max(0,shiftSpanHours(shift)-worked);
+      const leaveH=Math.max(0,spanH(shift)-worked);
       if(leaveH>0){
         const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';
         const lbl=lt.label;
@@ -1514,13 +1556,15 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
 
   // 出勤獎勵條件：排班日皆出席（全薪假視為出席），無半薪/不給薪假別；不設最低時數門檻
   // 注意：獎勵基數只含實際出勤＋加班時數，全薪假時數本身不給 $10/h
-  const attendQualified=scheduledDays>0&&!hasAbnormal;
+  // 【2026-07起】排班日皆出席即達標；舊制：排班總時數需≥136h
+  const attendQualified=(_newRule?(scheduledDays>0):(scheduledHoursTotal>=136))&&!hasAbnormal;
 
   // 薪資組成
   const basePay=Math.round(workedHoursTotal*hourlyRate);                            // 純時薪部分
   // 請假給薪（全薪假 100%、病假/生理假 50%、事假/曠職 0）
-  const fullLeavePay=Math.round(fullLeaveHours*hourlyRate);
-  const halfLeavePay=Math.round(halfLeaveHours*hourlyRate*0.5);
+  // 【2026-07起】請假給薪生效；6月及以前一律 0（源頭歸零，下游顯示同步）
+  const fullLeavePay=_newRule?Math.round(fullLeaveHours*hourlyRate):0;
+  const halfLeavePay=_newRule?Math.round(halfLeaveHours*hourlyRate*0.5):0;
   const leavePayTotal=fullLeavePay+halfLeavePay;
   // 加班費（純時薪基礎，比照正職倍率）
   const fixedOtPay=Math.round(hourlyRate*fixedOtHours*1.34);
@@ -1610,6 +1654,10 @@ function getExtraLeaveSet(emp,y){
 function getEffectiveType(emp,r,ds,shifts){
   // 手動設定「明確假別」(非 normal) 最優先
   if(r&&r.type!=null&&r.type!==''&&r.type!=='normal')return r.type;
+  // 【2026-07 起】手動明確設為「正常」→ 尊重使用者判斷，優先於 HR特休/排班annual
+  // （6月及以前維持舊行為：HR特休會蓋掉手動正常，避免追溯改動已發放薪資）
+  const _newRule=isNewRuleDs(ds);
+  if(_newRule&&r&&r.type==='normal')return 'normal';
   // 檢查是否為特休（排班 kind:annual 或 HR extraLeave）
   const y=Number(ds.slice(0,4));
   const exSet=getExtraLeaveSet(emp,y);
@@ -1858,7 +1906,9 @@ async function loadAndRender(empId,doScroll){
   currentRec=rec||{dailyData:{}};
   if(!currentRec.dailyData)currentRec.dailyData={};
   curShifts=shifts;
-  renderSheet(emp,currentRec,shifts,calcSalary(emp,currentRec,shifts));
+  const _c=calcSalary(emp,currentRec,shifts);
+  renderSheet(emp,currentRec,shifts,_c);
+  autoSyncNetPay(emp,viewYear,viewMonth,_c.netPay); // admin 切到該員工 → 自動同步中繼表
   if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
@@ -1894,7 +1944,8 @@ function renderSheet(emp,rec,shifts,c){
 
     // 固定加班可編輯條件：正常日，或「半薪/不給薪假 + 當天有出勤」（比照計算：有出勤就給固定加班）
     // 全薪假不含出勤、整日請假(worked=0)不給加班 → 皆不可編輯
-    const _leaveWorked=type!=='normal'&&type!=='dayoff'&&r.workedHours!=null&&Number(r.workedHours)>0&&(LEAVE_TYPES[type]||{}).pay!=='full';
+    // 【2026-07起】請假有出勤日也可編輯固定加班；舊制僅正常日
+    const _leaveWorked=isNewRule(viewYear,viewMonth)&&type!=='normal'&&type!=='dayoff'&&r.workedHours!=null&&Number(r.workedHours)>0&&(LEAVE_TYPES[type]||{}).pay!=='full';
     const hasFixedOt=(type==='normal'||_leaveWorked)&&shift&&inEmp;
     const autoOt=r.autoOt!=null?Number(r.autoOt):defOt;
     const ot167=r.ot167||'';
@@ -1902,8 +1953,10 @@ function renderSheet(emp,rec,shifts,c){
     const selCls=`type-sel${lt.cls?' t-'+lt.cls:''}`;
 
     // 請假出勤時數子欄（半薪假/不給薪假才需填部分出勤；全薪假為整日假，不提供出勤輸入）
+    // 【2026-07起】全薪假不提供出勤輸入；6月及以前維持舊行為（所有假別皆可填），以便檢視舊資料
+    const _hideFullLeaveInput=isNewRule(viewYear,viewMonth)&&(LEAVE_TYPES[type]||{}).pay==='full';
     let subRow='';
-    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&(LEAVE_TYPES[type]||{}).pay!=='full'){
+    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&!_hideFullLeaveInput){
       subRow=`<div class="sub-row"><div class="sub-leave">
         <span>當天實際上班</span>
         <div class="hm-wrap">
@@ -1912,14 +1965,14 @@ function renderSheet(emp,rec,shifts,c){
         </div>
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
       </div></div>`;
-    } else if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&(LEAVE_TYPES[type]||{}).pay==='full'){
+    } else if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&_hideFullLeaveInput){
       // 全薪假為整日假別（特休/婚/喪/紅字），不會有出勤，不提供出勤輸入
       subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--accent-light);border-color:var(--border)">
         <span style="color:var(--text2)">${LEAVE_TYPES[type].label}為整日假別（全薪，不含出勤）</span>
       </div></div>`;
     } else if(c.isPartTime&&shift&&inEmp&&type==='normal'){
       // 兼職正常日：填實際上班時數（時薪計算依此）；預設=當天班表時數
-      const _defH=shiftSpanHours(shift);
+      const _defH=isNewRule(viewYear,viewMonth)?shiftSpanHours(shift):8; // 舊制固定8h
       subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--green-bg);border-color:var(--green-border)">
         <span style="color:var(--green);font-weight:600">實際上班時數</span>
         <div class="hm-wrap">
@@ -2335,6 +2388,7 @@ function rerender(){
   // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
   snapCache[snapKey]=Math.round(c.netPay);
+  autoSyncNetPay(emp,viewYear,viewMonth,c.netPay); // admin 頁面內調整重算 → 防抖後自動同步
   // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));

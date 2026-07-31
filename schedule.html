@@ -1335,15 +1335,30 @@ window.saveEdit=async function(dateStr,idx){
   const startTime=document.getElementById('m-start').value;
   const endTime=document.getElementById('m-end').value;
   const note=document.getElementById('m-note').value.trim();
-  if(!empId||!date||!startTime||!endTime){showToast('請填寫完整資料');return;}
+  // 原本這筆的狀態（判斷是否為特休，以及要清除哪一筆 HR 特休）
+  const _orig=(shifts[dateStr]&&shifts[dateStr][idx])||{};
+  const _wasAnnual=_orig.kind==='annual';
+  const _origEmpId=_orig.empId;
+  // 特休原本無時間；若使用者未填時間 → 維持特休（保留 kind），填了時間 → 轉為上班班
+  const _keepAnnual=_wasAnnual&&!startTime&&!endTime;
+  if(!empId||!date||(!_keepAnnual&&(!startTime||!endTime))){showToast('請填寫完整資料');return;}
+  const _newObj=_keepAnnual
+    ?{empId,empName,kind:'annual',startTime:'',endTime:'',note:note||'特休'}
+    :{empId,empName,startTime,endTime,note};
   if(date!==dateStr){
     if(!shifts[date])shifts[date]=[];
-    shifts[date].push({empId,empName,startTime,endTime,note});
+    shifts[date].push(_newObj);
     shifts[dateStr].splice(idx,1);
     if(!shifts[dateStr].length)delete shifts[dateStr];
-  }else{shifts[dateStr][idx]={empId,empName,startTime,endTime,note};}
+  }else{shifts[dateStr][idx]=_newObj;}
   closeModal();renderCalendar();renderLegend();renderSidebar();
-  showToast('儲存中...');await saveShifts();showToast('已更新 ✓');
+  showToast('儲存中...');await saveShifts();
+  // ── HR 臨時特休同步（修正：原本編輯排班會丟失 kind 且不清 HR，造成孤兒特休）──
+  // 原本是特休 → 先移除舊日期/舊同仁的 HR 記錄
+  if(_wasAnnual&&_origEmpId){await syncAnnualToHR(_origEmpId,[dateStr],false);}
+  // 仍維持特休 → 依新日期/新同仁加回
+  if(_keepAnnual){await syncAnnualToHR(empId,[date],true);}
+  showToast('已更新 ✓');
 };
 
 window.deleteShift=async function(dateStr,idx){
