@@ -587,21 +587,6 @@ async function pushNetPayToSheet(store,year,month,name,netPay){
     });
   }catch(e){ /* 中繼表推送失敗不影響 Firestore 存檔，可重存重推 */ }
 }
-
-// ── 自動同步（僅 admin）：切換員工或頁面內調整重算時，停止操作 2 秒後自動推該員工當下實領 ──
-// 效果：admin 打開/瀏覽/調整某人某月薪資，中繼表即時反映即時金額，不需手動儲存。
-let _autoSyncTimers={};
-function autoSyncNetPay(emp,year,month,netPay){
-  if(CU.role!=='admin')return;                 // 只有 admin 觸發自動同步
-  if(!emp||!emp.workLocation||!emp.name)return;
-  if(emp._fromSnapshot)return;                 // 離職快照來源不自動推（避免覆蓋歷史）
-  const key=`${emp.name}_${emp.workLocation}_${year}-${month}`;
-  if(_autoSyncTimers[key])clearTimeout(_autoSyncTimers[key]); // 防抖：連續重算只推最後一次
-  _autoSyncTimers[key]=setTimeout(()=>{
-    delete _autoSyncTimers[key];
-    pushNetPayToSheet(emp.workLocation,year,month,emp.name,Math.round(netPay));
-  },2000);
-}
 let curShifts={};
 
 const ROLE_NAMES={admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'};
@@ -1196,6 +1181,7 @@ function calcSalary(emp,rec,shifts){
   let scheduledDays=0; // 有排班的天數（央廚餐費補助用）
   let personalDates=[], sickDates=[], absentDates=[]; // 扣項日期提示
   let paidLeaves={}; // 全薪假別 {假別label: [日期]}
+  let fullFixedOtHours=0; // 排定滿額固定加班基準（defOt×出勤天，用於鎖定目標薪資的彈性補貼反推）
 
   for(let d=1;d<=days;d++){
     if(!emp2.inEmploy(d))continue;
@@ -1227,6 +1213,7 @@ function calcSalary(emp,rec,shifts){
       workDays++;
       if(worked>=8){
         fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
+        fullFixedOtHours+=defOt; // 滿額基準：該日排定應做的固定加班
         extraOtHours+=Number(r.ot167||0);
       } else {
         personalMins+=(8-worked)*60;
@@ -1249,6 +1236,7 @@ function calcSalary(emp,rec,shifts){
         // 完全沒出勤（worked=0）或全薪假（特休/婚/喪/紅字）→ 不給固定加班
         if(worked>0&&lt.pay!=='full'){
           fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
+          fullFixedOtHours+=defOt; // 滿額基準：有出勤日仍應計滿額固定加班
           extraOtHours+=Number(r.ot167||0);
         }
         const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';  // 小數第2位
@@ -1267,8 +1255,8 @@ function calcSalary(emp,rec,shifts){
     }
   }
 
-  // 加權時數（只用固定加班，決定彈性補貼）
-  const W=fixedOtHours*1.34;
+  // 加權時數：彈性補貼用「排定滿額」固定加班反推（鎖定目標薪資基準），實付加班費另用「實際」固定加班
+  const W=fullFixedOtHours*1.34;      // 滿額基準：決定彈性補貼（目標薪資鎖定在做滿加班的前提）
 
   // 彈性補貼
   let elastic, base;
@@ -1277,9 +1265,9 @@ function calcSalary(emp,rec,shifts){
     base=Math.round(BASE_FULL/30*emp2.days);
     // 不足月加班費（用足月時薪基礎先算）
     const hourlyFull=BASE_FULL/30/8; // 足月時薪，不依賴 elastic
-    const fixedOtPayFull=Math.round(hourlyFull*fixedOtHours*1.34*10)/10;
+    const fixedOtPayFull=Math.round(hourlyFull*fullFixedOtHours*1.34*10)/10; // 滿額基準加班費，鎖定按比例目標
     const proratedTgt=Math.round(target/30*emp2.days);
-    // 自動計算彈性補貼 = 按比例目標 − 底薪 − 固定加班費
+    // 自動計算彈性補貼 = 按比例目標 − 底薪 − 滿額固定加班費（做滿的基準）
     const autoElastic=proratedTgt-base-fixedOtPayFull;
     if(autoElastic<=0){
       // 特殊情況：底薪+加班費已 ≥ 目標，彈性補貼設為 0
@@ -1870,9 +1858,7 @@ async function loadAndRender(empId,doScroll){
   currentRec=rec||{dailyData:{}};
   if(!currentRec.dailyData)currentRec.dailyData={};
   curShifts=shifts;
-  const _c=calcSalary(emp,currentRec,shifts);
-  renderSheet(emp,currentRec,shifts,_c);
-  autoSyncNetPay(emp,viewYear,viewMonth,_c.netPay); // admin 切到該員工 → 自動同步中繼表
+  renderSheet(emp,currentRec,shifts,calcSalary(emp,currentRec,shifts));
   if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
@@ -2349,7 +2335,6 @@ function rerender(){
   // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
   snapCache[snapKey]=Math.round(c.netPay);
-  autoSyncNetPay(emp,viewYear,viewMonth,c.netPay); // admin 頁面內調整重算 → 防抖後自動同步
   // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
