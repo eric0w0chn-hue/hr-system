@@ -2549,7 +2549,7 @@ window.exportSalaryXlsx=async function(){
         loadRec(emp.id,viewYear,viewMonth)
       ]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-      recMap.set(emp.id,authNetPay(rec,c,viewYear,viewMonth)); // 過去月份匯出存檔值，確保與發放金額一致
+      recMap.set(emp.id,authNetPay(rec,c,viewYear,viewMonth)); // 過去月份匯出存檔值
     }));
     // 建工作表資料（對應格式）
     // A1=年份  B1起=人員姓名
@@ -2924,7 +2924,7 @@ window.batchExportSlips=async function(){
       const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
       const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
       const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
-      const slipHtml=buildSlipHtml(c,customRows,authNetPay(rec,c,viewYear,viewMonth)); // 過去月份用存檔值
+      const slipHtml=buildSlipHtml(c,customRows,authNetPay(rec,c,viewYear,viewMonth));
 
       container.innerHTML=`<div style="padding:24px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff">
         <h2 style="font-size:17px;margin-bottom:4px;font-family:inherit">薪　資　單</h2>
@@ -3162,14 +3162,21 @@ window.commitMissingSnapshots=async function(){
       const c=calcSalary(emp,rec,shifts);
       // netPay 以清單上指定的金額為準（可能是實際發放金額，非系統重算值）
       const _lockNet=(t.net!=null&&isFinite(t.net))?Math.round(t.net):Math.round(c.netPay);
-      rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:_lockNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString(),manualNet:(_lockNet!==Math.round(c.netPay))||undefined};
+      // ⚠️ 不可寫入 undefined：Firestore 會拒絕整份文件（專案未開 ignoreUndefinedProperties）
+      rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:_lockNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+      if(_lockNet!==Math.round(c.netPay))rec.snapshot.manualNet=true; // 僅在手動指定金額時才加此欄位
       const ok=await saveRec(t.id,viewYear,viewMonth,rec);
       if(ok){done++;snapCache[`${t.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`]=rec.snapshot.netPay;
         await pushNetPayToSheet(t.store,viewYear,viewMonth,t.name,rec.snapshot.netPay);}
       else fail++;
-    }catch(e){fail++;}
+    }catch(e){fail++;if(!window._snapErrs)window._snapErrs=[];window._snapErrs.push(t.name+': '+String(e&&e.message||e));}
   }
   writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'批次補建存檔金額',detail:`${viewYear}年${viewMonth}月 ${done}筆`});
+  if(fail&&window._snapErrs&&window._snapErrs.length){
+    console.error('補建失敗明細：',window._snapErrs);
+    alert(`補建完成：成功 ${done} 筆，失敗 ${fail} 筆。\n\n失敗原因（前3筆）：\n`+window._snapErrs.slice(0,3).join('\n')+`\n\n完整清單已輸出至瀏覽器 Console（F12）。`);
+    window._snapErrs=[];
+  }
   showToast(`✓ 已補建 ${done} 筆${fail?`，失敗 ${fail} 筆`:''}`);
   renderMain();
 };
