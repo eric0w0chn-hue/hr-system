@@ -3057,16 +3057,34 @@ window.scanMissingSnapshots=async function(){
         若某筆明顯異常（差數百以上），請先關閉此窗個別查明再處理。<br>
         已有存檔金額的記錄不在此清單、也不會被變動。
       </div>
+      <div style="margin-bottom:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">📋 批次貼上實際發放金額（可選）</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:6px">
+          從 Excel 複製「姓名」與「金額」兩欄直接貼上（每行一筆，用 Tab／逗號／空格分隔皆可），按套用即會自動填入下方對應同仁。
+        </div>
+        <textarea id="snapPaste" rows="4" placeholder="王小明&#9;38376&#10;李大華&#9;40100" style="width:100%;font-size:12px;font-family:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+          <button class="btn-sm p" onclick="applySnapPaste()">套用到下方</button>
+          <button class="btn-sm o" onclick="resetSnapAmounts()">還原為系統重算值</button>
+          <span id="snapPasteInfo" style="font-size:11px;color:var(--text2)"></span>
+        </div>
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <tr style="background:var(--surface2)">
           <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">店面</th>
           <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">同仁</th>
+          <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">系統重算</th>
           <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">將鎖定金額</th>
         </tr>
-        ${targets.map(r=>`<tr>
+        ${targets.map(r=>`<tr data-snaprow="${r.id}">
           <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2)">${r.store}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--border)">${r.name}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600">$${r.net.toLocaleString()}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--text3)">$${r.net.toLocaleString()}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right">
+            <input type="number" class="snap-amt" data-id="${r.id}" data-calc="${r.net}" value="${r.net}"
+              oninput="markSnapDiff(this)"
+              style="width:110px;text-align:right;font-size:12px;font-weight:600;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+          </td>
         </tr>`).join('')}
       </table>
     </div>
@@ -3075,11 +3093,61 @@ window.scanMissingSnapshots=async function(){
   document.body.appendChild(ov);
   showToast('');
 };
+// 姓名正規化：只去空白、統一異體字。
+// ⚠️ 刻意保留句點等標點——「王怡鈞」與「王怡鈞.」是兩位不同同仁，去掉會混淆導致金額套錯人。
+// 對不上時寧可回報「姓名對不上」讓使用者手動處理，也不要無聲套到錯的人身上。
+function _snapNorm(x){return String(x||'').replace(/鋪/g,'舖').replace(/\s/g,'').trim();}
+// 標示手動修改過的金額
+window.markSnapDiff=function(el){
+  const calc=Number(el.dataset.calc), cur=Number(el.value);
+  if(cur!==calc&&el.value!==''){el.style.borderColor='var(--orange-border)';el.style.background='var(--orange-bg)';el.style.color='var(--orange)';}
+  else{el.style.borderColor='var(--border)';el.style.background='';el.style.color='';}
+};
+// 套用批次貼上的實際金額
+window.applySnapPaste=function(){
+  const ta=document.getElementById('snapPaste');const info=document.getElementById('snapPasteInfo');
+  if(!ta||!ta.value.trim()){if(info)info.textContent='請先貼上內容';return;}
+  const rows=ta.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const map={};
+  rows.forEach(l=>{
+    // 從行尾抓金額（允許 $ 、千分位逗號、空白），其餘視為姓名
+    const mm=String(l).match(/^(.*?)[\t,，\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*$/);
+    if(!mm)return;
+    const nm=mm[1];
+    const amt=Number(String(mm[2]).replace(/,/g,''));
+    if(!nm.trim()||!isFinite(amt))return;
+    map[_snapNorm(nm)]=Math.round(amt);
+  });
+  const inputs=[...document.querySelectorAll('.snap-amt')];
+  let hit=0;const unmatched=[];
+  inputs.forEach(el=>{
+    const tr=el.closest('tr');
+    const nm=_snapNorm(tr?tr.children[1].textContent:'');
+    if(map[nm]!=null){el.value=map[nm];markSnapDiff(el);hit++;delete map[nm];}
+  });
+  Object.keys(map).forEach(k=>unmatched.push(k));
+  if(info)info.textContent=`已套用 ${hit} 筆`+(unmatched.length?`，${unmatched.length} 筆姓名對不上：${unmatched.slice(0,5).join('、')}${unmatched.length>5?'…':''}`:'');
+};
+// 還原為系統重算值
+window.resetSnapAmounts=function(){
+  [...document.querySelectorAll('.snap-amt')].forEach(el=>{el.value=el.dataset.calc;markSnapDiff(el);});
+  const info=document.getElementById('snapPasteInfo');if(info)info.textContent='已全部還原為系統重算值';
+};
 window.closeSnapModal=function(){const o=document.getElementById('snapOverlay');if(o)o.remove();};
 window.commitMissingSnapshots=async function(){
-  const targets=window._snapTargets||[];
+  let targets=window._snapTargets||[];
   if(!targets.length){showToast('⚠️ 無待補建項目');return;}
-  if(!confirm(`確定要為 ${targets.length} 筆記錄建立存檔金額並鎖定？\n\n合計 $${targets.reduce((s,r)=>s+r.net,0).toLocaleString()}\n此動作會同時推送中繼表。`))return;
+  // 讀取畫面上（可能被手動修改／貼上）的金額為準
+  const edited={};let changed=0;
+  [...document.querySelectorAll('.snap-amt')].forEach(el=>{
+    const v=Number(el.value);
+    if(isFinite(v)&&v>=0){edited[String(el.dataset.id)]=Math.round(v);if(Math.round(v)!==Number(el.dataset.calc))changed++;}
+  });
+  targets=targets.map(t=>({...t,net:(edited[String(t.id)]!=null?edited[String(t.id)]:t.net)}));
+  window._snapTargets=targets;
+  if(!confirm(`確定要為 ${targets.length} 筆記錄建立存檔金額並鎖定？\n\n合計 $${targets.reduce((s,r)=>s+r.net,0).toLocaleString()}`
+    +(changed?`\n其中 ${changed} 筆為你手動指定的金額（非系統重算值）`:'')
+    +`\n此動作會同時推送中繼表，且鎖定後只能用「採用新值並重新存檔」變更。`))return;
   closeSnapModal();
   let done=0,fail=0;
   for(const t of targets){
@@ -3091,7 +3159,9 @@ window.commitMissingSnapshots=async function(){
       const emp=employees.find(e=>String(e.id)===String(t.id));
       const shifts=await loadShifts(t.id,viewYear,viewMonth);
       const c=calcSalary(emp,rec,shifts);
-      rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+      // netPay 以清單上指定的金額為準（可能是實際發放金額，非系統重算值）
+      const _lockNet=(t.net!=null&&isFinite(t.net))?Math.round(t.net):Math.round(c.netPay);
+      rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:_lockNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString(),manualNet:(_lockNet!==Math.round(c.netPay))||undefined};
       const ok=await saveRec(t.id,viewYear,viewMonth,rec);
       if(ok){done++;snapCache[`${t.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`]=rec.snapshot.netPay;
         await pushNetPayToSheet(t.store,viewYear,viewMonth,t.name,rec.snapshot.netPay);}
