@@ -1166,7 +1166,9 @@ async function mergeSnapshotEmployees(y,m){
   if(!uniqResigned.length)return;
   const checks=await Promise.all(uniqResigned.map(async e=>{
     try{const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
-      if(snap.exists()&&snap.data().snapshot){
+      // 只要該月有薪資記錄就載入（原本要求必須已有 snapshot，會造成 catch-22：
+      // 缺 snapshot 的離職員工永遠不被載入 → 無法出現在清單 → 無法補建存檔金額）
+      if(snap.exists()){
         const es=snap.data().empSnapshot;
         return es?{...e,...es,_fromSnapshot:true}:{...e,_fromSnapshot:true};
       }
