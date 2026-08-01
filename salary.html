@@ -676,10 +676,12 @@ function insFromGrade(grade){
 function getHireDate(e){return e.hireDate||e.startDate||e.onboardDate||e.到職日||e.entryDate||null;}
 function getLeaveDate(e){return e.leaveDate||e.resignDate||e.離職日||e.quitDate||null;}
 // 取「到職當下」的投保級距（用於當月到職即離職的情況，無法用前兩月回推）
-function getHireGrade(e){
+function getHireGrade(e,y,m){
   const hist=e.insurance?.gradeHistory;
   if(Array.isArray(hist)&&hist.length){
-    const sorted=hist.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    // 【2026-08起】日期正規化後排序（同 getInsGrade），避免混用 / 與 - 導致「最早一筆」判斷錯誤
+    const _nd=(y&&m&&isInsFix(y,m))?(d=>String(d||'').replace(/\//g,'-').trim()):(d=>String(d||''));
+    const sorted=hist.slice().sort((a,b)=>_nd(a.date).localeCompare(_nd(b.date)));
     return Number(sorted[0].grade);
   }
   return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);
@@ -692,8 +694,11 @@ function getInsGrade(e,y,m){
   if(y&&m&&Array.isArray(hist)&&hist.length){
     let py=y, pm=m-2; if(pm<1){pm+=12;py-=1;} if(pm<1){pm+=12;py-=1;}
     const cutoff=`${py}-${String(pm).padStart(2,'0')}-${String(getDaysInMonth(py,pm)).padStart(2,'0')}`;
-    const sorted=hist.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-    const valid=sorted.find(r=>String(r.date)<=cutoff);
+    // 【2026-08起】日期正規化後再比對（把 / 換成 -），修正混用格式抓錯級距的問題
+    // 7月及以前維持原字串比對，確保已結算金額不變
+    const _nd=isInsFix(y,m)?(d=>String(d||'').replace(/\//g,'-').trim()):(d=>String(d||''));
+    const sorted=hist.slice().sort((a,b)=>_nd(b.date).localeCompare(_nd(a.date)));
+    const valid=sorted.find(r=>_nd(r.date)<=cutoff);
     if(valid)return Number(valid.grade);
     // 沒有前兩月(含)以前的紀錄 → 取最早一筆
     return Number(sorted[sorted.length-1].grade);
@@ -722,6 +727,17 @@ function getTarget(e,y,m){
 // （要改分界只改下面這一行）
 // 涵蓋：兼職班表時數/全勤/請假給薪、正職請假日固定加班、彈性補貼滿額反推、特休判定順序。
 const RULE_NEW_FROM = { y: 2026, m: 7 };
+// ── 投保級距日期比對修正的生效分界（獨立於 RULE_NEW_FROM）──
+// gradeHistory 混用 'YYYY/MM/DD' 與 'YYYY-MM-DD'，字串比對時 '/'(47) > '-'(45)，
+// 會讓斜線格式的紀錄永遠不符合 cutoff 條件而被跳過，導致抓錯級距。
+// ⚠️ 必須是 8 月：7 月薪資已結算發放，不可因為級距抓法改變而變動金額。
+const INSFIX_FROM = { y: 2026, m: 8 };
+function isInsFix(y, m) {
+  const yy = Number(y), mm = Number(m);
+  if (yy > INSFIX_FROM.y) return true;
+  if (yy < INSFIX_FROM.y) return false;
+  return mm >= INSFIX_FROM.m;
+}
 function isNewRule(y, m) {
   const yy = Number(y), mm = Number(m);
   if (yy > RULE_NEW_FROM.y) return true;
@@ -1361,7 +1377,7 @@ function calcSalary(emp,rec,shifts){
 
   // 勞健保
   // 當月到職即離職：不適用「前兩月」回推邏輯，直接用到職當下的投保級距
-  const autoGrade=(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
+  const autoGrade=(insMode==='same_month'?getHireGrade(emp,viewYear,viewMonth):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
   const insGrade=(rec&&rec.gradeOverride)||autoGrade;
   const ins=insFromGrade(insGrade);
   const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:ins.labor;   // 整月勞保自付
@@ -1591,7 +1607,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
 
   // 勞健保（兼職一樣可投保，沿用設定；預設不扣，由 rec 手動設定）
   const insMode=rec?.insMode||'normal';
-  const autoGrade=(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
+  const autoGrade=(insMode==='same_month'?getHireGrade(emp,viewYear,viewMonth):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
   const insGrade=(rec?.gradeOverride)||autoGrade;
   const ins=insFromGrade(insGrade);
   const finalLabor=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:0);
@@ -2582,7 +2598,7 @@ function calcInsAuditRow(emp,rec){
   const leftThisMo=_ld2&&_ld2.getFullYear()===viewYear&&(_ld2.getMonth()+1)===viewMonth;
   const autoMode=(hiredThisMo&&leftThisMo)?'same_month':(hiredThisMo?'new':'normal');
   const insMode=rec?.insMode||autoMode;
-  const insGrade=(rec?.gradeOverride)||(insMode==='same_month'?getHireGrade(emp):getInsGrade(emp,viewYear,viewMonth));
+  const insGrade=(rec?.gradeOverride)||(insMode==='same_month'?getHireGrade(emp,viewYear,viewMonth):getInsGrade(emp,viewYear,viewMonth));
   const ins=insFromGrade(insGrade);
   const dependents=rec?.dependents!=null?rec.dependents:Number(emp.insurance?.dependents?.length||0);
   const healthBase=ins.health; // 本人單份
