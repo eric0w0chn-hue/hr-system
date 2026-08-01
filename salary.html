@@ -1855,6 +1855,7 @@ function renderMain(){
         <button class="btn-sm o" onclick="showInsAuditTable()" title="全店勞健保核對總表">📋 勞健保核對表</button>
         ${CU.role==='admin'?`<button class="btn-sm o" onclick="exportSalaryXlsx()" title="匯出全部店面本月實領薪資 Excel">📊 匯出薪資總表</button>`:''}
         ${CU.role==='admin'?`<button class="btn-sm o" onclick="syncAllToSheet()" title="將全部店面本月實領薪資同步到中繼表單">🔄 同步至中繼表</button>`:''}
+        ${(CU.role==='admin'&&isMonthLocked(viewYear,viewMonth))?`<button class="btn-sm o" onclick="scanMissingSnapshots()" title="為缺少存檔金額的記錄批次補建並鎖定（已有存檔者不受影響）">🔒 補建存檔金額</button>`:''}
         <button class="btn-sm o" onclick="batchExportSlips()" title="依序匯出全店所有同仁薪資單">📦 批次匯出全店</button>
       </div>`:''}
     </div>
@@ -3015,6 +3016,92 @@ window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=va
 // 取消投保級距手動覆蓋 → 改回依人事資料（hr）自動帶入，之後人員資訊調整即會同步
 // ── 方案C：採用即時重算值，覆蓋存檔金額（admin）──
 // 用途：確認新規則/新資料算出的金額才是正確的，才把 snapshot 更新掉。
+// ── 批次補建存檔金額（admin，僅過去月份）──
+// 只針對「已有薪資記錄但缺存檔金額」的筆數補建；已有存檔金額者一律跳過不動。
+window.scanMissingSnapshots=async function(){
+  if(CU.role!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
+  if(!isMonthLocked(viewYear,viewMonth)){showToast('⚠️ 僅過去月份需要補建存檔');return;}
+  const stores=viewableStores||[];
+  if(!stores.length){showToast('⚠️ 無可用店面');return;}
+  showToast('掃描中，請稍候…',120000);
+  const targets=[];
+  for(const store of stores){
+    const emps=storeEmps(store).filter(e=>calcEmployedDays(e,viewYear,viewMonth,null).days>0);
+    if(!emps.length)continue;
+    const recs=await Promise.all(emps.map(e=>loadRec(e.id,viewYear,viewMonth)));
+    const shs=await Promise.all(emps.map(e=>loadShifts(e.id,viewYear,viewMonth)));
+    emps.forEach((emp,i)=>{
+      const rec=recs[i];
+      if(!rec)return;                                        // 完全沒記錄 → 不建立
+      if(rec.snapshot&&typeof rec.snapshot.netPay==='number')return; // 已有存檔 → 跳過
+      const c=calcSalary(emp,rec,shs[i]);
+      targets.push({id:emp.id,name:emp.name,store:emp.workLocation||store,net:Math.round(c.netPay)});
+    });
+  }
+  if(!targets.length){showToast('✓ 本月所有記錄都已有存檔金額，無需補建');return;}
+  targets.sort((a,b)=>String(a.store).localeCompare(String(b.store),'zh-Hant')||String(a.name).localeCompare(String(b.name),'zh-Hant'));
+  window._snapTargets=targets;
+  const total=targets.reduce((s,r)=>s+r.net,0);
+  const ov=document.createElement('div');
+  ov.className='slip-overlay';ov.id='snapOverlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:720px">
+    <div class="slip-bar">
+      <button class="btn slip-close" onclick="closeSnapModal()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">補建存檔金額 — ${viewYear}年${viewMonth}月</span>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="commitMissingSnapshots()">🔒 全部補建（${targets.length} 筆）</button>
+    </div>
+    <div style="padding:14px 18px;max-height:70vh;overflow:auto">
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">
+        以下 <b>${targets.length}</b> 筆有薪資記錄但沒有存檔金額，合計 <b>$${total.toLocaleString()}</b>。<br>
+        補建後金額會鎖定、並推送中繼表。<b>請先確認金額合理</b>——差幾十到一兩百元屬正常（投保級距造成），
+        若某筆明顯異常（差數百以上），請先關閉此窗個別查明再處理。<br>
+        已有存檔金額的記錄不在此清單、也不會被變動。
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="background:var(--surface2)">
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">店面</th>
+          <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)">同仁</th>
+          <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">將鎖定金額</th>
+        </tr>
+        ${targets.map(r=>`<tr>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2)">${r.store}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border)">${r.name}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600">$${r.net.toLocaleString()}</td>
+        </tr>`).join('')}
+      </table>
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeSnapModal();};
+  document.body.appendChild(ov);
+  showToast('');
+};
+window.closeSnapModal=function(){const o=document.getElementById('snapOverlay');if(o)o.remove();};
+window.commitMissingSnapshots=async function(){
+  const targets=window._snapTargets||[];
+  if(!targets.length){showToast('⚠️ 無待補建項目');return;}
+  if(!confirm(`確定要為 ${targets.length} 筆記錄建立存檔金額並鎖定？\n\n合計 $${targets.reduce((s,r)=>s+r.net,0).toLocaleString()}\n此動作會同時推送中繼表。`))return;
+  closeSnapModal();
+  let done=0,fail=0;
+  for(const t of targets){
+    showToast(`補建中… ${done+1}/${targets.length}（${t.name}）`,120000);
+    try{
+      const rec=await loadRec(t.id,viewYear,viewMonth);
+      if(!rec){fail++;continue;}
+      if(rec.snapshot&&typeof rec.snapshot.netPay==='number'){done++;continue;} // 期間已被建立 → 尊重既有值
+      const emp=employees.find(e=>String(e.id)===String(t.id));
+      const shifts=await loadShifts(t.id,viewYear,viewMonth);
+      const c=calcSalary(emp,rec,shifts);
+      rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+      const ok=await saveRec(t.id,viewYear,viewMonth,rec);
+      if(ok){done++;snapCache[`${t.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`]=rec.snapshot.netPay;
+        await pushNetPayToSheet(t.store,viewYear,viewMonth,t.name,rec.snapshot.netPay);}
+      else fail++;
+    }catch(e){fail++;}
+  }
+  writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'批次補建存檔金額',detail:`${viewYear}年${viewMonth}月 ${done}筆`});
+  showToast(`✓ 已補建 ${done} 筆${fail?`，失敗 ${fail} 筆`:''}`);
+  renderMain();
+};
 window.adoptRecalc=async function(){
   if(CU.role!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
