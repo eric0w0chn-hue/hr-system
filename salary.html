@@ -1925,7 +1925,7 @@ async function preloadSnapshots(emps){
           const tgt=getTarget(e,viewYear,viewMonth);
           const e2=calcEmployedDays(e,viewYear,viewMonth,null);
           const flag=e2.days===0?'（未在職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'');
-          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(Math.round(c.netPay)).toLocaleString()}`;
+          opt.textContent=`${e.name}${flag}${tgt?' 目標$'+Number(tgt).toLocaleString():''}\n實領$${Number(snapCache[snapKey]).toLocaleString()}`;
         }}
     }catch(err){}
   }));
@@ -2424,7 +2424,7 @@ function renderSheet(emp,rec,shifts,c){
       <div class="netpay-bar">
         <div><div class="np-lbl">本月實領薪資</div>
           <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">$${(c.base+Math.round(c.elastic)).toLocaleString()} 底+彈 ＋$${Math.round(c.otPayTotal).toLocaleString()} 加班 ＋$${c.totalAdd.toLocaleString()} 加項 −$${c.totalDeduct.toLocaleString()} 扣項</div></div>
-        <div class="np-val" id="npDisp">$${Math.round(c.netPay).toLocaleString()}</div>
+        <div class="np-val" id="npDisp">$${_shownNet.toLocaleString()}${_hasStored&&_diff!==0?'<span style="font-size:11px;opacity:.7;font-weight:600"> 存檔值</span>':''}</div>
       </div>
       <div style="padding:0 16px 14px;display:flex;justify-content:flex-end;gap:8px">
         ${!locked?`<button class="btn btn-primary" onclick="saveSheet()">💾 儲存薪資記錄</button>`:''}
@@ -2445,8 +2445,9 @@ function rerender(){
   renderSheet(emp,currentRec,curShifts,c);
   // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
-  snapCache[snapKey]=Math.round(c.netPay);
-  autoSyncNetPay(emp,viewYear,viewMonth,authNetPay(currentRec,c,viewYear,viewMonth)); // admin 頁面內調整重算 → 防抖後自動同步（過去月份推存檔值）
+  const _authNet=authNetPay(currentRec,c,viewYear,viewMonth); // 過去月份＝存檔值
+  snapCache[snapKey]=_authNet;
+  autoSyncNetPay(emp,viewYear,viewMonth,_authNet); // admin 頁面內調整重算 → 防抖後自動同步（過去月份推存檔值）
   // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
@@ -2454,7 +2455,7 @@ function rerender(){
       const pt=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
       const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
       const headTxt=pt?(emp.hourlyRate?' 目標$'+Number(emp.hourlyRate).toLocaleString():''):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
-      opt.textContent=`${emp.name}${flag}${headTxt}\n實領$${Math.round(c.netPay).toLocaleString()}`;
+      opt.textContent=`${emp.name}${flag}${headTxt}\n實領$${_authNet.toLocaleString()}`;
   }}
   // 移除 cdd-net 更新（cdd 每次打開都從 empSel 重新讀，不需要單獨更新）
   window.scrollTo(0,sy);
@@ -2548,7 +2549,7 @@ window.exportSalaryXlsx=async function(){
         loadRec(emp.id,viewYear,viewMonth)
       ]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-      recMap.set(emp.id,Math.round(c.netPay));
+      recMap.set(emp.id,authNetPay(rec,c,viewYear,viewMonth)); // 過去月份匯出存檔值，確保與發放金額一致
     }));
     // 建工作表資料（對應格式）
     // A1=年份  B1起=人員姓名
@@ -2923,7 +2924,7 @@ window.batchExportSlips=async function(){
       const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
       const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
       const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
-      const slipHtml=buildSlipHtml(c,customRows,fmtMin);
+      const slipHtml=buildSlipHtml(c,customRows,authNetPay(rec,c,viewYear,viewMonth)); // 過去月份用存檔值
 
       container.innerHTML=`<div style="padding:24px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff">
         <h2 style="font-size:17px;margin-bottom:4px;font-family:inherit">薪　資　單</h2>
@@ -3263,7 +3264,7 @@ window.exportSlip=async function(){
   const c=calcSalary(emp,currentRec,curShifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
-  let slipHtml=buildSlipHtml(c,customRows);
+  let slipHtml=buildSlipHtml(c,customRows,authNetPay(currentRec,c,viewYear,viewMonth));
   // 方案C：過去月份若重算值與存檔金額不同，在薪資單上明確警示（避免拿錯數字給同仁）
   const _sn=currentRec&&currentRec.snapshot;
   if(isMonthLocked(viewYear,viewMonth)&&_sn&&typeof _sn.netPay==='number'&&Math.round(c.netPay)!==_sn.netPay){
@@ -3294,7 +3295,9 @@ window.exportSlip=async function(){
 };
 
 // ── 薪資單 HTML 共用產生函式（exportSlip + 批次匯出共用）──
-function buildSlipHtml(c,customRows){
+function buildSlipHtml(c,customRows,authNet){
+  const _slipNet=(authNet!=null&&isFinite(authNet))?Math.round(authNet):Math.round(c.netPay);
+  const _slipDiff=_slipNet-Math.round(c.netPay);
   if(c.isPartTime){
     return `<table>
 <tr><td class="sh" colspan="2">加項（時薪制）</td></tr>
@@ -3313,7 +3316,7 @@ ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrN
 ${c.finalLabor>0?`<tr><td>勞保自付</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>`:''}
 ${c.finalHealth>0?`<tr><td>健保自付</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>`:''}
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
-<tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
+<tr class="tot"><td>本月實領薪資${_slipDiff!==0?'<div class="sd">（實際發放金額；上方明細為現行規則重算 $'+Math.round(c.netPay).toLocaleString()+'，僅供參考）</div>':''}</td><td class="green">$${_slipNet.toLocaleString()}</td></tr>
 </table>`;
   }
   return `<table>
@@ -3337,7 +3340,7 @@ ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrN
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
 ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次扣 ${viewMonth-1<1?12:viewMonth-1} 月＋${viewMonth} 月兩個月保費，因離職後無薪資可扣，故提前一併扣除。</td></tr>`:''}
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
-<tr class="tot"><td>本月實領薪資</td><td class="green">$${Math.round(c.netPay).toLocaleString()}</td></tr>
+<tr class="tot"><td>本月實領薪資${_slipDiff!==0?'<div class="sd">（實際發放金額；上方明細為現行規則重算 $'+Math.round(c.netPay).toLocaleString()+'，僅供參考）</div>':''}</td><td class="green">$${_slipNet.toLocaleString()}</td></tr>
 </table>`;
 }
 
