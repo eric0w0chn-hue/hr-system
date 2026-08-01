@@ -584,6 +584,14 @@ let snapCache={}; // {empId_yyyy-mm: 實領金額} 供下拉顯示
 
 // ── 實領薪資中繼表同步（存檔後自動推送單筆到 Google Sheet；失敗不影響存檔）──
 const SALARY_SHEETS_URL='https://script.google.com/macros/s/AKfycbyYnkqKHjsQPEtMHrLp70cC2MkuINbclPKH5CxDAG9L27Z0gTOeSId25izOLGXEt4RO-Q/exec';
+// ── 權威金額 ──
+// 過去月份若已有存檔金額 → 一律以存檔值為準（畫面、中繼表、匯出全部一致）
+// 當月/未來月份 → 用即時重算值
+function authNetPay(rec,c,y,m){
+  const sn=rec&&rec.snapshot;
+  if(isMonthLocked(y,m)&&sn&&typeof sn.netPay==='number')return sn.netPay;
+  return Math.round(c.netPay);
+}
 async function pushNetPayToSheet(store,year,month,name,netPay){
   if(!SALARY_SHEETS_URL||!store||!name)return;
   try{
@@ -1934,7 +1942,7 @@ async function loadAndRender(empId,doScroll){
   curShifts=shifts;
   const _c=calcSalary(emp,currentRec,shifts);
   renderSheet(emp,currentRec,shifts,_c);
-  autoSyncNetPay(emp,viewYear,viewMonth,_c.netPay); // admin 切到該員工 → 自動同步中繼表
+  autoSyncNetPay(emp,viewYear,viewMonth,authNetPay(currentRec,_c,viewYear,viewMonth)); // admin 切到該員工 → 自動同步（過去月份推存檔值）
   if(doScroll){setTimeout(()=>{const el=document.getElementById('sheetArea');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 }
 
@@ -2437,7 +2445,7 @@ function rerender(){
   // 同步更新快取
   const snapKey=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
   snapCache[snapKey]=Math.round(c.netPay);
-  autoSyncNetPay(emp,viewYear,viewMonth,c.netPay); // admin 頁面內調整重算 → 防抖後自動同步
+  autoSyncNetPay(emp,viewYear,viewMonth,authNetPay(currentRec,c,viewYear,viewMonth)); // admin 頁面內調整重算 → 防抖後自動同步（過去月份推存檔值）
   // 同步更新 empSel option 文字（cdd 打開時從這裡讀）
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
@@ -2584,7 +2592,7 @@ window.syncAllToSheet=async function(){
     const results=await Promise.all(emps.map(async emp=>{
       const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-      return{name:emp.name,netPay:Math.round(c.netPay),store:emp.workLocation};
+      return{name:emp.name,netPay:authNetPay(rec,c,viewYear,viewMonth),store:emp.workLocation}; // 過去月份推存檔值
     }));
     // 逐筆推送（no-cors 無回傳，序列送避免瞬間爆量）
     for(const r of results){ await pushNetPayToSheet(r.store,viewYear,viewMonth,r.name,r.netPay); cnt++; }
@@ -3063,7 +3071,16 @@ window.saveSheet=async function(){
   if(!selectedEmpId||isSaving||!currentRec)return;isSaving=true;showToast('儲存中…');
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const record=currentRec;const c=calcSalary(emp,record,curShifts);
-  record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+  // ── 存檔金額保護 ──
+  // 過去月份若已有存檔金額 → 保留原值不覆蓋（避免誤按儲存動到已發放金額）。
+  // 要更新請用「採用新值並重新存檔」(adoptRecalc)，那是明確的覆蓋動作。
+  const _prevSnap=currentRec&&currentRec.snapshot;
+  const _keepSnap=isMonthLocked(viewYear,viewMonth)&&_prevSnap&&typeof _prevSnap.netPay==='number';
+  if(_keepSnap){
+    record.snapshot=_prevSnap; // 原封不動保留
+  }else{
+    record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+  }
   // 快照：員工基本資料 + 當月排班（離職後仍可查閱/下載）
   record.empSnapshot={
     id:emp.id, name:emp.name, workLocation:emp.workLocation, title:emp.title||'',
@@ -3075,7 +3092,12 @@ window.saveSheet=async function(){
   };
   record.shiftsSnapshot=curShifts?JSON.parse(JSON.stringify(curShifts)):{};
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,record);
-  if(ok){writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月`});showToast('✓ 已儲存（已鎖定本月資料）');pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,Math.round(c.netPay));}else showToast('⚠️ 儲存失敗');
+  if(ok){
+    writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月${_keepSnap?'（存檔金額保留原值）':''}`});
+    showToast(_keepSnap?'✓ 已儲存（存檔金額維持原值不變）':'✓ 已儲存（已鎖定本月資料）');
+    // 推送權威金額（過去月份＝存檔值），與畫面顯示一致
+    pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,record.snapshot.netPay);
+  }else showToast('⚠️ 儲存失敗');
   isSaving=false;
 };
 
