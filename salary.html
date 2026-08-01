@@ -1980,6 +1980,15 @@ async function loadAndRender(empId,doScroll){
 
 // ─── 薪資單 ───
 function renderSheet(emp,rec,shifts,c){
+  // ── 方案C 與顯示整數：提前計算，供整份 renderSheet（含不足月面板）共用 ──
+  const _isPast=isMonthLocked(viewYear,viewMonth);
+  const _snap=rec&&rec.snapshot;
+  const _hasStored=_isPast&&_snap&&typeof _snap.netPay==='number';
+  const _liveNet=Math.round(c.netPay);
+  const _shownNet=_hasStored?_snap.netPay:_liveNet;
+  const _diff=_hasStored?(_liveNet-_snap.netPay):0;
+  const _savedAt=(_snap&&_snap.savedAt)?String(_snap.savedAt).slice(0,10):'';
+  const _npD=slipDisplayInts(c,_shownNet); // 底部實領列的顯示整數（與薪資單一致）
   const days=getDaysInMonth(viewYear,viewMonth);
   const WD=['日','一','二','三','四','五','六'];
   const locked=isMonthLocked(viewYear,viewMonth)&&CU.role!=='admin';
@@ -2160,7 +2169,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="partial-grid">
           <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
           <div class="partial-item"><label>彈性補貼</label><div class="readonly-val">$0</div></div>
-          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
+          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${_npD.fx.toLocaleString()}</div></div>
           <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
         </div>
         <div class="verify-line" style="background:var(--red-bg);border-color:var(--red-border);color:var(--red)">
@@ -2173,12 +2182,12 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sec-title">📝 不足月薪資（在職 ${c.employedDays} 天 / 30）— 系統自動計算</div>
         <div class="partial-grid">
           <div class="partial-item"><label>底薪（自動）</label><div class="readonly-val">$${c.base.toLocaleString()}</div></div>
-          <div class="partial-item"><label>彈性補貼（自動）</label><div class="readonly-val" style="color:var(--green)">$${Math.round(c.elastic).toLocaleString()}</div></div>
-          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${Math.round(c.fixedOtPay).toLocaleString()}</div></div>
+          <div class="partial-item"><label>彈性補貼（自動）</label><div class="readonly-val" style="color:var(--green)">$${_npD.el.toLocaleString()}</div></div>
+          <div class="partial-item"><label>固定加班費（自動）</label><div class="readonly-val">$${_npD.fx.toLocaleString()}</div></div>
           <div class="partial-item"><label>按比例目標薪資</label><div class="readonly-val" style="color:var(--blue)">$${c.proratedTarget.toLocaleString()}</div></div>
         </div>
         <div class="verify-line verify-ok">
-          ✓ 自動驗算：底薪 $${c.base.toLocaleString()} + 彈性 $${Math.round(c.elastic).toLocaleString()} + 加班 $${Math.round(c.fixedOtPay).toLocaleString()} = $${Math.round(c.verifySum).toLocaleString()}
+          ✓ 自動驗算：底薪 $${c.base.toLocaleString()} + 彈性 $${_npD.el.toLocaleString()} + 加班 $${_npD.fx.toLocaleString()} = $${(c.base+_npD.el+_npD.fx).toLocaleString()}
         </div>
       </div>`;
     }
@@ -2196,14 +2205,6 @@ function renderSheet(emp,rec,shifts,c){
   </div>`).join('');
 
   // ── 方案C：過去月份以「存檔當時金額」為準顯示，並標示與即時重算的差異 ──
-  const _isPast=isMonthLocked(viewYear,viewMonth);
-  const _snap=rec&&rec.snapshot;
-  const _hasStored=_isPast&&_snap&&typeof _snap.netPay==='number';
-  const _liveNet=Math.round(c.netPay);
-  const _shownNet=_hasStored?_snap.netPay:_liveNet;
-  const _diff=_hasStored?(_liveNet-_snap.netPay):0;
-  const _savedAt=(_snap&&_snap.savedAt)?String(_snap.savedAt).slice(0,10):'';
-  const _npD=slipDisplayInts(c,_shownNet); // 底部實領列的顯示整數（與薪資單一致）
   const _driftBanner=(_hasStored&&_diff!==0)?`
     <div class="drift-banner">
       <div class="drift-main">⚠️ 此月金額已鎖定為存檔值 <b>$${_snap.netPay.toLocaleString()}</b>${_savedAt?`（${_savedAt} 存檔）`:''}</div>
@@ -2236,7 +2237,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sum-cell"><div class="sum-lbl">時薪</div><div class="sum-val">$${c.hourlyRate.toLocaleString()}</div></div>
         <div class="sum-cell"><div class="sum-lbl">出勤時數</div><div class="sum-val c-blue">${Math.round(c.workedHoursTotal*100)/100}h</div></div>
         <div class="sum-cell"><div class="sum-lbl">出勤獎勵 +$${c.attendBonusRate}/h</div><div class="sum-val ${c.attendQualified?'c-green':''}">$${c.attendBonus.toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${(_npD.fx+_npD.ex+_npD.tp).toLocaleString()}</div></div>
       </div>
       <div class="fml-sec">
         <div class="collapsible-header" onclick="toggleFmlPanel()">
@@ -2263,8 +2264,8 @@ function renderSheet(emp,rec,shifts,c){
       `:`
       <div class="sum-row">
         <div class="sum-cell"><div class="sum-lbl">底薪</div><div class="sum-val">$${c.base.toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">彈性補貼${c.isPartial?'(自動)':''}</div><div class="sum-val c-blue">$${Math.round(c.elastic).toLocaleString()}</div></div>
-        <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${Math.round(c.otPayTotal).toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">彈性補貼${c.isPartial?'(自動)':''}</div><div class="sum-val c-blue">$${_npD.el.toLocaleString()}</div></div>
+        <div class="sum-cell"><div class="sum-lbl">加班費</div><div class="sum-val c-green">$${(_npD.fx+_npD.ex+_npD.tp).toLocaleString()}</div></div>
         <div class="sum-cell"><div class="sum-lbl">目標薪資</div><div class="sum-val">$${c.target.toLocaleString()}</div></div>
       </div>
 
@@ -2274,16 +2275,16 @@ function renderSheet(emp,rec,shifts,c){
         <div class="collapsible-header" onclick="toggleFmlPanel()">
           <span class="ch-left">📐 計算公式 ${c.isPartial?'<span style="font-size:10px;font-weight:400;color:var(--orange)">不足月</span>':''}</span>
           <span class="ch-right">
-            <span class="ch-summary has-value">時薪 $${c.hourly.toFixed(2)}｜加班 ${c.fixedOtHours}h→$${Math.round(c.fixedOtPay).toLocaleString()}</span>
+            <span class="ch-summary has-value">時薪 $${c.hourly.toFixed(2)}｜加班 ${c.fixedOtHours}h→$${_npD.fx.toLocaleString()}</span>
             <span class="ch-chevron ${showFmlPanel?'open':''}">▼</span>
           </span>
         </div>
         ${showFmlPanel?`
         <div class="fml-grid">
           <div class="fml-item"><div class="fi-lbl">時薪基礎</div><div class="fi-val">$${c.hourly.toFixed(2)}</div><div class="fi-sub">(底薪+彈性)÷30÷8</div></div>
-          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${Math.round(c.fixedOtPay).toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
-          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${Math.round(c.extraOtPay).toLocaleString()}</div></div>
-          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${Math.round(c.tempOtPay).toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">固定加班 ×1.34</div><div class="fi-val c-orange">${c.fixedOtHours}h → $${_npD.fx.toLocaleString()}</div><div class="fi-sub">每出勤日 +${c.defOt}h</div></div>
+          <div class="fml-item"><div class="fi-lbl">額外加班 ×1.67</div><div class="fi-val c-red">${c.extraOtHours}h → $${_npD.ex.toLocaleString()}</div></div>
+          <div class="fml-item"><div class="fi-lbl">臨時加班</div><div class="fi-val c-blue">${c.tempOtList.map(t=>`${t.hrs}h×${t.rate}`).join('+')||'—'} → $${_npD.tp.toLocaleString()}</div></div>
         </div>
         <div class="eq-bar">
           <span>出勤</span><span class="v">${Math.round(c.workDays*10)/10}天</span><span class="op">｜</span>
