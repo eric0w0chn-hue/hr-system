@@ -101,6 +101,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 .partial-flag{font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
 
 .salary-sheet{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;scroll-margin-top:70px}
+.drift-banner{margin:0 16px 10px;padding:10px 12px;border-radius:8px;background:var(--orange-bg);border:1px solid var(--orange-border);display:flex;flex-direction:column;gap:4px}
+.drift-banner.ok{background:var(--green-bg);border-color:var(--green-border)}
+.drift-banner.warn{background:var(--red-bg);border-color:var(--red-border)}
+.drift-main{font-size:12px;font-weight:600;color:var(--text)}
+.drift-sub{font-size:11px;color:var(--text2);line-height:1.5}
+.drift-btn{align-self:flex-start;margin-top:4px;font-size:11px}
+@media(max-width:600px){.drift-banner{margin:0 0 10px}}
 .sheet-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface2)}
 .sheet-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
 
@@ -710,8 +717,9 @@ function getTarget(e,y,m){
 }
 
 // ── 規則生效分界 ──
-// 2026-07 起適用新規則；2026-06 及以前一律維持舊規則，避免追溯改動已發放薪資。
-// （7月薪資尚未正式發放，仍可調整，故分界設在 7 月；要改分界只改下面這一行）
+// 2026-07 起適用新規則；2026-06 及以前一律維持舊規則。
+// ⚠️ 2026-07 薪資已於 7/31 以「新制」結算發放，故分界必須維持在 7 月，不可改為 8 月。
+// （要改分界只改下面這一行）
 // 涵蓋：兼職班表時數/全勤/請假給薪、正職請假日固定加班、彈性補貼滿額反推、特休判定順序。
 const RULE_NEW_FROM = { y: 2026, m: 7 };
 function isNewRule(y, m) {
@@ -1882,7 +1890,9 @@ async function preloadSnapshots(emps){
       const shifts=(e._fromSnapshot&&rec&&rec.shiftsSnapshot)?rec.shiftsSnapshot:await loadShifts(e.id,viewYear,viewMonth);
       if(token!==_preloadToken)return; // 已切換店面/月份，放棄
       const c=calcSalary(e,rec||{dailyData:{}},shifts);
-      snapCache[snapKey]=Math.round(c.netPay);
+      // 方案C：過去月份以存檔金額為準（與明細頁一致）
+      const _st=(isMonthLocked(viewYear,viewMonth)&&rec&&rec.snapshot&&typeof rec.snapshot.netPay==='number')?rec.snapshot.netPay:null;
+      snapCache[snapKey]=_st!=null?_st:Math.round(c.netPay);
       // 更新下拉對應 option 文字
       const sel=document.getElementById('empSel');
       if(sel){const opt=[...sel.options].find(o=>o.value===String(e.id));
@@ -2117,16 +2127,39 @@ function renderSheet(emp,rec,shifts,c){
     ${!locked?`<span class="add-del" onclick="delCustomAdd(${i})">刪</span>`:''}
   </div>`).join('');
 
+  // ── 方案C：過去月份以「存檔當時金額」為準顯示，並標示與即時重算的差異 ──
+  const _isPast=isMonthLocked(viewYear,viewMonth);
+  const _snap=rec&&rec.snapshot;
+  const _hasStored=_isPast&&_snap&&typeof _snap.netPay==='number';
+  const _liveNet=Math.round(c.netPay);
+  const _shownNet=_hasStored?_snap.netPay:_liveNet;
+  const _diff=_hasStored?(_liveNet-_snap.netPay):0;
+  const _savedAt=(_snap&&_snap.savedAt)?String(_snap.savedAt).slice(0,10):'';
+  const _driftBanner=(_hasStored&&_diff!==0)?`
+    <div class="drift-banner">
+      <div class="drift-main">⚠️ 此月金額已鎖定為存檔值 <b>$${_snap.netPay.toLocaleString()}</b>${_savedAt?`（${_savedAt} 存檔）`:''}</div>
+      <div class="drift-sub">目前重算為 $${_liveNet.toLocaleString()}，差 ${_diff>0?'+':'−'}$${Math.abs(_diff).toLocaleString()}。下方明細為重算值，僅供參考。</div>
+      ${CU.role==='admin'?`<button class="btn-sm o drift-btn" onclick="adoptRecalc()">採用新值並重新存檔</button>`:''}
+    </div>`:(_hasStored?`
+    <div class="drift-banner ok">
+      <div class="drift-main">🔒 此月金額已鎖定為存檔值 <b>$${_snap.netPay.toLocaleString()}</b>${_savedAt?`（${_savedAt} 存檔）`:''}，與目前重算一致。</div>
+    </div>`:(_isPast?`
+    <div class="drift-banner warn">
+      <div class="drift-main">⚠️ 此月沒有存檔金額紀錄（舊版存的），畫面為即時重算值，可能與當初發放金額不同。</div>
+      ${CU.role==='admin'?`<button class="btn-sm o drift-btn" onclick="adoptRecalc()">以目前金額建立存檔紀錄</button>`:''}
+    </div>`:''));
+
   document.getElementById('sheetArea').innerHTML=`
     <div class="salary-sheet" id="salarySheet">
       <div class="sheet-hd">
         <div class="sheet-title">💰 ${emp.name} — ${viewYear}年${viewMonth}月 ${c.isPartial?'<span class="partial-flag">不足月</span>':''}${locked?'🔒':''}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span class="badge badge-g">實領 $${Math.round(c.netPay).toLocaleString()}</span>
+          <span class="badge badge-g">實領 $${_shownNet.toLocaleString()}${_hasStored&&_diff!==0?' <span style="font-weight:600;opacity:.75">(存檔值)</span>':''}</span>
           ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
           <button class="btn-sm o" onclick="exportSlip()">📄 薪資單</button>
         </div>
       </div>
+      ${_driftBanner}
 
       ${c.isPartTime?`
       <div class="sum-row">
@@ -2956,6 +2989,28 @@ window.patchDayParts=function(ds,field,part,val){
 };
 window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
 // 取消投保級距手動覆蓋 → 改回依人事資料（hr）自動帶入，之後人員資訊調整即會同步
+// ── 方案C：採用即時重算值，覆蓋存檔金額（admin）──
+// 用途：確認新規則/新資料算出的金額才是正確的，才把 snapshot 更新掉。
+window.adoptRecalc=async function(){
+  if(CU.role!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  if(!emp||!currentRec){showToast('⚠️ 請先選擇同仁');return;}
+  const c=calcSalary(emp,currentRec,curShifts);
+  const oldNet=(currentRec.snapshot&&currentRec.snapshot.netPay);
+  const newNet=Math.round(c.netPay);
+  const msg=(oldNet!=null)
+    ? `確定要把 ${emp.name} ${viewYear}年${viewMonth}月 的存檔金額由 $${Number(oldNet).toLocaleString()} 更新為 $${newNet.toLocaleString()}？\n\n此動作會覆蓋原存檔紀錄，無法還原。`
+    : `確定要以目前金額 $${newNet.toLocaleString()} 建立 ${emp.name} ${viewYear}年${viewMonth}月 的存檔紀錄？`;
+  if(!confirm(msg))return;
+  currentRec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:newNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+  const ok=await saveRec(selectedEmpId,viewYear,viewMonth,currentRec);
+  if(ok){
+    writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'更新存檔金額',detail:`${emp.name} ${viewYear}年${viewMonth}月 $${Number(oldNet||0).toLocaleString()}→$${newNet.toLocaleString()}`});
+    snapCache[`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`]=newNet;
+    pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,newNet);
+    showToast('✓ 存檔金額已更新');rerender();
+  } else showToast('⚠️ 更新失敗');
+};
 window.clearGradeOverride=function(){
   if(!currentRec)return;
   currentRec.gradeOverride=null;persist();
@@ -3013,7 +3068,15 @@ window.exportSlip=async function(){
   const c=calcSalary(emp,currentRec,curShifts);
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
-  const slipHtml=buildSlipHtml(c,customRows);
+  let slipHtml=buildSlipHtml(c,customRows);
+  // 方案C：過去月份若重算值與存檔金額不同，在薪資單上明確警示（避免拿錯數字給同仁）
+  const _sn=currentRec&&currentRec.snapshot;
+  if(isMonthLocked(viewYear,viewMonth)&&_sn&&typeof _sn.netPay==='number'&&Math.round(c.netPay)!==_sn.netPay){
+    slipHtml=`<div style="margin:0 0 12px;padding:10px 12px;border:1px solid #FDDFA0;background:#FFF4E0;border-radius:8px;font-size:12px;line-height:1.6">
+      <b>⚠️ 注意：本月實際發放金額為 $${_sn.netPay.toLocaleString()}</b>${_sn.savedAt?`（${String(_sn.savedAt).slice(0,10)} 存檔）`:''}<br>
+      以下明細為目前規則重新計算的結果（$${Math.round(c.netPay).toLocaleString()}），與發放金額不同，僅供內部參考，請勿作為薪資單發給同仁。
+    </div>`+slipHtml;
+  }
   const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
 
   const ov=document.createElement('div');
