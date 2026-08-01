@@ -331,6 +331,29 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 /* 子欄：請假出勤時數 / 未排班臨時加班 */
 .sub-row{grid-column:1/-1;display:flex;gap:6px;padding:4px 0 0 46px;flex-wrap:wrap}
 @media(max-width:700px){.sub-row{padding:4px 0 0 40px}}
+/* 請假證明 */
+.lp-btns{display:inline-flex;gap:4px;align-items:center;margin-left:auto}
+.lp-b{font-size:10px;padding:3px 8px;min-height:26px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text2);cursor:pointer;font-family:inherit;white-space:nowrap}
+.lp-b.up{color:var(--blue);border-color:var(--blue-border);background:var(--blue-bg)}
+.lp-b.ok{color:var(--green);border-color:var(--green-border);background:var(--green-bg);font-weight:600}
+.lp-b.del{color:var(--red);border-color:var(--red-border)}
+.lp-b:disabled{opacity:.45;cursor:not-allowed}
+.lp-none{font-size:10px;color:var(--text3)}
+.lp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.lp-card{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.lp-card.none{border-style:dashed;border-color:var(--orange-border);background:var(--orange-bg)}
+.lp-hd{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;font-size:11px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.lp-card.none .lp-hd{background:transparent;border-bottom-color:var(--orange-border)}
+.lp-hd span{color:var(--text2)}
+.lp-card img{width:100%;height:120px;object-fit:cover;display:block;cursor:pointer}
+.lp-pdf{height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:13px;cursor:pointer;color:var(--text2);gap:4px}
+.lp-pdf span{font-size:10px;color:var(--text3)}
+.lp-empty{height:120px;display:flex;justify-content:center;align-items:center;font-size:11px;color:var(--orange)}
+@media(max-width:600px){
+  .lp-btns{margin-left:0;width:100%;margin-top:4px}
+  .lp-b{font-size:12px;min-height:36px;padding:6px 10px}
+  .lp-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+}
 .sub-leave{display:flex;align-items:center;gap:5px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--purple);font-weight:500}
 .sub-leave input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
 .sub-temp{display:flex;align-items:center;gap:5px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--blue);font-weight:500}
@@ -568,7 +591,8 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+  import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 let CU={name:'',role:'',uid:''};
 let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
@@ -2001,11 +2025,23 @@ function renderSheet(emp,rec,shifts,c){
           <input type="number" min="0" max="59" inputmode="numeric" value="${r.workedHours!=null?mPart(r.workedHours):''}" class="hm-m" placeholder="0" data-date="${ds}" onchange="patchDayParts('${ds}','workedHours','m',this.value)" ${dis}><span class="hm-sep">分</span>
         </div>
         <span>（其餘${LEAVE_TYPES[type].label}）</span>
+        ${(()=>{const _p=r.proof;return `<span class="lp-btns">`+
+          (_p&&_p.url
+            ? `<button class="lp-b ok" onclick="viewLeaveProof('${ds}')" title="檢視請假證明">🖼 檢視證明</button>`
+              +(!locked?`<button class="lp-b" onclick="pickLeaveProof('${ds}')" title="重新上傳">↻</button><button class="lp-b del" onclick="delLeaveProof('${ds}')" title="刪除">✕</button>`:'')
+            : (!locked?`<button class="lp-b up" onclick="pickLeaveProof('${ds}')" title="上傳請假證明">📎 上傳證明</button>`:`<span class="lp-none">無證明</span>`)
+          )+`</span>`;})()}
       </div></div>`;
     } else if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&_hideFullLeaveInput){
       // 全薪假為整日假別（特休/婚/喪/紅字），不會有出勤，不提供出勤輸入
       subRow=`<div class="sub-row"><div class="sub-leave" style="background:var(--accent-light);border-color:var(--border)">
         <span style="color:var(--text2)">${LEAVE_TYPES[type].label}為整日假別（全薪，不含出勤）</span>
+        ${(()=>{const _p=r.proof;return `<span class="lp-btns">`+
+          (_p&&_p.url
+            ? `<button class="lp-b ok" onclick="viewLeaveProof('${ds}')" title="檢視請假證明">🖼 檢視證明</button>`
+              +(!locked?`<button class="lp-b" onclick="pickLeaveProof('${ds}')" title="重新上傳">↻</button><button class="lp-b del" onclick="delLeaveProof('${ds}')" title="刪除">✕</button>`:'')
+            : (!locked?`<button class="lp-b up" onclick="pickLeaveProof('${ds}')" title="上傳請假證明">📎 上傳證明</button>`:`<span class="lp-none">無證明</span>`)
+          )+`</span>`;})()}
       </div></div>`;
     } else if(c.isPartTime&&shift&&inEmp&&type==='normal'){
       // 兼職正常日：填實際上班時數（時薪計算依此）；預設=當天班表時數
@@ -2183,6 +2219,7 @@ function renderSheet(emp,rec,shifts,c){
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge badge-g">實領 $${_shownNet.toLocaleString()}${_hasStored&&_diff!==0?' <span style="font-weight:600;opacity:.75">(存檔值)</span>':''}</span>
           ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
+          <button class="btn-sm o" onclick="showLeaveProofs()" title="檢視本月所有請假證明">🖼 請假證明</button>
           <button class="btn-sm o" onclick="exportSlip()">📄 薪資單</button>
         </div>
       </div>
@@ -3015,6 +3052,118 @@ window.patchDayParts=function(ds,field,part,val){
   r[field]=(field==='workedHours'&&hours===0&&part==='h'&&!val&&!m)?null:hours;
   persist();rerender();
 };
+// ─── 請假證明（上傳／檢視／刪除）───
+// Storage 路徑：leave_proofs/{empId}/{yyyy-mm}/{yyyy-mm-dd}_{timestamp}.{ext}
+// 資料寫在 dailyData[ds].proof = {url, path, name, at, by}
+const _lpStorage = getStorage();
+const LP_MAX_MB = 8;
+window.pickLeaveProof=function(ds){
+  if(!currentRec){showToast('⚠️ 請先選擇同仁');return;}
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.onchange=async()=>{
+    const f=inp.files&&inp.files[0]; if(!f)return;
+    if(f.size>LP_MAX_MB*1024*1024){showToast(`⚠️ 檔案過大（上限 ${LP_MAX_MB}MB）`);return;}
+    const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+    if(!emp){showToast('⚠️ 找不到同仁資料');return;}
+    showToast('上傳中…',60000);
+    try{
+      const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+      const path=`leave_proofs/${selectedEmpId}/${viewYear}-${String(viewMonth).padStart(2,'0')}/${ds}_${Date.now()}.${ext}`;
+      const r=sRef(_lpStorage,path);
+      await uploadBytes(r,f);
+      const url=await getDownloadURL(r);
+      const rec=dayRec(ds);
+      const old=rec.proof;
+      rec.proof={url,path,name:f.name,at:new Date().toISOString(),by:CU.name};
+      persist();
+      // 舊檔清掉，避免佔空間（失敗不影響）
+      if(old&&old.path){try{await deleteObject(sRef(_lpStorage,old.path));}catch(_){}}
+      writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'上傳請假證明',detail:`${emp.name} ${ds}`});
+      showToast('✓ 請假證明已上傳');rerender();
+    }catch(e){showToast('⚠️ 上傳失敗：'+(e&&e.message||e));}
+  };
+  inp.click();
+};
+window.viewLeaveProof=function(ds){
+  const r=(currentRec&&currentRec.dailyData&&currentRec.dailyData[ds])||{};
+  const p=r.proof; if(!p||!p.url){showToast('⚠️ 此日期尚無證明');return;}
+  const isPdf=/\.pdf($|\?)/i.test(p.url)||/\.pdf$/i.test(p.name||'');
+  const ov=document.createElement('div');
+  ov.className='slip-overlay'; ov.id='lpOverlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:760px">
+    <div class="slip-bar">
+      <button class="btn slip-close" onclick="closeLeaveProof()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">請假證明 — ${ds}</span>
+      <a class="btn" href="${p.url}" target="_blank" rel="noopener" style="margin-left:auto;text-decoration:none">↗ 開新視窗</a>
+    </div>
+    <div style="padding:14px 18px;max-height:74vh;overflow:auto;text-align:center">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
+        ${p.name||''}${p.by?`　·　${p.by} 上傳`:''}${p.at?`　·　${String(p.at).slice(0,10)}`:''}
+      </div>
+      ${isPdf
+        ? `<iframe src="${p.url}" style="width:100%;height:65vh;border:1px solid var(--border);border-radius:8px"></iframe>`
+        : `<img src="${p.url}" alt="請假證明" style="max-width:100%;border-radius:8px;border:1px solid var(--border)">`}
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeLeaveProof();};
+  document.body.appendChild(ov);
+};
+window.closeLeaveProof=function(){const o=document.getElementById('lpOverlay');if(o)o.remove();};
+window.delLeaveProof=async function(ds){
+  if(!currentRec)return;
+  const rec=dayRec(ds); const p=rec.proof;
+  if(!p){showToast('⚠️ 此日期尚無證明');return;}
+  if(!confirm(`確定要刪除 ${ds} 的請假證明？此動作無法還原。`))return;
+  showToast('刪除中…',30000);
+  try{ if(p.path)await deleteObject(sRef(_lpStorage,p.path)); }catch(_){}
+  rec.proof=null; persist();
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'刪除請假證明',detail:`${emp?emp.name:''} ${ds}`});
+  showToast('✓ 已刪除');rerender();
+};
+// 整月請假證明總覽（月底核對用）
+window.showLeaveProofs=function(){
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  if(!emp||!currentRec){showToast('⚠️ 請先選擇同仁');return;}
+  const dd=currentRec.dailyData||{};
+  const days=getDaysInMonth(viewYear,viewMonth);
+  const rows=[];
+  for(let d=1;d<=days;d++){
+    const ds=dateStr(viewYear,viewMonth,d);
+    const r=dd[ds]||{};
+    const t=getEffectiveType(emp,r,ds,curShifts);
+    if(t==='normal'||t==='dayoff')continue;
+    rows.push({ds,d,label:(LEAVE_TYPES[t]||{}).label||t,proof:r.proof||null});
+  }
+  if(!rows.length){showToast('本月無請假紀錄');return;}
+  const have=rows.filter(r=>r.proof).length;
+  const ov=document.createElement('div');
+  ov.className='slip-overlay'; ov.id='lpAllOverlay';
+  ov.innerHTML=`<div class="slip-modal" style="max-width:820px">
+    <div class="slip-bar">
+      <button class="btn slip-close" onclick="closeLeaveProofsAll()">✕ 關閉</button>
+      <span style="font-size:14px;font-weight:700">請假證明總覽 — ${emp.name}　${viewYear}年${viewMonth}月</span>
+      <span style="margin-left:auto;font-size:12px;${have===rows.length?'color:var(--green)':'color:var(--orange)'};font-weight:700">
+        ${have}/${rows.length} 已附證明</span>
+    </div>
+    <div style="padding:14px 18px;max-height:74vh;overflow:auto">
+      <div class="lp-grid">
+        ${rows.map(r=>`<div class="lp-card${r.proof?'':' none'}">
+          <div class="lp-hd"><b>${viewMonth}/${r.d}</b><span>${r.label}</span></div>
+          ${r.proof
+            ? (/\.pdf($|\?)/i.test(r.proof.url)||/\.pdf$/i.test(r.proof.name||'')
+                ? `<div class="lp-pdf" onclick="closeLeaveProofsAll();viewLeaveProof('${r.ds}')">📄 PDF<br><span>點擊檢視</span></div>`
+                : `<img src="${r.proof.url}" onclick="closeLeaveProofsAll();viewLeaveProof('${r.ds}')" alt="證明">`)
+            : `<div class="lp-empty">尚未上傳</div>`}
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)closeLeaveProofsAll();};
+  document.body.appendChild(ov);
+};
+window.closeLeaveProofsAll=function(){const o=document.getElementById('lpAllOverlay');if(o)o.remove();};
 window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
 // 取消投保級距手動覆蓋 → 改回依人事資料（hr）自動帶入，之後人員資訊調整即會同步
 // ── 方案C：採用即時重算值，覆蓋存檔金額（admin）──
