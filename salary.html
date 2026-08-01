@@ -350,11 +350,16 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .lp-pdf span{font-size:10px;color:var(--text3)}
 .lp-empty{height:120px;display:flex;justify-content:center;align-items:center;font-size:11px;color:var(--orange)}
 @media(max-width:600px){
-  .lp-btns{margin-left:0;width:100%;margin-top:4px}
+  /* 請假子欄手機排版：文字整塊不斷字，證明按鈕獨立一行 */
+  .d-row .sub-leave{flex-wrap:wrap;row-gap:8px;column-gap:6px}
+  .d-row .sub-leave>span{white-space:nowrap;flex:0 0 auto}
+  .d-row .sub-leave .hm-wrap{flex:0 0 auto}
+  .d-row .sub-leave input,.d-row .sub-temp input{width:56px!important}
+  .lp-btns{margin-left:0;width:100%;margin-top:2px;justify-content:flex-end;gap:6px}
   .lp-b{font-size:12px;min-height:36px;padding:6px 10px}
   .lp-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 }
-.sub-leave{display:flex;align-items:center;gap:5px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--purple);font-weight:500}
+.sub-leave{display:flex;flex-wrap:wrap;align-items:center;gap:5px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--purple);font-weight:500}
 .sub-leave input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
 .sub-temp{display:flex;align-items:center;gap:5px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--blue);font-weight:500}
 .sub-temp input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--blue-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
