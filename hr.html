@@ -71,8 +71,6 @@ tr.data-row.selected td{background:var(--primary-light)}
 /* 詳細資料 */
 .detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:visible;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
 /* 展開／收合提示 */
-.detail-close{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);color:var(--text2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
-.detail-close:hover{background:#E5E7EB;color:var(--text)}
 .detail-collapse-bar{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;background:var(--surface2);border-top:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;user-select:none}
 .detail-collapse-bar:hover{background:#E5E7EB;color:var(--text)}
 tr.data-row.selected>td:first-child{position:relative}
@@ -80,10 +78,8 @@ tr.data-row.selected>td:first-child::before{content:'';position:absolute;left:0;
 /* 內嵌展開：詳細資料插在該列下方 */
 tr.detail-row>td{padding:0!important;border-bottom:1px solid var(--border)!important;background:var(--surface2)}
 tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:none;box-shadow:inset 0 6px 10px -8px rgba(15,23,42,.18)}
-@media(max-width:700px){
-  /* 表格為橫向捲動，讓展開內容固定貼齊左緣並限制在可視寬度 */
-  .detail-inline-wrap{position:sticky;left:0;width:100vw;max-width:100vw;box-sizing:border-box}
-}
+/* 展開內容填滿整個表格寬度（避免右側留白） */
+.detail-inline-wrap{width:100%;box-sizing:border-box}
 .detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#F0F2F5 0%,#fff 100%)}
 .detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .detail-tabs::-webkit-scrollbar{display:none}
@@ -821,7 +817,6 @@ function render() {
         <div style="font-size:12px;color:#6b6b68">${sel.location||'—'} · ${isBadge(sel.status)}</div></div>
         <button class="btn btn-sm btn-outline" onclick="openModal('editInterview',${sel.id})">編輯</button>
         ${sel.status==='錄取'?`<button class="btn btn-sm btn-primary" onclick="transferToEmployee(${sel.id})">✦ 轉為在職同仁</button>`:''}
-        <button class="detail-close" onclick="closeDetail()" title="收合">✕ 收合</button>
       </div>
       <div class="detail-body">
         <div class="dg">
@@ -845,7 +840,9 @@ function render() {
             </div></div>`:'';
           return createdStr+logHtml;
         })()}
-      </div></div>`;}
+      </div>
+      <div class="detail-collapse-bar" onclick="closeDetail()">▲ 收合 ${sel.name} 的資料</div>
+      </div>`;}
 
   } else if(tab==='resigned') {
     const all2=resigned;
@@ -898,7 +895,6 @@ function render() {
         <div style="flex:1"><div style="font-size:14px;font-weight:500">${sel.name}</div>
         <div style="font-size:12px;color:#6b6b68">${sel.workLocation||'—'} · ${sel.title||'—'} · ${eBadge(sel.status)}</div></div>
         ${currentUserRole==='admin'?`<button class="btn btn-sm btn-outline" onclick="restoreEmployee(${sel.id})">↩ 復職</button>`:''}
-        <button class="detail-close" onclick="closeDetail()" title="收合">✕ 收合</button>
       </div>
       <div class="detail-body">
         <div class="dg">
@@ -909,7 +905,9 @@ function render() {
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
-      </div></div>`;}
+      </div>
+      <div class="detail-collapse-bar" onclick="closeDetail()">▲ 收合 ${sel.name} 的資料</div>
+      </div>`;}
 
   } else {
     // 依權限過濾：manager/consultant 只計算自己管理的店面
@@ -1514,7 +1512,6 @@ function render() {
           </div>
           <button class="btn btn-sm btn-outline" onclick="openModal('editEmployee',${sel.id})">編輯</button>
           <button class="btn btn-sm btn-outline" style="color:#e24b4a;border-color:#e24b4a" onclick="resignEmployee(${sel.id})">離職</button>
-          <button class="detail-close" onclick="closeDetail()" title="收合">✕ 收合</button>
         </div>
         <div class="detail-tabs">${dtabs.map(([id,lb])=>`<button class="dtab${detailTab===id?' active':''}" onclick="setDetailTab('${id}')">${lb}</button>`).join('')}</div>
         <div class="detail-body">${body}</div>
