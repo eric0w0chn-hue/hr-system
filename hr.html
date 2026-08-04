@@ -70,6 +70,13 @@ tr.data-row.selected td{background:var(--primary-light)}
 .ibt:hover{background:#F1F5F9;color:var(--text)}
 /* 詳細資料 */
 .detail{border:1px solid var(--border);border-radius:10px;margin-top:14px;overflow:visible;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+/* 內嵌展開：詳細資料插在該列下方 */
+tr.detail-row>td{padding:0!important;border-bottom:1px solid var(--border)!important;background:var(--surface2)}
+tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:none;box-shadow:inset 0 6px 10px -8px rgba(15,23,42,.18)}
+@media(max-width:700px){
+  /* 表格為橫向捲動，讓展開內容固定貼齊左緣並限制在可視寬度 */
+  .detail-inline-wrap{position:sticky;left:0;width:100vw;max-width:100vw;box-sizing:border-box}
+}
 .detail-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#F0F2F5 0%,#fff 100%)}
 .detail-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 12px;background:#fff;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .detail-tabs::-webkit-scrollbar{display:none}
@@ -927,12 +934,11 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
+        ${sth('員工編號','empNo','110px')}
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
         ${sth('職稱','title','120px')}
-        ${sth('到職日','startDate','130px')}
         ${sth('年資','calcYears','80px')}
-        ${sth('狀態','status','80px')}
         <th style="width:70px">操作</th>
       </tr></thead>
       <tbody>${list.length?(()=>{
@@ -981,15 +987,15 @@ function render() {
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
-        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${toROC(r.startDate)}</td><td>${r.startDate?calcYears(r.startDate):'—'}</td>
-        <td>${eBadge(r.status)}</td>
+        <td data-label="員工編號">${r.empNo||'—'}</td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
           <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
         </div></td>
       </tr>`}).join('');
-      })():`<tr><td colspan="7"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
+      })():`<tr><td colspan="6"><div class="empty-state">沒有符合的記錄</div></td></tr>`}
       </tbody></table></div>
     ${list.length>PAGE_SIZE?(()=>{
       const totalPages=Math.ceil(list.length/PAGE_SIZE);
@@ -1507,6 +1513,7 @@ function render() {
   }
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
+  attachInlineDetail();
   document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='resigned')||(i===2&&tab==='interview'));});
   bindSearchInput();
 }
@@ -1903,12 +1910,35 @@ window.triggerSearch=function(){
 function bindSearchInput(){}
 window.setSf=function(v){sf=v;selId=null;currentPage=1;render();};
 window.setSloc=function(v){sloc=v;selId=null;currentPage=1;render();};
+// 將詳細資料面板從表格下方搬到「被點選那一列」的下方展開
+function attachInlineDetail(){
+  const main=document.getElementById('mainContent');
+  if(!main)return;
+  const detailEl=main.querySelector(':scope > .detail');
+  if(!detailEl)return;
+  const row=main.querySelector('tr.data-row.selected');
+  if(!row||!row.parentNode)return;
+  const tr=document.createElement('tr');
+  tr.className='detail-row';
+  const td=document.createElement('td');
+  td.colSpan=row.children.length;
+  const wrap=document.createElement('div');
+  wrap.className='detail-inline-wrap';
+  wrap.appendChild(detailEl);
+  td.appendChild(wrap);
+  tr.appendChild(td);
+  row.parentNode.insertBefore(tr,row.nextSibling);
+}
+
 window.setSelId=(id)=>{
   const opening = selId !== id;
   selId=(selId===id?null:id);
   render();
   if(opening && selId !== null){
     setTimeout(()=>{
+      // 內嵌展開：以「被點選的那一列」為基準做最小幅度捲動，避免跳位
+      const row=document.querySelector('tr.data-row.selected');
+      if(row){ row.scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
       const det=document.querySelector('.detail');
       if(det) det.scrollIntoView({behavior:'smooth',block:'start'});
     },50);
