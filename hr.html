@@ -1936,12 +1936,16 @@ window.setSelId=(id)=>{
   render();
   if(opening && selId !== null){
     setTimeout(()=>{
-      // 內嵌展開：以「被點選的那一列」為基準做最小幅度捲動，避免跳位
-      const row=document.querySelector('tr.data-row.selected');
-      if(row){ row.scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
-      const det=document.querySelector('.detail');
-      if(det) det.scrollIntoView({behavior:'smooth',block:'start'});
-    },50);
+      // 內嵌展開：把被點選的那一列捲到畫面上緣，下方展開內容即完整入鏡
+      const target=document.querySelector('tr.data-row.selected')||document.querySelector('.detail');
+      if(!target)return;
+      // topbar 可見時（非 iframe 嵌入）扣掉其高度，避免該列被遮住
+      const tb=document.querySelector('.topbar');
+      let offset=12;
+      if(tb && tb.offsetParent!==null) offset+=tb.getBoundingClientRect().height;
+      const top=target.getBoundingClientRect().top + window.pageYOffset - offset;
+      window.scrollTo({top:Math.max(top,0),behavior:'smooth'});
+    },60);
   }
 };
 window.setDetailTab=function(t){
