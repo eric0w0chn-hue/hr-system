@@ -934,7 +934,7 @@ function render() {
     </div>
     <div class="tw"><table>
       <thead><tr>
-        ${sth('員工編號','empNo','110px')}
+        ${sth('同仁編號','empNo','110px')}
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
         ${sth('職稱','title','120px')}
@@ -987,7 +987,7 @@ function render() {
         const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td data-label="員工編號">${r.empNo||'—'}</td>
+        <td data-label="同仁編號">${r.empNo||'—'}</td>
         <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td><div style="display:flex;gap:4px">
