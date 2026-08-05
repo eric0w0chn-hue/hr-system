@@ -240,12 +240,12 @@ async function migrateLegacyBonuses(){
     if(fi.health === true){ delete fi.health; changed++; }
   }
 
-  // ③ 既有「人工發放」的健檢紀錄 label 補年度（冪等）
+  // ③ 既有「人工發放」的健檢紀錄 label 補年度（冪等；只在缺正確年度前綴時補，保留 $0 原因等後綴）
   for(const l of bonusLog){
     if(l && l.cat === 'fixed' && typeof l.key === 'string' && l.key.indexOf('health_') === 0){
       const y = l.key.replace('health_', '');
       const want = '🏥 ' + y + '健康檢查補助';
-      if(l.label !== want){ l.label = want; changed++; }
+      if(!l.label || l.label.indexOf(want) !== 0){ l.label = want; changed++; }
     }
   }
 
@@ -367,7 +367,7 @@ function pendingBonusesOf(e){
   if(i.reached3mo && !i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
   if(i.isHealthDue && !i.healthPaid){
     const amt = parseInt(i.fi.healthAmt||'640');
-    items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640'});
+    items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640', zeroReason:i.fi.healthZeroReason||''});
   }
   if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
   if(i.isTenureToday && !i.tenurePaid){
@@ -485,7 +485,11 @@ function bonusRow(empId, it){
   const amtSelect = it.hasAmt ? `<select onchange="updateHealthAmt('${empId}',this.value)" style="font-size:11px;padding:2px 6px;margin-left:6px">
     <option value="640"${it.curAmt==='640'?' selected':''}>$640</option>
     <option value="900"${it.curAmt==='900'?' selected':''}>$900</option>
+    <option value="0"${it.curAmt==='0'?' selected':''}>$0</option>
   </select>` : '';
+  const zeroReason = (it.hasAmt && it.curAmt==='0')
+    ? `<input type="text" value="${(it.zeroReason||'').replace(/"/g,'&quot;')}" onchange="updateHealthZeroReason('${empId}',this.value)" placeholder="請填 $0 原因（必填）" style="font-size:11px;padding:2px 6px;margin-left:6px;width:190px;max-width:60vw">`
+    : '';
   const tag = it.tag ? `<span class="badge b-birthday">${it.tag}</span>` : '';
   const note = it.note ? `<div class="bonus-amt" style="font-style:italic">${it.note}</div>` : '';
   const rmBtn = it.cat === 'custom' ? `<button class="btn btn-sm btn-danger" onclick="removeCustom('${empId}',${it.customIdx})">✕</button>` : '';
@@ -493,7 +497,7 @@ function bonusRow(empId, it){
   return `<div class="bonus-item ${cls}">
     <div style="flex:1">
       <div class="bonus-title">${it.label}${tag}</div>
-      <div style="display:flex;align-items:center"><div class="bonus-amt">$${it.amount.toLocaleString()}</div>${amtSelect}</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><div class="bonus-amt">$${it.amount.toLocaleString()}</div>${amtSelect}${zeroReason}</div>
       ${note}
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -511,7 +515,20 @@ window.markPaid = async function(empId, key, cat, amount, label, checkbox){
   const e = allEmployees.find(x=>String(x.id)===String(empId));
   if(!e){ checkbox.checked = false; return; }
 
-  if(!confirm(`確定要標記「${e.name} - ${label}」為已發放？\n金額 $${amount.toLocaleString()}\n\n確認後將移至發放紀錄，主畫面不再顯示。`)){
+  // 健檢 $0：必須先填原因才能標記已發放
+  let zeroReason = '';
+  if(key.indexOf('health_') === 0 && amount === 0){
+    zeroReason = ((e.fixedBonuses && e.fixedBonuses.healthZeroReason) || '').trim();
+    if(!zeroReason){
+      alert('健康檢查補助金額為 $0，請先在欄位填寫原因，再標記已發放。');
+      checkbox.checked = false;
+      return;
+    }
+  }
+
+  const logLabel = zeroReason ? (label + '（$0原因：' + zeroReason + '）') : label;
+
+  if(!confirm(`確定要標記「${e.name} - ${label}」為已發放？\n金額 $${amount.toLocaleString()}${zeroReason ? '\n原因：'+zeroReason : ''}\n\n確認後將移至發放紀錄，主畫面不再顯示。`)){
     checkbox.checked = false;
     return;
   }
@@ -532,7 +549,8 @@ window.markPaid = async function(empId, key, cat, amount, label, checkbox){
   bonusLog.unshift({
     id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
     empId: e.id, empName: e.name, workLocation: e.workLocation || '',
-    label, key, cat, amount, date: today,
+    label: logLabel, key, cat, amount, date: today,
+    note: zeroReason || undefined,
     operator: currentUserName, createdAt: new Date().toISOString()
   });
 
@@ -545,8 +563,17 @@ window.updateHealthAmt = async function(empId, val){
   if(!e) return;
   if(!e.fixedBonuses) e.fixedBonuses = {};
   e.fixedBonuses.healthAmt = val;
+  if(val !== '0') delete e.fixedBonuses.healthZeroReason; // 金額非 $0 時清除原因
   renderList();
   await saveEmployeesOnly();
+};
+
+window.updateHealthZeroReason = async function(empId, val){
+  const e = allEmployees.find(x=>String(x.id)===String(empId));
+  if(!e) return;
+  if(!e.fixedBonuses) e.fixedBonuses = {};
+  e.fixedBonuses.healthZeroReason = (val||'').trim();
+  await saveEmployeesOnly(); // 不 renderList，避免輸入中重繪失焦
 };
 
 window.openAddCustomModal = function(empId, empName){
