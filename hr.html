@@ -1394,10 +1394,11 @@ function render() {
       } else if(detailTab==='insurance'){
         const ins=sel.insurance||{grade:'',dependents:[],gradeHistory:[]};
         const gradeHistory=ins.gradeHistory||[];
+    const _insAdmin=(currentUserRole==='admin'); // 投保資料僅管理員可設定及調整
         body=`<div style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span class="sec-title" style="margin:0">投保資料</span>
-            <button class="btn btn-sm btn-outline" onclick="openInsuranceImport()" style="font-size:11px">📄 匯入勞保明細</button>
+            ${_insAdmin?`<button class="btn btn-sm btn-outline" onclick="openInsuranceImport()" style="font-size:11px">📄 匯入勞保明細</button>`:`<span style="font-size:11px;color:#C47A00;font-weight:600">僅管理員可調整</span>`}
           </div>
           <div class="dg3" style="margin-bottom:12px">
             <div class="sc"><div class="sl">現有投保級距</div><div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div></div>
@@ -1412,20 +1413,20 @@ function render() {
               <div class="hist-dot green"></div>
               <div style="flex:1">
                 <div style="font-size:13px;font-weight:500">$${Number(h.grade).toLocaleString()}</div>
-                <input type="date" value="${h.date}" onchange="updateInsuranceHistoryDate(${sel.id},${i},this.value)"
+                <input type="date" value="${h.date}" ${_insAdmin?'':'disabled'} onchange="updateInsuranceHistoryDate(${sel.id},${i},this.value)"
                   style="font-size:12px;padding:3px 6px;border:1px solid #DDE1E9;border-radius:6px;margin-top:4px;color:#5A6175">
               </div>
-              <button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
+              ${_insAdmin?`<button class="ibt" onclick="deleteInsuranceHistory(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>`:''}
             </div>`).join('')}
           </div>`:''}
           <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee">
             <div class="sec-title" style="margin-bottom:8px">勞退自提</div>
             <div style="display:flex;align-items:center;gap:8px;max-width:400px">
-              <select id="ins-pension-${sel.id}" style="flex:1;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
+              <select id="ins-pension-${sel.id}" ${_insAdmin?'':'disabled'} style="flex:1;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
                 <option value="0"${!ins.pensionRate||ins.pensionRate==0?' selected':''}>不自提</option>
                 ${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${ins.pensionRate==p/100?' selected':''}>自提 ${p}%</option>`).join('')}
               </select>
-              <button class="btn btn-sm btn-primary" onclick="savePensionRate(${sel.id})">儲存</button>
+              ${_insAdmin?`<button class="btn btn-sm btn-primary" onclick="savePensionRate(${sel.id})">儲存</button>`:''}
             </div>
             <div style="font-size:11px;color:#9AA0B4;margin-top:5px">自提金額 = 投保級距 × 自提%，此設定會自動帶入薪資計算。</div>
           </div>
@@ -1433,7 +1434,7 @@ function render() {
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span class="sec-title" style="margin:0">眷屬資料</span>
-            <button class="btn btn-sm btn-outline" onclick="openModal('addDependent',${sel.id})">＋ 新增眷屬</button>
+            ${_insAdmin?`<button class="btn btn-sm btn-outline" onclick="openModal('addDependent',${sel.id})">＋ 新增眷屬</button>`:''}
           </div>
           ${(ins.dependents||[]).length?`<div class="tw"><table>
             <thead><tr>
@@ -1446,7 +1447,7 @@ function render() {
               <td>${d.name||'—'}</td>
               <td>${toROC(d.birthday)}</td>
               <td>${d.idNo||'—'}</td>
-              <td><button class="ibt" onclick="removeDependent(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></td>
+              <td>${_insAdmin?`<button class="ibt" onclick="removeDependent(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>`:'—'}</td>
             </tr>`).join('')}</tbody>
           </table></div>`:'<div class="empty-state" style="padding:20px">尚無眷屬資料，點上方按鈕新增</div>'}
         </div>`;
@@ -2069,6 +2070,8 @@ window.removeEmergencyContact=async function(empId,idx){
 
 // ── 投保級距儲存 ──
 window.saveInsuranceGrade=async function(empId){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+
   const r=employees.find(x=>x.id===empId);if(!r)return;
   const el=document.getElementById('ins-grade-'+empId);
   if(!el||!el.value){showToast('請先選擇投保級距');return;}
@@ -2084,6 +2087,8 @@ window.saveInsuranceGrade=async function(empId){
 };
 
 window.deleteInsuranceHistory=async function(empId,idx){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+
   if(!confirm('確定要刪除此筆變更記錄？'))return;
   const r=employees.find(x=>x.id===empId);
   if(!r||!r.insurance||!r.insurance.gradeHistory)return;
@@ -2092,6 +2097,8 @@ window.deleteInsuranceHistory=async function(empId,idx){
 };
 
 window.updateInsuranceHistoryDate=async function(empId,idx,newDate){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+
   const r=employees.find(x=>x.id===empId);
   if(!r||!r.insurance||!r.insurance.gradeHistory||!r.insurance.gradeHistory[idx])return;
   r.insurance.gradeHistory[idx].date=newDate;
@@ -2099,6 +2106,8 @@ window.updateInsuranceHistoryDate=async function(empId,idx,newDate){
 };
 
 window.savePensionRate=async function(empId){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+
   const r=employees.find(x=>x.id===empId);
   if(!r)return;
   if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
@@ -2112,6 +2121,8 @@ window.savePensionRate=async function(empId){
 
 // ── 刪除眷屬 ──
 window.removeDependent=async function(empId,idx){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+
   if(!confirm('確定要刪除此眷屬資料？'))return;
   const r=employees.find(x=>x.id===empId);
   if(!r||!r.insurance)return;

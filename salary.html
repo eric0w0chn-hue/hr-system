@@ -436,6 +436,8 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 .add-sec{padding:12px 16px;border-top:1px solid var(--border)}
 .add-list{display:flex;flex-direction:column;gap:7px;margin-bottom:8px}
+.add-item.ded-custom{background:var(--red-bg);border-color:var(--red-border)}
+.add-item.ded-custom .add-name-input:focus{border-color:var(--red-border)}
 .add-item{display:flex;align-items:center;gap:7px;padding:9px 12px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px}
 .add-item .add-name{flex:1;font-size:12px;color:var(--green);font-weight:500}
 .add-item .add-name-input{flex:1;font-size:12px;padding:4px 7px;border:1px solid var(--green-border);border-radius:6px;background:#fff;font-family:inherit;min-height:30px}
@@ -1489,13 +1491,16 @@ function calcSalary(emp,rec,shifts){
   const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
   const customAdds=rec?.customAdds||[]; // [{name, amount}]
   const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
+  // 自訂扣項（比照加項；舊資料無此欄位 → 空陣列，故不影響已發放月份金額）
+  const customDeds=rec?.customDeds||[]; // [{name, amount}]
+  const customDedTotal=customDeds.reduce((s,a)=>s+Number(a.amount||0),0);
   // 管理人員出勤扣點：每點 -100，最多扣 8 點（-800）；達 9 點以上封頂 -800 並提示當月無管理獎金
   const mgrPoints=Number(rec?.mgrPoints||0);
   const mgrDeduct=Math.min(mgrPoints,8)*100;
   const mgrNoBonus=mgrPoints>=9;
 
   const gross=base+elastic+otPayTotal;
-  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLabor+finalHealth+pensionAmt+mgrDeduct;
+  const totalDeduct=personalDeduct+absentDeduct+sickDeduct+finalLabor+finalHealth+pensionAmt+mgrDeduct+customDedTotal;
   const totalAdd=autoAnnualComp+autoRedComp+mealAllowance+customAddTotal;
   const netPay=gross-totalDeduct+totalAdd;
 
@@ -1518,7 +1523,7 @@ function calcSalary(emp,rec,shifts){
     unenrollDate:unenrollDate?dateStr(unenrollDate.getFullYear(),unenrollDate.getMonth()+1,unenrollDate.getDate()):null,
     pensionRate,pensionAmt,dependents,insMode,
     pensionFromHR:(rec?.pensionRate==null&&hrPension>0),depsFromHR:(rec?.dependents==null&&hrDeps>0),
-    annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,
+    annualComp,autoAnnualComp,redComp,autoRedComp,customAdds,customAddTotal,customDeds,customDedTotal,
     isCentral:isCen,scheduledDays,mealDays,mealAllowance,
     gross,totalDeduct,totalAdd,netPay,verifySum,
     insGrade,insMatched:ins.matched,autoGrade,gradeOverride:rec?.gradeOverride,elasticManual:rec?.elasticManual
@@ -1665,9 +1670,11 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
   const customAdds=rec?.customAdds||[];
   const customAddTotal=customAdds.reduce((s,a)=>s+Number(a.amount||0),0);
+  const customDeds=rec?.customDeds||[];
+  const customDedTotal=customDeds.reduce((s,a)=>s+Number(a.amount||0),0);
 
   const gross=basePay+leavePayTotal+attendBonus+otPayTotal;
-  const totalDeduct=finalLabor+finalHealth+pensionAmt+mgrDeduct;
+  const totalDeduct=finalLabor+finalHealth+pensionAmt+mgrDeduct+customDedTotal;
   const totalAdd=mealAllowance+customAddTotal;
   const netPay=gross-totalDeduct+totalAdd;
 
@@ -1685,7 +1692,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     hireDate:emp2.hireDate, leaveDate:emp2.leaveDate, unenrollDate:null,
     depsFromHR:false, pensionFromHR:!!emp.insurance?.pensionRate,
     mgrPoints, mgrDeduct, mgrNoBonus,
-    mealDays, mealAllowance, customAdds, customAddTotal, isCentral:isCen,
+    mealDays, mealAllowance, customAdds, customAddTotal, customDeds, customDedTotal, isCentral:isCen,
     gross, totalDeduct, totalAdd, netPay,
     employedDays:emp2.days, isPartial:false,
     // 請假給薪（比照正職規則）
@@ -1993,6 +2000,10 @@ function renderSheet(emp,rec,shifts,c){
   const WD=['日','一','二','三','四','五','六'];
   const locked=isMonthLocked(viewYear,viewMonth)&&CU.role!=='admin';
   const dis=locked?'disabled':'';
+  // 勞健保／投保資料：僅 admin 可設定及調整（其他角色唯讀）
+  const insAdmin=CU.role==='admin';
+  const insDis=insAdmin?dis:'disabled';
+  const insLocked=locked||!insAdmin;
   const dd=rec?.dailyData||{};
   const defOt=c.defOt;
   const emp2=calcEmployedDays(emp,viewYear,viewMonth,rec);
@@ -2196,6 +2207,14 @@ function renderSheet(emp,rec,shifts,c){
   const insModeLabel={normal:'正常',new:'新人（首月免扣）',quit_prepay:'離職預扣次月',same_month:'當月到職/離職'};
   const insModeTag=c.insMode==='new'?`<span class="prepay-tag prepay-new">首月免扣</span>`:c.insMode==='quit_prepay'?`<span class="prepay-tag prepay-quit">預扣次月</span>`:c.insMode==='same_month'?`<span class="prepay-tag prepay-new">當月到離職</span>`:'';
 
+  // 自訂扣項（比照加項寫法；沿用 add-item 樣式但改紅色系）
+  const customDedRows=(c.customDeds||[]).map((a,i)=>`<div class="add-item ded-custom">
+    <input class="add-name-input" value="${a.name||''}" placeholder="扣項名目" onchange="updCustomDed(${i},'name',this.value)" ${dis}>
+    <input class="add-amt" type="number" value="${a.amount||''}" placeholder="金額" onchange="updCustomDed(${i},'amount',+this.value)" ${dis}>
+    <span class="add-val" style="color:var(--red)">−$${Number(a.amount||0).toLocaleString()}</span>
+    ${!locked?`<span class="add-del" onclick="delCustomDed(${i})">刪</span>`:''}
+  </div>`).join('');
+
   // 自訂加項
   const customAddRows=(c.customAdds||[]).map((a,i)=>`<div class="add-item">
     <input class="add-name-input" value="${a.name||''}" placeholder="加項名目" onchange="updCustomAdd(${i},'name',this.value)" ${dis}>
@@ -2318,23 +2337,23 @@ function renderSheet(emp,rec,shifts,c){
           </span>
         </div>
         ${showInsPanel?`
-        <div style="font-size:10px;color:var(--text3);margin-bottom:8px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px">依 ${INS_YEAR} 年度級距自動帶入，可手動覆蓋${insAdmin?'':'<span style="color:var(--orange);font-weight:600">（僅管理員可調整，目前為唯讀）</span>'}</div>
         <div class="ins-headbar">
           <div class="ins-head-cell">
             <span class="ins-head-lbl">投保級距</span>
             ${c.insGrade?`<span class="ins-head-val">$${c.insGrade.toLocaleString()}</span>`
               :`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ 未抓到級距</span>`}
             ${c.gradeOverride?`<span class="ins-ovr-tag">手動覆蓋</span>
-              <input class="ded-input ins-ovr-in" style="width:90px" type="number" placeholder="手動輸入" value="${c.gradeOverride}" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>
-              ${!locked?`<button class="btn-sm o ins-ovr-clr" onclick="clearGradeOverride()" title="改回依人事資料自動帶入">✕ 取消覆蓋</button>`:''}
+              <input class="ded-input ins-ovr-in" style="width:90px" type="number" placeholder="手動輸入" value="${c.gradeOverride}" onchange="patchRec('gradeOverride',+this.value||null)" ${insDis}>
+              ${!insLocked?`<button class="btn-sm o ins-ovr-clr" onclick="clearGradeOverride()" title="改回依人事資料自動帶入">✕ 取消覆蓋</button>`:''}
               <span class="ins-head-note">${c.autoGrade?`人事資料 $${c.autoGrade.toLocaleString()}`:'人事資料無級距'}</span>`
               :`${c.insMatched&&c.insMatched!==c.insGrade?`<span class="ins-head-note">對應級距 $${c.insMatched.toLocaleString()}</span>`:''}
-              <input class="ded-input" style="width:90px" type="number" placeholder="手動覆蓋" value="" onchange="patchRec('gradeOverride',+this.value||null)" ${dis}>`}
+              <input class="ded-input" style="width:90px" type="number" placeholder="手動覆蓋" value="" onchange="patchRec('gradeOverride',+this.value||null)" ${insDis}>`}
           </div>
           <div class="ins-head-cell"><span class="ins-head-lbl">繳費狀態</span>
-            <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${dis}>
+            <select class="ins-sel" onchange="patchRec('insMode',this.value)" ${insDis}>
               ${Object.entries(insModeLabel).map(([v,l])=>`<option value="${v}"${c.insMode===v?' selected':''}>${l}</option>`).join('')}</select></div>
-          ${!locked?`<button class="btn-sm o" onclick="applyInsSuggest()" title="依${INS_YEAR}年度級距重設勞健保">↻ 套用${INS_YEAR}建議值</button>`:''}
+          ${!insLocked?`<button class="btn-sm o" onclick="applyInsSuggest()" title="依${INS_YEAR}年度級距重設勞健保">↻ 套用${INS_YEAR}建議值</button>`:''}
         </div>
 
         <div class="employ-box">
@@ -2343,9 +2362,9 @@ function renderSheet(emp,rec,shifts,c){
             <button class="btn-sm o" onclick="toggleEmployBox()">${employBoxOpen?'收合':'展開設定'}</button>
           </div>
           ${employBoxOpen?`<div class="employ-grid">
-            <div class="employ-item"><label>到職日</label><input type="date" value="${(c.hireDate&&toDateInput(c.hireDate))||''}" onchange="patchRec('hireOverride',this.value||null)" ${dis}></div>
-            <div class="employ-item"><label>離職日</label><input type="date" value="${(c.leaveDate&&toDateInput(c.leaveDate))||''}" onchange="patchRec('leaveOverride',this.value||null)" ${dis}></div>
-            <div class="employ-item"><label>退保日 <span style="color:var(--text3)">（預設離職次日）</span></label><input type="date" value="${c.unenrollDate?toDateInput(c.unenrollDate):''}" onchange="patchRec('unenrollOverride',this.value||null)" ${dis}></div>
+            <div class="employ-item"><label>到職日</label><input type="date" value="${(c.hireDate&&toDateInput(c.hireDate))||''}" onchange="patchRec('hireOverride',this.value||null)" ${insDis}></div>
+            <div class="employ-item"><label>離職日</label><input type="date" value="${(c.leaveDate&&toDateInput(c.leaveDate))||''}" onchange="patchRec('leaveOverride',this.value||null)" ${insDis}></div>
+            <div class="employ-item"><label>退保日 <span style="color:var(--text3)">（預設離職次日）</span></label><input type="date" value="${c.unenrollDate?toDateInput(c.unenrollDate):''}" onchange="patchRec('unenrollOverride',this.value||null)" ${insDis}></div>
           </div>
           <div class="employ-note">在保天數 = 到職日到退保日（含頭尾）。退保日可與離職日同天或晚一天。健保只有退保日為當月最後一天才扣整月。</div>`:''}
         </div>
@@ -2357,11 +2376,11 @@ function renderSheet(emp,rec,shifts,c){
             <div class="ins-tname">勞保<div class="ins-tnote">${INS_YEAR}年度 員工自付${c.isPartial&&c.insMode==='normal'?`<br>在保 ${c.laborInsuredDays} 天 / ${days}`:''}</div></div>
             ${c.insMode==='quit_prepay'?`
             <div class="prepay-inputs">
-              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.laborPrev}" onchange="patchRec('laborPrev',+this.value)" ${dis}></div>
+              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.laborPrev}" onchange="patchRec('laborPrev',+this.value)" ${insDis}></div>
               <span class="prepay-plus">+</span>
-              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.laborCurr}" onchange="patchRec('laborCurr',+this.value)" ${dis}></div>
+              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.laborCurr}" onchange="patchRec('laborCurr',+this.value)" ${insDis}></div>
             </div>
-            `:`<div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${dis}></div>`}
+            `:`<div style="display:flex;align-items:center;gap:5px;justify-content:center"><span class="ins-auto">整月 $${insFromGrade(c.insGrade).labor.toLocaleString()}</span><input class="ded-input" style="width:72px" type="number" value="${c.laborBase}" onchange="patchRec('laborDeduct',+this.value)" ${insDis}></div>`}
             <div class="ins-tval ${c.insMode==='new'?'strike':''}">−$${c.finalLabor.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">上月$${c.laborPrev.toLocaleString()}+本月$${c.laborCurr.toLocaleString()}</div>`:c.isPartial&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--text3)">在保${c.laborInsuredDays}天</div>`:''}</div>
           </div>
 
@@ -2369,20 +2388,20 @@ function renderSheet(emp,rec,shifts,c){
             <div class="ins-tname">健保<div class="ins-tnote">本人 + 眷屬加保${c.depsFromHR?'<br><span style="color:var(--blue)">眷屬數來自人員資訊</span>':''}</div></div>
             ${c.insMode==='quit_prepay'?`
             <div class="prepay-inputs">
-              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.healthPrev}" onchange="patchRec('healthPrev',+this.value)" ${dis}></div>
+              <div class="prepay-field"><label>${viewMonth-1<1?12:viewMonth-1}月(上月)</label><input class="ded-input" type="number" value="${c.healthPrev}" onchange="patchRec('healthPrev',+this.value)" ${insDis}></div>
               <span class="prepay-plus">+</span>
-              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.healthCurr}" onchange="patchRec('healthCurr',+this.value)" ${dis}></div>
+              <div class="prepay-field"><label>${viewMonth}月(本月)</label><input class="ded-input" type="number" value="${c.healthCurr}" onchange="patchRec('healthCurr',+this.value)" ${insDis}></div>
             </div>
             `:`<div style="display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
-              <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${dis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
-              <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${dis}>
+              <select class="ins-sel" onchange="patchRec('dependents',+this.value)" ${insDis}>${[0,1,2,3,4,5,6].map(n=>`<option value="${n}"${c.dependents===n?' selected':''}>本人${n>0?'+眷'+n:''}</option>`).join('')}</select>
+              <input class="ded-input" style="width:72px" type="number" value="${c.healthBase}" onchange="patchRec('healthDeduct',+this.value)" ${insDis}>
             </div>`}
             <div class="ins-tval ${c.insMode==='new'||(!c.healthCharged&&c.insMode==='normal')?'strike':''}">−$${c.finalHealth.toLocaleString()}${c.insMode==='quit_prepay'?`<div class="ins-tnote" style="color:var(--orange)">上月$${c.healthPrev.toLocaleString()}+本月$${c.healthCurr.toLocaleString()}</div>`:c.dependents>0&&c.healthCharged?`<div class="ins-tnote" style="color:var(--text3)">本人$${c.healthBase.toLocaleString()}+眷$${(c.healthTotal-c.healthBase).toLocaleString()}</div>`:!c.healthCharged&&c.insMode==='normal'?`<div class="ins-tnote" style="color:var(--green)">非月底退保不扣</div>`:''}</div>
           </div>
 
           <div class="ins-trow">
             <div class="ins-tname">自提退休金<div class="ins-tnote">投保級距 × 自提%${c.pensionFromHR?'<br><span style="color:var(--blue)">自提%來自人員資訊</span>':''}</div></div>
-            <div style="text-align:center"><select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${dis}><option value="0"${c.pensionRate===0?' selected':''}>不自提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
+            <div style="text-align:center"><select class="ins-sel" onchange="patchRec('pensionRate',+this.value)" ${insDis}><option value="0"${c.pensionRate===0?' selected':''}>不自提</option>${[1,2,3,4,5,6].map(p=>`<option value="${p/100}"${c.pensionRate===p/100?' selected':''}>${p}%</option>`).join('')}</select></div>
             <div class="ins-tval">−$${c.pensionAmt.toLocaleString()}</div>
           </div>
         </div>
@@ -2397,7 +2416,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="collapsible-header" onclick="toggleDedPanel()">
           <span class="ch-left">➖ 扣項明細</span>
           <span class="ch-right">
-            <span class="ch-summary ${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct)>0?'deduct':'empty'}">${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct)>0?`−$${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct).toLocaleString()}`:'無扣項'}</span>
+            <span class="ch-summary ${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct+c.customDedTotal)>0?'deduct':'empty'}">${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct+c.customDedTotal)>0?`−$${(c.personalDeduct+c.sickDeduct+c.absentDeduct+c.mgrDeduct+c.customDedTotal).toLocaleString()}`:'無扣項'}</span>
             <span class="ch-chevron ${showDedPanel?'open':''}">▼</span>
           </span>
         </div>
@@ -2432,6 +2451,8 @@ function renderSheet(emp,rec,shifts,c){
           ${c.mgrNoBonus?`<div class="mgr-warn">⚠️ 已達 ${c.mgrPoints} 點，當月無管理人員獎金</div>`:''}
           `:''}
         </div>
+        ${customDedRows?`<div class="add-list" style="margin-top:10px">${customDedRows}</div>`:''}
+        ${!locked?`<button class="btn-sm o" style="margin-top:10px" onclick="addCustomDed()">+ 新增其他扣項</button>`:''}
         </div>
         `:''}
       </div>
@@ -2513,6 +2534,7 @@ function dayRec(ds){
 }
 
 window.applyInsSuggest=function(){
+  if(CU.role!=='admin'){showToast('⚠️ 勞健保相關設定僅管理員可調整');return;}
   if(!currentRec)return;
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const insGrade=(currentRec.gradeOverride)||getInsGrade(emp,viewYear,viewMonth);
@@ -3171,7 +3193,12 @@ window.showLeaveProofs=function(){
   document.body.appendChild(ov);
 };
 window.closeLeaveProofsAll=function(){const o=document.getElementById('lpAllOverlay');if(o)o.remove();};
-window.patchRec=function(field,value){if(!currentRec)return;currentRec[field]=value;persist();rerender();};
+// 勞健保相關欄位僅 admin 可修改（前端已隱藏，此處為第二道防護）
+const INS_FIELDS=['gradeOverride','insMode','laborDeduct','healthDeduct','laborPrev','laborCurr','healthPrev','healthCurr','dependents','pensionRate','hireOverride','leaveOverride','unenrollOverride'];
+window.patchRec=function(field,value){
+  if(!currentRec)return;
+  if(INS_FIELDS.includes(field)&&CU.role!=='admin'){showToast('⚠️ 勞健保相關設定僅管理員可調整');return;}
+  currentRec[field]=value;persist();rerender();};
 // 取消投保級距手動覆蓋 → 改回依人事資料（hr）自動帶入，之後人員資訊調整即會同步
 // ── 方案C：採用即時重算值，覆蓋存檔金額（admin）──
 // 用途：確認新規則/新資料算出的金額才是正確的，才把 snapshot 更新掉。
@@ -3359,6 +3386,7 @@ window.adoptRecalc=async function(){
   } else showToast('⚠️ 更新失敗');
 };
 window.clearGradeOverride=function(){
+  if(CU.role!=='admin'){showToast('⚠️ 勞健保相關設定僅管理員可調整');return;}
   if(!currentRec)return;
   currentRec.gradeOverride=null;persist();
   showToast('✓ 已取消手動覆蓋，改依人事資料自動帶入');rerender();
@@ -3384,6 +3412,9 @@ window.updTempSegParts=function(ds,si,part,val){
   s[si].h=hmPartsToHours(h,m);persist();rerender();
 };
 window.delTempSeg=function(ds,si){if(!currentRec)return;const s=ensureSegs(ds);s.splice(si,1);if(!s.length)s.push({h:'',rate:1.34});persist();rerender();};
+window.addCustomDed=function(){if(!currentRec)return;if(!currentRec.customDeds)currentRec.customDeds=[];currentRec.customDeds.push({name:'',amount:0});showDedPanel=true;persist();rerender();};
+window.updCustomDed=function(i,field,val){if(!currentRec||!currentRec.customDeds||!currentRec.customDeds[i])return;currentRec.customDeds[i][field]=val;persist();rerender();};
+window.delCustomDed=function(i){if(!currentRec||!currentRec.customDeds)return;currentRec.customDeds.splice(i,1);persist();rerender();};
 window.addCustomAdd=function(){if(!currentRec)return;if(!currentRec.customAdds)currentRec.customAdds=[];currentRec.customAdds.push({name:'',amount:0});persist();rerender();};
 window.updCustomAdd=function(i,field,val){if(!currentRec||!currentRec.customAdds||!currentRec.customAdds[i])return;currentRec.customAdds[i][field]=val;persist();rerender();};
 window.delCustomAdd=function(i){if(!currentRec||!currentRec.customAdds)return;currentRec.customAdds.splice(i,1);persist();rerender();};
@@ -3488,6 +3519,9 @@ function slipDisplayInts(c, slipNet){
   return D;
 }
 function buildSlipHtml(c,customRows,authNet){
+  // 自訂扣項列（比照 customRows 的加項列；金額為整數，不影響明細與總額的一致性）
+  const customDedRowsSlip=(c.customDeds||[]).filter(a=>Number(a.amount)>0)
+    .map(a=>`<tr><td>${a.name||'其他扣項'}</td><td class="red">−$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
   const _slipNet=(authNet!=null&&isFinite(authNet))?Math.round(authNet):Math.round(c.netPay);
   const _slipDiff=_slipNet-Math.round(c.netPay);
   if(c.isPartTime){
@@ -3508,6 +3542,7 @@ ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrN
 ${c.finalLabor>0?`<tr><td>勞保自付</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>`:''}
 ${c.finalHealth>0?`<tr><td>健保自付</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>`:''}
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
+${customDedRowsSlip}
 <tr class="tot"><td>本月實領薪資${_slipDiff!==0?'<div class="sd">（實際發放金額；上方明細為現行規則重算 $'+Math.round(c.netPay).toLocaleString()+'，僅供參考）</div>':''}</td><td class="green">$${_slipNet.toLocaleString()}</td></tr>
 </table>`;
   }
@@ -3531,6 +3566,7 @@ ${c.mgrDeduct>0?`<tr><td>管理人員出勤扣點（${c.mgrPoints}點）${c.mgrN
 <tr><td>勞保自付${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.laborPrev.toLocaleString()}+${viewMonth}月$${c.laborCurr.toLocaleString()})`:c.isPartial?'(在保'+c.laborInsuredDays+'天)':''}</td><td class="red">−$${c.finalLabor.toLocaleString()}</td></tr>
 <tr><td>健保自付${c.dependents>0?'(含眷'+c.dependents+'人)':''}${c.insMode==='new'?'(首月免扣)':c.insMode==='quit_prepay'?`(${viewMonth-1<1?12:viewMonth-1}月$${c.healthPrev.toLocaleString()}+${viewMonth}月$${c.healthCurr.toLocaleString()})`:!c.healthCharged?'(非月底退保免扣)':''}</td><td class="red">−$${c.finalHealth.toLocaleString()}</td></tr>
 ${c.pensionAmt>0?`<tr><td>自提退休金（${Math.round(c.pensionRate*100)}%）</td><td class="red">−$${c.pensionAmt.toLocaleString()}</td></tr>`:''}
+${customDedRowsSlip}
 ${c.insMode==='quit_prepay'?`<tr><td colspan="2" style="font-size:10px;color:#C47A00">※每月薪資扣除的是上個月保費。此次扣 ${viewMonth-1<1?12:viewMonth-1} 月＋${viewMonth} 月兩個月保費，因離職後無薪資可扣，故提前一併扣除。</td></tr>`:''}
 ${Object.keys(c.paidLeaves).length?`<tr><td class="sh" colspan="2">其他假別（全薪）</td></tr>${Object.entries(c.paidLeaves).map(([label,dates])=>`<tr><td>${label}<div class="sd">${dates.join('、')}</div></td><td style="color:#1A9B4C;text-align:right">不扣薪</td></tr>`).join('')}`:''}
 <tr class="tot"><td>本月實領薪資${_slipDiff!==0?'<div class="sd">（實際發放金額；上方明細為現行規則重算 $'+Math.round(c.netPay).toLocaleString()+'，僅供參考）</div>':''}</td><td class="green">$${_slipNet.toLocaleString()}</td></tr>
