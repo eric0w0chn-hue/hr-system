@@ -1028,7 +1028,6 @@ function render() {
           <div class="di"><div class="dl">同仁編號</div><div class="dv">${sel.empNo||'—'}</div></div>
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
-          <div class="di"><div class="dl">學歷</div><div class="dv">${sel.education||'—'}</div></div>
           ${(sel.title||'').includes('兼職')||(sel.title||'').includes('工讀')
             ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${(sel.hourlyRate||0).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
             :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>`}
@@ -1065,18 +1064,18 @@ function render() {
           <span class="sec-title" style="margin:0">薪資調整歷程</span>
           <button class="btn btn-sm btn-outline" onclick="openModal('addSalary',${sel.id})">＋ 新增記錄</button>
         </div>
-        ${sel.salaryHistory.length?sel.salaryHistory.map((h,i)=>`<div class="hist-row">
+        ${sel.salaryHistory.length?sel.salaryHistory.map((h,oi)=>({h,oi})).sort((a,b)=>String(a.h.date).localeCompare(String(b.h.date))).map((_o,i,_arr)=>{const h=_o.h,oi=_o.oi;return `<div class="hist-row">
           <div class="hist-dot green"></div>
           <div style="flex:1">
             <div style="font-size:13px;font-weight:500">$${h.amount.toLocaleString()}</div>
-            <div class="hist-meta">${h.date} · ${h.reason}</div>
+            <div class="hist-meta">${h.date?(h.date.slice(0,7).replace('-','/')+' 起'):'—'}${h.reason?' · '+h.reason:''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            ${i>0?`<div style="font-size:12px;color:#166534;font-weight:500">+$${(h.amount-(sel.salaryHistory[i-1]||{amount:0}).amount).toLocaleString()}</div>`:'<div style="font-size:11px;color:#9b9b98">起薪</div>'}
-            <button class="ibt" onclick="openModal('editSalary',${sel.id},${i})" title="編輯">✎</button>
-            <button class="ibt" onclick="deleteSalaryRecord(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>
+            ${i>0?`<div style="font-size:12px;color:#166534;font-weight:500">+$${(h.amount-((_arr[i-1]||{}).h||{amount:0}).amount).toLocaleString()}</div>`:'<div style="font-size:11px;color:#9b9b98">起薪</div>'}
+            <button class="ibt" onclick="openModal('editSalary',${sel.id},${oi})" title="編輯">✎</button>
+            <button class="ibt" onclick="deleteSalaryRecord(${sel.id},${oi})" style="color:#e24b4a" title="刪除">✕</button>
           </div>
-        </div>`).join(''):'<div class="empty-state" style="padding:24px">尚無薪資記錄</div>'}`;
+        </div>`;}).join(''):'<div class="empty-state" style="padding:24px">尚無薪資記錄</div>'}`;
       } else if(detailTab==='perf'){
       } else if(detailTab==='bonus'){
         const bonuses=sel.bonuses||[];
@@ -1591,7 +1590,6 @@ function openModal(mode, targetId, extraIdx) {
       <div class="fr"><label>時薪（元）<span style="font-size:10px;color:#9AA0B4">兼職用</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
-      <div class="fr"><label>學歷</label><select id="m-education"><option value="">請選擇</option><option>博士</option><option>碩士</option><option>大學</option><option>高中</option><option>國中</option><option>國小</option></select></div>
       <div class="fr"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
       <div class="fr"><label>身分證號</label><input id="m-idNo" value="${r.idNo||''}" placeholder="A123456789"></div>
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
@@ -1607,7 +1605,6 @@ function openModal(mode, targetId, extraIdx) {
     <div class="fr"><label>備註</label><textarea id="m-note">${r.note||''}</textarea></div>`;
     setTimeout(()=>{
       if(r.status)document.getElementById('m-status').value=r.status;
-      if(r.education){const s=document.getElementById('m-education');if(s)s.value=r.education;}
     },10);
   } else if(mode==='addEmergency'){
     title='新增緊急聯絡人';
@@ -1653,7 +1650,7 @@ function openModal(mode, targetId, extraIdx) {
     const h=isEdit&&r?r.salaryHistory[extraIdx]:{};
     title=isEdit?'編輯薪資記錄':'新增薪資調整記錄';
     html=`<div class="fg">
-      <div class="fr"><label>生效日期</label><input id="m-sdate" type="date" value="${h.date||''}"></div>
+      <div class="fr"><label>生效年月 <span style="font-size:10px;color:#9AA0B4">此年月起生效</span></label><input id="m-sdate" type="month" value="${(h.date||'').slice(0,7)}"></div>
       <div class="fr"><label>調整後月薪（元）</label><input id="m-samount" type="number" value="${h.amount||''}" placeholder="例：65000"></div>
     </div>
     <div class="fr"><label>調整原因</label><input id="m-sreason" value="${h.reason||''}" placeholder="例：年度調薪、晉升調薪"></div>`;
@@ -1706,7 +1703,7 @@ async function saveModal(){
   const m=editMode, tid=editTarget;
   if(m==='addInterview'||m==='editInterview'){
     if(!g('m-name')){alert('請填寫姓名');return;}
-    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),age:parseInt(g('m-age'))||null,education:g('m-education'),military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
+    const obj={id:tid||Date.now(),name:g('m-name'),location:g('m-location'),date:g('m-date'),source:g('m-source'),fit:g('m-fit'),status:g('m-status'),age:parseInt(g('m-age'))||null,military:g('m-military'),experience:g('m-experience'),note:g('m-note')};
     if(m==='editInterview'){
       const i=interviews.findIndex(r=>r.id===tid);
       const prev=interviews[i]||{};
@@ -1826,10 +1823,10 @@ async function saveModal(){
     if(m==='editSalary'&&editTarget&&typeof editTarget==='object'){
       const r=employees.find(x=>x.id===editTarget.empId);
       if(r&&r.salaryHistory[editTarget.idx]){
-        r.salaryHistory[editTarget.idx]={date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')};
+        r.salaryHistory[editTarget.idx]={date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')};
       }
     } else {
-      employees.find(x=>x.id===tid).salaryHistory.push({date:g('m-sdate'),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
+      employees.find(x=>x.id===tid).salaryHistory.push({date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
     }
   } else if(m==='addBonus'){
     if(!g('m-btitle')){alert('請填寫項目名稱');return;}
@@ -2401,7 +2398,7 @@ window.confirmTransfer=async function(id){
 
   const newEmp={
     id:Date.now(), name:r.name, phone:'', email:'',
-    education:r.education||'', workLocation:wl, title:'正職同仁', status:'在職',
+    workLocation:wl, title:'正職同仁', status:'在職',
     startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
     note:r.note||'', emergency:{name:'',relation:'',phone:''},
     uid:'', salaryHistory:[], performance:[], leaves:[], trainings:[]
