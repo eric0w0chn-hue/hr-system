@@ -1594,7 +1594,7 @@ function openModal(mode, targetId, extraIdx) {
       </div>
       <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
       ${(()=>{
-        const _isNew=!isEdit;
+        const _isNew=(mode==='addEmployee');
         const _hist=(r.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
         const _latest=_hist.length?_hist[0].amount:'';
         if(_isNew){
