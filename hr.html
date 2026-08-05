@@ -568,6 +568,46 @@ async function writeOpLog(action, detail=''){
 // ── 版本鎖：避免多人同時覆蓋 ──
 let _dataVersion = null;
 
+// ── 批次補建薪資歷程第一筆（admin，一次性）──
+// 為「沒有薪資歷程」的在職同仁補一筆：日期統一 2026-08、金額＝基本資料現值（正職月薪/兼職時薪）。
+// 因 6/7 月已鎖檔、8 月才第一個生效，統一 2026-08 保證不回溯影響任何歷史月份。
+window.backfillSalaryHistory=async function(){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
+  const targets=employees.filter(e=>{
+    if(e.status&&e.status!=='在職')return false;
+    const h=e.salaryHistory||[];
+    if(h.length)return false;                       // 已有歷程 → 跳過
+    const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
+    const amt=pt?Number(e.hourlyRate||0):Number(e.salary||0);
+    return amt>0;                                   // 有現值才補
+  }).map(e=>{
+    const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
+    return {id:e.id,name:e.name,loc:e.workLocation||'',type:pt?'時薪':'月薪',amt:pt?Number(e.hourlyRate||0):Number(e.salary||0)};
+  });
+  const skipNoAmt=employees.filter(e=>(!e.status||e.status==='在職')&&!(e.salaryHistory||[]).length).length-targets.length;
+  if(!targets.length){alert('沒有需要補建的同仁（在職且尚無薪資歷程且有現值者）。');return;}
+  targets.sort((a,b)=>String(a.loc).localeCompare(String(b.loc),'zh-Hant')||String(a.name).localeCompare(String(b.name),'zh-Hant'));
+  const total=targets.reduce((s,t)=>s+t.amt,0);
+  const msg='將為以下 '+targets.length+' 位在職同仁補建薪資歷程第一筆：\n'
+    +'　生效年月統一 2026-08，金額＝目前基本資料的月薪/時薪。\n'
+    +'　（6、7 月已鎖檔，此動作不影響任何歷史月份的計算結果）\n'
+    +(skipNoAmt>0?'　另有 '+skipNoAmt+' 位無現值金額，已略過。\n':'')
+    +'\n合計金額 '+total.toLocaleString()+'\n\n確定執行？';
+  if(!confirm(msg))return;
+  let done=0;
+  targets.forEach(t=>{
+    const e=employees.find(x=>x.id===t.id);
+    if(!e)return;
+    if(!Array.isArray(e.salaryHistory))e.salaryHistory=[];
+    if(e.salaryHistory.length)return;               // 保險：期間已被建立則不重複
+    e.salaryHistory.push({date:'2026-08',amount:t.amt,reason:'補建起薪'});
+    done++;
+  });
+  showToast('補建中…');
+  await saveData('批次補建薪資歷程','2026-08 起 '+done+' 筆');
+  render();
+  alert('✓ 已補建 '+done+' 筆薪資歷程（2026-08 起）。\n\n日後調薪請在各同仁的「薪資歷程」新增一筆，基本資料月薪已改為唯讀自動顯示。');
+};
 async function saveData(action='', detail='') {
   try {
     // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
@@ -633,6 +673,13 @@ async function saveData(action='', detail='') {
 }
 
 let interviews=[], employees=[], resigned=[];
+// 取薪資歷程最新一筆金額（正職＝月薪、兼職＝時薪）；無歷程則 fallback 基本資料欄位
+function latestSalary(e){
+  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  if(h.length)return Number(h[0].amount)||0;
+  const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
+  return Number((pt?e.hourlyRate:e.salary)||0);
+}
 let currentUserRole = 'admin';
 let currentUserLocations = [];
 let currentUserName = 'Admin';
@@ -901,7 +948,7 @@ function render() {
           <div class="di"><div class="dl">年齡</div><div class="dv">${(()=>{if(!sel.birthday)return'—';const b=new Date(sel.birthday);const t=new Date();let a=t.getFullYear()-b.getFullYear();if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate()))a--;return a+'歲';})()}</div></div>
           <div class="di"><div class="dl">到職日</div><div class="dv">${sel.startDate||'—'}</div></div>
           <div class="di"><div class="dl">離職日</div><div class="dv">${sel.resignDate||'—'}</div></div>
-          <div class="di"><div class="dl">月薪</div><div class="dv">$${(sel.salary||0).toLocaleString()}</div></div>
+          <div class="di"><div class="dl">月薪</div><div class="dv">$${latestSalary(sel).toLocaleString()}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
         </div>
         <div style="margin-top:12px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>
@@ -937,6 +984,7 @@ function render() {
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSloc(this.value)">${lopts}</select>
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
+      ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="backfillSalaryHistory()" title="為尚無薪資歷程的在職同仁補建第一筆（2026-08 起）">💰 補建薪資歷程</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table>
@@ -1029,8 +1077,8 @@ function render() {
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
           ${(sel.title||'').includes('兼職')||(sel.title||'').includes('工讀')
-            ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${(sel.hourlyRate||0).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
-            :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${(sel.salary||0).toLocaleString()}</div></div>`}
+            ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
+            :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}</div></div>`}
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
           <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${sel.bankName||'—'} ${sel.bankAccount?'· '+sel.bankAccount:''}</div></div>
@@ -1586,8 +1634,19 @@ function openModal(mode, targetId, extraIdx) {
         ${cddHtml('m-title', titleOptions, r.title||'', 'titleOptions')}
       </div>
       <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
-      <div class="fr"><label>月薪（元）<span style="font-size:10px;color:#9AA0B4">正職用</span></label><input id="m-salary" type="number" value="${r.salary||''}"></div>
-      <div class="fr"><label>時薪（元）<span style="font-size:10px;color:#9AA0B4">兼職用</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>
+      ${(()=>{
+        const _isNew=!isEdit;
+        const _hist=(r.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+        const _latest=_hist.length?_hist[0].amount:'';
+        if(_isNew){
+          return `<div class="fr"><label>起薪·月薪（元）<span style="font-size:10px;color:#9AA0B4">正職用，將成為薪資歷程第一筆</span></label><input id="m-salary" type="number" value="${r.salary||''}"></div>
+      <div class="fr"><label>起薪·時薪（元）<span style="font-size:10px;color:#9AA0B4">兼職用，將成為薪資歷程第一筆</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>`;
+        }
+        return `<div class="fr"><label>目前薪資（元）<span style="font-size:10px;color:#C47A00">唯讀，請至下方「薪資歷程」調整</span></label>
+          <input type="number" value="${_latest}" disabled style="background:#F4F5F8;color:#5A6175">
+          <input id="m-salary" type="hidden" value="${r.salary||''}">
+          <input id="m-hourlyRate" type="hidden" value="${r.hourlyRate||''}"></div>`;
+      })()}
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
@@ -1786,7 +1845,12 @@ async function saveModal(){
         const userCredential = await createUser2(auth2, fakeEmail, password);
         const uid = userCredential.user.uid;
         await signOut2(auth2); // 立刻登出次要實例
-        const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:[],performance:[],leaves:[],trainings:[]};
+        // 起薪自動成為第一筆薪資歷程（日期＝到職年月；正職存月薪、兼職存時薪）
+        const _isPT=(empFields.title||'').includes('兼職')||(empFields.title||'').includes('工讀');
+        const _startAmt=_isPT?(empFields.hourlyRate||0):(empFields.salary||0);
+        const _startYM=(empFields.startDate||'').slice(0,7);
+        const _initHist=(_startAmt>0&&_startYM)?[{date:_startYM,amount:_startAmt,reason:'起薪'}]:[];
+        const newEmp = {id:Date.now(), uid, ...empFields, idNo, emergency:{name:'',relation:'',phone:''},salaryHistory:_initHist,performance:[],leaves:[],trainings:[]};
         employees.unshift(newEmp);
         await setDoc(doc(db,'users', uid), { empId: newEmp.id, idNo, name: empFields.name, role: 'employee', createdAt: new Date().toISOString() });
         showToast(`帳號已建立 ✓  帳號：${idNo}  密碼：${password}`);

@@ -744,6 +744,21 @@ function getInsGrade(e,y,m){
   }
   return Number(e.insurance?.grade||e.insuranceGrade||e.投保級距||e.grade||0);
 }
+// 兼職時薪：比照 getTarget 的月份感知（薪資歷程優先，fallback 基本資料 hourlyRate）
+// 兼職的 salaryHistory 存的是「時薪」；正職存「月薪」。兩者用同一欄位、不會混（正職轉兼職開新記錄）。
+function getHourly(e,y,m){
+  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  if(h.length>0){
+    if(y&&m){
+      const cutoff=`${y}-${String(m).padStart(2,'0')}-${String(getDaysInMonth(y,m)).padStart(2,'0')}`;
+      const valid=h.find(r=>String(r.date)<=cutoff);
+      if(valid)return Number(valid.amount);
+      return Number(h[h.length-1].amount);
+    }
+    return Number(h[0].amount);
+  }
+  return Number(e.hourlyRate||0);
+}
 function getTarget(e,y,m){
   const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   if(h.length>0){
@@ -1551,7 +1566,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const spanH=(shift)=>_newRule?shiftSpanHours(shift):8;
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
-  const hourlyRate=Number(rec?.hourlyOverride??emp.hourlyRate??0); // 純時薪
+  const hourlyRate=Number(rec?.hourlyOverride??getHourly(emp,viewYear,viewMonth)??0); // 純時薪（歷程優先，可被 rec 覆蓋）
   const ATTEND_BONUS=10; // 每小時出勤獎勵
 
   let workedHoursTotal=0;  // 實際上班總時數（含出勤獎勵基準）
@@ -2521,7 +2536,7 @@ function rerender(){
     if(opt){const tgt=getTarget(emp,viewYear,viewMonth);const e2=calcEmployedDays(emp,viewYear,viewMonth,null);
       const pt=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
       const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
-      const headTxt=pt?(emp.hourlyRate?' 目標$'+Number(emp.hourlyRate).toLocaleString():''):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
+      const headTxt=pt?((()=>{const _hr=getHourly(emp,viewYear,viewMonth);return _hr?' 時薪$'+Number(_hr).toLocaleString():'';})()):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
       opt.textContent=`${emp.name}${flag}${headTxt}\n實領$${_authNet.toLocaleString()}`;
   }}
   // 移除 cdd-net 更新（cdd 每次打開都從 empSel 重新讀，不需要單獨更新）
