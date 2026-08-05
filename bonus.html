@@ -367,7 +367,7 @@ function pendingBonusesOf(e){
   if(i.reached3mo && !i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
   if(i.isHealthDue && !i.healthPaid){
     const amt = parseInt(i.fi.healthAmt||'640');
-    items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640', zeroReason:i.fi.healthZeroReason||''});
+    items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640', zeroReason:i.fi.healthZeroReason||'', hint:'今年度已有符合餐飲從業人員體檢報告並交付正本或影本，金額可輸入為0。'});
   }
   if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
   if(i.isTenureToday && !i.tenurePaid){
@@ -490,13 +490,14 @@ function bonusRow(empId, it){
   const zeroReason = (it.hasAmt && it.curAmt==='0')
     ? `<input type="text" value="${(it.zeroReason||'').replace(/"/g,'&quot;')}" onchange="updateHealthZeroReason('${empId}',this.value)" placeholder="請填 $0 原因（必填）" style="font-size:11px;padding:2px 6px;margin-left:6px;width:190px;max-width:60vw">`
     : '';
+  const hintIcon = it.hint ? `<span title="${it.hint.replace(/"/g,'&quot;')}" onclick="alert(this.getAttribute('title'))" style="margin-left:5px;cursor:help;color:var(--text3);font-size:12px;vertical-align:middle" role="button" aria-label="說明">ⓘ</span>` : '';
   const tag = it.tag ? `<span class="badge b-birthday">${it.tag}</span>` : '';
   const note = it.note ? `<div class="bonus-amt" style="font-style:italic">${it.note}</div>` : '';
   const rmBtn = it.cat === 'custom' ? `<button class="btn btn-sm btn-danger" onclick="removeCustom('${empId}',${it.customIdx})">✕</button>` : '';
 
   return `<div class="bonus-item ${cls}">
     <div style="flex:1">
-      <div class="bonus-title">${it.label}${tag}</div>
+      <div class="bonus-title">${it.label}${hintIcon}${tag}</div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><div class="bonus-amt">$${it.amount.toLocaleString()}</div>${amtSelect}${zeroReason}</div>
       ${note}
     </div>
