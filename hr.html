@@ -568,46 +568,6 @@ async function writeOpLog(action, detail=''){
 // ── 版本鎖：避免多人同時覆蓋 ──
 let _dataVersion = null;
 
-// ── 批次補建薪資歷程第一筆（admin，一次性）──
-// 為「沒有薪資歷程」的在職同仁補一筆：日期統一 2026-08、金額＝基本資料現值（正職月薪/兼職時薪）。
-// 因 6/7 月已鎖檔、8 月才第一個生效，統一 2026-08 保證不回溯影響任何歷史月份。
-window.backfillSalaryHistory=async function(){
-  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
-  const targets=employees.filter(e=>{
-    if(e.status&&e.status!=='在職')return false;
-    const h=e.salaryHistory||[];
-    if(h.length)return false;                       // 已有歷程 → 跳過
-    const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
-    const amt=pt?Number(e.hourlyRate||0):Number(e.salary||0);
-    return amt>0;                                   // 有現值才補
-  }).map(e=>{
-    const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
-    return {id:e.id,name:e.name,loc:e.workLocation||'',type:pt?'時薪':'月薪',amt:pt?Number(e.hourlyRate||0):Number(e.salary||0)};
-  });
-  const skipNoAmt=employees.filter(e=>(!e.status||e.status==='在職')&&!(e.salaryHistory||[]).length).length-targets.length;
-  if(!targets.length){alert('沒有需要補建的同仁（在職且尚無薪資歷程且有現值者）。');return;}
-  targets.sort((a,b)=>String(a.loc).localeCompare(String(b.loc),'zh-Hant')||String(a.name).localeCompare(String(b.name),'zh-Hant'));
-  const total=targets.reduce((s,t)=>s+t.amt,0);
-  const msg='將為以下 '+targets.length+' 位在職同仁補建薪資歷程第一筆：\n'
-    +'　生效年月統一 2026-08，金額＝目前基本資料的月薪/時薪。\n'
-    +'　（6、7 月已鎖檔，此動作不影響任何歷史月份的計算結果）\n'
-    +(skipNoAmt>0?'　另有 '+skipNoAmt+' 位無現值金額，已略過。\n':'')
-    +'\n合計金額 '+total.toLocaleString()+'\n\n確定執行？';
-  if(!confirm(msg))return;
-  let done=0;
-  targets.forEach(t=>{
-    const e=employees.find(x=>x.id===t.id);
-    if(!e)return;
-    if(!Array.isArray(e.salaryHistory))e.salaryHistory=[];
-    if(e.salaryHistory.length)return;               // 保險：期間已被建立則不重複
-    e.salaryHistory.push({date:'2026-08',amount:t.amt,reason:'補建起薪'});
-    done++;
-  });
-  showToast('補建中…');
-  await saveData('批次補建薪資歷程','2026-08 起 '+done+' 筆');
-  render();
-  alert('✓ 已補建 '+done+' 筆薪資歷程（2026-08 起）。\n\n日後調薪請在各同仁的「薪資歷程」新增一筆，基本資料月薪已改為唯讀自動顯示。');
-};
 async function saveData(action='', detail='') {
   try {
     // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
@@ -984,7 +944,6 @@ function render() {
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSloc(this.value)">${lopts}</select>
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
-      ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="backfillSalaryHistory()" title="為尚無薪資歷程的在職同仁補建第一筆（2026-08 起）">💰 補建薪資歷程</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table>
