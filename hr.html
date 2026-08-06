@@ -185,6 +185,21 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 @media(hover:hover){.alert-tip:hover .tip-box{display:block}}
 .alert-tip.tip-open .tip-box{display:block}
 
+@media(max-width:820px){
+  /* modal 單欄與底部 sheet：斷點放寬到 820，因 dashboard iframe 內寬度常大於手機實際螢幕 */
+  .modal{width:100%!important;max-width:100%!important;border-radius:16px 16px 0 0!important;padding:16px 14px 24px!important;max-height:92vh!important;box-sizing:border-box}
+  .fg{grid-template-columns:1fr!important;gap:10px!important}
+  .fr{margin-bottom:12px!important}
+  .fr label{font-size:12px!important;margin-bottom:4px!important}
+  .fr label span{display:block!important;margin-top:2px!important;font-weight:400!important;line-height:1.4}
+  .fr input,.fr select,.fr textarea{font-size:14px!important;padding:9px 10px!important;min-height:40px!important;box-sizing:border-box;width:100%}
+  .modal .btn{min-height:44px!important;font-size:13px!important}
+  .roc-group{gap:6px!important;flex-wrap:nowrap!important}
+  .roc-group input[type="number"]{width:auto!important;flex:1 1 0!important;min-width:0!important;text-align:center;padding:9px 4px!important}
+  .roc-group span{flex:0 0 auto!important;font-size:12px!important}
+  .bank-row{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+  .bank-row>*{width:100%!important;flex:none!important}
+}
 @media(max-width:600px){
   .topbar{padding:0 10px}
   .topbar h1{font-size:13px}
@@ -193,23 +208,20 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .topbar-right{gap:5px}
   .role-chip{display:none}
   /* modal 手機版優化：底部 sheet，單欄排列 */
-  .overlay{padding:0!important;align-items:flex-end!important}
-  .modal{width:100%!important;max-width:100%!important;border-radius:16px 16px 0 0!important;padding:16px 14px 24px!important;max-height:92vh!important}
+  .modal-overlay{padding:0!important;align-items:flex-end!important}
   .modal h2,.modal-title{font-size:14px!important;margin-bottom:14px!important;padding-bottom:10px!important}
-  .fg{grid-template-columns:1fr!important;gap:8px!important}
-  .fr{margin-bottom:8px!important}
   .fr label{font-size:12px!important;margin-bottom:3px!important}
-  .fr input,.fr select,.fr textarea{font-size:14px!important;padding:9px 10px!important;min-height:40px!important}
+  .fr input,.fr select,.fr textarea{font-size:14px!important;padding:9px 10px!important;min-height:40px!important;box-sizing:border-box}
   .modal .btn{min-height:44px!important;font-size:13px!important}
-  /* 民國日期三欄組：輸入框平均分配、不溢出、不擠壓中文標籤 */
-  .roc-group{gap:6px!important}
-  .roc-group input[type="number"]{width:auto!important;flex:1 1 0!important;min-width:0!important;text-align:center;padding:9px 6px!important;min-height:40px!important;font-size:14px!important}
-  .roc-group span{flex:0 0 auto;font-size:12px!important;color:#6b6b68}
-  /* 銀行帳戶（select+input）改直向堆疊 */
-  .fr .bank-row{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
-  .fr .bank-row>*{width:100%!important;flex:none!important}
-  /* 間距更舒適 */
-  .modal{padding-bottom:28px!important}
+  /* 民國日期三欄：平均分配、不溢出、置中 */
+  .roc-group{gap:6px!important;flex-wrap:nowrap!important}
+  .roc-group input[type="number"]{width:auto!important;flex:1 1 0!important;min-width:0!important;text-align:center;padding:9px 4px!important}
+  .roc-group span{flex:0 0 auto!important;font-size:12px!important}
+  /* 銀行帳戶（select+input）直向堆疊 */
+  .bank-row{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+  .bank-row>*{width:100%!important;flex:none!important}
+  /* 唯讀提示副標：確保換行、不撐開版面 */
+  .fr label span{display:block!important;margin-top:2px!important;font-weight:400!important;line-height:1.4}
   .fr{margin-bottom:12px!important}
 }
 .import-preview-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
