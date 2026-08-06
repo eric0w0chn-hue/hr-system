@@ -201,6 +201,16 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .fr label{font-size:12px!important;margin-bottom:3px!important}
   .fr input,.fr select,.fr textarea{font-size:14px!important;padding:9px 10px!important;min-height:40px!important}
   .modal .btn{min-height:44px!important;font-size:13px!important}
+  /* 民國日期三欄組：輸入框平均分配、不溢出、不擠壓中文標籤 */
+  .roc-group{gap:6px!important}
+  .roc-group input[type="number"]{width:auto!important;flex:1 1 0!important;min-width:0!important;text-align:center;padding:9px 6px!important;min-height:40px!important;font-size:14px!important}
+  .roc-group span{flex:0 0 auto;font-size:12px!important;color:#6b6b68}
+  /* 銀行帳戶（select+input）改直向堆疊 */
+  .fr .bank-row{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+  .fr .bank-row>*{width:100%!important;flex:none!important}
+  /* 間距更舒適 */
+  .modal{padding-bottom:28px!important}
+  .fr{margin-bottom:12px!important}
 }
 .import-preview-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
 .import-preview-row:last-child{border-bottom:none}
@@ -311,7 +321,7 @@ function toROC(dateStr){
 function rocInputHtml(id, val){
   let yy='',mm='',dd='';
   if(val){const [y,m,d]=val.split('-');yy=y?parseInt(y)-1911:'';mm=m?parseInt(m):'';dd=d?parseInt(d):'';}
-  return `<div style="display:flex;gap:4px;align-items:center">
+  return `<div class="roc-group" style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap">
     <input id="${id}-y" type="number" placeholder="年" value="${yy}" style="width:64px;font-size:13px;padding:7px 8px;border:1px solid #d4d4d0;border-radius:8px" oninput="syncROC('${id}')">
     <span style="color:#6b6b68;font-size:12px">年</span>
     <input id="${id}-m" type="number" placeholder="月" min="1" max="12" value="${mm}" style="width:50px;font-size:13px;padding:7px 8px;border:1px solid #d4d4d0;border-radius:8px" oninput="syncROC('${id}')">
@@ -1598,10 +1608,10 @@ function openModal(mode, targetId, extraIdx) {
         const _hist=(r.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
         const _latest=_hist.length?_hist[0].amount:'';
         if(_isNew){
-          return `<div class="fr"><label>起薪·月薪（元）<span style="font-size:10px;color:#9AA0B4">正職用，將成為薪資歷程第一筆</span></label><input id="m-salary" type="number" value="${r.salary||''}"></div>
-      <div class="fr"><label>起薪·時薪（元）<span style="font-size:10px;color:#9AA0B4">兼職用，將成為薪資歷程第一筆</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>`;
+          return `<div class="fr"><label>起薪·月薪（元）<span style="display:block;font-size:10px;color:#9AA0B4;font-weight:400;margin-top:2px">正職用，將成為薪資歷程第一筆</span></label><input id="m-salary" type="number" value="${r.salary||''}"></div>
+      <div class="fr"><label>起薪·時薪（元）<span style="display:block;font-size:10px;color:#9AA0B4;font-weight:400;margin-top:2px">兼職用，將成為薪資歷程第一筆</span></label><input id="m-hourlyRate" type="number" value="${r.hourlyRate||''}" placeholder="例：196"></div>`;
         }
-        return `<div class="fr"><label>目前薪資（元）<span style="font-size:10px;color:#C47A00">唯讀，請至下方「薪資歷程」調整</span></label>
+        return `<div class="fr"><label>目前薪資（元）<span style="display:block;font-size:10px;color:#C47A00;font-weight:400;margin-top:2px">唯讀，請至下方「薪資歷程」調整</span></label>
           <input type="number" value="${_latest}" disabled style="background:#F4F5F8;color:#5A6175">
           <input id="m-salary" type="hidden" value="${r.salary||''}">
           <input id="m-hourlyRate" type="hidden" value="${r.hourlyRate||''}"></div>`;
@@ -1613,7 +1623,7 @@ function openModal(mode, targetId, extraIdx) {
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
       <div class="fr" style="grid-column:span 2">
         <label>銀行帳戶</label>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div class="bank-row" style="display:flex;gap:6px;align-items:center">
           <div style="flex:1">${cddHtml('m-bankName', bankOptions||[], r.bankName||'', 'bankOptions','請選擇或新增銀行')}</div>
           <input id="m-bankAccount" value="${r.bankAccount||''}" placeholder="銀行帳號" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid #d4d4d0;border-radius:8px;font-family:inherit">
         </div>
