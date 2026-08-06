@@ -141,6 +141,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .photo-view-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:zoom-in;background:var(--surface2)}
 .photo-view-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .photo-view-thumb img:hover{opacity:.85}
+.photo-view-thumb{position:relative}
+.shot-del{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.shot-del:hover{background:var(--danger)}
+.photo-view-thumb.broken{border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;cursor:default}
+.photo-view-thumb.broken img{display:none}
+.photo-view-thumb.broken::after{content:'圖片已失效';font-size:10px;color:var(--text3);text-align:center;padding:0 4px}
+.dc-purged{font-size:11.5px;color:var(--text3);margin-top:8px;background:var(--surface2);border-radius:8px;padding:6px 10px}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
 .lightbox img{max-width:94vw;max-height:90vh;border-radius:8px;object-fit:contain}
 .lightbox-close{position:fixed;top:16px;right:20px;color:#fff;font-size:28px;cursor:pointer;z-index:1000}
@@ -204,7 +211,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 
   <div class="main">
     <div class="hint" id="hintBox">
-      📣 總公司依各店需求錯開日期發放 104 履歷；發放完成後上傳截圖存證。各店可於「各店需求」設定是否開啟 104、職缺與需求人數，全部店面互相可見，<b style="color:var(--danger)">請各店務必於發放日前回覆前一梯次求職者訊息，避免訊息被覆蓋！</b>
+      📣 總公司依各店需求錯開日期發放 104 履歷；發放完成後上傳截圖存證。各店可於「各店需求」設定是否開啟 104、職缺與需求人數，全部店面互相可見，<b style="color:var(--danger)">請各店務必於發放日前回覆前一梯次求職者訊息，避免訊息被覆蓋！</b><br><span style="color:var(--text3)">※ 發放截圖僅保留 3 天，逾期由系統自動清除。</span>
     </div>
 
     <div class="tabs">
@@ -232,12 +239,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 /* ─── 設定 ─── */
 const SCHED_COLL   = 'recruit104_schedule';           // 排程集合（date: YYYY-MM-DD 字串）
 const SETTINGS_DOC = ['settings','recruit104'];        // 各店需求設定（單一文件）
 const FETCH_LIMIT  = 400;
+const PHOTO_KEEP_DAYS = 3;   // 截圖保留天數，超過自動清除
+const PURGE_SCAN_LIMIT = 60; // 每次自動清除掃描的排程筆數上限
 const WD = ['日','一','二','三','四','五','六'];
 const normLoc = s => String(s||'').replace(/鋪/g,'舖').replace(/\s/g,'').trim();
 // 後備店名清單：僅在讀取 hr/settings.workLocations 失敗時使用（沿用全站 hardcode fallback 模式）
@@ -393,6 +402,12 @@ async function init(){
     document.getElementById('tabSched').addEventListener('click',()=>switchTab('sched'));
     document.getElementById('tabStores').addEventListener('click',()=>switchTab('stores'));
     if(LOAD_ERR) showToast('資料讀取失敗：'+LOAD_ERR);
+    // 畫面已顯示後才跑，避免拖慢載入；有清除才重新整理列表
+    if(!LOAD_ERR){
+      purgeOldPhotos().then(async purged=>{
+        if(purged){ SCHEDS=await loadScheds(); renderSched(); }
+      });
+    }
   }
 }
 function switchTab(t){
@@ -444,7 +459,12 @@ function renderSched(){
     const holdList=(s.stores||[]).filter(isHold);
     const holdNote=holdList.length?`<div class="hold-note" style="margin-top:9px">⏸ ${esc(holdList.join('、'))} 有待錄取人員，本梯次<b>暫不主動發信</b>給求職者</div>`:'';
     const shots=(s.screenshots&&s.screenshots.length)
-      ? `<div class="photo-view-grid">${s.screenshots.map(u=>`<div class="photo-view-thumb"><img src="${esc(u)}" loading="lazy" data-lb="${esc(u)}"></div>`).join('')}</div>` : '';
+      ? `<div class="photo-view-grid">${s.screenshots.map(u=>`<div class="photo-view-thumb">`
+          +`<img src="${esc(u)}" loading="lazy" data-lb="${esc(u)}" onerror="this.parentNode.classList.add('broken')">`
+          +(isAdmin()?`<button class="shot-del" data-sd="${s.id}" data-su="${esc(u)}" title="刪除這張截圖">✕</button>`:'')
+          +`</div>`).join('')}</div>` : '';
+    const purged=(!s.screenshots||!s.screenshots.length)&&s.photosPurgedAt
+      ? `<div class="dc-purged">🗑 截圖已於 ${esc(s.photosPurgedAt)} 逾期自動清除${s.photosPurgedCount?`（原 ${esc(s.photosPurgedCount)} 張）`:''}</div>` : '';
     const doneInfo = st==='done' ? `<div class="dc-done-info">由 ${esc(s.doneBy||'—')} 於 ${esc((s.doneAtLocal||'').slice(5,16).replace('T',' '))} 完成</div>` : '';
     const acts = isAdmin() ? `
       <div class="dc-actions">
@@ -461,10 +481,11 @@ function renderSched(){
       </div>
       <div class="chips">${chips||'<span class="sc-empty">未指定店家</span>'}</div>
       ${s.note?`<div class="dc-note">${esc(s.note)}</div>`:''}
-      ${holdNote}${doneInfo}${shots}
+      ${holdNote}${doneInfo}${shots}${purged}
     </div>`;
   }).join('');
   box.querySelectorAll('[data-lb]').forEach(img=>img.addEventListener('click',()=>openLightbox(img.dataset.lb)));
+  box.querySelectorAll('[data-sd]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();delShot(b.dataset.sd,b.dataset.su);}));
   box.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openSchedModal(SCHEDS.find(x=>x.id===b.dataset.edit))));
   box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delSched(b.dataset.del)));
   box.querySelectorAll('[data-done]').forEach(b=>b.addEventListener('click',()=>openDoneModal(SCHEDS.find(x=>x.id===b.dataset.done))));
@@ -541,7 +562,7 @@ function openDoneModal(s){
   ov.innerHTML=`<div class="modal">
     <div class="modal-title">✅ 完成發放 — ${fmtDate(s.date)}</div>
     <div class="chips" style="margin:0 0 12px">${(s.stores||[]).map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</div>
-    <div class="form-row"><label>發放截圖（存證，可多張）</label><div id="donePhotos"></div></div>
+    <div class="form-row"><label>發放截圖（存證，可多張；僅保留 3 天）</label><div id="donePhotos"></div></div>
     <div class="modal-footer">
       <button class="btn" id="dCancel">取消</button>
       <button class="btn btn-ok" id="dSave">確認完成</button>
@@ -557,7 +578,9 @@ function openDoneModal(s){
       let urls=[];
       if(up.files.length) urls=await uploadPhotos(up.files,`recruit104_photos/${s.id}/shot`);
       const now=new Date(); const local=`${todayStr()}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      await updateDoc(doc(db,SCHED_COLL,s.id),{status:'done',screenshots:[...(s.screenshots||[]),...urls],doneBy:CUR.name,doneAt:serverTimestamp(),doneAtLocal:local});
+      const patch={status:'done',screenshots:[...(s.screenshots||[]),...urls],doneBy:CUR.name,doneAt:serverTimestamp(),doneAtLocal:local};
+      if(urls.length) patch.shotsAt=todayStr();   // 截圖上傳日（自動清除依據）
+      await updateDoc(doc(db,SCHED_COLL,s.id),patch);
       writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`完成發放 ${s.date} ${(s.stores||[]).join('、')}`});
       ov.remove(); SCHEDS=await loadScheds(); renderSched(); showToast('已標記完成');
     }catch(e){
@@ -575,6 +598,57 @@ async function undoDone(id){
     writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`還原待發放 ${s.date}`});
     SCHEDS=await loadScheds(); renderSched(); showToast('已還原');
   }catch(e){ console.error(e); showToast('操作失敗'); }
+}
+
+/* ─── 截圖刪除 / 逾期自動清除 ─── */
+async function delShot(schedId, url){
+  const s=SCHEDS.find(x=>x.id===schedId); if(!s) return;
+  if(!confirm('確定刪除這張截圖？刪除後無法復原。')) return;
+  try{
+    // Storage 檔案刪除失敗（例如已被清除）不阻斷 Firestore 更新
+    try{ await deleteObject(ref(storage,url)); }
+    catch(e){ console.warn('[recruit104] Storage 刪除略過:', e?.code, e?.message); }
+    const left=(s.screenshots||[]).filter(u=>u!==url);
+    await updateDoc(doc(db,SCHED_COLL,schedId),{screenshots:left});
+    writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'編輯排程',detail:`刪除截圖 ${s.date}（剩 ${left.length} 張）`});
+    SCHEDS=await loadScheds(); renderSched(); showToast('已刪除截圖');
+  }catch(e){
+    console.error('[recruit104] 截圖刪除失敗:', e?.code, e?.message, e);
+    showToast('刪除失敗：'+(e?.code||e?.message||'未知錯誤'));
+  }
+}
+// 逾期截圖自動清除（僅 admin 執行，寫入權限限 admin）
+async function purgeOldPhotos(){
+  if(!isAdmin()) return false;
+  const cutoff=addDays(todayStr(),-PHOTO_KEEP_DAYS);
+  try{
+    const snap=await getDocs(query(collection(db,SCHED_COLL),
+      where('date','<=',cutoff), orderBy('date','desc'), limit(PURGE_SCAN_LIMIT)));
+    const targets=[];
+    snap.docs.forEach(d=>{
+      const v=d.data(); const shots=v.screenshots||[];
+      if(!shots.length) return;
+      const basis=v.shotsAt || (v.doneAtLocal||'').slice(0,10) || v.date;
+      if(basis>cutoff) return;   // 上傳日仍在保留期內
+      targets.push({id:d.id, date:v.date, shots});
+    });
+    if(!targets.length) return false;
+    let files=0;
+    await Promise.all(targets.map(async t=>{
+      await Promise.all(t.shots.map(async u=>{
+        try{ await deleteObject(ref(storage,u)); files++; }
+        catch(e){ console.warn('[recruit104] 清除略過:', e?.code); }
+      }));
+      await updateDoc(doc(db,SCHED_COLL,t.id),{screenshots:[],photosPurgedAt:todayStr(),photosPurgedCount:t.shots.length});
+    }));
+    const total=targets.reduce((a,t)=>a+t.shots.length,0);
+    writeOpLog({editor:CUR.name,role:CUR.role,module:'recruit104',action:'刪除排程',detail:`自動清除逾期截圖 ${targets.length} 筆共 ${total} 張`});
+    showToast(`已自動清除逾期截圖 ${total} 張`);
+    return true;
+  }catch(e){
+    console.warn('[recruit104] 自動清除失敗:', e?.code, e?.message);
+    return false;
+  }
 }
 
 /* ─── 各店需求 ─── */
