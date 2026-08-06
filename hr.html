@@ -1614,7 +1614,7 @@ function openModal(mode, targetId, extraIdx) {
         <label>職稱</label>
         ${cddHtml('m-title', titleOptions, r.title||'', 'titleOptions')}
       </div>
-      <div class="fr"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
+      <div class="fr" style="grid-column:span 2"><label>到職日期（民國）</label>${rocInputHtml('m-startDate', r.startDate||'')}</div>
       ${(()=>{
         const _isNew=(mode==='addEmployee');
         const _hist=(r.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
@@ -1630,7 +1630,7 @@ function openModal(mode, targetId, extraIdx) {
       })()}
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
       <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
-      <div class="fr"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
+      <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
       <div class="fr"><label>身分證號</label><input id="m-idNo" value="${r.idNo||''}" placeholder="A123456789"></div>
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
       <div class="fr" style="grid-column:span 2">
