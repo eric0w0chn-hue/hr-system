@@ -197,8 +197,6 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .roc-group{gap:6px!important;flex-wrap:nowrap!important}
   .roc-group input[type="number"]{width:auto!important;flex:1 1 0!important;min-width:0!important;text-align:center;padding:9px 4px!important}
   .roc-group span{flex:0 0 auto!important;font-size:12px!important}
-  .bank-row{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
-  .bank-row>*{width:100%!important;flex:none!important}
 }
 @media(max-width:600px){
   .topbar{padding:0 10px}
@@ -1606,11 +1604,11 @@ function openModal(mode, targetId, extraIdx) {
     <div class="fg">
       <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}" oninput="checkInterviewMatch()" autocomplete="off"></div>
       <div class="fr"><label>狀態</label><select id="m-status"><option>在職</option><option>留職停薪</option></select></div>
-      <div class="fr" style="grid-column:span 2">
+      <div class="fr">
         <label>工作地點</label>
         ${cddHtml('m-workLocation', availLocs, defaultLoc, 'workLocations')}
       </div>
-      <div class="fr" style="grid-column:span 2">
+      <div class="fr">
         <label>職稱</label>
         ${cddHtml('m-title', titleOptions, r.title||'', 'titleOptions')}
       </div>
@@ -1629,10 +1627,10 @@ function openModal(mode, targetId, extraIdx) {
           <input id="m-hourlyRate" type="hidden" value="${r.hourlyRate||''}"></div>`;
       })()}
       <div class="fr"><label>電話</label><input id="m-phone" value="${r.phone||''}"></div>
-      <div class="fr"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
       <div class="fr"><label>身分證號</label><input id="m-idNo" value="${r.idNo||''}" placeholder="A123456789"></div>
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
+      <div class="fr" style="grid-column:span 2"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
       <div class="fr" style="grid-column:span 2">
         <label>銀行帳戶</label>
         <div class="bank-row" style="display:flex;gap:6px;align-items:center">
