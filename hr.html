@@ -92,8 +92,8 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .di .dl{font-size:11px;color:var(--text-2);margin-bottom:3px;font-weight:500;text-transform:uppercase;letter-spacing:.3px}
-.di .dv{font-size:13px;color:var(--text);font-weight:400}
-.nb{background:#F8FAFC;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border)}
+.di .dv{font-size:13px;color:var(--text);font-weight:400;word-break:break-word;overflow-wrap:anywhere}
+.nb{background:#F8FAFC;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
 .sec-title{font-size:11px;font-weight:600;color:var(--text-2);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
 .hist-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9}
 .hist-row:last-child{border-bottom:none}
@@ -141,6 +141,26 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table{table-layout:auto;min-width:480px}
   th,td{padding:8px 10px;font-size:12px}
+
+  /* ── 主列表（在職／離職／求職者）改卡片式，不需左右滑動 ── */
+  .list-table{display:block;min-width:0;width:100%}
+  .list-table thead{display:none}
+  .list-table tbody{display:block}
+  .list-table>tbody>tr.data-row{display:block;background:#fff;border:1px solid var(--border);border-radius:10px;padding:6px 10px;margin-bottom:8px}
+  .list-table>tbody>tr.data-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .list-table>tbody>tr.data-row>td{display:flex;align-items:center;justify-content:space-between;gap:10px;border:none;padding:5px 0;font-size:13px;text-align:right}
+  .list-table>tbody>tr.data-row>td::before{content:attr(data-label);flex:0 0 auto;color:var(--text2);font-size:11px;font-weight:600;text-align:left}
+  .list-table>tbody>tr.data-row>td:not(:last-child){border-bottom:1px solid #F1F5F9}
+  .list-table>tbody>tr.data-row>td>div{justify-content:flex-end}
+  /* 卡片式改用外框標示選中，標記條還原成 data-label 標籤 */
+  .list-table>tbody>tr.data-row.selected>td:first-child::before{content:attr(data-label);position:static;width:auto;background:none;color:var(--text2);font-size:11px;font-weight:600}
+  /* 空狀態列 */
+  .list-table>tbody>tr:not(.data-row):not(.detail-row){display:block}
+  .list-table>tbody>tr:not(.data-row):not(.detail-row)>td{display:block;border:none;text-align:center}
+  /* 展開的明細列：占滿寬度、無內距 */
+  .list-table>tbody>tr.detail-row{display:block;margin:0 0 8px}
+  .list-table>tbody>tr.detail-row>td{display:block;width:100%;padding:0!important}
+  .list-table>tbody>tr.detail-row .detail{border-radius:10px;border:1px solid var(--border)}
   .toolbar{flex-wrap:wrap}
   .toolbar .search-input{min-width:100%;order:-1}
   .btn{font-size:12px;padding:5px 10px}
@@ -801,7 +821,7 @@ function render() {
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增求職者</button>
     </div>
-    <div class="tw"><table>
+    <div class="tw"><table class="list-table">
       <thead><tr>
         ${sth('姓名','name','130px')}
         ${sth('面試地點','location','120px')}
@@ -816,11 +836,11 @@ function render() {
         if(currentPage>totalPages)currentPage=1;
         const pageList=list.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
         return pageList.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
-        <td>${r.location||'—'}</td><td>${r.date||'—'}</td><td>${r.source||'—'}</td>
-        <td>${fitBadge(r.fit)}</td>
-        <td>${isBadge(r.status)}</td>
-        <td><div style="display:flex;gap:4px">
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td data-label="面試地點">${r.location||'—'}</td><td data-label="日期">${r.date||'—'}</td><td data-label="來源">${r.source||'—'}</td>
+        <td data-label="適合度">${fitBadge(r.fit)}</td>
+        <td data-label="狀態">${isBadge(r.status)}</td>
+        <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editInterview',${r.id})" title="編輯">✎</button>
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>`:''}
         </div></td>
@@ -881,7 +901,7 @@ function render() {
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
     </div>
-    <div class="tw"><table>
+    <div class="tw"><table class="list-table">
       <thead><tr>
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
@@ -896,10 +916,10 @@ function render() {
         if(currentPage>totalPages)currentPage=1;
         const pageList=getList().slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
         return pageList.map(r=>`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
-        <td><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
-        <td>${r.workLocation||'—'}</td><td>${r.title||'—'}</td><td>${r.startDate||'—'}</td><td>${r.resignDate||'—'}</td>
-        <td>${eBadge(r.status)}</td>
-        <td><div style="display:flex;gap:4px">
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="到職日">${r.startDate||'—'}</td><td data-label="離職日">${r.resignDate||'—'}</td>
+        <td data-label="狀態">${eBadge(r.status)}</td>
+        <td data-label="操作"><div style="display:flex;gap:4px">
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();restoreEmployee(${r.id})" title="復職">↩</button>`:''}
           ${currentUserRole==='admin'?`<button class="ibt" onclick="event.stopPropagation();delResigned(${r.id})" title="刪除" style="color:#e24b4a">✕</button>`:''}
         </div></td>
@@ -968,7 +988,7 @@ function render() {
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
-    <div class="tw"><table>
+    <div class="tw"><table class="list-table">
       <thead><tr>
         ${sth('同仁編號','empNo','110px')}
         ${sth('姓名','name','130px')}
@@ -1026,7 +1046,7 @@ function render() {
         <td data-label="同仁編號">${r.empNo||'—'}</td>
         <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
-        <td><div style="display:flex;gap:4px">
+        <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
           <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
         </div></td>
