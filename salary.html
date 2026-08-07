@@ -359,6 +359,30 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
   .lp-b{font-size:12px;min-height:36px;padding:6px 10px}
   .lp-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 }
+/* 上班時段輸入（2026-08 起・正職請假日）*/
+.sub-leave.seg-mode{background:var(--blue-bg);border-color:var(--blue-border);flex-wrap:wrap;row-gap:6px;column-gap:8px}
+.seg-lbl{font-weight:600;color:var(--blue);flex:0 0 auto;white-space:nowrap}
+.seg-times{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.seg-t{font-size:12px;padding:5px 6px;border:1px solid var(--blue-border);border-radius:6px;font-family:inherit;background:#fff;min-height:32px}
+.seg-tilde{color:var(--text2);font-size:11px}
+.seg-brk{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);flex:0 0 auto;white-space:nowrap}
+.seg-sel{font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;background:#fff;min-height:32px}
+.seg-out{font-size:11px;color:var(--text2);flex:1 1 100%;line-height:1.8}
+.seg-out b{color:var(--text);font-weight:600}
+.seg-out b.c-green{color:var(--green)}
+.seg-out b.c-orange{color:var(--orange)}
+.seg-out b.c-gray{color:var(--text3)}
+.seg-hint{display:block;font-size:10px;color:var(--text3);margin-top:2px}
+.seg-warn{flex:1 1 100%;font-size:11px;color:var(--orange);background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:6px;padding:5px 8px}
+@media(max-width:600px){
+  .sub-leave.seg-mode{row-gap:8px}
+  .seg-lbl{flex:1 1 100%}
+  .seg-times{flex:1 1 100%}
+  .seg-t{flex:1 1 0;min-width:0;font-size:14px;min-height:38px;padding:7px 6px;text-align:center}
+  .seg-sel{font-size:14px;min-height:38px}
+  .seg-brk{flex:1 1 46%}
+  .seg-brk .seg-sel{flex:1 1 0;min-width:0}
+}
 .sub-leave{display:flex;flex-wrap:wrap;align-items:center;gap:5px;background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--purple);font-weight:500}
 .sub-leave input{width:54px;font-size:11px;padding:3px 5px;border:1px solid var(--purple-border);border-radius:5px;background:#fff;font-family:inherit;text-align:right;min-height:26px;-webkit-appearance:none;appearance:none}
 .sub-temp{display:flex;align-items:center;gap:5px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--blue);font-weight:500}
@@ -791,6 +815,58 @@ function isInsFix(y, m) {
   if (yy > INSFIX_FROM.y) return true;
   if (yy < INSFIX_FROM.y) return false;
   return mm >= INSFIX_FROM.m;
+}
+// ── 上班時段輸入模式（2026-08 起，僅正職請假日）──
+// 動機：原本要人工判斷「有沒有上到固定加班的最後 N 小時」，改由系統依班表判定。
+// 班表結構：span = 基本工時 8h + 固定加班 otWinH + 空班 brkH
+//   固定加班窗口 = [班表結束 − otWinH, 班表結束]
+//   基本工時窗口 = [班表開始, 班表結束 − otWinH]（內含 8h 工時與空班）
+// 7 月及以前完全走舊路徑，確保已發放薪資不受影響。
+const SEGIN_FROM = { y: 2026, m: 8 };
+function isSegInput(y, m) {
+  const yy = Number(y), mm = Number(m);
+  if (yy > SEGIN_FROM.y) return true;
+  if (yy < SEGIN_FROM.y) return false;
+  return mm >= SEGIN_FROM.m;
+}
+// "HH:MM" → 小時數（12:30 → 12.5）；無法解析回 null
+function _t2h(t){
+  const m=String(t||'').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return null;
+  const h=Number(m[1]), mi=Number(m[2]);
+  if(h>23||mi>59)return null;
+  return h+mi/60;
+}
+// 小時數 → 「N時M分」
+function _fmtHM(h){
+  const t=Math.round(Number(h||0)*60);
+  const hh=Math.floor(t/60), mm=t%60;
+  return ((hh?hh+'時':'')+(mm?mm+'分':''))||'0';
+}
+// 小時數 → "HH:MM"
+function _h2t(h){
+  let x=((Number(h)%24)+24)%24;
+  const t=Math.round(x*60);
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+const _ovlH=(a1,a2,b1,b2)=>Math.max(0,Math.min(a2,b2)-Math.max(a1,b1));
+// 依上班時段推算：基本工時（0～8h）與固定加班時數（碰幾分給幾分），兩者獨立不相加
+function segCompute(r, shift, defOt){
+  const st=_t2h(r&&r.inStart), en0=_t2h(r&&r.inEnd);
+  const ss=_t2h(shift&&shift.startTime), se=_t2h(shift&&shift.endTime);
+  if(st==null||en0==null||ss==null||se==null)return null;
+  let en=en0; if(en<st)en+=24;                       // 跨夜
+  const otWin=(r&&r.otWinH!=null)?Number(r.otWinH):Number(defOt||0);
+  let _se=se, _ss=ss;
+  if(_se<_ss)_se+=24;                                // 班表跨夜
+  const ws=_se-otWin;                                // 固定加班窗口起點
+  const brk=Number((r&&r.brkH)||0);
+  const otWorked=Math.round(_ovlH(st,en,ws,_se)*60)/60;
+  const baseSpan=Math.round(_ovlH(st,en,_ss,ws)*60)/60;
+  const baseWorked=Math.max(0, Math.round((baseSpan-brk)*60)/60);
+  return { baseWorked, otWorked, baseSpan, brk, otWin,
+           winStart:ws, shiftEnd:_se, shiftStart:_ss,
+           span:Math.round((en-st)*60)/60 };
 }
 function isNewRule(y, m) {
   const yy = Number(y), mm = Number(m);
@@ -1339,18 +1415,31 @@ function calcSalary(emp,rec,shifts){
         if(dm>0){personalMins+=dm;personalDates.push(`${viewMonth}/${d}(遲到${lm}分)`);}
       }
     } else {
-      const worked=Number(r.workedHours||0);
-      if(worked>=8){
-        workDays++;
-        fixedOtHours+=Math.max(0,worked-8);
+        // 【2026-08 起】若該日以「上班時段」輸入（有 baseWorked），基本工時與固定加班分開判定；
+        // 否則沿用原本 workedHours 的語意（7 月及以前一律走此舊路徑）。
+        const _segOn=isSegInput(viewYear,viewMonth)&&r.baseWorked!=null;
+        const worked=_segOn?Number(r.baseWorked||0):Number(r.workedHours||0);
+        const _segOt=_segOn?Number(r.autoOt||0):0;
+        if(worked>=8){
+          workDays++;
+          if(_segOn){
+            // 基本工時已滿 8h：固定加班用加班段實際時數（不從「總時數−8」反推）
+            fixedOtHours+=_segOt;
+            fullFixedOtHours+=defOt;
+            extraOtHours+=Number(r.ot167||0);
+          } else {
+            fixedOtHours+=Math.max(0,worked-8);
+          }
       } else {
         const leaveH=8-worked;
         if(worked>0)workDays+=worked/8;
         // 【2026-07 起】有出勤且非全薪假 → 固定加班照給（政府規定：基本工時外的固定加班不因部分請假取消）
         // 完全沒出勤（worked=0）或全薪假（特休/婚/喪/紅字）→ 不給固定加班
         // （6月及以前維持舊行為：請假未滿8h一律不給固定加班）
-        if(_newRule&&worked>0&&lt.pay!=='full'){
-          fixedOtHours+=(r.autoOt!=null?Number(r.autoOt):defOt);
+          // 【2026-08 起】時段輸入模式下，即使基本工時為 0（只上最後加班段），加班段仍應給付
+          const _otGate=_segOn?(worked>0||_segOt>0):(worked>0);
+          if(_newRule&&_otGate&&lt.pay!=='full'){
+            fixedOtHours+=_segOn?_segOt:(r.autoOt!=null?Number(r.autoOt):defOt);
           fullFixedOtHours+=defOt; // 滿額基準：有出勤日仍應計滿額固定加班
           extraOtHours+=Number(r.ot167||0);
         }
@@ -2057,7 +2146,45 @@ function renderSheet(emp,rec,shifts,c){
     // 【2026-07起】全薪假不提供出勤輸入；6月及以前維持舊行為（所有假別皆可填），以便檢視舊資料
     const _hideFullLeaveInput=isNewRule(viewYear,viewMonth)&&(LEAVE_TYPES[type]||{}).pay==='full';
     let subRow='';
-    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&!_hideFullLeaveInput){
+    if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&!_hideFullLeaveInput&&!c.isPartTime&&isSegInput(viewYear,viewMonth)&&shift.startTime&&shift.endTime){
+      // 【2026-08 起・正職】輸入上班時段，系統換算基本工時與固定加班
+      const _sg=segCompute(r,shift,defOt);
+      const _otW=(r.otWinH!=null)?Number(r.otWinH):defOt;
+      const _lv=_sg?Math.max(0,Math.round((8-_sg.baseWorked)*60)/60):null;
+      const _needBrk=_sg&&Number(r.brkH||0)===0&&_sg.span>8+_otW+0.01;
+      subRow=`<div class="sub-row"><div class="sub-leave seg-mode">
+        <span class="seg-lbl">上班時段</span>
+        <div class="seg-times">
+          <input type="time" class="seg-t" value="${r.inStart||''}" ${dis} onchange="patchDaySeg('${ds}','inStart',this.value)">
+          <span class="seg-tilde">~</span>
+          <input type="time" class="seg-t" value="${r.inEnd||''}" ${dis} onchange="patchDaySeg('${ds}','inEnd',this.value)">
+        </div>
+        <label class="seg-brk">空班
+          <select class="seg-sel" ${dis} onchange="patchDaySeg('${ds}','brkH',this.value)">
+            <option value="0"${!Number(r.brkH)?' selected':''}>無</option>
+            <option value="1"${Number(r.brkH)===1?' selected':''}>1時</option>
+            <option value="2"${Number(r.brkH)===2?' selected':''}>2時</option>
+            <option value="3"${Number(r.brkH)===3?' selected':''}>3時</option>
+          </select>
+        </label>
+        <label class="seg-brk">加班窗口
+          <select class="seg-sel" ${dis} onchange="patchDaySeg('${ds}','otWinH',this.value)">
+            <option value="0"${_otW===0?' selected':''}>0時</option>
+            <option value="1"${_otW===1?' selected':''}>1時</option>
+            <option value="2"${_otW===2?' selected':''}>2時</option>
+            <option value="3"${_otW===3?' selected':''}>3時</option>
+          </select>
+        </label>
+        ${_sg?`<span class="seg-out">基本工時 <b>${_fmtHM(_sg.baseWorked)}</b>　${LEAVE_TYPES[type].label} <b class="c-orange">${_fmtHM(_lv)}</b>　固定加班 <b class="${_sg.otWorked>0?'c-green':'c-gray'}">${_sg.otWorked>0?_fmtHM(_sg.otWorked):'無'}</b><span class="seg-hint">加班窗口 ${_h2t(_sg.winStart)}–${_h2t(_sg.shiftEnd)}（上到 ${_fmtHM(_sg.otWorked)}）　基本工時窗口 ${_h2t(_sg.shiftStart)}–${_h2t(_sg.winStart)}（在場 ${_fmtHM(_sg.baseSpan)} − 空班 ${_fmtHM(_sg.brk)}）</span></span>`:`<span class="seg-hint">填入起訖時間後自動換算</span>`}
+        ${_needBrk?`<span class="seg-warn">⚠️ 時段長度 ${_fmtHM(_sg.span)} 已超過 8時＋加班窗口 ${_fmtHM(_otW)}，是否漏填空班？</span>`:''}
+        ${(()=>{const _p=r.proof;return `<span class="lp-btns">`+
+          (_p&&_p.url
+            ? `<button class="lp-b ok" onclick="viewLeaveProof('${ds}')" title="檢視請假證明">🖼 檢視證明</button>`
+              +(!locked?`<button class="lp-b" onclick="pickLeaveProof('${ds}')" title="重新上傳">↻</button><button class="lp-b del" onclick="delLeaveProof('${ds}')" title="刪除">✕</button>`:'')
+            : (!locked?`<button class="lp-b up" onclick="pickLeaveProof('${ds}')" title="上傳請假證明">📎 上傳證明</button>`:`<span class="lp-none">無證明</span>`)
+          )+`</span>`;})()}
+      </div></div>`;
+    } else if(shift&&inEmp&&type!=='normal'&&type!=='dayoff'&&!_hideFullLeaveInput){
       subRow=`<div class="sub-row"><div class="sub-leave">
         <span>當天實際上班</span>
         <div class="hm-wrap">
@@ -3085,6 +3212,25 @@ async function syncAnnualToHR(ds,add){
   }catch(e){console.error('syncAnnualToHR',e);}
 }
 window.patchDay=function(ds,field,value){if(!currentRec)return;dayRec(ds)[field]=value;persist();rerender();};
+// 上班時段輸入：更新輸入欄位後，即時換算基本工時與固定加班（寫入 baseWorked / autoOt）
+window.patchDaySeg=function(ds,field,val){
+  if(!currentRec)return;
+  const r=dayRec(ds);
+  if(field==='brkH'||field==='otWinH')r[field]=Number(val||0);
+  else r[field]=String(val||'');
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  const shift=emp?getShift(curShifts,emp,ds):null;
+  const _defOt=Number(getDefOt(emp&&emp.workLocation)||0);
+  const res=segCompute(r,shift,_defOt);
+  if(res){
+    r.baseWorked=res.baseWorked;     // 基本工時（0～8h）：請假時數＝8−此值
+    r.autoOt=res.otWorked;           // 固定加班：加班窗口內實際時數（碰幾分給幾分）
+    r.workedHours=res.baseWorked;    // 供既有顯示沿用
+  } else if(!r.inStart&&!r.inEnd){
+    delete r.baseWorked; delete r.autoOt; r.workedHours=null;
+  }
+  persist();rerender();
+};
 window.patchDayHM=function(ds,field,str){if(!currentRec)return;const v=hmToHours(str);dayRec(ds)[field]=(v===null||v===0&&str==='')?(field==='workedHours'?null:0):v;persist();rerender();};
 window.patchDayParts=function(ds,field,part,val){
   if(!currentRec)return;
