@@ -547,13 +547,14 @@ window.markPaid = async function(empId, key, cat, amount, label, checkbox){
     e.fixedBonuses[key] = true;
   }
 
-  bonusLog.unshift({
+  const logEntry = {
     id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
     empId: e.id, empName: e.name, workLocation: e.workLocation || '',
     label: logLabel, key, cat, amount, date: today,
-    note: zeroReason || undefined,
     operator: currentUserName, createdAt: new Date().toISOString()
-  });
+  };
+  if(zeroReason) logEntry.note = zeroReason; // 僅在有 $0 原因時才寫入，避免 undefined
+  bonusLog.unshift(logEntry);
 
   renderList();
   await saveAll();
