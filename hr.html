@@ -107,6 +107,17 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
 .modal{background:#fff;border-radius:14px;border:1px solid var(--border);width:540px;max-width:100%;padding:24px;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 60px rgba(15,23,42,.2)}
 .modal h2,.modal-title{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border)}
+/* 多筆欄位（Email／銀行帳戶）*/
+.multi-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.multi-row>input{flex:1;min-width:0;font-size:13px;padding:7px 10px;border:1px solid #d4d4d0;border-radius:8px;font-family:inherit;box-sizing:border-box}
+.multi-del{flex:0 0 auto;width:30px;height:30px;border:1px solid #f7c8c8;background:#fff;color:#D33A3A;border-radius:8px;cursor:pointer;font-size:12px;line-height:1}
+.multi-add{margin-top:2px;font-size:12px;padding:5px 10px;border:1px dashed #C8CDD8;background:#fff;color:#5A6175;border-radius:8px;cursor:pointer;font-family:inherit}
+.multi-add:hover{border-color:#9AA0B4}
+@media(max-width:820px){
+  .multi-row>input{font-size:14px;min-height:40px}
+  .multi-del{width:40px;height:40px}
+  .multi-add{min-height:38px;width:100%}
+}
 .fr{margin-bottom:12px}
 .fr label{display:block;font-size:12px;color:var(--text-2);margin-bottom:5px;font-weight:500}
 .fr input,.fr select,.fr textarea{width:100%;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-family:inherit;transition:border-color .15s}
@@ -610,70 +621,6 @@ async function writeOpLog(action, detail=''){
 // ── 版本鎖：避免多人同時覆蓋 ──
 let _dataVersion = null;
 
-// ── 掃描「正職轉兼職需補月薪歷程」的同仁（admin）──
-// 判定依據：該同仁的薪資記錄中，存檔 snapshot.base > 0 表示存檔當時是以「正職」計算
-//（兼職的 base 一律為 0）。若他現在是兼職／歷程有時薪筆，過去那些月份就需要一筆月薪歷程，
-// 否則會被回溯用時薪制重算，明細與重算值都會錯。
-window.scanKindBackfill=async function(){
-  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
-  showToast('掃描中…',60000);
-  try{
-    const { getFirestore, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const _db=getFirestore();
-    const snap=await getDocs(collection(_db,'salary_records'));
-    const ftMonths={};   // empId → [以正職存檔的月份]
-    snap.forEach(d=>{
-      const [id,ym]=d.id.split('_');
-      const sn=d.data().snapshot;
-      if(sn&&Number(sn.base)>0)(ftMonths[id]=ftMonths[id]||[]).push(ym);
-    });
-    const rows=[];
-    employees.forEach(e=>{
-      const id=String(e.id);
-      const hist=(e.salaryHistory||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-      const hasHourly=hist.some(h=>h.kind==='hourly');
-      const ptByTitle=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
-      if(!hasHourly&&!ptByTitle)return;                 // 現在不是兼職 → 不受影響
-      const ms=(ftMonths[id]||[]).slice().sort();
-      if(!ms.length)return;                              // 沒有以正職存檔的月份 → 無需處理
-      const hasMonthly=hist.some(h=>h.kind==='monthly');
-      rows.push({name:e.name, loc:e.workLocation||'', title:e.title||'',
-                 months:ms, hasHourly, hasMonthly,
-                 hist:hist.map(h=>h.date+(h.kind==='hourly'?'/時':h.kind==='monthly'?'/月':'/未標')+' $'+h.amount).join('　')});
-    });
-    rows.sort((a,b)=>String(a.loc).localeCompare(String(b.loc),'zh-Hant')||String(a.name).localeCompare(String(b.name),'zh-Hant'));
-    console.log('需補月薪歷程清單：',rows);
-    if(!rows.length){alert('✓ 沒有需要處理的同仁。\n\n（沒有人是「現為兼職且過去曾以正職結算」的情況）');return;}
-    const html=rows.map(r=>
-      '<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e5e5">'+r.loc+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-weight:600">'+r.name+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:11px">'+r.title+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;color:#C47A00">'+r.months.join('、')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:11px;color:#6b6b68">'+(r.hist||'（無歷程）')+'</td>'+
-      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5">'+(r.hasMonthly?'<span style="color:#1A9B4C">已有月薪筆</span>':'<span style="color:#D33A3A;font-weight:600">需補</span>')+'</td></tr>').join('');
-    const ov=document.createElement('div');
-    ov.className='modal-overlay';
-    ov.innerHTML='<div class="modal" style="max-width:900px">'+
-      '<div class="modal-title">正職轉兼職 — 需補月薪歷程清單（'+rows.length+' 位）</div>'+
-      '<div style="font-size:12px;color:#6b6b68;line-height:1.8;margin-bottom:10px">'+
-      '下列同仁「現在是兼職」，但過去有月份是以正職結算（存檔 base &gt; 0）。<br>'+
-      '請在各人的「薪資歷程」補一筆<b>月薪</b>紀錄，生效年月設為<b>轉兼職前</b>（例如到職年月），金額為當時月薪；<br>'+
-      '再把轉兼職那筆設為<b>時薪</b>。這樣過去月份就會用正職計算、轉換後才用兼職。</div>'+
-      '<div style="max-height:60vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
-      '<tr style="background:#f4f5f8"><th style="text-align:left;padding:6px 8px">店面</th><th style="text-align:left;padding:6px 8px">姓名</th>'+
-      '<th style="text-align:left;padding:6px 8px">現職稱</th><th style="text-align:left;padding:6px 8px">以正職結算的月份</th>'+
-      '<th style="text-align:left;padding:6px 8px">現有薪資歷程</th><th style="text-align:left;padding:6px 8px">狀態</th></tr>'+
-      html+'</table></div>'+
-      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="this.closest(\'.modal-overlay\').remove()">關閉</button></div>'+
-      '</div>';
-    ov.onclick=ev=>{if(ev.target===ov)ov.remove();};
-    document.body.appendChild(ov);
-    showToast('✓ 掃描完成，共 '+rows.length+' 位');
-  }catch(e){
-    console.error(e);
-    alert('掃描失敗：'+(e&&e.message||e));
-  }
-};
 async function saveData(action='', detail='') {
   try {
     // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
@@ -740,6 +687,49 @@ async function saveData(action='', detail='') {
 
 let interviews=[], employees=[], resigned=[];
 // 取薪資歷程最新一筆金額（正職＝月薪、兼職＝時薪）；無歷程則 fallback 基本資料欄位
+// ── 多筆 Email／銀行帳戶 ──
+// 資料相容策略：陣列為主（emails / banks），同時把第一筆同步回舊欄位
+// （email / bankName / bankAccount），確保其他頁面讀舊欄位仍正常。
+function getEmails(e){
+  if(Array.isArray(e&&e.emails)&&e.emails.length)return e.emails.filter(Boolean);
+  return (e&&e.email)?[e.email]:[];
+}
+function getBanks(e){
+  if(Array.isArray(e&&e.banks)&&e.banks.length)return e.banks.filter(b=>b&&(b.name||b.account));
+  return (e&&(e.bankName||e.bankAccount))?[{name:e.bankName||'',account:e.bankAccount||''}]:[];
+}
+// 新增一列 Email（DOM 直接附加，不重繪 modal 以免遺失其他欄位輸入）
+window.addEmailRow=function(val){
+  const box=document.getElementById('m-emails');if(!box)return;
+  const row=document.createElement('div');
+  row.className='multi-row';
+  row.innerHTML='<input type="email" class="m-email-i" value="'+String(val||'').replace(/"/g,'&quot;')+'" placeholder="example@mail.com">'
+    +'<button type="button" class="multi-del" onclick="this.parentNode.remove()" title="移除">✕</button>';
+  box.appendChild(row);
+};
+// 新增一列銀行帳戶（銀行名稱用自製下拉，需唯一 id）
+let _bankRowSeq=0;
+window.addBankRow=function(name,account){
+  const box=document.getElementById('m-banks');if(!box)return;
+  const idx=_bankRowSeq++;
+  const row=document.createElement('div');
+  row.className='multi-row bank-row';
+  row.innerHTML='<div style="flex:1;min-width:0">'+cddHtml('m-bankName-'+idx, (typeof bankOptions!=='undefined'?bankOptions:[])||[], name||'', 'bankOptions','請選擇或新增銀行')+'</div>'
+    +'<input class="m-bank-acc" data-idx="'+idx+'" value="'+String(account||'').replace(/"/g,'&quot;')+'" placeholder="銀行帳號" style="flex:1;min-width:0">'
+    +'<button type="button" class="multi-del" onclick="this.parentNode.remove()" title="移除">✕</button>';
+  box.appendChild(row);
+};
+// 收集畫面上的多筆資料
+function collectEmails(){
+  return [...document.querySelectorAll('#m-emails .m-email-i')].map(x=>x.value.trim()).filter(Boolean);
+}
+function collectBanks(){
+  return [...document.querySelectorAll('#m-banks .bank-row')].map(row=>{
+    const acc=row.querySelector('.m-bank-acc');
+    const hid=row.querySelector('input[type="hidden"][id^="m-bankName-"]');
+    return {name:(hid?hid.value:'').trim(), account:(acc?acc.value:'').trim()};
+  }).filter(b=>b.name||b.account);
+}
 function latestSalary(e){
   const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   if(h.length)return Number(h[0].amount)||0;
@@ -1063,7 +1053,6 @@ function render() {
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSloc(this.value)">${lopts}</select>
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
-      ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="scanKindBackfill()" title="掃描正職轉兼職需補月薪歷程的同仁">🔍 轉兼職檢查</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table class="list-table">
@@ -1160,7 +1149,8 @@ function render() {
             :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}</div></div>`}
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
-          <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${sel.bankName||'—'} ${sel.bankAccount?'· '+sel.bankAccount:''}</div></div>
+          <div class="di"><div class="dl">Email</div><div class="dv">${getEmails(sel).length?getEmails(sel).map(v=>`<div>${v}</div>`).join(''):'—'}</div></div>
+          <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${getBanks(sel).length?getBanks(sel).map(b=>`<div>${b.name||'—'}${b.account?' · '+b.account:''}</div>`).join(''):'—'}</div></div>
           <div class="di" style="grid-column:span 2"><div class="dl">地址</div><div class="dv">${sel.address||'—'}</div></div>
         </div>
         <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>`;
@@ -1725,13 +1715,13 @@ function openModal(mode, targetId, extraIdx) {
       <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-birthday', r.birthday||'')}</div>
       <div class="fr"><label>身分證號</label><input id="m-idNo" value="${r.idNo||''}" placeholder="A123456789"></div>
       <div class="fr"><label>內部同仁編號</label><input id="m-empNo" value="${r.empNo||''}" placeholder="例：EMP001"></div>
-      <div class="fr" style="grid-column:span 2"><label>Email</label><input id="m-email" value="${r.email||''}"></div>
-      <div class="fr" style="grid-column:span 2">
-        <label>銀行帳戶</label>
-        <div class="bank-row" style="display:flex;gap:6px;align-items:center">
-          <div style="flex:1">${cddHtml('m-bankName', bankOptions||[], r.bankName||'', 'bankOptions','請選擇或新增銀行')}</div>
-          <input id="m-bankAccount" value="${r.bankAccount||''}" placeholder="銀行帳號" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid #d4d4d0;border-radius:8px;font-family:inherit">
-        </div>
+      <div class="fr" style="grid-column:span 2"><label>Email <span style="font-size:10px;color:#9AA0B4">可新增多筆</span></label>
+        <div id="m-emails">${(getEmails(r).length?getEmails(r):['']).map(v=>`<div class="multi-row"><input type="email" class="m-email-i" value="${String(v||'').replace(/"/g,'&quot;')}" placeholder="example@mail.com"><button type="button" class="multi-del" onclick="this.parentNode.remove()" title="移除">✕</button></div>`).join('')}</div>
+        <button type="button" class="multi-add" onclick="addEmailRow()">＋ 新增 Email</button>
+      </div>
+      <div class="fr" style="grid-column:span 2"><label>銀行帳戶 <span style="font-size:10px;color:#9AA0B4">可新增多筆</span></label>
+        <div id="m-banks">${(getBanks(r).length?getBanks(r):[{name:'',account:''}]).map((b,bi)=>`<div class="multi-row bank-row"><div style="flex:1;min-width:0">${cddHtml('m-bankName-init'+bi, bankOptions||[], b.name||'', 'bankOptions','請選擇或新增銀行')}</div><input class="m-bank-acc" value="${String(b.account||'').replace(/"/g,'&quot;')}" placeholder="銀行帳號" style="flex:1;min-width:0"><button type="button" class="multi-del" onclick="this.parentNode.remove()" title="移除">✕</button></div>`).join('')}</div>
+        <button type="button" class="multi-add" onclick="addBankRow()">＋ 新增銀行帳戶</button>
       </div>
       <div class="fr" style="grid-column:span 2"><label>地址</label><input id="m-address" value="${r.address||''}" placeholder="戶籍或通訊地址"></div>
     </div>
@@ -1859,7 +1849,14 @@ async function saveModal(){
   } else if(m==='addEmployee'||m==='editEmployee'){
     if(!g('m-name')){alert('請填寫姓名');return;}
     const newStatus=g('m-status');
-    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,hourlyRate:parseInt(g('m-hourlyRate'))||0,phone:g('m-phone'),email:g('m-email'),education:g('m-education'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),bankName:g('m-bankName'),bankAccount:g('m-bankAccount'),address:g('m-address'),note:g('m-note')};
+    const empFields={name:g('m-name'),workLocation:g('m-workLocation'),title:g('m-title'),status:newStatus,startDate:getROC('m-startDate'),salary:parseInt(g('m-salary'))||0,hourlyRate:parseInt(g('m-hourlyRate'))||0,phone:g('m-phone'),birthday:getROC('m-birthday'),idNo:(g('m-idNo')||'').toUpperCase(),empNo:g('m-empNo'),address:g('m-address'),note:g('m-note')};
+    // 多筆 Email／銀行帳戶：陣列為主，第一筆同步回舊欄位（相容其他頁面）
+    const _emails=collectEmails(), _banks=collectBanks();
+    empFields.emails=_emails;
+    empFields.email=_emails[0]||'';
+    empFields.banks=_banks;
+    empFields.bankName=(_banks[0]&&_banks[0].name)||'';
+    empFields.bankAccount=(_banks[0]&&_banks[0].account)||'';
     if(m==='editEmployee'){
       const r=employees.find(x=>x.id===tid);
       // 若是從求職者轉來（uid 為空），補齊 idNo+birthday 後自動建帳號
@@ -2544,7 +2541,7 @@ window.confirmTransfer=async function(id){
     workLocation:wl, title:'正職同仁', status:'在職',
     startDate:'', salary:0, birthday:'', idNo:'', empNo:'', bankName:'', bankAccount:'',
     note:r.note||'', emergency:{name:'',relation:'',phone:''},
-    uid:'', salaryHistory:[], performance:[], leaves:[], trainings:[]
+    uid:'', emails:[], banks:[], salaryHistory:[], performance:[], leaves:[], trainings:[]
   };
   employees.unshift(newEmp);
   interviews=interviews.filter(x=>x.id!==id);
