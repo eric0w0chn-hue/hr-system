@@ -610,6 +610,70 @@ async function writeOpLog(action, detail=''){
 // ── 版本鎖：避免多人同時覆蓋 ──
 let _dataVersion = null;
 
+// ── 掃描「正職轉兼職需補月薪歷程」的同仁（admin）──
+// 判定依據：該同仁的薪資記錄中，存檔 snapshot.base > 0 表示存檔當時是以「正職」計算
+//（兼職的 base 一律為 0）。若他現在是兼職／歷程有時薪筆，過去那些月份就需要一筆月薪歷程，
+// 否則會被回溯用時薪制重算，明細與重算值都會錯。
+window.scanKindBackfill=async function(){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可執行');return;}
+  showToast('掃描中…',60000);
+  try{
+    const { getFirestore, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const _db=getFirestore();
+    const snap=await getDocs(collection(_db,'salary_records'));
+    const ftMonths={};   // empId → [以正職存檔的月份]
+    snap.forEach(d=>{
+      const [id,ym]=d.id.split('_');
+      const sn=d.data().snapshot;
+      if(sn&&Number(sn.base)>0)(ftMonths[id]=ftMonths[id]||[]).push(ym);
+    });
+    const rows=[];
+    employees.forEach(e=>{
+      const id=String(e.id);
+      const hist=(e.salaryHistory||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+      const hasHourly=hist.some(h=>h.kind==='hourly');
+      const ptByTitle=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
+      if(!hasHourly&&!ptByTitle)return;                 // 現在不是兼職 → 不受影響
+      const ms=(ftMonths[id]||[]).slice().sort();
+      if(!ms.length)return;                              // 沒有以正職存檔的月份 → 無需處理
+      const hasMonthly=hist.some(h=>h.kind==='monthly');
+      rows.push({name:e.name, loc:e.workLocation||'', title:e.title||'',
+                 months:ms, hasHourly, hasMonthly,
+                 hist:hist.map(h=>h.date+(h.kind==='hourly'?'/時':h.kind==='monthly'?'/月':'/未標')+' $'+h.amount).join('　')});
+    });
+    rows.sort((a,b)=>String(a.loc).localeCompare(String(b.loc),'zh-Hant')||String(a.name).localeCompare(String(b.name),'zh-Hant'));
+    console.log('需補月薪歷程清單：',rows);
+    if(!rows.length){alert('✓ 沒有需要處理的同仁。\n\n（沒有人是「現為兼職且過去曾以正職結算」的情況）');return;}
+    const html=rows.map(r=>
+      '<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e5e5">'+r.loc+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-weight:600">'+r.name+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:11px">'+r.title+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;color:#C47A00">'+r.months.join('、')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:11px;color:#6b6b68">'+(r.hist||'（無歷程）')+'</td>'+
+      '<td style="padding:6px 8px;border-bottom:1px solid #e5e5e5">'+(r.hasMonthly?'<span style="color:#1A9B4C">已有月薪筆</span>':'<span style="color:#D33A3A;font-weight:600">需補</span>')+'</td></tr>').join('');
+    const ov=document.createElement('div');
+    ov.className='modal-overlay';
+    ov.innerHTML='<div class="modal" style="max-width:900px">'+
+      '<div class="modal-title">正職轉兼職 — 需補月薪歷程清單（'+rows.length+' 位）</div>'+
+      '<div style="font-size:12px;color:#6b6b68;line-height:1.8;margin-bottom:10px">'+
+      '下列同仁「現在是兼職」，但過去有月份是以正職結算（存檔 base &gt; 0）。<br>'+
+      '請在各人的「薪資歷程」補一筆<b>月薪</b>紀錄，生效年月設為<b>轉兼職前</b>（例如到職年月），金額為當時月薪；<br>'+
+      '再把轉兼職那筆設為<b>時薪</b>。這樣過去月份就會用正職計算、轉換後才用兼職。</div>'+
+      '<div style="max-height:60vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
+      '<tr style="background:#f4f5f8"><th style="text-align:left;padding:6px 8px">店面</th><th style="text-align:left;padding:6px 8px">姓名</th>'+
+      '<th style="text-align:left;padding:6px 8px">現職稱</th><th style="text-align:left;padding:6px 8px">以正職結算的月份</th>'+
+      '<th style="text-align:left;padding:6px 8px">現有薪資歷程</th><th style="text-align:left;padding:6px 8px">狀態</th></tr>'+
+      html+'</table></div>'+
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="this.closest(\'.modal-overlay\').remove()">關閉</button></div>'+
+      '</div>';
+    ov.onclick=ev=>{if(ev.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+    showToast('✓ 掃描完成，共 '+rows.length+' 位');
+  }catch(e){
+    console.error(e);
+    alert('掃描失敗：'+(e&&e.message||e));
+  }
+};
 async function saveData(action='', detail='') {
   try {
     // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
@@ -682,6 +746,19 @@ function latestSalary(e){
   const pt=((e.title||'').includes('兼職')||(e.title||'').includes('工讀'));
   return Number((pt?e.hourlyRate:e.salary)||0);
 }
+// 最新一筆歷程的薪資類型（供顯示「月薪/時薪」用）
+function latestSalaryKind(e){
+  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  if(h.length&&h[0].kind)return h[0].kind;
+  return ((e.title||'').includes('兼職')||(e.title||'').includes('工讀'))?'hourly':'monthly';
+}
+window.syncSalaryKindLabel=function(){
+  const k=document.getElementById('m-skind'), lb=document.getElementById('m-samount-lbl'), am=document.getElementById('m-samount');
+  if(!k||!lb)return;
+  const hr=k.value==='hourly';
+  lb.textContent=hr?'調整後時薪（元）':'調整後月薪（元）';
+  if(am)am.placeholder=hr?'例：196':'例：40000';
+};
 let currentUserRole = 'admin';
 let currentUserLocations = [];
 let currentUserName = 'Admin';
@@ -986,6 +1063,7 @@ function render() {
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSloc(this.value)">${lopts}</select>
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
+      ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="scanKindBackfill()" title="掃描正職轉兼職需補月薪歷程的同仁">🔍 轉兼職檢查</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
     <div class="tw"><table class="list-table">
@@ -1077,7 +1155,7 @@ function render() {
           <div class="di"><div class="dl">同仁編號</div><div class="dv">${sel.empNo||'—'}</div></div>
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
-          ${(sel.title||'').includes('兼職')||(sel.title||'').includes('工讀')
+          ${latestSalaryKind(sel)==='hourly'
             ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
             :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}</div></div>`}
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
@@ -1116,7 +1194,7 @@ function render() {
         ${sel.salaryHistory.length?sel.salaryHistory.map((h,oi)=>({h,oi})).sort((a,b)=>String(a.h.date).localeCompare(String(b.h.date))).map((_o,i,_arr)=>{const h=_o.h,oi=_o.oi;return `<div class="hist-row">
           <div class="hist-dot green"></div>
           <div style="flex:1">
-            <div style="font-size:13px;font-weight:500">$${h.amount.toLocaleString()}</div>
+            <div style="font-size:13px;font-weight:500">$${h.amount.toLocaleString()}<span style="font-size:10px;font-weight:400;margin-left:6px;padding:1px 6px;border-radius:4px;${h.kind==='hourly'?'background:#EAF0FF;color:#2D6BF0':'background:#E5F5EB;color:#1A9B4C'}">${h.kind==='hourly'?'時薪':'月薪'}</span></div>
             <div class="hist-meta">${h.date?(h.date.slice(0,7).replace('-','/')+' 起'):'—'}${h.reason?' · '+h.reason:''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
@@ -1706,7 +1784,12 @@ function openModal(mode, targetId, extraIdx) {
     title=isEdit?'編輯薪資記錄':'新增薪資調整記錄';
     html=`<div class="fg">
       <div class="fr"><label>生效年月 <span style="font-size:10px;color:#9AA0B4">此年月起生效</span></label><input id="m-sdate" type="month" value="${(h.date||'').slice(0,7)}"></div>
-      <div class="fr"><label>調整後月薪（元）</label><input id="m-samount" type="number" value="${h.amount||''}" placeholder="例：65000"></div>
+      <div class="fr"><label>薪資類型 <span style="font-size:10px;color:#9AA0B4">決定該月起以正職或兼職計算</span></label>
+        <select id="m-skind" onchange="syncSalaryKindLabel()">
+          <option value="monthly"${(h.kind||'monthly')==='monthly'?' selected':''}>月薪（正職）</option>
+          <option value="hourly"${h.kind==='hourly'?' selected':''}>時薪（兼職）</option>
+        </select></div>
+      <div class="fr" style="grid-column:span 2"><label id="m-samount-lbl">${h.kind==='hourly'?'調整後時薪（元）':'調整後月薪（元）'}</label><input id="m-samount" type="number" value="${h.amount||''}" placeholder="${h.kind==='hourly'?'例：196':'例：40000'}"></div>
     </div>
     <div class="fr"><label>調整原因</label><input id="m-sreason" value="${h.reason||''}" placeholder="例：年度調薪、晉升調薪"></div>`;
     if(isEdit) editTarget={empId:targetId, idx:extraIdx};
@@ -1883,10 +1966,10 @@ async function saveModal(){
     if(m==='editSalary'&&editTarget&&typeof editTarget==='object'){
       const r=employees.find(x=>x.id===editTarget.empId);
       if(r&&r.salaryHistory[editTarget.idx]){
-        r.salaryHistory[editTarget.idx]={date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')};
+        r.salaryHistory[editTarget.idx]={date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,kind:(g('m-skind')||'monthly'),reason:g('m-sreason')};
       }
     } else {
-      employees.find(x=>x.id===tid).salaryHistory.push({date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,reason:g('m-sreason')});
+      employees.find(x=>x.id===tid).salaryHistory.push({date:(g('m-sdate')||'').slice(0,7),amount:parseInt(g('m-samount'))||0,kind:(g('m-skind')||'monthly'),reason:g('m-sreason')});
     }
   } else if(m==='addBonus'){
     if(!g('m-btitle')){alert('請填寫項目名稱');return;}

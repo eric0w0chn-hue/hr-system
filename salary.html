@@ -771,32 +771,36 @@ function getInsGrade(e,y,m){
 }
 // 兼職時薪：比照 getTarget 的月份感知（薪資歷程優先，fallback 基本資料 hourlyRate）
 // 兼職的 salaryHistory 存的是「時薪」；正職存「月薪」。兩者用同一欄位、不會混（正職轉兼職開新記錄）。
-function getHourly(e,y,m){
-  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  if(h.length>0){
-    if(y&&m){
-      const cutoff=`${y}-${String(m).padStart(2,'0')}-${String(getDaysInMonth(y,m)).padStart(2,'0')}`;
-      const valid=h.find(r=>String(r.date)<=cutoff);
-      if(valid)return Number(valid.amount);
-      return Number(h[h.length-1].amount);
-    }
-    return Number(h[0].amount);
+// ── 薪資類型（月薪/時薪）與月份感知的正職/兼職判定 ──
+// 薪資歷程每筆可帶 kind:'monthly'（月薪）或 'hourly'（時薪）。
+// 舊資料無 kind → 一律 fallback 到職稱判定，行為與改造前完全相同（零影響）。
+// 這讓「正職轉兼職」不會回溯改變過去月份的計算模式。
+function _histPick(e,y,m,filterKind){
+  let h=(e.salaryHistory||[]).slice();
+  if(filterKind==='monthly')h=h.filter(r=>r.kind!=='hourly');   // 月薪：排除時薪筆（未標記者視為月薪）
+  if(filterKind==='hourly') h=h.filter(r=>r.kind!=='monthly');  // 時薪：排除月薪筆（未標記者視為時薪）
+  if(!h.length)return null;
+  h.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  if(y&&m){
+    const cutoff=`${y}-${String(m).padStart(2,'0')}-${String(getDaysInMonth(y,m)).padStart(2,'0')}`;
+    return h.find(r=>String(r.date)<=cutoff)||h[h.length-1];
   }
+  return h[0];
+}
+// 該月是否為兼職（時薪制）：以當月適用的歷程筆的 kind 為準；無標記則看職稱
+function isPartTimeAt(e,y,m){
+  const pick=_histPick(e,y,m,null);
+  if(pick&&pick.kind)return pick.kind==='hourly';
+  return (e&&e.title||'').includes('兼職')||(e&&e.title||'').includes('工讀');
+}
+function getHourly(e,y,m){
+  const pick=_histPick(e,y,m,'hourly');   // 只取時薪筆（未標記者視為時薪，維持舊行為）
+  if(pick)return Number(pick.amount);
   return Number(e.hourlyRate||0);
 }
 function getTarget(e,y,m){
-  const h=(e.salaryHistory||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  if(h.length>0){
-    // 依當月抓：取 date <= 當月最後一天 的最新一筆
-    if(y&&m){
-      const cutoff=`${y}-${String(m).padStart(2,'0')}-${String(getDaysInMonth(y,m)).padStart(2,'0')}`;
-      const valid=h.find(r=>String(r.date)<=cutoff);
-      if(valid)return Number(valid.amount);
-      // 若全部都晚於當月（資料都比當月新），取最早一筆當起薪
-      return Number(h[h.length-1].amount);
-    }
-    return Number(h[0].amount);
-  }
+  const pick=_histPick(e,y,m,'monthly');   // 只取月薪筆（未標記者視為月薪，維持舊行為）
+  if(pick)return Number(pick.amount);
   return Number(e.salary||e.targetSalary||0);
 }
 
@@ -1360,7 +1364,7 @@ function calcSalary(emp,rec,shifts){
   // 規則分界：2026-08 起用新規則，6月及以前維持舊規則
   const _newRule=isNewRule(viewYear,viewMonth);
   // 兼職（時薪制）判定
-  const isPartTime=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
+  const isPartTime=isPartTimeAt(emp,viewYear,viewMonth);   // 依當月適用的薪資歷程類型判定
   const target=getTarget(emp,viewYear,viewMonth);
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
@@ -1964,7 +1968,7 @@ function renderMain(){
   const curEmps=selectedStore?storeEmps(selectedStore):[];
   // 員工下拉選項
   const empOpts=curEmps.length>0?curEmps.map(e=>{
-    const pt=(e.title||'').includes('兼職')||(e.title||'').includes('工讀');
+    const pt=isPartTimeAt(e,viewYear,viewMonth);
     const tgt=getTarget(e,viewYear,viewMonth);
     const e2=calcEmployedDays(e,viewYear,viewMonth,null);
     const flag=e._fromSnapshot?'（已離職）':(e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':'')));
@@ -2667,7 +2671,7 @@ function rerender(){
   const sel=document.getElementById('empSel');
   if(sel){const opt=[...sel.options].find(o=>o.value===String(selectedEmpId));
     if(opt){const tgt=getTarget(emp,viewYear,viewMonth);const e2=calcEmployedDays(emp,viewYear,viewMonth,null);
-      const pt=(emp.title||'').includes('兼職')||(emp.title||'').includes('工讀');
+      const pt=isPartTimeAt(emp,viewYear,viewMonth);
       const flag=e2.days===0?'（未在職）':(pt?'（兼職）':(e2.partial&&e2.days<30&&e2.days>0?'（不足月）':''));
       const headTxt=pt?((()=>{const _hr=getHourly(emp,viewYear,viewMonth);return _hr?' 時薪$'+Number(_hr).toLocaleString():'';})()):(tgt?' 目標$'+Number(tgt).toLocaleString():'');
       opt.textContent=`${emp.name}${flag}${headTxt}\n實領$${_authNet.toLocaleString()}`;
