@@ -1150,7 +1150,7 @@ function render() {
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
           <div class="di"><div class="dl">Email</div><div class="dv">${getEmails(sel).length?getEmails(sel).map(v=>`<div>${v}</div>`).join(''):'—'}</div></div>
-          <div class="di"><div class="dl">銀行帳戶</div><div class="dv">${getBanks(sel).length?getBanks(sel).map(b=>`<div>${b.name||'—'}${b.account?' · '+b.account:''}</div>`).join(''):'—'}</div></div>
+          <div class="di" style="grid-column:span 2"><div class="dl">銀行帳戶</div><div class="dv">${getBanks(sel).length?getBanks(sel).map(b=>`<div>${b.name||'—'}${b.account?' · '+b.account:''}</div>`).join(''):'—'}</div></div>
           <div class="di" style="grid-column:span 2"><div class="dl">地址</div><div class="dv">${sel.address||'—'}</div></div>
         </div>
         <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>`;
