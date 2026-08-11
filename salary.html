@@ -2401,7 +2401,7 @@ function renderSheet(emp,rec,shifts,c){
           ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
           <button class="btn-sm o" onclick="showLeaveProofs()" title="檢視本月所有請假證明">🖼 請假證明</button>
           <button class="btn-sm o" onclick="exportSlip()">📄 薪資單</button>
-            ${(CU.role==='admin'&&!isMonthLocked(viewYear,viewMonth)&&_hasStored)?`<button class="btn-sm o" onclick="deleteThisRec()" style="color:#D33A3A;border-color:#f0b0b0" title="刪除本月薪資記錄（僅未鎖定月份）">🗑 刪除記錄</button>`:''}
+            ${(CU.role==='admin'&&!isMonthLocked(viewYear,viewMonth))?`<button class="btn-sm o" onclick="deleteThisRec()" style="color:#D33A3A;border-color:#f0b0b0" title="刪除本月薪資記錄（僅未鎖定月份）">🗑 刪除記錄</button>`:''}
         </div>
       </div>
       ${_driftBanner}
@@ -2667,9 +2667,14 @@ window.deleteThisRec=async function(){
   if(isMonthLocked(viewYear,viewMonth)){showToast('⚠️ 已鎖定月份不可刪除（保護已發放薪資）');return;}
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const nm=emp?emp.name:selectedEmpId;
+  const _k=`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+  // 先確認 Firestore 真的有這筆記錄
+  let _exists=false;
+  try{ const _s=await getDoc(doc(db,'salary_records',_k)); _exists=_s.exists(); }catch(e){}
+  if(!_exists){ showToast('本月沒有已存的薪資記錄，無需刪除'); return; }
   if(!confirm(`確定刪除「${nm}」${viewYear}年${viewMonth}月的薪資記錄？\n\n此動作會清除該月所有已存的出勤、請假與存檔金額，無法復原。\n（僅刪除此月記錄，不影響其他月份與人員資料）`))return;
   try{
-    await deleteDoc(doc(db,'salary_records',`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+    await deleteDoc(doc(db,'salary_records',_k));
     if(typeof snapCache!=='undefined')delete snapCache[`${selectedEmpId}_${viewYear}-${viewMonth}`];
     currentRec={dailyData:{}};
     showToast('✓ 已刪除本月記錄');
