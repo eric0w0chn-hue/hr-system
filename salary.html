@@ -580,6 +580,8 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
   box-shadow:0 8px 32px rgba(0,0,0,.18);overflow:hidden;
   max-height:55vh;overflow-y:auto;min-width:220px}
 .cdd-dropdown-inner{padding:6px 0}
+.cdd-opt-inactive{background:#FFF5F5!important}
+.cdd-opt-inactive .opt-name{color:#D33A3A}
 .cdd-opt{padding:10px 16px;cursor:pointer;transition:background .1s}
 .cdd-opt:hover{background:var(--surface2)}
 .cdd-opt.selected{background:var(--accent-light)}
@@ -623,7 +625,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
   import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 let CU={name:'',role:'',uid:''};
@@ -2399,6 +2401,7 @@ function renderSheet(emp,rec,shifts,c){
           ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
           <button class="btn-sm o" onclick="showLeaveProofs()" title="檢視本月所有請假證明">🖼 請假證明</button>
           <button class="btn-sm o" onclick="exportSlip()">📄 薪資單</button>
+            ${(CU.role==='admin'&&!isMonthLocked(viewYear,viewMonth)&&_hasStored)?`<button class="btn-sm o" onclick="deleteThisRec()" style="color:#D33A3A;border-color:#f0b0b0" title="刪除本月薪資記錄（僅未鎖定月份）">🗑 刪除記錄</button>`:''}
         </div>
       </div>
       ${_driftBanner}
@@ -2657,6 +2660,25 @@ window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;rerender();};
 
 // 統一儲存：改記憶體 currentRec + 立即重繪 + 背景存 Firestore
 function persist(){ if(selectedEmpId&&currentRec) saveRec(selectedEmpId,viewYear,viewMonth,currentRec); }
+// 刪除本月薪資記錄（admin，僅未鎖定月份）——清除誤存的殘留資料
+window.deleteThisRec=async function(){
+  if(CU.role!=='admin'){showToast('⚠️ 僅管理員可刪除');return;}
+  if(!selectedEmpId){showToast('⚠️ 請先選擇同仁');return;}
+  if(isMonthLocked(viewYear,viewMonth)){showToast('⚠️ 已鎖定月份不可刪除（保護已發放薪資）');return;}
+  const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+  const nm=emp?emp.name:selectedEmpId;
+  if(!confirm(`確定刪除「${nm}」${viewYear}年${viewMonth}月的薪資記錄？\n\n此動作會清除該月所有已存的出勤、請假與存檔金額，無法復原。\n（僅刪除此月記錄，不影響其他月份與人員資料）`))return;
+  try{
+    await deleteDoc(doc(db,'salary_records',`${selectedEmpId}_${viewYear}-${String(viewMonth).padStart(2,'0')}`));
+    if(typeof snapCache!=='undefined')delete snapCache[`${selectedEmpId}_${viewYear}-${viewMonth}`];
+    currentRec={dailyData:{}};
+    showToast('✓ 已刪除本月記錄');
+    // 重新載入該員當月（回到未存狀態）
+    const _id=selectedEmpId;
+    if(typeof selEmpFromSel==='function')selEmpFromSel(_id);
+    else if(typeof rerender==='function')rerender();
+  }catch(e){ console.error(e); alert('刪除失敗：'+(e&&e.message||e)); }
+};
 function rerender(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
   const sy=window.scrollY;
@@ -3839,9 +3861,10 @@ window._cddToggle = function(btn){
     const targetMatch = text.match(/目標\$([\d,]+)/);
     const actualMatch = text.match(/實領\$([\d,]+)/);
     const name = nameMatch ? nameMatch[1].trim() : text;
+      const _inactive = name.includes('未在職');   // 殘留記錄（已離職但有存檔）→ 標紅
     
     const item = document.createElement('div');
-    item.className = 'cdd-opt' + (opt.value === sel.value ? ' selected' : '');
+    item.className = 'cdd-opt' + (opt.value === sel.value ? ' selected' : '') + (_inactive?' cdd-opt-inactive':'');
     item.innerHTML = `<div class="opt-name">${name}</div>${targetMatch?`<div class="opt-target">目標 $${targetMatch[1]}</div>`:''}${actualMatch?`<div class="opt-actual">實領 $${actualMatch[1]}</div>`:''}`;
     item.addEventListener('click', e=>{
       e.stopPropagation();
