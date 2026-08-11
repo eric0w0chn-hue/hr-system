@@ -83,6 +83,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 .badge-auto{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
 .badge-manual{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:var(--accent-light);color:var(--accent);border:1px solid #BAC8FF}
+.badge-presnap{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74}
 
 .toast{position:fixed;bottom:28px;right:28px;background:#1A1D23;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateY(0)}
@@ -210,10 +211,13 @@ function renderList(){
   document.getElementById('backupList').innerHTML = `<div class="backup-list">${backups.map(b=>{
     const isToday = b.date === todayStr;
     const isAuto  = !b.manual;
+    const badgeHtml = b.preRestore
+      ? '<span class="badge-presnap">🛟 還原前快照</span>'
+      : (isAuto ? '<span class="badge-auto">⏰ 自動</span>' : '<span class="badge-manual">👆 手動</span>');
     return `<div class="backup-card${isToday?' today':''}">
       <div>
         <div class="backup-date">${b.date}</div>
-        <div style="margin-top:3px">${isAuto?'<span class="badge-auto">⏰ 自動</span>':'<span class="badge-manual">👆 手動</span>'}</div>
+        <div style="margin-top:3px">${badgeHtml}</div>
       </div>
       <div class="backup-counts">
         <div class="bc">👥 在職同仁 <span>${b.counts?.employees??b.employees?.length??'—'}</span></div>
@@ -273,7 +277,7 @@ window.confirmRestore = function(id){
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal-box">
         <div class="modal-title">⚠️ 確認還原備份</div>
-        <div class="modal-desc">即將還原 <strong>${b.date}</strong> 的備份資料。<br>此操作會<strong>覆蓋目前所有在職同仁、離職同仁、求職者資料</strong>，無法復原。</div>
+        <div class="modal-desc">即將還原 <strong>${b.date}</strong> 的備份資料。<br>這是<strong>整份覆蓋</strong>，不是合併——<strong>備份時間點之後新增或修改的資料會全部消失</strong>。<br><br>✅ 系統會先自動建立「還原前快照」，若還原結果不如預期，可再還原回該快照。<br><br>⚠️ 還原後請務必<strong>重新整理人員資訊頁面</strong>，否則舊分頁的資料可能覆蓋還原結果。</div>
         <div class="modal-counts">
           <div><div class="mc-label">在職同仁</div><div class="mc-val">${b.counts?.employees??b.employees?.length}</div></div>
           <div><div class="mc-label">離職同仁</div><div class="mc-val">${b.counts?.resigned??b.resigned?.length}</div></div>
@@ -292,12 +296,43 @@ window.doRestore = async function(id){
   closeModal();
   showToast('還原中...', 5000);
   try{
+    // ── 還原前自動快照：先把「現況」存成一份備份，讓任何還原都可逆 ──
+    try{
+      const [curIv, curEv, curRs] = await Promise.all([
+        getDoc(doc(db,'hr','interviews')),
+        getDoc(doc(db,'hr','employees')),
+        getDoc(doc(db,'hr','resigned')),
+      ]);
+      const snapIv = curIv.exists()? (curIv.data().list??[]) : [];
+      const snapEv = curEv.exists()? (curEv.data().list??[]) : [];
+      const snapRs = curRs.exists()? (curRs.data().list??[]) : [];
+      const twNow  = new Date(Date.now() + 8*3600000);
+      const snapId = 'presnap_' + twNow.toISOString().slice(0,16).replace('T','_').replace(':','-');
+      await setDoc(doc(db,'hr_backups', snapId), {
+        date:      twNow.toISOString().slice(0,10),
+        createdAt: new Date().toISOString(),
+        manual:    true,
+        preRestore:true,
+        note:      '還原前自動快照（還原目標：'+id+'）',
+        interviews:snapIv, employees:snapEv, resigned:snapRs,
+        counts:{ employees:snapEv.length, resigned:snapRs.length, interviews:snapIv.length },
+      });
+    }catch(_){}
+
     await Promise.all([
       setDoc(doc(db,'hr','interviews'),{list: b.interviews??[]}),
       setDoc(doc(db,'hr','employees'), {list: b.employees??[]}),
       setDoc(doc(db,'hr','resigned'),  {list: b.resigned??[]}),
     ]);
-    showToast('✅ 還原完成！請前往人員資訊確認');
+    // ⚠️ 必須推進 hr/_version：否則其他已開啟的 hr.html 分頁版本號仍相同，
+    //    下一次存檔不會觸發衝突保護，會用還原前的舊資料把還原結果覆蓋掉。
+    try{
+      const vRef  = doc(db,'hr','_version');
+      const vSnap = await getDoc(vRef);
+      const nextV = ((vSnap.exists()? vSnap.data().v : 0) || 0) + 1;
+      await setDoc(vRef, {v: nextV, lastEditor: currentUserName||'restore', lastEditAt: new Date().toISOString()});
+    }catch(_){}
+    showToast('✅ 還原完成！請「重新整理」人員資訊頁面後再操作');
     writeOpLog({editor:currentUserName||'—', role:currentRole||'admin', module:'hr', action:'還原備份', detail:id});
   }catch(e){
     showToast('❌ 還原失敗：'+e.message);
