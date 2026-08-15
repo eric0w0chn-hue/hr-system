@@ -98,6 +98,9 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .copy-btn{flex-shrink:0;width:22px;height:22px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0;transition:all .15s}
 .copy-btn:hover{background:var(--accent-light,#F0F2F5);color:var(--accent)}
 .copy-btn:active{transform:scale(.9)}
+.call-btn{flex-shrink:0;width:22px;height:22px;border:1px solid #cde8d5;border-radius:6px;background:#eafaf0;color:#1a9b4c;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0;text-decoration:none;transition:all .15s}
+.call-btn:hover{background:#1a9b4c;color:#fff;border-color:#1a9b4c}
+.call-btn:active{transform:scale(.9)}
 .nb{background:#F8FAFC;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
 .sec-title{font-size:11px;font-weight:600;color:var(--text-2);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
 .hist-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9}
@@ -775,6 +778,12 @@ function copyBtnHtml(val){
   if(!val) return '';
   return `<button type="button" class="copy-btn" title="複製" onclick="event.stopPropagation();copyText('${escAttr(val)}')">⧉</button>`;
 }
+function callBtnHtml(val){
+  if(!val) return '';
+  const tel = String(val).replace(/[^0-9+]/g,'');
+  if(!tel) return '';
+  return `<a href="tel:${tel}" class="call-btn" title="撥打 ${escAttr(val)}" onclick="event.stopPropagation()">📞</a>`;
+}
 function copyText(txt, label){
   if(!txt || txt==='—'){ showToast('沒有內容可複製'); return; }
   const done = () => showToast(`已複製${label?label:''}`);
@@ -1186,7 +1195,7 @@ function render() {
           <div class="di"><div class="dl">同仁編號</div><div class="di-row"><div class="dv">${sel.empNo||'—'}</div>${copyBtnHtml(sel.empNo)}</div></div>
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
           <div class="di"><div class="dl">身分證號</div><div class="di-row"><div class="dv">${sel.idNo||'—'}</div>${copyBtnHtml(sel.idNo)}</div></div>
-          <div class="di"><div class="dl">電話</div><div class="di-row"><div class="dv">${sel.phone||'—'}</div>${copyBtnHtml(sel.phone)}</div></div>
+          <div class="di"><div class="dl">電話</div><div class="di-row"><div class="dv">${sel.phone||'—'}</div>${callBtnHtml(sel.phone)}${copyBtnHtml(sel.phone)}</div></div>
           ${latestSalaryKind(sel)==='hourly'
             ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
             :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}</div></div>`}
@@ -1215,7 +1224,7 @@ function render() {
           <tbody>${contacts.map((e,i)=>`<tr>
             <td>${e.name||'—'}</td>
             <td>${e.relation||'—'}</td>
-            <td>${e.phone||'—'}</td>
+            <td>${e.phone?`<div class="di-row"><span>${e.phone}</span>${callBtnHtml(e.phone)}${copyBtnHtml(e.phone)}</div>`:'—'}</td>
             <td><div style="display:flex;gap:2px"><button class="ibt" onclick="openModal('editEmergency',${sel.id},${i})" title="編輯">✎</button><button class="ibt" onclick="removeEmergencyContact(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button></div></td>
           </tr>`).join('')}</tbody>
         </table></div>`:'<div class="empty-state" style="padding:24px">尚無緊急聯絡人，點上方按鈕新增</div>'}`;
