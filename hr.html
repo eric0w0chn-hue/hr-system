@@ -777,19 +777,33 @@ function copyBtnHtml(val){
 function copyText(txt, label){
   if(!txt || txt==='—'){ showToast('沒有內容可複製'); return; }
   const done = () => showToast(`已複製${label?label:''}`);
+  const fail = () => showToast('複製失敗，請手動選取');
+
+  // iframe 環境下 execCommand 相容性最好，優先使用
+  let ok=false;
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=txt;
+    ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, txt.length);
+    ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){ ok=false; }
+
+  if(ok){ done(); return; }
+
+  // 備援：clipboard API（部分瀏覽器 / https 才可用）
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt, done));
+    navigator.clipboard.writeText(txt).then(done).catch(fail);
   } else {
-    fallbackCopy(txt, done);
+    fail();
   }
 }
-function fallbackCopy(txt, done){
-  const ta=document.createElement('textarea');
-  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
-  document.body.appendChild(ta); ta.select();
-  try{ document.execCommand('copy'); done(); }catch(e){ showToast('複製失敗，請手動選取'); }
-  document.body.removeChild(ta);
-}
+window.copyText = copyText;
 
 // ── Toast ──
 function showToast(msg) {
