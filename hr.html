@@ -772,7 +772,7 @@ authGuard('hr', async ({ role, locations, userData }) => {
 function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
 function copyBtnHtml(val){
   if(!val) return '';
-  return `<button type="button" class="copy-btn" title="複製" onclick="copyText('${escAttr(val)}')">⧉</button>`;
+  return `<button type="button" class="copy-btn" title="複製" onclick="event.stopPropagation();copyText('${escAttr(val)}')">⧉</button>`;
 }
 function copyText(txt, label){
   if(!txt || txt==='—'){ showToast('沒有內容可複製'); return; }
@@ -1138,7 +1138,7 @@ function render() {
         const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
-        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span></div></td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
