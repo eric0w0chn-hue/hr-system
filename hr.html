@@ -93,6 +93,10 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .di .dl{font-size:11px;color:var(--text-2);margin-bottom:3px;font-weight:500;text-transform:uppercase;letter-spacing:.3px}
 .di .dv{font-size:13px;color:var(--text);font-weight:400;word-break:break-word;overflow-wrap:anywhere}
+.di-row{display:flex;align-items:center;gap:6px}
+.copy-btn{flex-shrink:0;width:22px;height:22px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0;transition:all .15s}
+.copy-btn:hover{background:var(--accent-light,#F0F2F5);color:var(--accent)}
+.copy-btn:active{transform:scale(.9)}
 .nb{background:#F8FAFC;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);line-height:1.7;min-height:34px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
 .sec-title{font-size:11px;font-weight:600;color:var(--text-2);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
 .hist-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9}
@@ -764,6 +768,29 @@ authGuard('hr', async ({ role, locations, userData }) => {
   render();
 });
 
+// ── 複製到剪貼簿 ──
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+function copyBtnHtml(val){
+  if(!val) return '';
+  return `<button type="button" class="copy-btn" title="複製" onclick="copyText('${escAttr(val)}')">⧉</button>`;
+}
+function copyText(txt, label){
+  if(!txt || txt==='—'){ showToast('沒有內容可複製'); return; }
+  const done = () => showToast(`已複製${label?label:''}`);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt, done));
+  } else {
+    fallbackCopy(txt, done);
+  }
+}
+function fallbackCopy(txt, done){
+  const ta=document.createElement('textarea');
+  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ showToast('複製失敗，請手動選取'); }
+  document.body.removeChild(ta);
+}
+
 // ── Toast ──
 function showToast(msg) {
   const t=document.getElementById('toast');
@@ -1141,16 +1168,17 @@ function render() {
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
-          <div class="di"><div class="dl">同仁編號</div><div class="dv">${sel.empNo||'—'}</div></div>
+          <div class="di"><div class="dl">同仁編號</div><div class="di-row"><div class="dv">${sel.empNo||'—'}</div>${copyBtnHtml(sel.empNo)}</div></div>
           <div class="di"><div class="dl">生日</div><div class="dv">${toROC(sel.birthday)}</div></div>
-          <div class="di"><div class="dl">身分證號</div><div class="dv">${sel.idNo||'—'}</div></div>
+          <div class="di"><div class="dl">身分證號</div><div class="di-row"><div class="dv">${sel.idNo||'—'}</div>${copyBtnHtml(sel.idNo)}</div></div>
+          <div class="di"><div class="dl">電話</div><div class="di-row"><div class="dv">${sel.phone||'—'}</div>${copyBtnHtml(sel.phone)}</div></div>
           ${latestSalaryKind(sel)==='hourly'
             ?`<div class="di"><div class="dl">時薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}<span style="font-size:10px;color:#9AA0B4;margin-left:4px">兼職時薪制</span></div></div>`
             :`<div class="di"><div class="dl">月薪</div><div class="dv" style="font-weight:500">$${latestSalary(sel).toLocaleString()}</div></div>`}
           <div class="di"><div class="dl">到職日</div><div class="dv">${toROC(sel.startDate)}</div></div>
           <div class="di"><div class="dl">年資</div><div class="dv">${sel.startDate?calcYears(sel.startDate):'—'}</div></div>
-          <div class="di"><div class="dl">Email</div><div class="dv">${getEmails(sel).length?getEmails(sel).map(v=>`<div>${v}</div>`).join(''):'—'}</div></div>
-          <div class="di" style="grid-column:span 2"><div class="dl">銀行帳戶</div><div class="dv">${getBanks(sel).length?getBanks(sel).map(b=>`<div>${b.name||'—'}${b.account?' · '+b.account:''}</div>`).join(''):'—'}</div></div>
+          <div class="di"><div class="dl">Email</div><div class="di-row"><div class="dv">${getEmails(sel).length?getEmails(sel).map(v=>`<div>${v}</div>`).join(''):'—'}</div>${copyBtnHtml(getEmails(sel)[0])}</div></div>
+          <div class="di" style="grid-column:span 2"><div class="dl">銀行帳戶</div><div class="di-row"><div class="dv">${getBanks(sel).length?getBanks(sel).map(b=>`<div>${b.name||'—'}${b.account?' · '+b.account:''}</div>`).join(''):'—'}</div>${copyBtnHtml(getBanks(sel)[0]?getBanks(sel)[0].account:'')}</div></div>
           <div class="di" style="grid-column:span 2"><div class="dl">地址</div><div class="dv">${sel.address||'—'}</div></div>
         </div>
         <div style="margin-top:10px"><div class="dl" style="font-size:11px;color:#6b6b68;margin-bottom:4px">備註</div><div class="nb">${sel.note||'（無備註）'}</div></div>`;
