@@ -2852,6 +2852,8 @@ window.syncAllToSheet=async function(){
   // ── 清除「本月無出勤」者的中繼表殘留 ──
   // 掃全部人（含離職、含未到職），用與在職判定同一套 calcEmployedDays（已處理各種日期格式），
   // 只要本月在職天數為 0 就推 netPay=0 覆蓋殘留。這樣不論離職或新進未到職，殘留都會被清除。
+  // 掃全年 12 個月：只要某月在職天數為 0（未到職或已離職）就推 0 清除該月殘留。
+  // 這樣一次同步就能清掉所有月份的無出勤殘留，不需逐月切換再同步。
   let clearCnt=0;
   const _allPeople=[...(_allEmployeesRaw||[]),...(_resignedRaw||[])];
   const _seen=new Set();
@@ -2860,10 +2862,13 @@ window.syncAllToSheet=async function(){
     const _key=String(e.id||e.name)+'@'+normStore(e.workLocation);
     if(_seen.has(_key))continue; _seen.add(_key);
     if(!viewableStores.some(st=>normStore(st)===normStore(e.workLocation)))continue;
-    const _ed=calcEmployedDays(e,viewYear,viewMonth,null);
-    if(_ed.days<=0){
-      await pushNetPayToSheet(e.workLocation,viewYear,viewMonth,e.name,0);
-      clearCnt++;
+    for(let _mm=1;_mm<=12;_mm++){
+      // 已鎖定（已發放）月份且有存檔者不動——避免清掉已核發記錄；只清無出勤月份
+      const _ed=calcEmployedDays(e,viewYear,_mm,null);
+      if(_ed.days<=0){
+        await pushNetPayToSheet(e.workLocation,viewYear,_mm,e.name,0);
+        clearCnt++;
+      }
     }
   }
   showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁${clearCnt?`，並清除 ${clearCnt} 筆無出勤殘留`:''}至中繼表`);
