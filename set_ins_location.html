@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>批次設定投保地點（一次性工具）</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#ECEEF2;--surface:#fff;--border:#DDE1E9;--border2:#C8CDD8;--text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding:24px}
+.wrap{max-width:900px;margin:0 auto}
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:22px;margin-bottom:16px}
+h2{margin:0 0 6px;font-size:19px}
+.sub{color:var(--text2);font-size:13px;margin-bottom:18px}
+.box{border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:14px;line-height:1.7}
+.warn{background:#FFF7ED;border:1px solid #FDBA74;color:#C2410C}
+.info{background:#EFF6FF;border:1px solid #93C5FD;color:#1D4ED8}
+.ok{background:#F0FDF4;border:1px solid #86EFAC;color:#15803D}
+.err{background:#FEF2F2;border:1px solid #FCA5A5;color:#B91C1C}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.sc{background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.sl{font-size:11px;color:var(--text2);margin-bottom:4px}
+.sn{font-size:22px;font-weight:700}
+button{padding:10px 20px;border-radius:8px;border:1px solid var(--border2);background:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-right:8px}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+th{background:#F1F5F9;padding:8px 10px;text-align:left;border-bottom:2px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid #F1F5F9}
+.tw{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600}
+.t-keep{background:#F1F5F9;color:var(--text2)}
+.t-change{background:#DBEAFE;color:#1E40AF}
+.t-central{background:#FEF3C7;color:#92400E}
+#log{font-size:12px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:12px;white-space:pre-wrap;max-height:220px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h2>🏥 批次設定投保地點</h2>
+    <div class="sub">一次性設定所有在職同仁的「投保地點」。僅限管理員執行。</div>
+
+    <div class="box warn">
+      <b>規則</b><br>
+      • 央廚三店（<b>鑫雞肉央廚、泉州鑫廚房、新莊央廚</b>）的同仁 → 投保地點設為 <b>梁平有限公司</b><br>
+      • 其餘所有同仁 → 投保地點 = 各自的<b>工作地點</b><br>
+      • 只處理在職／留職停薪同仁；離職同仁不動
+    </div>
+    <div class="box info">執行前會自動建立「設定前快照」到備份管理，可還原。</div>
+
+    <div id="status" class="box info">確認登入權限中…</div>
+
+    <div id="panel" style="display:none">
+      <div class="stats">
+        <div class="sc"><div class="sl">處理同仁</div><div class="sn" id="stTotal">0</div></div>
+        <div class="sc"><div class="sl">設為央廚(梁平)</div><div class="sn" id="stCentral" style="color:#92400E">0</div></div>
+        <div class="sc"><div class="sl">設為工作地點</div><div class="sn" id="stNormal" style="color:#1E40AF">0</div></div>
+      </div>
+      <button class="btn-primary" id="btnScan" onclick="scan()">🔍 預覽變更</button>
+      <button class="btn-primary" id="btnRun" onclick="run()" disabled>✓ 執行設定</button>
+      <div id="preview"></div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
+import { doc, getDoc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const CENTRAL = ['鑫雞肉央廚','泉州鑫廚房','新莊央廚'];
+const CENTRAL_INS = '梁平有限公司';
+const normLoc = s => (s||'').replace(/\s/g,'').replace(/鋪/g,'舖');
+
+let me='', employees=[], plan=[];
+const $ = id => document.getElementById(id);
+const log = m => { $('log').textContent += m+'\n'; $('log').scrollTop=1e9; };
+const setStatus = (m,cls) => { const e=$('status'); e.className='box '+cls; e.innerHTML=m; };
+
+authGuard('hr', async ({ role, userData }) => {
+  me = userData?.name || userData?.idNo || 'Unknown';
+  if(role!=='admin'){ setStatus('❌ 此工具僅限<b>管理員</b>使用（目前：'+role+'）','err'); return; }
+  setStatus('✅ 管理員身分確認：<b>'+me+'</b>','ok');
+  $('panel').style.display='block';
+});
+
+window.scan = async function(){
+  $('btnScan').disabled=true;
+  log('讀取在職同仁…');
+  const ev = await getDoc(doc(db,'hr','employees'));
+  const all = ev.exists()? (ev.data().list||[]) : [];
+  employees = all.filter(e=>!e.status||e.status==='在職'||e.status==='留職停薪');
+  log('在職/留停 '+employees.length+' 人');
+
+  const centralSet = new Set(CENTRAL.map(normLoc));
+  plan = employees.map(e=>{
+    const wl = e.workLocation||'';
+    const target = centralSet.has(normLoc(wl)) ? CENTRAL_INS : wl;
+    const cur = e.insurance?.insLocation || '';
+    const isCentral = centralSet.has(normLoc(wl));
+    return { id:e.id, name:e.name, wl, cur, target, isCentral, changed: cur!==target };
+  });
+
+  const central = plan.filter(p=>p.isCentral).length;
+  $('stTotal').textContent   = plan.length;
+  $('stCentral').textContent = central;
+  $('stNormal').textContent  = plan.length - central;
+
+  $('preview').innerHTML = '<div class="tw"><table><thead><tr>'
+    + '<th>姓名</th><th>工作地點</th><th>目前投保地點</th><th>→ 設為</th><th>類型</th></tr></thead><tbody>'
+    + plan.map(p=>'<tr>'
+        + '<td>'+p.name+'</td>'
+        + '<td>'+(p.wl||'—')+'</td>'
+        + '<td>'+(p.cur||'<span style="color:#94A3B8">未設定</span>')+'</td>'
+        + '<td><b>'+(p.target||'—')+'</b></td>'
+        + '<td>'+(p.isCentral?'<span class="tag t-central">央廚→梁平</span>':'<span class="tag t-change">工作地點</span>')
+              +(p.changed?'':' <span class="tag t-keep">無變動</span>')+'</td>'
+      + '</tr>').join('')
+    + '</tbody></table></div>';
+
+  log('預覽完成：央廚→梁平 '+central+' 人、工作地點 '+(plan.length-central)+' 人');
+  $('btnRun').disabled = false;
+};
+
+window.run = async function(){
+  if(!plan.length) return;
+  if(!confirm('確定要設定 '+plan.length+' 位同仁的投保地點？\n系統會先自動建立快照，可還原。')) return;
+  $('btnRun').disabled=true;
+
+  try{
+    // 快照
+    log('建立設定前快照…');
+    const [ivS,evS,rsS] = await Promise.all([
+      getDoc(doc(db,'hr','interviews')),
+      getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','resigned')),
+    ]);
+    const snapEv = evS.exists()? (evS.data().list||[]) : [];
+    const snapIv = ivS.exists()? (ivS.data().list||[]) : [];
+    const snapRs = rsS.exists()? (rsS.data().list||[]) : [];
+    const twNow  = new Date(Date.now()+8*3600000);
+    const snapId = 'presnap_'+twNow.toISOString().slice(0,16).replace('T','_').replace(':','-')+'_insloc';
+    await setDoc(doc(db,'hr_backups',snapId), {
+      date: twNow.toISOString().slice(0,10), createdAt:new Date().toISOString(),
+      manual:true, preRestore:true, note:'批次設定投保地點前自動快照',
+      interviews:snapIv, employees:snapEv, resigned:snapRs,
+      counts:{ employees:snapEv.length, resigned:snapRs.length, interviews:snapIv.length },
+    });
+    log('✅ 快照：'+snapId);
+
+    // 套用到完整清單（不只在職，保留其他狀態原樣）
+    const planMap = new Map(plan.map(p=>[String(p.id), p.target]));
+    const merged = snapEv.map(e=>{
+      const t = planMap.get(String(e.id));
+      if(t===undefined) return e;
+      const insurance = { ...(e.insurance||{grade:'',dependents:[],gradeHistory:[]}), insLocation: t };
+      return { ...e, insurance };
+    });
+
+    log('寫入…');
+    await runTransaction(db, async tx=>{
+      const vRef=doc(db,'hr','_version');
+      const vSnap=await tx.get(vRef);
+      const nextV=((vSnap.exists()?vSnap.data().v:0)||0)+1;
+      tx.set(vRef,{v:nextV,lastEditor:me,lastEditAt:new Date().toISOString()});
+      tx.set(doc(db,'hr','employees'),{list:merged});
+    });
+    try{ writeOpLog({editor:me,role:'admin',module:'hr',action:'批次設定投保地點',detail:plan.length+'人'}); }catch(_){}
+
+    log('🎉 完成，共設定 '+plan.length+' 人');
+    setStatus('🎉 設定完成！請重新整理人員資訊確認（體系現有人數的投保人數會更新）。','ok');
+  }catch(e){
+    log('❌ 失敗：'+e.message);
+    setStatus('❌ 失敗：'+e.message+'<br>資料未變更，可重試。','err');
+    $('btnRun').disabled=false;
+  }
+};
+</script>
+</body>
+</html>
