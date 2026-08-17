@@ -2831,7 +2831,7 @@ window.syncAllToSheet=async function(){
   if(CU.role!=='admin'){showToast('⚠️ 此功能僅限管理員使用');return;}
   const allStores=viewableStores;
   if(!allStores||!allStores.length){showToast('⚠️ 無法取得店面清單');return;}
-  if(!confirm(`確定要將全部 ${allStores.length} 個店面 ${viewYear}/${viewMonth} 的實領薪資同步到中繼表單？`))return;
+  if(!confirm(`確定要同步到中繼表單？\n\n・全部 ${allStores.length} 個店面 ${viewYear}/${viewMonth} 的在職同仁實領薪資\n・並清除全年（1~12月）無出勤月份的殘留值（未到職／已離職 → 歸 0）\n\n此動作只寫入中繼表報表，不影響任何薪資記錄與已發放金額。`))return;
   showToast(`同步中，請稍候…`,120000);
   let cnt=0, sIdx=0, storeCnt=0;
   for(const store of allStores){
