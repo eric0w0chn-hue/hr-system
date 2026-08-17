@@ -669,6 +669,9 @@ function autoSyncNetPay(emp,year,month,netPay){
   if(CU.role!=='admin')return;                 // 只有 admin 觸發自動同步
   if(!emp||!emp.workLocation||!emp.name)return;
   if(emp._fromSnapshot)return;                 // 離職快照來源不自動推（避免覆蓋歷史）
+  // 防呆：該月未到職／已離職（在職天數 0）→ 不自動推，避免把未到職月份的負數（勞健保扣款）推上中繼表
+  const _ed=calcEmployedDays(emp,year,month,null);
+  if(_ed.days<=0)return;
   const key=`${emp.name}_${emp.workLocation}_${year}-${month}`;
   if(_autoSyncTimers[key])clearTimeout(_autoSyncTimers[key]);
   _autoSyncTimers[key]=setTimeout(()=>{
