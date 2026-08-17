@@ -1757,18 +1757,26 @@ function renderOverview(){
         const anomaly = (r.active !== r.insured) && !centralPass;
         const rowStyle = anomaly ? 'background:#FEF2F2;cursor:pointer' : '';
         const cellRed  = anomaly ? 'color:#DC2626;font-weight:700' : '';
-        // 差異人員（梁平公司不展開）：在該店工作、但投保地點不等於該店的在職同仁
+        // 差異人員（梁平公司不展開）
         let detailRow = '';
         if(anomaly && r.loc!=='梁平有限公司'){
-          const mism = activeEmps.filter(e=>e.workLocation===r.loc && (e.insurance&&e.insurance.insLocation)!==r.loc);
-          detailRow = `<tr id="ov-detail-${ri}" style="display:none"><td colspan="3" style="padding:0;background:#FFF7F7">
-            <div style="padding:10px 16px">
-              <div style="font-size:12px;font-weight:600;color:#B91C1C;margin-bottom:6px">造成差異的人員（${mism.length}）：工作於本店，但投保地點不同</div>
-              ${mism.length?mism.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #FCE4E4;font-size:12.5px">
+          // A：工作於本店，但投保掛在別處 → 造成在職 > 投保
+          const workOut = activeEmps.filter(e=>e.workLocation===r.loc && (e.insurance&&e.insurance.insLocation)!==r.loc);
+          // B：投保掛在本店，但工作於別店 → 造成投保 > 在職
+          const insIn = activeEmps.filter(e=>(e.insurance&&e.insurance.insLocation)===r.loc && e.workLocation!==r.loc);
+          const secA = workOut.length ? `<div style="font-size:12px;font-weight:600;color:#B91C1C;margin:2px 0 6px">🔻 工作於本店、但投保掛在別處（${workOut.length}）</div>`
+            + workOut.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #FCE4E4;font-size:12.5px">
                 <span style="font-weight:500">${e.name}<span style="color:#9AA0B4;font-weight:400"> · ${e.title||'—'}</span></span>
                 <span style="color:#5A6175">投保地點：<b style="color:${(e.insurance&&e.insurance.insLocation)?'#1D4ED8':'#C47A00'}">${(e.insurance&&e.insurance.insLocation)||'未設定'}</b></span>
-              </div>`).join(''):'<div style="font-size:12px;color:#9AA0B4">無（差異可能來自其他店同仁投保掛入本店）</div>'}
-            </div>
+              </div>`).join('') : '';
+          const secB = insIn.length ? `<div style="font-size:12px;font-weight:600;color:#B91C1C;margin:10px 0 6px">🔺 投保掛在本店、但工作於別店（${insIn.length}）</div>`
+            + insIn.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #FCE4E4;font-size:12.5px">
+                <span style="font-weight:500">${e.name}<span style="color:#9AA0B4;font-weight:400"> · ${e.title||'—'}</span></span>
+                <span style="color:#5A6175">工作地點：<b style="color:#1D4ED8">${e.workLocation||'—'}</b></span>
+              </div>`).join('') : '';
+          const inner = (secA||secB) || '<div style="font-size:12px;color:#9AA0B4">查無明細</div>';
+          detailRow = `<tr id="ov-detail-${ri}" style="display:none"><td colspan="3" style="padding:0;background:#FFF7F7">
+            <div style="padding:10px 16px">${inner}</div>
           </td></tr>`;
         }
         return `<tr style="${rowStyle}" ${anomaly&&r.loc!=='梁平有限公司'?`onclick="var d=document.getElementById('ov-detail-${ri}');if(d)d.style.display=d.style.display==='none'?'table-row':'none';"`:''}>
