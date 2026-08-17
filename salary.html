@@ -2846,7 +2846,24 @@ window.syncAllToSheet=async function(){
     // 逐筆推送（no-cors 無回傳，序列送避免瞬間爆量）
     for(const r of results){ await pushNetPayToSheet(r.store,viewYear,viewMonth,r.name,r.netPay); cnt++; }
   }
-  showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁至中繼表`);
+  // ── 清除離職者的殘留 ──
+  // 離職日在本月之前（本月完全無出勤）的同仁，推 netPay=0 覆蓋中繼表殘留值。
+  // （避免離職後仍顯示重算薪資；本月有出勤的離職者已在上面依 days>0 正常處理）
+  let clearCnt=0;
+  const _lastDay=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(getDaysInMonth(viewYear,viewMonth)).padStart(2,'0')}`;
+  const _firstDay=`${viewYear}-${String(viewMonth).padStart(2,'0')}-01`;
+  for(const e of (_resignedRaw||[])){
+    if(!e||!e.name||!e.workLocation)continue;
+    if(!viewableStores.some(st=>normStore(st)===normStore(e.workLocation)))continue;
+    const ld=getLeaveDate(e);
+    if(!ld)continue;
+    // 離職日 < 本月月初 → 本月完全沒出勤 → 清 0
+    if(String(ld) < _firstDay){
+      await pushNetPayToSheet(e.workLocation,viewYear,viewMonth,e.name,0);
+      clearCnt++;
+    }
+  }
+  showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁${clearCnt?`，並清除 ${clearCnt} 位離職者殘留`:''}至中繼表`);
 };
 function calcInsAuditRow(emp,rec){
   const _hd2=emp.hireDate?new Date(emp.hireDate):null;
@@ -3649,7 +3666,11 @@ window.saveSheet=async function(){
     writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'儲存薪資',detail:`${emp.name} ${viewYear}年${viewMonth}月${_keepSnap?'（存檔金額保留原值）':''}`});
     showToast(_keepSnap?'✓ 已儲存（存檔金額維持原值不變）':'✓ 已儲存（已鎖定本月資料）');
     // 推送權威金額（過去月份＝存檔值），與畫面顯示一致
-    pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,record.snapshot.netPay);
+    // 防呆：若該員本月在職天數為 0（已離職卻誤按儲存），推 0 而非重算值
+    const _ed=calcEmployedDays(emp,viewYear,viewMonth,record);
+    const _pushNet=(_ed.days<=0)?0:record.snapshot.netPay;
+    if(_ed.days<=0)showToast('⚠️ 此員本月無在職天數，中繼表金額以 0 記錄',4000);
+    pushNetPayToSheet(emp.workLocation,viewYear,viewMonth,emp.name,_pushNet);
   }else showToast('⚠️ 儲存失敗');
   isSaving=false;
 };
