@@ -324,6 +324,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
       <button class="tab active" onclick="switchTab('employee')">在職同仁</button>
       <button class="tab" onclick="switchTab('resigned')">離職同仁</button>
       <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
+      <button class="tab" id="tab-overview" style="display:none" onclick="switchTab('overview')">體系現有人數</button>
     </div>
     <div class="main" id="mainContent"></div>
 <div id="modalArea"></div>
@@ -768,6 +769,9 @@ authGuard('hr', async ({ role, locations, userData }) => {
   // role-chip
   const rc = document.getElementById('roleChip');
   if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
+  // 「體系現有人數」分頁僅管理員可見
+  const ovTab = document.getElementById('tab-overview');
+  if(ovTab) ovTab.style.display = (role==='admin') ? '' : 'none';
   await loadData();
   render();
 });
@@ -835,7 +839,7 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
+function switchTab(t) { if(t==='overview'&&currentUserRole!=='admin')return; tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
@@ -919,6 +923,7 @@ function sth(label,field,w){
   return `<th style="width:${w}" class="sortable ${cls}" onclick="setSort('${field}')">${label}</th>`;
 }
 function render() {
+  if(tab==='overview'){ renderOverview(); return; }
   const list=getList();
   const all=tab==='interview'?interviews:employees;
   let stats='',tbl='',det='';
@@ -1568,6 +1573,16 @@ function render() {
             <span class="sec-title" style="margin:0">投保資料</span>
             ${_insAdmin?`<button class="btn btn-sm btn-outline" onclick="openInsuranceImport()" style="font-size:11px">📄 匯入勞保明細</button>`:`<span style="font-size:11px;color:#C47A00;font-weight:600">僅管理員可調整</span>`}
           </div>
+          <div style="display:flex;align-items:center;gap:8px;max-width:400px;margin-bottom:14px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:#9AA0B4;margin-bottom:4px;font-weight:600">投保地點</div>
+              <select id="ins-loc-${sel.id}" ${_insAdmin?'':'disabled'} style="width:100%;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
+                <option value="">未設定</option>
+                ${workLocations.map(l=>`<option value="${l}"${ins.insLocation===l?' selected':''}>${l}</option>`).join('')}
+              </select>
+            </div>
+            ${_insAdmin?`<button class="btn btn-sm btn-primary" style="align-self:flex-end" onclick="saveInsLocation(${sel.id})">儲存</button>`:''}
+          </div>
           <div class="dg3" style="margin-bottom:12px">
             <div class="sc"><div class="sl">現有投保級距</div><div class="sn" style="font-size:16px">${ins.grade?'$'+Number(ins.grade).toLocaleString():'尚未設定'}</div></div>
           </div>
@@ -1686,8 +1701,76 @@ function render() {
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
   attachInlineDetail();
-  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',(i===0&&tab==='employee')||(i===1&&tab==='resigned')||(i===2&&tab==='interview'));});
+  document.querySelectorAll('.tab').forEach(t=>{
+    const oc=t.getAttribute('onclick')||'';
+    t.classList.toggle('active', oc.includes("'"+tab+"'"));
+  });
   bindSearchInput();
+}
+
+// ── 體系現有人數總覽 ──
+function renderOverview(){
+  if(currentUserRole!=='admin'){ tab='employee'; render(); return; }
+  // 依 workLocations 設定順序；排除公司實體「梁平有限公司」以外全列（保留公司列以符合範例）
+  const activeEmps = employees.filter(e=>!e.status||e.status==='在職'||e.status==='留職停薪');
+  const rows = workLocations.map(loc=>{
+    const inStore = activeEmps.filter(e=>e.workLocation===loc);
+    const active  = inStore.length;
+    // 投保人數：投保地點=該店 的在職同仁（有設投保地點者以投保地點為準）
+    const insured = activeEmps.filter(e=>(e.insurance&&e.insurance.insLocation)===loc).length;
+    return {loc, active, insured};
+  });
+  // workLocations 沒涵蓋、但員工實際有的店面也補上
+  const known = new Set(workLocations);
+  [...new Set(activeEmps.map(e=>e.workLocation).filter(Boolean))]
+    .filter(l=>!known.has(l))
+    .forEach(loc=>{
+      rows.push({
+        loc,
+        active: activeEmps.filter(e=>e.workLocation===loc).length,
+        insured: activeEmps.filter(e=>(e.insurance&&e.insurance.insLocation)===loc).length
+      });
+    });
+
+  const totalActive  = rows.reduce((s,r)=>s+r.active,0);
+  const totalInsured = rows.reduce((s,r)=>s+r.insured,0);
+
+  const stats=`<div class="stats">
+    <div class="sc"><div class="sl">店面數</div><div class="sn">${rows.filter(r=>r.active>0).length}</div></div>
+    <div class="sc"><div class="sl">在職總人數</div><div class="sn">${totalActive}</div></div>
+    <div class="sc"><div class="sl">投保總人數</div><div class="sn">${totalInsured}</div></div>
+    <div class="sc"><div class="sl">未設投保地點</div><div class="sn" style="${totalActive-totalInsured>0?'color:#C47A00':''}">${totalActive-totalInsured}</div></div>
+  </div>`;
+
+  const body=`<div class="tw" style="margin-top:6px"><table>
+    <thead><tr>
+      <th style="min-width:160px">店面名稱</th>
+      <th style="width:120px;text-align:center">在職人數</th>
+      <th style="width:120px;text-align:center">投保人數</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map(r=>`<tr>
+        <td data-label="店面名稱" style="font-weight:500">${r.loc}</td>
+        <td data-label="在職人數" style="text-align:center">${r.active}</td>
+        <td data-label="投保人數" style="text-align:center">${r.insured}</td>
+      </tr>`).join('')}
+      <tr style="border-top:2px solid var(--border);font-weight:700;background:#F8FAFC">
+        <td data-label="合計">合計</td>
+        <td data-label="在職人數" style="text-align:center">${totalActive}</td>
+        <td data-label="投保人數" style="text-align:center">${totalInsured}</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <div style="font-size:11px;color:#9AA0B4;margin-top:10px;line-height:1.7">
+    ＊在職人數：狀態為「在職」或「留職停薪」的同仁。<br>
+    ＊投保人數：於「投保資料 → 投保地點」設定為該店的在職同仁；尚未設定投保地點者不計入。
+  </div>`;
+
+  document.getElementById('mainContent').innerHTML = stats + body;
+  document.querySelectorAll('.tab').forEach(t=>{
+    const oc=t.getAttribute('onclick')||'';
+    t.classList.toggle('active', oc.includes("'overview'"));
+  });
 }
 
 // ── Modal ──
@@ -2306,6 +2389,18 @@ window.savePensionRate=async function(empId){
   showToast('儲存中...'); await saveData();
   const pct=Math.round(r.insurance.pensionRate*100);
   showToast(pct>0?`勞退自提 ${pct}% 已儲存 ✓`:'已設為不自提 ✓');
+};
+
+window.saveInsLocation=async function(empId){
+  if(currentUserRole!=='admin'){showToast('⚠️ 僅管理員可調整投保資料');return;}
+  const r=employees.find(x=>x.id===empId);
+  if(!r)return;
+  if(!r.insurance)r.insurance={grade:'',dependents:[],gradeHistory:[]};
+  const el=document.getElementById('ins-loc-'+empId);
+  if(!el)return;
+  r.insurance.insLocation=el.value;
+  showToast('儲存中...'); await saveData();
+  showToast(el.value?`投保地點已設為 ${el.value} ✓`:'已清除投保地點 ✓');
 };
 
 // ── 刪除眷屬 ──
