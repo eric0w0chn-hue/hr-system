@@ -1751,17 +1751,31 @@ function renderOverview(){
       <th style="width:120px;text-align:center">投保人數</th>
     </tr></thead>
     <tbody>
-      ${rows.map(r=>{
+      ${rows.map((r,ri)=>{
         // 央廚三店投保掛在梁平，投保人數為 0 屬正常，不標紅
         const centralPass = ['鑫雞肉央廚','泉州鑫廚房','新莊央廚'].includes(r.loc);
         const anomaly = (r.active !== r.insured) && !centralPass;
-        const rowStyle = anomaly ? 'background:#FEF2F2' : '';
+        const rowStyle = anomaly ? 'background:#FEF2F2;cursor:pointer' : '';
         const cellRed  = anomaly ? 'color:#DC2626;font-weight:700' : '';
-        return `<tr style="${rowStyle}">
-        <td data-label="店面名稱" style="font-weight:500${anomaly?';color:#DC2626':''}">${anomaly?'⚠️ ':''}${r.loc}</td>
+        // 差異人員（梁平公司不展開）：在該店工作、但投保地點不等於該店的在職同仁
+        let detailRow = '';
+        if(anomaly && r.loc!=='梁平有限公司'){
+          const mism = activeEmps.filter(e=>e.workLocation===r.loc && (e.insurance&&e.insurance.insLocation)!==r.loc);
+          detailRow = `<tr id="ov-detail-${ri}" style="display:none"><td colspan="3" style="padding:0;background:#FFF7F7">
+            <div style="padding:10px 16px">
+              <div style="font-size:12px;font-weight:600;color:#B91C1C;margin-bottom:6px">造成差異的人員（${mism.length}）：工作於本店，但投保地點不同</div>
+              ${mism.length?mism.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #FCE4E4;font-size:12.5px">
+                <span style="font-weight:500">${e.name}<span style="color:#9AA0B4;font-weight:400"> · ${e.title||'—'}</span></span>
+                <span style="color:#5A6175">投保地點：<b style="color:${(e.insurance&&e.insurance.insLocation)?'#1D4ED8':'#C47A00'}">${(e.insurance&&e.insurance.insLocation)||'未設定'}</b></span>
+              </div>`).join(''):'<div style="font-size:12px;color:#9AA0B4">無（差異可能來自其他店同仁投保掛入本店）</div>'}
+            </div>
+          </td></tr>`;
+        }
+        return `<tr style="${rowStyle}" ${anomaly&&r.loc!=='梁平有限公司'?`onclick="var d=document.getElementById('ov-detail-${ri}');if(d)d.style.display=d.style.display==='none'?'table-row':'none';"`:''}>
+        <td data-label="店面名稱" style="font-weight:500${anomaly?';color:#DC2626':''}">${anomaly?'⚠️ ':''}${r.loc}${anomaly&&r.loc!=='梁平有限公司'?' <span style="font-size:10px;color:#DC2626;font-weight:400">▼ 點擊查看</span>':''}</td>
         <td data-label="在職人數" style="text-align:center;${cellRed}">${r.active}</td>
         <td data-label="投保人數" style="text-align:center;${cellRed}">${r.insured}${anomaly?` <span style="font-size:10px;color:#DC2626">(差${r.active-r.insured>0?'+':''}${r.active-r.insured})</span>`:''}</td>
-      </tr>`;}).join('')}
+      </tr>${detailRow}`;}).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:700;background:#F8FAFC">
         <td data-label="合計">合計</td>
         <td data-label="在職人數" style="text-align:center">${totalActive}</td>
@@ -1772,7 +1786,7 @@ function renderOverview(){
   <div style="font-size:11px;color:#9AA0B4;margin-top:10px;line-height:1.7">
     ＊在職人數：狀態為「在職」或「留職停薪」的同仁。<br>
     ＊投保人數：於「投保資料 → 投保地點」設定為該店的在職同仁；尚未設定投保地點者不計入。<br>
-    ＊<span style="color:#DC2626">紅色標示</span>：在職人數與投保人數不一致的店面（央廚三店投保掛於梁平有限公司，投保人數為 0 屬正常，不列為異常）。
+    ＊<span style="color:#DC2626">紅色標示</span>：在職人數與投保人數不一致的店面（央廚三店投保掛於梁平有限公司，投保人數為 0 屬正常，不列為異常）。<b>點擊紅色店面列可展開差異人員</b>。
   </div>`;
 
   document.getElementById('mainContent').innerHTML = stats + body;
