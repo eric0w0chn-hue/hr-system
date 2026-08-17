@@ -2849,24 +2849,24 @@ window.syncAllToSheet=async function(){
     // 逐筆推送（no-cors 無回傳，序列送避免瞬間爆量）
     for(const r of results){ await pushNetPayToSheet(r.store,viewYear,viewMonth,r.name,r.netPay); cnt++; }
   }
-  // ── 清除離職者的殘留 ──
-  // 離職日在本月之前（本月完全無出勤）的同仁，推 netPay=0 覆蓋中繼表殘留值。
-  // （避免離職後仍顯示重算薪資；本月有出勤的離職者已在上面依 days>0 正常處理）
+  // ── 清除「本月無出勤」者的中繼表殘留 ──
+  // 掃全部人（含離職、含未到職），用與在職判定同一套 calcEmployedDays（已處理各種日期格式），
+  // 只要本月在職天數為 0 就推 netPay=0 覆蓋殘留。這樣不論離職或新進未到職，殘留都會被清除。
   let clearCnt=0;
-  const _lastDay=`${viewYear}-${String(viewMonth).padStart(2,'0')}-${String(getDaysInMonth(viewYear,viewMonth)).padStart(2,'0')}`;
-  const _firstDay=`${viewYear}-${String(viewMonth).padStart(2,'0')}-01`;
-  for(const e of (_resignedRaw||[])){
+  const _allPeople=[...(_allEmployeesRaw||[]),...(_resignedRaw||[])];
+  const _seen=new Set();
+  for(const e of _allPeople){
     if(!e||!e.name||!e.workLocation)continue;
+    const _key=String(e.id||e.name)+'@'+normStore(e.workLocation);
+    if(_seen.has(_key))continue; _seen.add(_key);
     if(!viewableStores.some(st=>normStore(st)===normStore(e.workLocation)))continue;
-    const ld=getLeaveDate(e);
-    if(!ld)continue;
-    // 離職日 < 本月月初 → 本月完全沒出勤 → 清 0
-    if(String(ld) < _firstDay){
+    const _ed=calcEmployedDays(e,viewYear,viewMonth,null);
+    if(_ed.days<=0){
       await pushNetPayToSheet(e.workLocation,viewYear,viewMonth,e.name,0);
       clearCnt++;
     }
   }
-  showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁${clearCnt?`，並清除 ${clearCnt} 位離職者殘留`:''}至中繼表`);
+  showToast(`✓ 已同步 ${storeCnt} 個店面、共 ${cnt} 位同仁${clearCnt?`，並清除 ${clearCnt} 筆無出勤殘留`:''}至中繼表`);
 };
 function calcInsAuditRow(emp,rec){
   const _hd2=emp.hireDate?new Date(emp.hireDate):null;
