@@ -24,8 +24,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .role-chip{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);white-space:nowrap;flex-shrink:0}
 
 /* ── Main ── */
-.main{max-width:1040px;margin:0 auto;padding:24px 20px}
-.hint{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.6}
+.main{max-width:1200px;margin:0 auto;padding:24px 20px}
+.hint{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:14px;line-height:1.6}
+
+/* ── 店面選擇 ── */
+.storebar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;flex-wrap:wrap}
+.storebar .lb{font-size:11.5px;font-weight:700;color:var(--text2);letter-spacing:.3px;flex-shrink:0}
+.storebar select{flex:1;min-width:160px;font-size:14px;font-weight:700;padding:9px 11px;border:1px solid var(--border2);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
+.storebar select:focus{outline:none;border-color:var(--accent)}
 
 /* ── Tabs ── */
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
@@ -36,13 +42,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 
 /* ── Stats ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-.stat-card .n{font-size:24px;font-weight:800;line-height:1.1;word-break:break-all}
-.stat-card .l{font-size:12px;color:var(--text2);margin-top:6px}
-.stat-card.s-a .n{color:var(--info)}
-.stat-card.s-b .n{color:var(--ok)}
-.stat-card.s-c .n{color:var(--warn)}
-.stat-card.s-d .n{color:var(--danger)}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px}
+.stat-card .n{font-size:23px;font-weight:800;line-height:1.15;word-break:break-all}
+.stat-card .l{font-size:11.5px;color:var(--text2);margin-top:6px}
+.stat-card.s-a .n{color:var(--info)} .stat-card.s-b .n{color:var(--ok)}
+.stat-card.s-c .n{color:var(--warn)} .stat-card.s-d .n{color:var(--danger)}
 
 /* ── Toolbar / Buttons ── */
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -55,7 +59,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .btn-primary:hover{background:#3D4158}
 .btn-danger{background:#FEECEB;color:#C0392B;border-color:#FCA5A5}
 .btn-sm{font-size:12px;padding:0 11px;min-height:36px}
-.ml-auto{margin-left:auto}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text2);flex-shrink:0}
+.icon-btn:hover{background:var(--accent-light);color:var(--text)}
+.badge{font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-食材{background:#E5EEFB;color:var(--info)}
+.b-耗材{background:#FFF1DC;color:var(--warn)}
+.b-warn{background:#FCE9E7;color:var(--danger)}
+.b-gray{background:var(--surface2);color:var(--text2)}
+.empty{text-align:center;padding:44px 16px;color:var(--text3);font-size:14px;line-height:1.9}
+.ro-note{font-size:11.5px;color:var(--warn);background:#FFF8EC;border:1px solid #F2CE8A;border-radius:8px;padding:8px 12px;margin-bottom:12px}
+
+/* ── 商品定價表 ── */
+.tb-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.pt{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
+table.pt th,table.pt td{padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+table.pt thead th{font-size:11px;font-weight:700;color:var(--text2);background:var(--surface2);border-bottom:1px solid var(--border2);text-align:right;position:sticky;top:0;z-index:3}
+table.pt thead tr.h1 th{border-bottom:1px solid var(--border)}
+table.pt thead tr.h1 th.ch{text-align:center;color:var(--text);font-size:11.5px;border-left:2px solid var(--border2)}
+table.pt th.nm,table.pt td.nm{text-align:left;position:sticky;left:0;background:var(--surface);z-index:2;min-width:130px;max-width:190px;white-space:normal}
+table.pt thead th.nm{background:var(--surface2);z-index:4}
+table.pt td.nm{font-weight:700;cursor:pointer}
+table.pt td.gl{border-left:2px solid var(--border2)}
+table.pt th.gl{border-left:2px solid var(--border2)}
+table.pt tbody tr.pr:hover td{background:#FAFBFD}
+table.pt tbody tr.pr:hover td.nm{background:#FAFBFD}
+table.pt tbody tr:last-child td{border-bottom:none}
+.ch-fee{font-weight:400;color:var(--text3);font-size:10.5px}
+.rate{display:inline-block;font-weight:800;padding:2px 8px;border-radius:20px;font-size:12px}
+.r-good{background:#E3F5EA;color:var(--ok)} .r-mid{background:#E5EEFB;color:var(--info)}
+.r-low{background:#FFF1DC;color:var(--warn)} .r-bad{background:#FCE9E7;color:var(--danger)}
+.r-na{background:var(--surface2);color:var(--text3)}
+.cost-cell{font-weight:700;color:var(--text)}
+.dim{color:var(--text3)}
+.exp{font-size:10px;color:var(--text3);font-weight:400;margin-left:4px}
+
+/* 展開明細列 */
+tr.det>td{background:var(--surface2);padding:14px 14px;text-align:left;white-space:normal;border-left:none!important}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.det-h{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:7px;letter-spacing:.3px}
+table.mini{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--surface);border-radius:8px;overflow:hidden}
+table.mini th{font-size:10.5px;color:var(--text2);text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap}
+table.mini th:first-child,table.mini td:first-child{text-align:left}
+table.mini td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.mini tr:last-child td{border-bottom:none}
+table.mini tfoot td{font-weight:800;background:var(--accent-light)}
+.det-act{display:flex;gap:8px;margin-top:12px}
+.miss{color:var(--danger);font-size:11px}
 
 /* ── 原料卡 ── */
 .ilist{display:flex;flex-direction:column;gap:10px}
@@ -68,67 +117,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .ic-cost .v{font-size:20px;font-weight:800;color:var(--accent);line-height:1}
 .ic-cost .u{font-size:11px;color:var(--text3);margin-top:3px}
 .ic-act{display:flex;gap:6px;flex-shrink:0}
-.icon-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
-.icon-btn:hover{background:var(--accent-light);color:var(--text)}
-.badge{font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
-.b-食材{background:#E5EEFB;color:var(--info)}
-.b-耗材{background:#FFF1DC;color:var(--warn)}
-.b-warn{background:#FCE9E7;color:var(--danger)}
 
-/* ── 商品卡 ── */
-.plist{display:flex;flex-direction:column;gap:12px}
-.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-left:4px solid var(--ok)}
-.prod-card.lv-mid{border-left-color:var(--info)}
-.prod-card.lv-low{border-left-color:var(--warn)}
-.prod-card.lv-bad{border-left-color:var(--danger)}
-.pc-head{padding:15px 16px;cursor:pointer}
-.pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.pc-name{font-size:16px;font-weight:700;line-height:1.3}
-.pc-rate{text-align:right;flex-shrink:0}
-.pc-rate .v{font-size:22px;font-weight:800;line-height:1}
-.pc-rate .l{font-size:10.5px;color:var(--text3);margin-top:2px}
-.lv-good .pc-rate .v{color:var(--ok)} .lv-mid .pc-rate .v{color:var(--info)}
-.lv-low .pc-rate .v{color:var(--warn)} .lv-bad .pc-rate .v{color:var(--danger)}
-.pc-nums{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--text2)}
-.pc-nums b{font-size:15px;color:var(--text);font-weight:800;margin-left:4px}
-.pc-nums .profit b{color:var(--ok)} .pc-nums .profit.neg b{color:var(--danger)}
-.bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--surface2);margin-top:12px}
-.bar .seg-cost{background:linear-gradient(90deg,#8892A6,#5A6175)}
-.bar .seg-profit{background:linear-gradient(90deg,#35C07A,#1F9D55)}
-.bar .seg-loss{background:repeating-linear-gradient(45deg,#E88,#E88 5px,#C0392B 5px,#C0392B 10px)}
-.bar-legend{display:flex;gap:14px;font-size:10.5px;color:var(--text3);margin-top:6px}
-.bar-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
-.pc-body{border-top:1px solid var(--border);padding:14px 16px;background:var(--surface2);display:none}
-.pc-body.open{display:block}
-.comp-tb{width:100%;border-collapse:collapse;font-size:13px}
-.comp-tb th{text-align:left;font-size:11px;color:var(--text2);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border)}
-.comp-tb td{padding:8px;border-bottom:1px solid var(--border)}
-.comp-tb tr:last-child td{border-bottom:none}
-.comp-tb .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.comp-tb tfoot td{font-weight:800;border-top:2px solid var(--border2)}
-.miss{color:var(--danger);font-size:11px}
-.pc-actions{display:flex;gap:8px;margin-top:14px}
-.pc-actions .btn{flex:1;justify-content:center}
-.empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:14px;line-height:1.8}
+/* ── 平台卡 ── */
+.plat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;border-left:4px solid #7C3AED}
+.pl-fee{font-size:22px;font-weight:800;color:#7C3AED;line-height:1;flex-shrink:0}
+.pl-fee small{font-size:12px;font-weight:700}
 
 /* ── Modal ── */
 .overlay{position:fixed;inset:0;background:rgba(10,12,18,.45);display:flex;align-items:flex-end;justify-content:center;z-index:500;backdrop-filter:blur(2px)}
-.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.15);max-height:92vh;overflow-y:auto}
-.modal-title{font-size:15px;font-weight:700;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:620px;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.15);max-height:92vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.modal-sub{font-size:11.5px;color:var(--text3);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
 .form-row{margin-bottom:14px}
 .form-row label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;letter-spacing:.3px}
 .form-row input,.form-row select,.form-row textarea{width:100%;font-size:13px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;min-height:44px}
-.form-row textarea{min-height:64px;resize:vertical}
-.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent)}
+.form-row input:focus,.form-row select:focus{outline:none;border-color:var(--accent)}
 .form-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .req::after{content:' *';color:var(--danger)}
 .modal-footer{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 .modal-footer .btn{flex:1;justify-content:center}
-.calc-preview{background:var(--accent-light);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-top:-4px;margin-bottom:14px}
+.calc-preview{background:var(--accent-light);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .calc-preview .v{font-size:20px;font-weight:800;color:var(--accent)}
+.sec-h{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.3px;margin:18px 0 8px}
 
-/* ── 組成編輯器 ── */
+/* 組成編輯器 */
 .comp-editor{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
 .comp-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border);background:var(--surface)}
 .comp-row:last-child{border-bottom:none}
@@ -138,11 +151,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .comp-row .rm{width:34px;height:34px;flex-shrink:0;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;font-size:15px}
 .comp-row .rm:hover{background:#FEECEB;color:var(--danger);border-color:#FCA5A5}
 .comp-add{padding:9px 10px;background:var(--surface2)}
-.summary-box{background:var(--accent);color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px}
-.sb-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:3px 0}
-.sb-row.big{font-size:14px;font-weight:700;border-top:1px solid rgba(255,255,255,.2);margin-top:7px;padding-top:9px}
-.sb-row .v{font-size:19px;font-weight:800}
-.sb-row.big .v.pos{color:#6EE7A8} .sb-row.big .v.neg{color:#FFA79E}
+
+/* 通道定價編輯 */
+.ch-editor{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.ch-row{padding:11px 12px;border-bottom:1px solid var(--border);background:var(--surface)}
+.ch-row:last-child{border-bottom:none}
+.ch-top{display:flex;align-items:center;gap:10px}
+.ch-nm{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-top input{width:96px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;text-align:right;min-height:40px;flex-shrink:0}
+.ch-out{font-size:11.5px;color:var(--text2);margin-top:7px;display:flex;gap:12px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.ch-out b{color:var(--text)}
+.ch-out .p b{color:var(--ok)} .ch-out .p.neg b{color:var(--danger)}
+.cost-banner{background:var(--accent);color:#fff;border-radius:12px;padding:13px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:baseline}
+.cost-banner .v{font-size:21px;font-weight:800}
 
 /* ── Toast / Loading ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;opacity:0;visibility:hidden;transition:all .25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
@@ -159,17 +180,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   .role-chip{font-size:10px;padding:2px 8px}
   #btnNew .btn-label{display:none}
   #btnNew{padding:0 11px;min-width:36px;justify-content:center}
+  #btnCsv{display:none}
   .main{padding:12px}
   .stats{grid-template-columns:repeat(2,1fr);gap:10px}
-  .stat-card{padding:13px}
-  .stat-card .n{font-size:20px}
+  .stat-card{padding:12px}
+  .stat-card .n{font-size:19px}
   .toolbar select,.toolbar input{width:100%}
   .form-3{grid-template-columns:1fr 1fr}
-  .item-card{flex-wrap:wrap;gap:10px}
+  .item-card,.plat-card{flex-wrap:wrap;gap:10px}
   .ic-main{flex:1 1 60%}
   .ic-act{margin-left:auto}
   .comp-row{flex-wrap:wrap}
   .comp-row select{flex:1 1 100%}
+  .det-grid{grid-template-columns:1fr;gap:14px}
+  table.pt th.nm,table.pt td.nm{min-width:104px;max-width:120px;font-size:12px}
+  table.pt th,table.pt td{padding:8px 8px;font-size:12px}
   .modal{border-radius:16px 16px 0 0;max-height:92vh}
 }
 @media(min-width:601px){
@@ -198,11 +223,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
   </div>
 
   <div class="main">
-    <div class="hint">
-      🧮 先在「<b>原料成本</b>」建立每項食材／耗材的<b>進貨價 ÷ 可產份數</b>，系統自動算出單份成本；
-      再到「<b>商品定價</b>」把原料組合成商品並填入售價，即可看到總成本、毛利與毛利率。
-      原料進貨價一改，<b>所有用到它的商品成本會自動跟著更新</b>。
+    <div class="storebar">
+      <span class="lb">🏪 目前店面</span>
+      <select id="selStore"></select>
     </div>
+
+    <div class="hint" id="hintBox"></div>
+    <div class="ro-note" id="roNote" style="display:none">🔒 此店面非您的管轄範圍，目前為<b>唯讀檢視</b>。</div>
 
     <div class="tabs" id="tabs"></div>
 
@@ -210,20 +237,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
     <div id="viewProd">
       <div class="stats">
         <div class="stat-card s-a"><div class="n" id="stCount">0</div><div class="l">商品數</div></div>
-        <div class="stat-card s-b"><div class="n" id="stAvg">—</div><div class="l">平均毛利率</div></div>
-        <div class="stat-card s-c"><div class="n" id="stLow">—</div><div class="l">最低毛利率商品</div></div>
-        <div class="stat-card s-d"><div class="n" id="stBad">0</div><div class="l">🔴 虧損／未定價</div></div>
+        <div class="stat-card s-b"><div class="n" id="stAvg">—</div><div class="l">現場平均毛利率</div></div>
+        <div class="stat-card s-c"><div class="n" id="stPavg">—</div><div class="l">平台平均毛利率</div></div>
+        <div class="stat-card s-d"><div class="n" id="stBad">0</div><div class="l">🔴 虧損通道數</div></div>
       </div>
       <div class="toolbar">
         <input type="text" id="fpSearch" class="grow" placeholder="🔍 搜尋商品名稱…">
         <select id="fpSort">
-          <option value="rate_asc">毛利率 低→高</option>
-          <option value="rate_desc">毛利率 高→低</option>
-          <option value="profit_desc">毛利額 高→低</option>
           <option value="name">名稱排序</option>
+          <option value="rate_asc">現場毛利率 低→高</option>
+          <option value="rate_desc">現場毛利率 高→低</option>
+          <option value="cost_desc">成本 高→低</option>
         </select>
       </div>
-      <div class="plist" id="plist"></div>
+      <div class="tb-wrap"><table class="pt" id="ptable"></table></div>
+      <div id="pEmpty"></div>
     </div>
 
     <!-- ══ 原料成本 ══ -->
@@ -238,6 +266,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
       </div>
       <div class="ilist" id="ilist"></div>
     </div>
+
+    <!-- ══ 平台服務費 ══ -->
+    <div id="viewPlat" style="display:none">
+      <div class="ilist" id="pllist"></div>
+    </div>
   </div>
 </div>
 
@@ -245,22 +278,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp }
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ─────────── 設定 ─────────── */
-const COLL_ITEM = 'cost_items';      // 原料／耗材
-const COLL_PROD = 'cost_products';   // 商品
-const FETCH_LIMIT = 800;
-const EDIT_ROLES = ['admin','consultant'];   // 可編輯的角色（其餘為唯讀）
-const CATS = ['食材','耗材'];
+const COLL_ITEM = 'cost_items';       // 原料／耗材（分店）
+const COLL_PROD = 'cost_products';    // 商品（分店）
+const COLL_PLAT = 'cost_platforms';   // 外送平台服務費（分店）
+const FETCH_LIMIT = 3000;
+const CATS  = ['食材','耗材'];
 const UNITS = ['份','個','杯','包','片','組'];
+const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞肉本舖','府中雞肉飯專門店','景新雞肉飯專門店','鑫雞肉央廚','大直讚雞肉飯','心惦雞肉飯','幸福雞肉飯','福城雞肉飯','泉州鑫廚房','新莊央廚','巷日雞肉飯'];
 
 const CUR = { role:'', name:'—', uid:'' };
-let ITEMS = [];      // {id,name,category,packPrice,yieldQty,unit,note}
-let PRODS = [];      // {id,name,price,comps:[{itemId,name,qty}],note}
+let VIEW_LOCS = [];      // 可檢視店面（authGuard 已過濾）
+let OWN_LOCS  = [];      // 可編輯店面（userData.locations；admin/consultant 為全店）
+let ALL_ITEMS = [], ALL_PRODS = [], ALL_PLATS = [];   // 全部資料（含 store 欄位）
+let ITEMS = [], PRODS = [], PLATS = [];               // 目前店面
+let STORE = '';
 let TAB = 'prod';
-let canEdit = false;
+let canEdit = false;     // 目前店面是否可編輯
 
 /* ─────────── 小工具 ─────────── */
 const $ = id => document.getElementById(id);
@@ -268,6 +305,9 @@ const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;'
 const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const r2  = n => Math.round(n*100)/100;
 const money = n => (Math.round(n*100)/100).toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+// 全站店名正規化（舖/鋪 異體字）
+function normLoc(s){ return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim(); }
+const sameLoc = (a,b) => normLoc(a) === normLoc(b);
 
 function toast(msg){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -275,12 +315,15 @@ function toast(msg){
 }
 
 // 單份成本：進貨價 ÷ 可產份數
-function unitCost(it){
-  const q = num(it.yieldQty);
-  return q > 0 ? num(it.packPrice)/q : 0;
+function unitCost(it){ const q = num(it.yieldQty); return q > 0 ? num(it.packPrice)/q : 0; }
+
+// 通道清單：現場 + 各外送平台
+function channels(){
+  return [{ id:'onsite', name:'🏠 現場', fee:0, fixed:0 }]
+    .concat(PLATS.map(p => ({ id:p.id, name:p.name, fee:num(p.feePct), fixed:num(p.fixedFee) })));
 }
 
-// 商品成本試算（即時對照目前原料價）
+// 商品試算（成本即時對照目前原料價）
 function calcProduct(p){
   const rows = (p.comps||[]).map(c => {
     const it = ITEMS.find(x => x.id === c.itemId);
@@ -289,88 +332,249 @@ function calcProduct(p){
     return { name: it ? it.name : (c.name || '（原料已刪除）'), missing: !it,
              unit: it ? (it.unit||'份') : '份', uc, qty, sub: uc*qty };
   });
-  const cost   = rows.reduce((s,r)=>s+r.sub, 0);
-  const price  = num(p.price);
-  const profit = price - cost;
-  const rate   = price > 0 ? (profit/price*100) : null;   // 毛利率＝毛利÷售價
-  return { rows, cost, price, profit, rate, hasMissing: rows.some(r=>r.missing) };
+  const cost = rows.reduce((s,r)=>s+r.sub, 0);
+  const chs = channels().map(ch => {
+    const price = ch.id==='onsite' ? num(p.price) : num((p.chPrices||{})[ch.id]);
+    const svc    = price>0 ? price*ch.fee/100 + ch.fixed : 0;   // 服務費（抽佣＋固定費）
+    const net    = price - svc;                                  // 實收
+    const profit = net - cost;                                   // 毛利
+    const rate   = price>0 ? profit/price*100 : null;             // 毛利率＝毛利÷售價
+    return { ...ch, price, svc, net, profit, rate, set: price>0 };
+  });
+  return { rows, cost, chs, hasMissing: rows.some(r=>r.missing) };
 }
 
-function lvOf(rate){
-  if(rate === null || rate < 0) return 'bad';
-  if(rate < 20) return 'low';
-  if(rate < 45) return 'mid';
-  return 'good';
+function rateCls(rate){
+  if(rate === null) return 'r-na';
+  if(rate < 0) return 'r-bad';
+  if(rate < 20) return 'r-low';
+  if(rate < 45) return 'r-mid';
+  return 'r-good';
 }
+const rateHtml = r => `<span class="rate ${rateCls(r)}">${r===null?'—':r.toFixed(1)+'%'}</span>`;
 
 /* ─────────── 進場 ─────────── */
-authGuard('cost', ({ uid, role, userData }) => {
+authGuard('cost', ({ uid, role, locations, userData }) => {
   CUR.role = role; CUR.uid = uid; CUR.name = userData?.name || '—';
-  canEdit = EDIT_ROLES.includes(role);
+  VIEW_LOCS = Array.isArray(locations) ? locations.slice() : [];
+  // ownLocs 與檢視範圍分離（規範 3-2）：admin/consultant 的 userData.locations 為空 → 視為全店
+  OWN_LOCS  = (userData?.locations && userData.locations.length) ? userData.locations.slice() : [];
   const rc = $('roleChip');
   if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role || '—';
   init();
 });
+
+async function loadAllStores(){
+  try{
+    const s = await getDoc(doc(db,'hr','settings'));
+    if(s.exists()){
+      const wl = s.data().workLocations;
+      if(Array.isArray(wl) && wl.length){
+        const names = wl.map(x => typeof x==='string' ? x : (x?.name||x?.store||x?.label||'')).filter(Boolean);
+        if(names.length) return names;
+      }
+    }
+  }catch(e){ console.warn('loadAllStores 失敗，改用後備清單', e); }
+  return FALLBACK_STORES.slice();
+}
 
 async function init(){
   $('btnBack').addEventListener('click', () => {
     if(window.self !== window.top){ window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*'); }
     else { window.location.href = 'dashboard.html'; }
   });
-  if(!canEdit) $('btnNew').style.display = 'none';
-  $('btnNew').addEventListener('click', () => TAB==='prod' ? openProdModal(null) : openItemModal(null));
+  $('btnNew').addEventListener('click', onNew);
   $('btnCsv').addEventListener('click', exportCsv);
   $('fpSearch').addEventListener('input', renderProds);
   $('fpSort').addEventListener('change', renderProds);
   $('fiSearch').addEventListener('input', renderItems);
   $('fiCat').addEventListener('change', renderItems);
+  $('selStore').addEventListener('change', () => { STORE = $('selStore').value; onStoreChange(); });
+
+  // 店面清單：VIEW_LOCS 為空（admin/consultant 全域）→ 讀全站店面
+  let stores = VIEW_LOCS.length ? VIEW_LOCS.slice() : await loadAllStores();
+  stores = stores.filter(s => s && s !== '梁平有限公司');   // 公司實體非門市
+  $('selStore').innerHTML = stores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  STORE = stores[0] || '';
+  if(stores.length <= 1) $('selStore').disabled = true;
 
   await loadAll();
   $('loading').style.display = 'none';
   $('app').style.display = '';
-  renderTabs(); renderProds(); renderItems();
+  onStoreChange();
 }
 
 async function loadAll(){
   try{
-    // 4-2③ 獨立讀取一律並行
-    const [si, sp] = await Promise.all([
+    // 4-2③ 獨立讀取一律 Promise.all 並行；店名不用 where（異體字），前端 normLoc 過濾
+    const [si, sp, sl] = await Promise.all([
       getDocs(query(collection(db, COLL_ITEM), orderBy('name'), limit(FETCH_LIMIT))),
-      getDocs(query(collection(db, COLL_PROD), orderBy('name'), limit(FETCH_LIMIT)))
+      getDocs(query(collection(db, COLL_PROD), orderBy('name'), limit(FETCH_LIMIT))),
+      getDocs(query(collection(db, COLL_PLAT), orderBy('name'), limit(500)))
     ]);
-    ITEMS = si.docs.map(d => ({ id:d.id, ...d.data() }));
-    PRODS = sp.docs.map(d => ({ id:d.id, ...d.data() }));
+    ALL_ITEMS = si.docs.map(d => ({ id:d.id, ...d.data() }));
+    ALL_PRODS = sp.docs.map(d => ({ id:d.id, ...d.data() }));
+    ALL_PLATS = sl.docs.map(d => ({ id:d.id, ...d.data() }));
   }catch(e){
-    console.error(e); toast('讀取失敗：' + (e.message||e));
-    ITEMS = []; PRODS = [];
+    console.error(e); toast('讀取失敗：'+(e.message||e));
+    ALL_ITEMS = []; ALL_PRODS = []; ALL_PLATS = [];
   }
+}
+
+function onStoreChange(){
+  ITEMS = ALL_ITEMS.filter(x => sameLoc(x.store, STORE));
+  PRODS = ALL_PRODS.filter(x => sameLoc(x.store, STORE));
+  PLATS = ALL_PLATS.filter(x => sameLoc(x.store, STORE));
+  // 可編輯：OWN_LOCS 為空（總部/顧問全域）→ 全部可編；否則需在 OWN_LOCS 內
+  canEdit = OWN_LOCS.length === 0 ? true : OWN_LOCS.some(s => sameLoc(s, STORE));
+  $('roNote').style.display = canEdit ? 'none' : '';
+  $('btnNew').style.display = canEdit ? '' : 'none';
+  renderHint(); renderTabs(); renderProds(); renderItems(); renderPlats();
+}
+
+function renderHint(){
+  const t = {
+    prod:'🍚 商品由原料組合，成本自動加總。<b>現場</b>與各<b>外送平台</b>可分別填售價，平台會先扣掉服務費（抽佣）再算毛利。點商品名稱可展開組成明細。',
+    item:'🧾 填「進貨價 ÷ 可產數量」＝單份成本。例：米 100 元可產 20 份 → 每份 $5。原料價一改，所有用到它的商品成本自動更新。',
+    plat:'🚚 設定各外送平台的服務費（抽佣％）。例：UBER 30% → 售價 150 時服務費 $45，實收 $105 再扣成本才是毛利。<b>各店可自行設定不同費率。</b>'
+  }[TAB];
+  $('hintBox').innerHTML = t + `<br><span style="color:var(--text3)">此頁資料<b>依店面各自獨立</b>，目前編輯：${esc(STORE)}</span>`;
 }
 
 /* ─────────── Tabs ─────────── */
 function renderTabs(){
   $('tabs').innerHTML =
     `<div class="tab ${TAB==='prod'?'active':''}" data-tab="prod">🍚 商品定價 <span class="cnt">${PRODS.length}</span></div>` +
-    `<div class="tab ${TAB==='item'?'active':''}" data-tab="item">🧾 原料成本 <span class="cnt">${ITEMS.length}</span></div>`;
+    `<div class="tab ${TAB==='item'?'active':''}" data-tab="item">🧾 原料成本 <span class="cnt">${ITEMS.length}</span></div>` +
+    `<div class="tab ${TAB==='plat'?'active':''}" data-tab="plat">🚚 平台服務費 <span class="cnt">${PLATS.length}</span></div>`;
 }
 $('tabs').addEventListener('click', e => {
   const t = e.target.closest('.tab'); if(!t) return;
   TAB = t.dataset.tab;
   $('viewProd').style.display = TAB==='prod' ? '' : 'none';
   $('viewItem').style.display = TAB==='item' ? '' : 'none';
-  $('btnNew').querySelector('.btn-label').textContent = TAB==='prod' ? ' 新增商品' : ' 新增原料';
-  renderTabs();
+  $('viewPlat').style.display = TAB==='plat' ? '' : 'none';
+  $('btnNew').querySelector('.btn-label').textContent =
+    TAB==='prod' ? ' 新增商品' : (TAB==='item' ? ' 新增原料' : ' 新增平台');
+  renderTabs(); renderHint();
+});
+function onNew(){
+  if(TAB==='prod') openProdModal(null);
+  else if(TAB==='item') openItemModal(null);
+  else openPlatModal(null);
+}
+
+/* ═══════════ 商品定價（表格） ═══════════ */
+function renderProds(){
+  const kw   = $('fpSearch').value.trim().toLowerCase();
+  const sort = $('fpSort').value;
+  const chs  = channels();
+  const calced = PRODS.map(p => ({ p, c: calcProduct(p) }));
+
+  // ── 統計 ──
+  const onRates = calced.map(x => x.c.chs[0].rate).filter(r => r !== null);
+  const plRates = calced.flatMap(x => x.c.chs.slice(1).filter(ch=>ch.set).map(ch=>ch.rate));
+  const badCnt  = calced.reduce((s,x)=> s + x.c.chs.filter(ch=>ch.set && ch.profit<0).length, 0);
+  const avg = a => a.length ? (a.reduce((s,v)=>s+v,0)/a.length).toFixed(1)+'%' : '—';
+  $('stCount').textContent = PRODS.length;
+  $('stAvg').textContent   = avg(onRates);
+  $('stPavg').textContent  = avg(plRates);
+  $('stBad').textContent   = badCnt;
+
+  let list = calced.filter(x => !kw || String(x.p.name||'').toLowerCase().includes(kw));
+  const rk = x => x.c.chs[0].rate === null ? -9999 : x.c.chs[0].rate;
+  if(sort==='rate_asc')       list.sort((a,b)=> rk(a)-rk(b));
+  else if(sort==='rate_desc') list.sort((a,b)=> rk(b)-rk(a));
+  else if(sort==='cost_desc') list.sort((a,b)=> b.c.cost-a.c.cost);
+  else list.sort((a,b)=> String(a.p.name).localeCompare(String(b.p.name),'zh-Hant'));
+
+  if(!list.length){
+    $('ptable').innerHTML = '';
+    $('pEmpty').innerHTML = `<div class="empty">${PRODS.length ? '沒有符合條件的商品'
+      : (ITEMS.length ? '此店尚未建立商品<br>點右上「＋ 新增」，把原料組合成商品並填入各通道售價'
+                      : '請先到「🧾 原料成本」建立此店的原料<br>再回來組合商品')}</div>`;
+    return;
+  }
+  $('pEmpty').innerHTML = '';
+
+  const colCount = 2 + chs.length*3;
+  const head =
+    `<thead>
+      <tr class="h1">
+        <th class="nm" rowspan="2">商品</th>
+        <th rowspan="2">成本</th>
+        ${chs.map(ch=>`<th class="ch" colspan="3">${esc(ch.name)}${ch.id!=='onsite'?`<span class="ch-fee"> ${money(ch.fee)}%${ch.fixed?` +$${money(ch.fixed)}`:''}</span>`:''}</th>`).join('')}
+      </tr>
+      <tr>
+        ${chs.map(ch=>`<th class="gl">售價</th><th>${ch.id==='onsite'?'毛利':'服務費'}</th><th>${ch.id==='onsite'?'毛利率':'毛利/率'}</th>`).join('')}
+      </tr>
+    </thead>`;
+
+  const body = list.map(({p,c}) => {
+    const cells = c.chs.map(ch => {
+      if(!ch.set) return `<td class="gl dim">—</td><td class="dim">—</td><td class="dim">—</td>`;
+      const pf = `${ch.profit<0?'-':''}$${money(Math.abs(ch.profit))}`;
+      if(ch.id==='onsite')
+        return `<td class="gl">$${money(ch.price)}</td><td style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700">${pf}</td><td>${rateHtml(ch.rate)}</td>`;
+      return `<td class="gl">$${money(ch.price)}</td><td style="color:#7C3AED">-$${money(ch.svc)}</td>`
+           + `<td><span style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700;margin-right:6px">${pf}</span>${rateHtml(ch.rate)}</td>`;
+    }).join('');
+    return `<tr class="pr" data-toggle="${p.id}">
+        <td class="nm">${esc(p.name)}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
+        <td class="cost-cell">$${money(c.cost)}</td>${cells}
+      </tr>
+      <tr class="det" id="det_${p.id}" style="display:none"><td colspan="${colCount}">${detailHtml(p,c)}</td></tr>`;
+  }).join('');
+
+  $('ptable').innerHTML = head + `<tbody>${body}</tbody>`;
+}
+
+function detailHtml(p,c){
+  const comp = `<div><div class="det-h">🧾 組成明細</div>
+    <table class="mini">
+      <thead><tr><th>原料</th><th>單位成本</th><th>數量</th><th>小計</th></tr></thead>
+      <tbody>${c.rows.length ? c.rows.map(r=>`<tr>
+        <td>${esc(r.name)}${r.missing?' <span class="miss">✕已刪除</span>':''}</td>
+        <td>$${money(r.uc)}</td><td>${money(r.qty)} ${esc(r.unit)}</td><td>$${money(r.sub)}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="dim">尚未設定組成</td></tr>'}</tbody>
+      <tfoot><tr><td>總成本</td><td></td><td></td><td>$${money(c.cost)}</td></tr></tfoot>
+    </table></div>`;
+
+  const ch = `<div><div class="det-h">💰 各通道利潤</div>
+    <table class="mini">
+      <thead><tr><th>通道</th><th>售價</th><th>服務費</th><th>實收</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead>
+      <tbody>${c.chs.map(x=>`<tr>
+        <td>${esc(x.name)}${x.id!=='onsite'?` <span class="dim">${money(x.fee)}%</span>`:''}</td>
+        ${x.set ? `<td>$${money(x.price)}</td><td style="color:#7C3AED">${x.svc?'-$'+money(x.svc):'—'}</td>
+        <td>$${money(x.net)}</td><td>-$${money(c.cost)}</td>
+        <td style="color:${x.profit<0?'var(--danger)':'var(--ok)'};font-weight:800">${x.profit<0?'-':''}$${money(Math.abs(x.profit))}</td>
+        <td>${rateHtml(x.rate)}</td>` : '<td colspan="6" class="dim">未定價</td>'}
+      </tr>`).join('')}</tbody>
+    </table>
+    ${p.note?`<div style="font-size:12px;color:var(--text2);margin-top:9px">📝 ${esc(p.note)}</div>`:''}
+    ${canEdit?`<div class="det-act">
+      <button class="btn btn-sm" data-pedit="${p.id}">✏️ 編輯</button>
+      <button class="btn btn-sm btn-danger" data-pdel="${p.id}">🗑 刪除</button></div>`:''}
+    </div>`;
+  return `<div class="det-grid">${comp}${ch}</div>`;
+}
+
+$('ptable').addEventListener('click', e => {
+  const ed = e.target.closest('[data-pedit]'); if(ed) return openProdModal(PRODS.find(x=>x.id===ed.dataset.pedit));
+  const dl = e.target.closest('[data-pdel]');  if(dl) return delProd(dl.dataset.pdel);
+  const tg = e.target.closest('[data-toggle]');
+  if(tg){ const d = $('det_'+tg.dataset.toggle); if(d) d.style.display = d.style.display==='none' ? '' : 'none'; }
 });
 
-/* ─────────── 原料清單 ─────────── */
+/* ═══════════ 原料 ═══════════ */
 function renderItems(){
   const kw  = $('fiSearch').value.trim().toLowerCase();
   const cat = $('fiCat').value;
-  const list = ITEMS
-    .filter(i => cat==='__all__' || i.category===cat)
-    .filter(i => !kw || String(i.name||'').toLowerCase().includes(kw));
-
+  const list = ITEMS.filter(i => cat==='__all__' || i.category===cat)
+                    .filter(i => !kw || String(i.name||'').toLowerCase().includes(kw));
   if(!list.length){
-    $('ilist').innerHTML = `<div class="empty">${ITEMS.length ? '沒有符合條件的原料' : '尚未建立原料<br>點右上「＋ 新增原料」開始，例如：米 100 元 可產 20 份'}</div>`;
+    $('ilist').innerHTML = `<div class="empty">${ITEMS.length ? '沒有符合條件的原料'
+      : '此店尚未建立原料<br>點右上「＋ 新增」開始，例如：米 100 元 可產 20 份'}</div>`;
     return;
   }
   $('ilist').innerHTML = list.map(i => {
@@ -378,119 +582,27 @@ function renderItems(){
     const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId === i.id)).length;
     return `<div class="item-card c-${esc(i.category||'食材')}">
       <div class="ic-main">
-        <div class="ic-name">${esc(i.name)}<span class="badge b-${esc(i.category||'食材')}">${esc(i.category||'食材')}</span>${used?`<span class="badge b-食材" style="background:var(--surface2);color:var(--text2)">用於 ${used} 項商品</span>`:''}</div>
+        <div class="ic-name">${esc(i.name)}<span class="badge b-${esc(i.category||'食材')}">${esc(i.category||'食材')}</span>${used?`<span class="badge b-gray">用於 ${used} 項商品</span>`:''}</div>
         <div class="ic-formula">$${money(i.packPrice)} ÷ ${money(i.yieldQty)} ${esc(u)}${i.note?` · ${esc(i.note)}`:''}</div>
       </div>
       <div class="ic-cost"><div class="v">$${money(uc)}</div><div class="u">每 1 ${esc(u)}</div></div>
-      ${canEdit ? `<div class="ic-act">
+      ${canEdit?`<div class="ic-act">
         <button class="icon-btn" data-iedit="${i.id}" title="編輯">✏️</button>
-        <button class="icon-btn" data-idel="${i.id}" title="刪除">🗑</button>
-      </div>` : ''}
+        <button class="icon-btn" data-idel="${i.id}" title="刪除">🗑</button></div>`:''}
     </div>`;
   }).join('');
 }
-
 $('ilist').addEventListener('click', e => {
   const ed = e.target.closest('[data-iedit]'); if(ed) return openItemModal(ITEMS.find(x=>x.id===ed.dataset.iedit));
   const dl = e.target.closest('[data-idel]');  if(dl) return delItem(dl.dataset.idel);
 });
 
-/* ─────────── 商品清單 ─────────── */
-function renderProds(){
-  const kw   = $('fpSearch').value.trim().toLowerCase();
-  const sort = $('fpSort').value;
-
-  const calced = PRODS.map(p => ({ p, c: calcProduct(p) }));
-
-  // 統計
-  const valid = calced.filter(x => x.c.rate !== null);
-  const avg   = valid.length ? valid.reduce((s,x)=>s+x.c.rate,0)/valid.length : null;
-  const low   = valid.length ? valid.reduce((m,x)=> x.c.rate < m.c.rate ? x : m) : null;
-  const bad   = calced.filter(x => x.c.rate === null || x.c.profit < 0).length;
-  $('stCount').textContent = PRODS.length;
-  $('stAvg').textContent   = avg===null ? '—' : avg.toFixed(1)+'%';
-  $('stLow').textContent   = low ? `${low.p.name}` : '—';
-  $('stLow').style.fontSize = '15px';
-  $('stBad').textContent   = bad;
-
-  let list = calced.filter(x => !kw || String(x.p.name||'').toLowerCase().includes(kw));
-  const rk = x => x.c.rate === null ? -9999 : x.c.rate;
-  if(sort==='rate_asc')        list.sort((a,b)=> rk(a)-rk(b));
-  else if(sort==='rate_desc')  list.sort((a,b)=> rk(b)-rk(a));
-  else if(sort==='profit_desc')list.sort((a,b)=> b.c.profit-a.c.profit);
-  else list.sort((a,b)=> String(a.p.name).localeCompare(String(b.p.name),'zh-Hant'));
-
-  if(!list.length){
-    $('plist').innerHTML = `<div class="empty">${PRODS.length ? '沒有符合條件的商品' : '尚未建立商品<br>點右上「＋ 新增」，把原料組合成商品並填入售價'}</div>`;
-    return;
-  }
-
-  $('plist').innerHTML = list.map(({p,c}) => {
-    const lv = lvOf(c.rate);
-    const total = Math.max(c.price, c.cost) || 1;
-    const costPct = Math.min(100, c.cost/total*100);
-    const bar = c.profit >= 0
-      ? `<div class="seg-cost" style="width:${costPct}%"></div><div class="seg-profit" style="width:${100-costPct}%"></div>`
-      : `<div class="seg-loss" style="width:100%"></div>`;
-    return `<div class="prod-card lv-${lv}" data-pid="${p.id}">
-      <div class="pc-head" data-toggle="${p.id}">
-        <div class="pc-top">
-          <div style="min-width:0">
-            <div class="pc-name">${esc(p.name)}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}</div>
-            <div class="pc-nums">
-              <span>售價<b>$${money(c.price)}</b></span>
-              <span>成本<b>$${money(c.cost)}</b></span>
-              <span class="profit ${c.profit<0?'neg':''}">毛利<b>${c.profit<0?'-':''}$${money(Math.abs(c.profit))}</b></span>
-            </div>
-          </div>
-          <div class="pc-rate"><div class="v">${c.rate===null?'—':c.rate.toFixed(1)+'%'}</div><div class="l">毛利率</div></div>
-        </div>
-        <div class="bar">${bar}</div>
-        <div class="bar-legend">
-          <span><i style="background:#5A6175"></i>成本 ${c.price>0?(c.cost/c.price*100).toFixed(0)+'% 成本率':''}</span>
-          <span><i style="background:${c.profit<0?'#C0392B':'#1F9D55'}"></i>${c.profit<0?'虧損':'毛利'}</span>
-          <span style="margin-left:auto">展開明細 ▾</span>
-        </div>
-      </div>
-      <div class="pc-body" id="body_${p.id}">
-        <table class="comp-tb">
-          <thead><tr><th>組成</th><th class="num">單位成本</th><th class="num">數量</th><th class="num">小計</th></tr></thead>
-          <tbody>${c.rows.length ? c.rows.map(r=>`<tr>
-            <td>${esc(r.name)}${r.missing?' <span class="miss">✕ 已刪除</span>':''}</td>
-            <td class="num">$${money(r.uc)}</td>
-            <td class="num">${money(r.qty)} ${esc(r.unit)}</td>
-            <td class="num">$${money(r.sub)}</td></tr>`).join('')
-            : '<tr><td colspan="4" style="color:var(--text3)">尚未設定組成</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr><td>總成本</td><td></td><td></td><td class="num">$${money(c.cost)}</td></tr>
-            <tr><td>售價</td><td></td><td></td><td class="num">$${money(c.price)}</td></tr>
-            <tr><td style="color:${c.profit<0?'var(--danger)':'var(--ok)'}">單份毛利</td><td></td><td></td>
-                <td class="num" style="color:${c.profit<0?'var(--danger)':'var(--ok)'}">${c.profit<0?'-':''}$${money(Math.abs(c.profit))}</td></tr>
-          </tfoot>
-        </table>
-        ${p.note?`<div style="font-size:12px;color:var(--text2);margin-top:10px">📝 ${esc(p.note)}</div>`:''}
-        ${canEdit?`<div class="pc-actions">
-          <button class="btn btn-sm" data-pedit="${p.id}">✏️ 編輯</button>
-          <button class="btn btn-sm btn-danger" data-pdel="${p.id}">🗑 刪除</button>
-        </div>`:''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-$('plist').addEventListener('click', e => {
-  const ed = e.target.closest('[data-pedit]'); if(ed){ e.stopPropagation(); return openProdModal(PRODS.find(x=>x.id===ed.dataset.pedit)); }
-  const dl = e.target.closest('[data-pdel]');  if(dl){ e.stopPropagation(); return delProd(dl.dataset.pdel); }
-  const tg = e.target.closest('[data-toggle]'); if(tg){ const b = $('body_'+tg.dataset.toggle); if(b) b.classList.toggle('open'); }
-});
-
-/* ─────────── 原料 Modal ─────────── */
 function openItemModal(it){
   const isNew = !it;
-  const ov = document.createElement('div'); ov.className = 'overlay';
+  const ov = document.createElement('div'); ov.className='overlay';
   ov.innerHTML = `<div class="modal">
     <div class="modal-title">🧾 ${isNew?'新增':'編輯'}原料／耗材</div>
+    <div class="modal-sub">店面：${esc(STORE)}</div>
     <div class="form-row"><label class="req">名稱</label>
       <input type="text" id="iName" placeholder="例：米、雞肉、外帶碗" value="${esc(it?.name||'')}"></div>
     <div class="form-3">
@@ -503,25 +615,23 @@ function openItemModal(it){
     </div>
     <div class="form-row"><label>單位</label><select id="iUnit">
       ${UNITS.map(u=>`<option value="${u}" ${(it?.unit||'份')===u?'selected':''}>${u}</option>`).join('')}</select></div>
-    <div class="calc-preview"><span>單位成本</span><span class="v" id="iPreview">$0</span></div>
+    <div class="calc-preview"><span>單位成本</span><span class="v" id="iPreview">—</span></div>
     <div class="form-row"><label>備註</label><input type="text" id="iNote" placeholder="廠商、規格…" value="${esc(it?.note||'')}"></div>
     <div class="modal-footer">
       <button class="btn" id="iCancel">取消</button>
-      <button class="btn btn-primary" id="iSave">${isNew?'新增':'儲存'}</button>
-    </div>
+      <button class="btn btn-primary" id="iSave">${isNew?'新增':'儲存'}</button></div>
   </div>`;
   document.body.appendChild(ov);
 
   const upd = () => {
-    const p = num($('iPrice').value), q = num($('iQty').value);
-    $('iPreview').textContent = q>0 ? `$${money(p/q)} / ${$('iUnit').value}` : '—';
+    const pv = num($('iPrice').value), q = num($('iQty').value);
+    $('iPreview').textContent = q>0 ? `$${money(pv/q)} / ${$('iUnit').value}` : '—';
   };
-  ['iPrice','iQty','iUnit'].forEach(id => $(id).addEventListener('input', upd));
-  $('iUnit').addEventListener('change', upd);
-  upd();
+  ['iPrice','iQty'].forEach(id => $(id).addEventListener('input', upd));
+  $('iUnit').addEventListener('change', upd); upd();
 
   const close = () => ov.remove();
-  ov.addEventListener('click', e => { if(e.target === ov) close(); });
+  ov.addEventListener('click', e => { if(e.target===ov) close(); });
   $('iCancel').addEventListener('click', close);
   $('iSave').addEventListener('click', async () => {
     const name = $('iName').value.trim();
@@ -529,74 +639,179 @@ function openItemModal(it){
     if(!name) return toast('請填寫名稱');
     if(packPrice <= 0) return toast('進貨價需大於 0');
     if(yieldQty <= 0) return toast('可產數量需大於 0');
-    const data = { name, category:$('iCat').value, packPrice, yieldQty,
-                   unit:$('iUnit').value, note:$('iNote').value.trim(), updatedAt: serverTimestamp() };
+    const data = { store:STORE, name, category:$('iCat').value, packPrice, yieldQty,
+                   unit:$('iUnit').value, note:$('iNote').value.trim(), updatedAt:serverTimestamp() };
     $('iSave').disabled = true;
     try{
       if(isNew){
         data.createdAt = serverTimestamp();
         const ref = await addDoc(collection(db, COLL_ITEM), data);
-        ITEMS.push({ id:ref.id, ...data });
-        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'新增原料', detail:name });
+        ALL_ITEMS.push({ id:ref.id, ...data });
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'新增原料', detail:`${STORE}／${name}` });
       }else{
         await updateDoc(doc(db, COLL_ITEM, it.id), data);
         Object.assign(it, data);
-        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'編輯原料', detail:name });
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'編輯原料', detail:`${STORE}／${name}` });
       }
-      ITEMS.sort((a,b)=> String(a.name).localeCompare(String(b.name),'zh-Hant'));
-      close(); renderTabs(); renderItems(); renderProds();
-      toast(isNew ? '已新增原料' : '已儲存');
-    }catch(e){ console.error(e); toast('儲存失敗：'+(e.message||e)); $('iSave').disabled = false; }
+      ALL_ITEMS.sort((a,b)=> String(a.name).localeCompare(String(b.name),'zh-Hant'));
+      close(); refresh(); toast(isNew?'已新增原料':'已儲存');
+    }catch(e){ console.error(e); toast('儲存失敗：'+(e.message||e)); $('iSave').disabled=false; }
   });
 }
 
 async function delItem(id){
   const it = ITEMS.find(x=>x.id===id); if(!it) return;
-  const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId === id));
-  const warn = used.length ? `\n\n⚠️ 目前有 ${used.length} 項商品使用此原料（${used.slice(0,3).map(p=>p.name).join('、')}${used.length>3?'…':''}），刪除後這些商品的成本會少算。` : '';
+  const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId===id));
+  const warn = used.length ? `\n\n⚠️ 目前有 ${used.length} 項商品使用此原料（${used.slice(0,3).map(p=>p.name).join('、')}${used.length>3?'…':''}），刪除後成本會少算。` : '';
   if(!confirm(`確定刪除原料「${it.name}」？${warn}`)) return;
   try{
     await deleteDoc(doc(db, COLL_ITEM, id));
-    ITEMS = ITEMS.filter(x=>x.id!==id);
-    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'刪除原料', detail:it.name });
-    renderTabs(); renderItems(); renderProds(); toast('已刪除');
+    ALL_ITEMS = ALL_ITEMS.filter(x=>x.id!==id);
+    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'刪除原料', detail:`${STORE}／${it.name}` });
+    refresh(); toast('已刪除');
   }catch(e){ console.error(e); toast('刪除失敗：'+(e.message||e)); }
 }
 
-/* ─────────── 商品 Modal ─────────── */
+/* ═══════════ 平台服務費 ═══════════ */
+function renderPlats(){
+  if(!PLATS.length){
+    $('pllist').innerHTML = `<div class="empty">此店尚未設定外送平台<br>點右上「＋ 新增」，例如：UBER Eats 服務費 30%<br><span style="font-size:12px">未設定平台時，商品定價只顯示「現場」一欄</span></div>`;
+    return;
+  }
+  $('pllist').innerHTML = PLATS.map(p => {
+    const used = PRODS.filter(x => num((x.chPrices||{})[p.id]) > 0).length;
+    return `<div class="plat-card">
+      <div class="ic-main">
+        <div class="ic-name">${esc(p.name)}${used?`<span class="badge b-gray">${used} 項商品已定價</span>`:''}</div>
+        <div class="ic-formula">服務費 ${money(p.feePct)}%${num(p.fixedFee)?` ＋ 固定 $${money(p.fixedFee)}／單`:''}${p.note?` · ${esc(p.note)}`:''}</div>
+      </div>
+      <div class="pl-fee">${money(p.feePct)}<small>%</small></div>
+      ${canEdit?`<div class="ic-act">
+        <button class="icon-btn" data-ledit="${p.id}" title="編輯">✏️</button>
+        <button class="icon-btn" data-ldel="${p.id}" title="刪除">🗑</button></div>`:''}
+    </div>`;
+  }).join('');
+}
+$('pllist').addEventListener('click', e => {
+  const ed = e.target.closest('[data-ledit]'); if(ed) return openPlatModal(PLATS.find(x=>x.id===ed.dataset.ledit));
+  const dl = e.target.closest('[data-ldel]');  if(dl) return delPlat(dl.dataset.ldel);
+});
+
+function openPlatModal(pl){
+  const isNew = !pl;
+  const ov = document.createElement('div'); ov.className='overlay';
+  ov.innerHTML = `<div class="modal">
+    <div class="modal-title">🚚 ${isNew?'新增':'編輯'}外送平台</div>
+    <div class="modal-sub">店面：${esc(STORE)}（各店費率可不同）</div>
+    <div class="form-row"><label class="req">平台名稱</label>
+      <input type="text" id="lName" placeholder="例：UBER Eats、foodpanda" value="${esc(pl?.name||'')}"></div>
+    <div class="form-2">
+      <div class="form-row"><label class="req">服務費（抽佣 %）</label>
+        <input type="number" id="lFee" inputmode="decimal" step="0.1" min="0" max="100" placeholder="30" value="${pl?.feePct??''}"></div>
+      <div class="form-row"><label>固定費用（每單 $，選填）</label>
+        <input type="number" id="lFix" inputmode="decimal" step="0.1" min="0" placeholder="0" value="${pl?.fixedFee??''}"></div>
+    </div>
+    <div class="calc-preview"><span>售價 $150 時 → 服務費</span><span class="v" id="lPreview">—</span></div>
+    <div class="form-row"><label>備註</label><input type="text" id="lNote" placeholder="合約期間、活動費率…" value="${esc(pl?.note||'')}"></div>
+    <div class="modal-footer">
+      <button class="btn" id="lCancel">取消</button>
+      <button class="btn btn-primary" id="lSave">${isNew?'新增':'儲存'}</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  const upd = () => {
+    const f = num($('lFee').value), fx = num($('lFix').value);
+    const svc = 150*f/100 + fx;
+    $('lPreview').textContent = f||fx ? `-$${money(svc)}（實收 $${money(150-svc)}）` : '—';
+  };
+  ['lFee','lFix'].forEach(id => $(id).addEventListener('input', upd)); upd();
+
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target===ov) close(); });
+  $('lCancel').addEventListener('click', close);
+  $('lSave').addEventListener('click', async () => {
+    const name = $('lName').value.trim();
+    const feePct = num($('lFee').value), fixedFee = num($('lFix').value);
+    if(!name) return toast('請填寫平台名稱');
+    if(feePct < 0 || feePct >= 100) return toast('服務費需在 0–99.9% 之間');
+    const data = { store:STORE, name, feePct, fixedFee, note:$('lNote').value.trim(), updatedAt:serverTimestamp() };
+    $('lSave').disabled = true;
+    try{
+      if(isNew){
+        data.createdAt = serverTimestamp();
+        const ref = await addDoc(collection(db, COLL_PLAT), data);
+        ALL_PLATS.push({ id:ref.id, ...data });
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'新增平台', detail:`${STORE}／${name} ${feePct}%` });
+      }else{
+        await updateDoc(doc(db, COLL_PLAT, pl.id), data);
+        Object.assign(pl, data);
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'編輯平台', detail:`${STORE}／${name} ${feePct}%` });
+      }
+      ALL_PLATS.sort((a,b)=> String(a.name).localeCompare(String(b.name),'zh-Hant'));
+      close(); refresh(); toast(isNew?'已新增平台':'已儲存');
+    }catch(e){ console.error(e); toast('儲存失敗：'+(e.message||e)); $('lSave').disabled=false; }
+  });
+}
+
+async function delPlat(id){
+  const pl = PLATS.find(x=>x.id===id); if(!pl) return;
+  const used = PRODS.filter(x => num((x.chPrices||{})[id]) > 0).length;
+  if(!confirm(`確定刪除平台「${pl.name}」？${used?`\n\n⚠️ 有 ${used} 項商品已填此平台售價，刪除後該欄位一併消失。`:''}`)) return;
+  try{
+    await deleteDoc(doc(db, COLL_PLAT, id));
+    ALL_PLATS = ALL_PLATS.filter(x=>x.id!==id);
+    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'刪除平台', detail:`${STORE}／${pl.name}` });
+    refresh(); toast('已刪除');
+  }catch(e){ console.error(e); toast('刪除失敗：'+(e.message||e)); }
+}
+
+/* ═══════════ 商品 Modal ═══════════ */
 function openProdModal(p){
   const isNew = !p;
-  if(!ITEMS.length){ toast('請先到「原料成本」建立原料'); return; }
+  if(!ITEMS.length){ toast('請先到「原料成本」建立此店的原料'); return; }
   let comps = (p?.comps||[]).map(c => ({ itemId:c.itemId, qty:num(c.qty)||1 }));
   if(!comps.length) comps = [{ itemId:'', qty:1 }];
+  const chs = channels();
+  const prices = {};
+  chs.forEach(ch => { prices[ch.id] = ch.id==='onsite' ? (p?.price ?? '') : ((p?.chPrices||{})[ch.id] ?? ''); });
 
-  const ov = document.createElement('div'); ov.className = 'overlay';
+  const ov = document.createElement('div'); ov.className='overlay';
   ov.innerHTML = `<div class="modal">
     <div class="modal-title">🍚 ${isNew?'新增':'編輯'}商品</div>
-    <div class="form-2">
-      <div class="form-row"><label class="req">商品名稱</label>
-        <input type="text" id="pName" placeholder="例：雞肉飯" value="${esc(p?.name||'')}"></div>
-      <div class="form-row"><label class="req">售價</label>
-        <input type="number" id="pPrice" inputmode="decimal" step="0.5" min="0" placeholder="80" value="${p?.price??''}"></div>
-    </div>
-    <div class="form-row" style="margin-bottom:6px"><label>組成（食材＋耗材）</label></div>
+    <div class="modal-sub">店面：${esc(STORE)}</div>
+    <div class="form-row"><label class="req">商品名稱</label>
+      <input type="text" id="pName" placeholder="例：雞肉飯" value="${esc(p?.name||'')}"></div>
+    <div class="sec-h">① 組成（食材＋耗材）</div>
     <div class="comp-editor" id="compEditor"></div>
-    <div class="summary-box">
-      <div class="sb-row"><span>總成本</span><span class="v" id="sbCost">$0</span></div>
-      <div class="sb-row"><span>售價</span><span class="v" id="sbPrice">$0</span></div>
-      <div class="sb-row big"><span>毛利 / 毛利率</span><span class="v" id="sbProfit">$0（—）</span></div>
+    <div class="cost-banner"><span>單份總成本</span><span class="v" id="sbCost">$0</span></div>
+    <div class="sec-h">② 各通道售價（不填＝該通道未販售）</div>
+    <div class="ch-editor" id="chEditor">
+      ${chs.map(ch=>`<div class="ch-row">
+        <div class="ch-top">
+          <span class="ch-nm">${esc(ch.name)}${ch.id!=='onsite'?`<span class="ch-fee"> 服務費 ${money(ch.fee)}%${ch.fixed?` +$${money(ch.fixed)}`:''}</span>`:''}</span>
+          <input type="number" inputmode="decimal" step="0.5" min="0" placeholder="售價" data-cp="${ch.id}" value="${prices[ch.id]}">
+        </div>
+        <div class="ch-out" id="out_${ch.id}"></div>
+      </div>`).join('')}
+      ${chs.length===1?`<div class="ch-row" style="background:var(--surface2);font-size:12px;color:var(--text2)">尚未設定外送平台 → 到「🚚 平台服務費」新增後，這裡會出現對應欄位。</div>`:''}
     </div>
-    <div class="form-row"><label>備註</label><input type="text" id="pNote" placeholder="口味、份量說明…" value="${esc(p?.note||'')}"></div>
+    <div class="form-row" style="margin-top:14px"><label>備註</label>
+      <input type="text" id="pNote" placeholder="口味、份量說明…" value="${esc(p?.note||'')}"></div>
     <div class="modal-footer">
       <button class="btn" id="pCancel">取消</button>
-      <button class="btn btn-primary" id="pSave">${isNew?'新增':'儲存'}</button>
-    </div>
+      <button class="btn btn-primary" id="pSave">${isNew?'新增':'儲存'}</button></div>
   </div>`;
   document.body.appendChild(ov);
 
   const optHtml = sel => '<option value="">— 選擇原料 —</option>' + ITEMS.map(i =>
     `<option value="${i.id}" ${sel===i.id?'selected':''}>${esc(i.name)}（$${money(unitCost(i))}/${esc(i.unit||'份')}）</option>`).join('');
 
+  function curCost(){
+    return comps.reduce((s,c) => {
+      const it = ITEMS.find(x=>x.id===c.itemId);
+      return s + (it ? unitCost(it)*num(c.qty) : 0);
+    }, 0);
+  }
   function renderComps(){
     $('compEditor').innerHTML = comps.map((c,idx) => {
       const it = ITEMS.find(x=>x.id===c.itemId);
@@ -605,24 +820,27 @@ function openProdModal(p){
         <select data-ci="${idx}">${optHtml(c.itemId)}</select>
         <input class="qty" type="number" inputmode="decimal" step="0.1" min="0" data-cq="${idx}" value="${c.qty}">
         <span class="sub">$${money(sub)}</span>
-        <button class="rm" data-cr="${idx}" title="移除">✕</button>
-      </div>`;
+        <button class="rm" data-cr="${idx}" title="移除">✕</button></div>`;
     }).join('') + `<div class="comp-add"><button class="btn btn-sm" id="compAdd" style="width:100%;justify-content:center">＋ 增加一項原料</button></div>`;
-    updSummary();
+    updAll();
   }
-  function updSummary(){
-    const cost = comps.reduce((s,c) => {
-      const it = ITEMS.find(x=>x.id===c.itemId);
-      return s + (it ? unitCost(it)*num(c.qty) : 0);
-    }, 0);
-    const price = num($('pPrice').value);
-    const profit = price - cost;
-    const rate = price > 0 ? profit/price*100 : null;
-    $('sbCost').textContent  = '$' + money(cost);
-    $('sbPrice').textContent = '$' + money(price);
-    const el = $('sbProfit');
-    el.textContent = `${profit<0?'-':''}$${money(Math.abs(profit))}（${rate===null?'—':rate.toFixed(1)+'%'}）`;
-    el.className = 'v ' + (profit < 0 ? 'neg' : 'pos');
+  function updAll(){
+    const cost = curCost();
+    $('sbCost').textContent = '$' + money(cost);
+    chs.forEach(ch => {
+      const inp = ov.querySelector(`[data-cp="${ch.id}"]`);
+      const price = num(inp.value);
+      const out = $('out_'+ch.id);
+      if(price <= 0){ out.innerHTML = '<span class="dim">未定價</span>'; return; }
+      const svc = price*ch.fee/100 + ch.fixed;
+      const profit = price - svc - cost;
+      const rate = profit/price*100;
+      out.innerHTML =
+        (ch.id==='onsite' ? '' : `<span>服務費 <b style="color:#7C3AED">-$${money(svc)}</b></span><span>實收 <b>$${money(price-svc)}</b></span>`) +
+        `<span>成本 <b>-$${money(cost)}</b></span>` +
+        `<span class="p ${profit<0?'neg':''}">毛利 <b>${profit<0?'-':''}$${money(Math.abs(profit))}</b></span>` +
+        `<span>${rateHtml(rate)}</span>`;
+    });
   }
 
   $('compEditor').addEventListener('change', e => {
@@ -630,22 +848,23 @@ function openProdModal(p){
   });
   $('compEditor').addEventListener('input', e => {
     const q = e.target.closest('[data-cq]');
-    if(q){ comps[+q.dataset.cq].qty = q.value; 
-           const row = q.closest('.comp-row'); const c = comps[+q.dataset.cq];
-           const it = ITEMS.find(x=>x.id===c.itemId);
-           row.querySelector('.sub').textContent = '$' + money(it ? unitCost(it)*num(c.qty) : 0);
-           updSummary(); }
+    if(q){
+      const i = +q.dataset.cq; comps[i].qty = q.value;
+      const it = ITEMS.find(x=>x.id===comps[i].itemId);
+      q.closest('.comp-row').querySelector('.sub').textContent = '$' + money(it ? unitCost(it)*num(comps[i].qty) : 0);
+      updAll();
+    }
   });
   $('compEditor').addEventListener('click', e => {
     if(e.target.id === 'compAdd'){ comps.push({ itemId:'', qty:1 }); renderComps(); return; }
     const rm = e.target.closest('[data-cr]');
     if(rm){ comps.splice(+rm.dataset.cr, 1); if(!comps.length) comps.push({itemId:'',qty:1}); renderComps(); }
   });
-  $('pPrice').addEventListener('input', updSummary);
+  $('chEditor').addEventListener('input', e => { if(e.target.dataset.cp) updAll(); });
   renderComps();
 
   const close = () => ov.remove();
-  ov.addEventListener('click', e => { if(e.target === ov) close(); });
+  ov.addEventListener('click', e => { if(e.target===ov) close(); });
   $('pCancel').addEventListener('click', close);
   $('pSave').addEventListener('click', async () => {
     const name = $('pName').value.trim();
@@ -653,23 +872,27 @@ function openProdModal(p){
     const clean = comps.filter(c => c.itemId && num(c.qty) > 0)
       .map(c => ({ itemId:c.itemId, name:(ITEMS.find(x=>x.id===c.itemId)?.name)||'', qty:num(c.qty) }));
     if(!clean.length) return toast('請至少選擇一項原料');
-    const data = { name, price:num($('pPrice').value), comps:clean,
-                   note:$('pNote').value.trim(), updatedAt: serverTimestamp() };
+    const chPrices = {};
+    chs.filter(ch=>ch.id!=='onsite').forEach(ch => {
+      const v = num(ov.querySelector(`[data-cp="${ch.id}"]`).value);
+      if(v > 0) chPrices[ch.id] = v;
+    });
+    const data = { store:STORE, name, price:num(ov.querySelector('[data-cp="onsite"]').value),
+                   comps:clean, chPrices, note:$('pNote').value.trim(), updatedAt:serverTimestamp() };
     $('pSave').disabled = true;
     try{
       if(isNew){
         data.createdAt = serverTimestamp();
         const ref = await addDoc(collection(db, COLL_PROD), data);
-        PRODS.push({ id:ref.id, ...data });
-        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'新增商品', detail:name });
+        ALL_PRODS.push({ id:ref.id, ...data });
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'新增商品', detail:`${STORE}／${name}` });
       }else{
         await updateDoc(doc(db, COLL_PROD, p.id), data);
         Object.assign(p, data);
-        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'編輯商品', detail:name });
+        writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'編輯商品', detail:`${STORE}／${name}` });
       }
-      close(); renderTabs(); renderProds();
-      toast(isNew ? '已新增商品' : '已儲存');
-    }catch(e){ console.error(e); toast('儲存失敗：'+(e.message||e)); $('pSave').disabled = false; }
+      close(); refresh(); toast(isNew?'已新增商品':'已儲存');
+    }catch(e){ console.error(e); toast('儲存失敗：'+(e.message||e)); $('pSave').disabled=false; }
   });
 }
 
@@ -678,32 +901,45 @@ async function delProd(id){
   if(!confirm(`確定刪除商品「${p.name}」？`)) return;
   try{
     await deleteDoc(doc(db, COLL_PROD, id));
-    PRODS = PRODS.filter(x=>x.id!==id);
-    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'刪除商品', detail:p.name });
-    renderTabs(); renderProds(); renderItems(); toast('已刪除');
+    ALL_PRODS = ALL_PRODS.filter(x=>x.id!==id);
+    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'刪除商品', detail:`${STORE}／${p.name}` });
+    refresh(); toast('已刪除');
   }catch(e){ console.error(e); toast('刪除失敗：'+(e.message||e)); }
 }
 
-/* ─────────── 匯出 CSV ─────────── */
+// 本地資料變更後重算目前店面視圖
+function refresh(){
+  ITEMS = ALL_ITEMS.filter(x => sameLoc(x.store, STORE));
+  PRODS = ALL_PRODS.filter(x => sameLoc(x.store, STORE));
+  PLATS = ALL_PLATS.filter(x => sameLoc(x.store, STORE));
+  renderTabs(); renderProds(); renderItems(); renderPlats();
+}
+
+/* ═══════════ 匯出 CSV ═══════════ */
 function exportCsv(){
   const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
   let rows = [];
   if(TAB === 'item'){
-    rows.push(['名稱','分類','進貨價','可產數量','單位','單位成本','備註']);
-    ITEMS.forEach(i => rows.push([i.name, i.category||'', i.packPrice, i.yieldQty, i.unit||'份', r2(unitCost(i)), i.note||'']));
+    rows.push(['店面','名稱','分類','進貨價','可產數量','單位','單位成本','備註']);
+    ITEMS.forEach(i => rows.push([STORE, i.name, i.category||'', i.packPrice, i.yieldQty, i.unit||'份', r2(unitCost(i)), i.note||'']));
+  }else if(TAB === 'plat'){
+    rows.push(['店面','平台','服務費(%)','固定費用','備註']);
+    PLATS.forEach(p => rows.push([STORE, p.name, p.feePct, p.fixedFee||0, p.note||'']));
   }else{
-    rows.push(['商品','售價','總成本','毛利','毛利率(%)','成本率(%)','組成明細']);
+    const chs = channels();
+    rows.push(['店面','商品','成本'].concat(chs.flatMap(ch => [`${ch.name}售價`, `${ch.name}服務費`, `${ch.name}毛利`, `${ch.name}毛利率(%)`])).concat(['組成明細']));
     PRODS.forEach(p => {
       const c = calcProduct(p);
-      const detail = c.rows.map(r => `${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ');
-      rows.push([p.name, r2(c.price), r2(c.cost), r2(c.profit),
-                 c.rate===null?'':c.rate.toFixed(1), c.price>0?(c.cost/c.price*100).toFixed(1):'', detail]);
+      const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','']);
+      rows.push([STORE, p.name, r2(c.cost)].concat(cells)
+        .concat([c.rows.map(r=>`${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ')]));
     });
   }
   const csv = '\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
   const a = document.createElement('a');
-  a.href = url; a.download = `成本利潤_${TAB==='item'?'原料':'商品'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url;
+  a.download = `成本利潤_${STORE}_${TAB==='item'?'原料':(TAB==='plat'?'平台':'商品')}_${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
   toast('已匯出 CSV');
