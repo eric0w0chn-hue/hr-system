@@ -99,6 +99,12 @@ table.pt tbody tr.pr:hover td.nm{background:#FAFBFD}
 table.pt tbody tr:last-child td{border-bottom:none}
 .ch-fee{font-weight:400;color:var(--text3);font-size:10.5px}
 .sub-note{font-size:11px;color:var(--text3);font-weight:400;margin-top:2px}
+table.pt th.sortable{cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+table.pt th.sortable:hover{background:var(--accent-light);color:var(--text)}
+table.pt th.sorted{color:var(--accent)}
+.si{display:inline-block;margin-left:4px;font-size:9px;color:var(--text3)}
+table.pt th.sorted .si{color:var(--accent);font-size:10px}
+.sort-tip{font-size:11.5px;color:var(--text3);white-space:nowrap;padding:0 4px}
 #itable{min-width:560px}
 .rate{display:inline-block;font-weight:800;padding:2px 8px;border-radius:20px;font-size:12px}
 .r-good{background:#E3F5EA;color:var(--ok)} .r-mid{background:#E5EEFB;color:var(--info)}
@@ -201,6 +207,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
   .stat-card{padding:12px}
   .stat-card .n{font-size:19px}
   .toolbar select,.toolbar input{width:100%}
+  .sort-tip{width:100%;text-align:center}
   .form-3{grid-template-columns:1fr 1fr}
   .item-card,.plat-card{flex-wrap:wrap;gap:10px}
   .ic-main{flex:1 1 60%}
@@ -258,12 +265,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
       </div>
       <div class="toolbar">
         <input type="text" id="fpSearch" class="grow" placeholder="🔍 搜尋商品名稱…">
-        <select id="fpSort">
-          <option value="name">名稱排序</option>
-          <option value="rate_asc">現場毛利率 低→高</option>
-          <option value="rate_desc">現場毛利率 高→低</option>
-          <option value="cost_desc">成本 高→低</option>
-        </select>
+        <span class="sort-tip">↕ 點欄位標題可排序</span>
       </div>
       <div class="tb-wrap"><table class="pt" id="ptable"></table></div>
       <div id="pEmpty"></div>
@@ -273,6 +275,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
     <div id="viewItem" style="display:none">
       <div class="toolbar">
         <input type="text" id="fiSearch" class="grow" placeholder="🔍 搜尋原料名稱…">
+        <span class="sort-tip">↕ 點欄位標題可排序</span>
         <select id="fiCat">
           <option value="__all__">全部分類</option>
           <option value="食材">🥬 食材</option>
@@ -319,6 +322,8 @@ let TAX = { invoice:false, rate:DEF_TAX_RATE };   // 目前店面的開發票設
 let ITEMS = [], PRODS = [], PLATS = [];               // 目前店面
 let STORE = '';
 let TAB = 'prod';
+let PSORT = { key:'name', dir:1 };   // 商品表排序（dir: 1 升冪 / -1 降冪）
+let ISORT = { key:'name', dir:1 };   // 原料表排序
 let canEdit = false;     // 目前店面是否可編輯
 
 /* ─────────── 小工具 ─────────── */
@@ -368,6 +373,29 @@ function calcProduct(p){
   return { rows, cost, chs, taxable, hasMissing: rows.some(r=>r.missing) };
 }
 
+// 點擊表頭切換排序：同欄再點反向；換欄時數值欄預設降冪、文字欄升冪
+function toggleSort(st, key, numeric){
+  if(st.key === key) st.dir = -st.dir;
+  else { st.key = key; st.dir = numeric ? -1 : 1; }
+}
+// 可排序表頭
+function th(st, key, label, cls, numeric, extra){
+  const on = st.key === key;
+  return `<th class="${cls||''} sortable${on?' sorted':''}" data-sk="${key}" data-snum="${numeric?1:0}" ${extra||''}>`
+       + `${label}<span class="si">${on ? (st.dir===1?'▲':'▼') : '↕'}</span></th>`;
+}
+// 依 key 取排序值（字串回傳字串、數值回傳數字；未定價視為極小值）
+function cmpBy(getter, dir){
+  return (a,b) => {
+    const va = getter(a), vb = getter(b);
+    if(typeof va === 'string' || typeof vb === 'string')
+      return String(va).localeCompare(String(vb), 'zh-Hant') * dir;
+    const na = (va===null||va===undefined||!isFinite(va)) ? -Infinity : va;
+    const nb = (vb===null||vb===undefined||!isFinite(vb)) ? -Infinity : vb;
+    return (na - nb) * dir;
+  };
+}
+
 function rateCls(rate){
   if(rate === null) return 'r-na';
   if(rate < 0) return 'r-bad';
@@ -410,7 +438,6 @@ async function init(){
   $('btnNew').addEventListener('click', onNew);
   $('btnCsv').addEventListener('click', exportCsv);
   $('fpSearch').addEventListener('input', renderProds);
-  $('fpSort').addEventListener('change', renderProds);
   $('fiSearch').addEventListener('input', renderItems);
   $('fiCat').addEventListener('change', renderItems);
   $('selStore').addEventListener('change', () => { STORE = $('selStore').value; onStoreChange(); });
@@ -499,9 +526,8 @@ function onNew(){
 
 /* ═══════════ 商品定價（表格） ═══════════ */
 function renderProds(){
-  const kw   = $('fpSearch').value.trim().toLowerCase();
-  const sort = $('fpSort').value;
-  const chs  = channels();
+  const kw  = $('fpSearch').value.trim().toLowerCase();
+  const chs = channels();
   const calced = PRODS.map(p => ({ p, c: calcProduct(p) }));
 
   // ── 統計 ──
@@ -515,11 +541,17 @@ function renderProds(){
   $('stBad').textContent   = badCnt;
 
   let list = calced.filter(x => !kw || String(x.p.name||'').toLowerCase().includes(kw));
-  const rk = x => x.c.chs[0].rate === null ? -9999 : x.c.chs[0].rate;
-  if(sort==='rate_asc')       list.sort((a,b)=> rk(a)-rk(b));
-  else if(sort==='rate_desc') list.sort((a,b)=> rk(b)-rk(a));
-  else if(sort==='cost_desc') list.sort((a,b)=> b.c.cost-a.c.cost);
-  else list.sort((a,b)=> String(a.p.name).localeCompare(String(b.p.name),'zh-Hant'));
+  // 排序：name / cost / <price|deduct|profit|rate>:<通道id>
+  const getter = x => {
+    const k = PSORT.key;
+    if(k === 'name') return String(x.p.name||'');
+    if(k === 'cost') return x.c.cost;
+    const [f, chId] = k.split(':');
+    const ch = x.c.chs.find(c => c.id === chId);
+    if(!ch || !ch.set) return null;                // 未定價一律排最後（升冪時在前）
+    return f==='rate' ? ch.rate : (f==='deduct' ? ch.deduct : ch[f]);
+  };
+  list.sort(cmpBy(getter, PSORT.dir));
 
   if(!list.length){
     $('ptable').innerHTML = '';
@@ -534,12 +566,14 @@ function renderProds(){
   const head =
     `<thead>
       <tr class="h1">
-        <th class="nm" rowspan="2">商品</th>
-        <th rowspan="2">成本</th>
+        ${th(PSORT,'name','商品','nm',false,'rowspan="2"')}
+        ${th(PSORT,'cost','成本','',true,'rowspan="2"')}
         ${chs.map(ch=>`<th class="ch" colspan="3">${esc(ch.name)}${ch.id!=='onsite'?`<span class="ch-fee"> ${money(ch.fee)}%${ch.fixed?` +$${money(ch.fixed)}`:''}</span>`:''}</th>`).join('')}
       </tr>
       <tr>
-        ${chs.map(()=>`<th class="gl">售價</th><th>服務費/稅</th><th>毛利 / 毛利率</th>`).join('')}
+        ${chs.map(ch=> th(PSORT,'price:'+ch.id,'售價','gl',true)
+                     + th(PSORT,'deduct:'+ch.id,'服務費/稅','',true)
+                     + th(PSORT,'rate:'+ch.id,'毛利 / 毛利率','',true)).join('')}
       </tr>
     </thead>`;
 
@@ -595,6 +629,8 @@ function detailHtml(p,c){
 }
 
 $('ptable').addEventListener('click', e => {
+  const sh = e.target.closest('th[data-sk]');
+  if(sh){ toggleSort(PSORT, sh.dataset.sk, sh.dataset.snum==='1'); renderProds(); return; }
   const ed = e.target.closest('[data-pedit]'); if(ed) return openProdModal(PRODS.find(x=>x.id===ed.dataset.pedit));
   const dl = e.target.closest('[data-pdel]');  if(dl) return delProd(dl.dataset.pdel);
   const tg = e.target.closest('[data-toggle]');
@@ -607,6 +643,18 @@ function renderItems(){
   const cat = $('fiCat').value;
   const list = ITEMS.filter(i => cat==='__all__' || i.category===cat)
                     .filter(i => !kw || String(i.name||'').toLowerCase().includes(kw));
+  const usedCnt = i => PRODS.filter(p => (p.comps||[]).some(c => c.itemId === i.id)).length;
+  list.sort(cmpBy(i => {
+    switch(ISORT.key){
+      case 'name':     return String(i.name||'');
+      case 'category': return String(i.category||'');
+      case 'pack':     return num(i.packPrice);
+      case 'yield':    return num(i.yieldQty);
+      case 'unit':     return unitCost(i);
+      case 'used':     return usedCnt(i);
+      default:         return String(i.name||'');
+    }
+  }, ISORT.dir));
   if(!list.length){
     $('itable').innerHTML = '';
     $('iEmpty').innerHTML = `<div class="empty">${ITEMS.length ? '沒有符合條件的原料'
@@ -615,12 +663,17 @@ function renderItems(){
   }
   $('iEmpty').innerHTML = '';
   const head = `<thead><tr>
-      <th class="nm">名稱</th><th>分類</th><th class="gl">進貨價</th><th>可產數量</th>
-      <th class="gl">單位成本</th><th>用於商品</th>${canEdit?'<th>操作</th>':''}
+      ${th(ISORT,'name','名稱','nm',false)}
+      ${th(ISORT,'category','分類','',false)}
+      ${th(ISORT,'pack','進貨價','gl',true)}
+      ${th(ISORT,'yield','可產數量','',true)}
+      ${th(ISORT,'unit','單位成本','gl',true)}
+      ${th(ISORT,'used','用於商品','',true)}
+      ${canEdit?'<th>操作</th>':''}
     </tr></thead>`;
   const body = list.map(i => {
     const uc = unitCost(i), u = i.unit || '份';
-    const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId === i.id)).length;
+    const used = usedCnt(i);
     return `<tr class="pr">
       <td class="nm">${esc(i.name)}${i.note?`<div class="sub-note">${esc(i.note)}</div>`:''}</td>
       <td><span class="badge b-${esc(i.category||'食材')}">${esc(i.category||'食材')}</span></td>
@@ -636,6 +689,8 @@ function renderItems(){
   $('itable').innerHTML = head + `<tbody>${body}</tbody>`;
 }
 $('itable').addEventListener('click', e => {
+  const sh = e.target.closest('th[data-sk]');
+  if(sh){ toggleSort(ISORT, sh.dataset.sk, sh.dataset.snum==='1'); renderItems(); return; }
   const ed = e.target.closest('[data-iedit]'); if(ed) return openItemModal(ITEMS.find(x=>x.id===ed.dataset.iedit));
   const dl = e.target.closest('[data-idel]');  if(dl) return delItem(dl.dataset.idel);
 });
