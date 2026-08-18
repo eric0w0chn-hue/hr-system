@@ -66,6 +66,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .b-耗材{background:#FFF1DC;color:var(--warn)}
 .b-warn{background:#FCE9E7;color:var(--danger)}
 .b-gray{background:var(--surface2);color:var(--text2)}
+.b-tax{background:#EDE9FE;color:#6D28D9}
+.chk-row{display:flex;align-items:flex-start;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin-bottom:14px;cursor:pointer;font-size:13px;font-weight:600;line-height:1.5}
+.chk-row input{width:20px;height:20px;flex-shrink:0;margin-top:1px;accent-color:#6D28D9}
+.chk-row small{display:block;font-size:11px;color:var(--text2);font-weight:400;margin-top:2px}
 .empty{text-align:center;padding:44px 16px;color:var(--text3);font-size:14px;line-height:1.9}
 .ro-note{font-size:11.5px;color:var(--warn);background:#FFF8EC;border:1px solid #F2CE8A;border-radius:8px;padding:8px 12px;margin-bottom:12px}
 
@@ -85,6 +89,8 @@ table.pt tbody tr.pr:hover td{background:#FAFBFD}
 table.pt tbody tr.pr:hover td.nm{background:#FAFBFD}
 table.pt tbody tr:last-child td{border-bottom:none}
 .ch-fee{font-weight:400;color:var(--text3);font-size:10.5px}
+.sub-note{font-size:11px;color:var(--text3);font-weight:400;margin-top:2px}
+#itable{min-width:560px}
 .rate{display:inline-block;font-weight:800;padding:2px 8px;border-radius:20px;font-size:12px}
 .r-good{background:#E3F5EA;color:var(--ok)} .r-mid{background:#E5EEFB;color:var(--info)}
 .r-low{background:#FFF1DC;color:var(--warn)} .r-bad{background:#FCE9E7;color:var(--danger)}
@@ -264,7 +270,8 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
           <option value="耗材">📦 耗材</option>
         </select>
       </div>
-      <div class="ilist" id="ilist"></div>
+      <div class="tb-wrap"><table class="pt" id="itable"></table></div>
+      <div id="iEmpty"></div>
     </div>
 
     <!-- ══ 平台服務費 ══ -->
@@ -277,7 +284,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { authGuard, db, writeOpLog, getLocationTypes } from './auth-guard.js?v=2';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -286,6 +293,7 @@ const COLL_ITEM = 'cost_items';       // 原料／耗材（分店）
 const COLL_PROD = 'cost_products';    // 商品（分店）
 const COLL_PLAT = 'cost_platforms';   // 外送平台服務費（分店）
 const FETCH_LIMIT = 3000;
+const TAX_RATE = 5;   // 開發票商品的營業稅率（%），依售價計入成本
 const CATS  = ['食材','耗材'];
 const UNITS = ['份','個','杯','包','片','組'];
 const FALLBACK_STORES = ['鑫耀鑫餐廳','梁鑫雞肉飯專門店','鑫營雞肉本舖','府中雞肉飯專門店','景新雞肉飯專門店','鑫雞肉央廚','大直讚雞肉飯','心惦雞肉飯','幸福雞肉飯','福城雞肉飯','泉州鑫廚房','新莊央廚','巷日雞肉飯'];
@@ -333,15 +341,17 @@ function calcProduct(p){
              unit: it ? (it.unit||'份') : '份', uc, qty, sub: uc*qty };
   });
   const cost = rows.reduce((s,r)=>s+r.sub, 0);
+  const taxable = p.taxable === true;
   const chs = channels().map(ch => {
     const price = ch.id==='onsite' ? num(p.price) : num((p.chPrices||{})[ch.id]);
-    const svc    = price>0 ? price*ch.fee/100 + ch.fixed : 0;   // 服務費（抽佣＋固定費）
-    const net    = price - svc;                                  // 實收
-    const profit = net - cost;                                   // 毛利
-    const rate   = price>0 ? profit/price*100 : null;             // 毛利率＝毛利÷售價
-    return { ...ch, price, svc, net, profit, rate, set: price>0 };
+    const svc    = price>0 ? price*ch.fee/100 + ch.fixed : 0;    // 服務費（抽佣＋固定費）
+    const tax    = (taxable && price>0) ? price*TAX_RATE/100 : 0; // 營業稅（開發票）
+    const net    = price - svc;                                   // 平台實收
+    const profit = price - svc - tax - cost;                      // 毛利
+    const rate   = price>0 ? profit/price*100 : null;              // 毛利率＝毛利÷售價
+    return { ...ch, price, svc, tax, net, profit, rate, deduct: svc+tax, set: price>0 };
   });
-  return { rows, cost, chs, hasMissing: rows.some(r=>r.missing) };
+  return { rows, cost, chs, taxable, hasMissing: rows.some(r=>r.missing) };
 }
 
 function rateCls(rate){
@@ -394,6 +404,11 @@ async function init(){
   // 店面清單：VIEW_LOCS 為空（admin/consultant 全域）→ 讀全站店面
   let stores = VIEW_LOCS.length ? VIEW_LOCS.slice() : await loadAllStores();
   stores = stores.filter(s => s && s !== '梁平有限公司');   // 公司實體非門市
+  // 此模組僅供門市使用：排除 locationType='central' 的央廚（權限管理>店面類型設定）
+  try{
+    const lt = await getLocationTypes();
+    stores = stores.filter(s => (lt[s] || 'store') !== 'central');
+  }catch(e){ console.warn('讀取店面類型失敗，不過濾央廚', e); }
   $('selStore').innerHTML = stores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   STORE = stores[0] || '';
   if(stores.length <= 1) $('selStore').disabled = true;
@@ -434,7 +449,7 @@ function onStoreChange(){
 
 function renderHint(){
   const t = {
-    prod:'🍚 商品由原料組合，成本自動加總。<b>現場</b>與各<b>外送平台</b>可分別填售價，平台會先扣掉服務費（抽佣）再算毛利。點商品名稱可展開組成明細。',
+    prod:`🍚 商品由原料組合，成本自動加總。<b>現場</b>與各<b>外送平台</b>可分別填售價，平台會先扣掉服務費（抽佣）再算毛利；勾選<b>開發票</b>的商品另計 ${TAX_RATE}% 營業稅。點商品名稱可展開明細。`,
     item:'🧾 填「進貨價 ÷ 可產數量」＝單份成本。例：米 100 元可產 20 份 → 每份 $5。原料價一改，所有用到它的商品成本自動更新。',
     plat:'🚚 設定各外送平台的服務費（抽佣％）。例：UBER 30% → 售價 150 時服務費 $45，實收 $105 再扣成本才是毛利。<b>各店可自行設定不同費率。</b>'
   }[TAB];
@@ -506,7 +521,7 @@ function renderProds(){
         ${chs.map(ch=>`<th class="ch" colspan="3">${esc(ch.name)}${ch.id!=='onsite'?`<span class="ch-fee"> ${money(ch.fee)}%${ch.fixed?` +$${money(ch.fixed)}`:''}</span>`:''}</th>`).join('')}
       </tr>
       <tr>
-        ${chs.map(ch=>`<th class="gl">售價</th><th>${ch.id==='onsite'?'毛利':'服務費'}</th><th>${ch.id==='onsite'?'毛利率':'毛利/率'}</th>`).join('')}
+        ${chs.map(()=>`<th class="gl">售價</th><th>服務費/稅</th><th>毛利 / 毛利率</th>`).join('')}
       </tr>
     </thead>`;
 
@@ -514,13 +529,14 @@ function renderProds(){
     const cells = c.chs.map(ch => {
       if(!ch.set) return `<td class="gl dim">—</td><td class="dim">—</td><td class="dim">—</td>`;
       const pf = `${ch.profit<0?'-':''}$${money(Math.abs(ch.profit))}`;
-      if(ch.id==='onsite')
-        return `<td class="gl">$${money(ch.price)}</td><td style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700">${pf}</td><td>${rateHtml(ch.rate)}</td>`;
-      return `<td class="gl">$${money(ch.price)}</td><td style="color:#7C3AED">-$${money(ch.svc)}</td>`
+      const ded = ch.deduct>0
+        ? `<span style="color:#7C3AED">-$${money(ch.deduct)}</span>${ch.tax>0&&ch.svc>0?`<span class="ch-fee"> (稅$${money(ch.tax)})</span>`:''}`
+        : '<span class="dim">—</span>';
+      return `<td class="gl">$${money(ch.price)}</td><td>${ded}</td>`
            + `<td><span style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700;margin-right:6px">${pf}</span>${rateHtml(ch.rate)}</td>`;
     }).join('');
     return `<tr class="pr" data-toggle="${p.id}">
-        <td class="nm">${esc(p.name)}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
+        <td class="nm">${esc(p.name)}${c.taxable?' <span class="badge b-tax">🧾稅</span>':''}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
         <td class="cost-cell">$${money(c.cost)}</td>${cells}
       </tr>
       <tr class="det" id="det_${p.id}" style="display:none"><td colspan="${colCount}">${detailHtml(p,c)}</td></tr>`;
@@ -542,15 +558,16 @@ function detailHtml(p,c){
 
   const ch = `<div><div class="det-h">💰 各通道利潤</div>
     <table class="mini">
-      <thead><tr><th>通道</th><th>售價</th><th>服務費</th><th>實收</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead>
+      <thead><tr><th>通道</th><th>售價</th><th>服務費</th><th>營業稅</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead>
       <tbody>${c.chs.map(x=>`<tr>
         <td>${esc(x.name)}${x.id!=='onsite'?` <span class="dim">${money(x.fee)}%</span>`:''}</td>
         ${x.set ? `<td>$${money(x.price)}</td><td style="color:#7C3AED">${x.svc?'-$'+money(x.svc):'—'}</td>
-        <td>$${money(x.net)}</td><td>-$${money(c.cost)}</td>
+        <td style="color:#7C3AED">${x.tax?'-$'+money(x.tax):'—'}</td><td>-$${money(c.cost)}</td>
         <td style="color:${x.profit<0?'var(--danger)':'var(--ok)'};font-weight:800">${x.profit<0?'-':''}$${money(Math.abs(x.profit))}</td>
         <td>${rateHtml(x.rate)}</td>` : '<td colspan="6" class="dim">未定價</td>'}
       </tr>`).join('')}</tbody>
     </table>
+    ${c.taxable?`<div style="font-size:11.5px;color:var(--text2);margin-top:8px">🧾 此商品開發票：營業稅 ${TAX_RATE}% 依各通道售價計入成本</div>`:''}
     ${p.note?`<div style="font-size:12px;color:var(--text2);margin-top:9px">📝 ${esc(p.note)}</div>`:''}
     ${canEdit?`<div class="det-act">
       <button class="btn btn-sm" data-pedit="${p.id}">✏️ 編輯</button>
@@ -573,26 +590,34 @@ function renderItems(){
   const list = ITEMS.filter(i => cat==='__all__' || i.category===cat)
                     .filter(i => !kw || String(i.name||'').toLowerCase().includes(kw));
   if(!list.length){
-    $('ilist').innerHTML = `<div class="empty">${ITEMS.length ? '沒有符合條件的原料'
+    $('itable').innerHTML = '';
+    $('iEmpty').innerHTML = `<div class="empty">${ITEMS.length ? '沒有符合條件的原料'
       : '此店尚未建立原料<br>點右上「＋ 新增」開始，例如：米 100 元 可產 20 份'}</div>`;
     return;
   }
-  $('ilist').innerHTML = list.map(i => {
+  $('iEmpty').innerHTML = '';
+  const head = `<thead><tr>
+      <th class="nm">名稱</th><th>分類</th><th class="gl">進貨價</th><th>可產數量</th>
+      <th class="gl">單位成本</th><th>用於商品</th>${canEdit?'<th>操作</th>':''}
+    </tr></thead>`;
+  const body = list.map(i => {
     const uc = unitCost(i), u = i.unit || '份';
     const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId === i.id)).length;
-    return `<div class="item-card c-${esc(i.category||'食材')}">
-      <div class="ic-main">
-        <div class="ic-name">${esc(i.name)}<span class="badge b-${esc(i.category||'食材')}">${esc(i.category||'食材')}</span>${used?`<span class="badge b-gray">用於 ${used} 項商品</span>`:''}</div>
-        <div class="ic-formula">$${money(i.packPrice)} ÷ ${money(i.yieldQty)} ${esc(u)}${i.note?` · ${esc(i.note)}`:''}</div>
-      </div>
-      <div class="ic-cost"><div class="v">$${money(uc)}</div><div class="u">每 1 ${esc(u)}</div></div>
-      ${canEdit?`<div class="ic-act">
+    return `<tr class="pr">
+      <td class="nm">${esc(i.name)}${i.note?`<div class="sub-note">${esc(i.note)}</div>`:''}</td>
+      <td><span class="badge b-${esc(i.category||'食材')}">${esc(i.category||'食材')}</span></td>
+      <td class="gl">$${money(i.packPrice)}</td>
+      <td>${money(i.yieldQty)} ${esc(u)}</td>
+      <td class="gl cost-cell" style="font-size:15px">$${money(uc)}<span class="ch-fee"> /${esc(u)}</span></td>
+      <td>${used ? `<span class="badge b-gray">${used} 項</span>` : '<span class="dim">—</span>'}</td>
+      ${canEdit?`<td><div class="ic-act" style="justify-content:flex-end">
         <button class="icon-btn" data-iedit="${i.id}" title="編輯">✏️</button>
-        <button class="icon-btn" data-idel="${i.id}" title="刪除">🗑</button></div>`:''}
-    </div>`;
+        <button class="icon-btn" data-idel="${i.id}" title="刪除">🗑</button></div></td>`:''}
+    </tr>`;
   }).join('');
+  $('itable').innerHTML = head + `<tbody>${body}</tbody>`;
 }
-$('ilist').addEventListener('click', e => {
+$('itable').addEventListener('click', e => {
   const ed = e.target.closest('[data-iedit]'); if(ed) return openItemModal(ITEMS.find(x=>x.id===ed.dataset.iedit));
   const dl = e.target.closest('[data-idel]');  if(dl) return delItem(dl.dataset.idel);
 });
@@ -781,6 +806,8 @@ function openProdModal(p){
     <div class="modal-sub">店面：${esc(STORE)}</div>
     <div class="form-row"><label class="req">商品名稱</label>
       <input type="text" id="pName" placeholder="例：雞肉飯" value="${esc(p?.name||'')}"></div>
+    <label class="chk-row"><input type="checkbox" id="pTax" ${p?.taxable?'checked':''}>
+      <span>🧾 開發票（營業稅 ${TAX_RATE}%）<small>勾選後，各通道售價的 ${TAX_RATE}% 會計入成本</small></span></label>
     <div class="sec-h">① 組成（食材＋耗材）</div>
     <div class="comp-editor" id="compEditor"></div>
     <div class="cost-banner"><span>單份總成本</span><span class="v" id="sbCost">$0</span></div>
@@ -833,10 +860,12 @@ function openProdModal(p){
       const out = $('out_'+ch.id);
       if(price <= 0){ out.innerHTML = '<span class="dim">未定價</span>'; return; }
       const svc = price*ch.fee/100 + ch.fixed;
-      const profit = price - svc - cost;
+      const tax = $('pTax').checked ? price*TAX_RATE/100 : 0;
+      const profit = price - svc - tax - cost;
       const rate = profit/price*100;
       out.innerHTML =
         (ch.id==='onsite' ? '' : `<span>服務費 <b style="color:#7C3AED">-$${money(svc)}</b></span><span>實收 <b>$${money(price-svc)}</b></span>`) +
+        (tax ? `<span>營業稅 <b style="color:#7C3AED">-$${money(tax)}</b></span>` : '') +
         `<span>成本 <b>-$${money(cost)}</b></span>` +
         `<span class="p ${profit<0?'neg':''}">毛利 <b>${profit<0?'-':''}$${money(Math.abs(profit))}</b></span>` +
         `<span>${rateHtml(rate)}</span>`;
@@ -861,6 +890,7 @@ function openProdModal(p){
     if(rm){ comps.splice(+rm.dataset.cr, 1); if(!comps.length) comps.push({itemId:'',qty:1}); renderComps(); }
   });
   $('chEditor').addEventListener('input', e => { if(e.target.dataset.cp) updAll(); });
+  $('pTax').addEventListener('change', updAll);
   renderComps();
 
   const close = () => ov.remove();
@@ -878,7 +908,8 @@ function openProdModal(p){
       if(v > 0) chPrices[ch.id] = v;
     });
     const data = { store:STORE, name, price:num(ov.querySelector('[data-cp="onsite"]').value),
-                   comps:clean, chPrices, note:$('pNote').value.trim(), updatedAt:serverTimestamp() };
+                   comps:clean, chPrices, taxable:$('pTax').checked,
+                   note:$('pNote').value.trim(), updatedAt:serverTimestamp() };
     $('pSave').disabled = true;
     try{
       if(isNew){
@@ -927,11 +958,11 @@ function exportCsv(){
     PLATS.forEach(p => rows.push([STORE, p.name, p.feePct, p.fixedFee||0, p.note||'']));
   }else{
     const chs = channels();
-    rows.push(['店面','商品','成本'].concat(chs.flatMap(ch => [`${ch.name}售價`, `${ch.name}服務費`, `${ch.name}毛利`, `${ch.name}毛利率(%)`])).concat(['組成明細']));
+    rows.push(['店面','商品','開發票','成本'].concat(chs.flatMap(ch => [`${ch.name}售價`, `${ch.name}服務費`, `${ch.name}營業稅`, `${ch.name}毛利`, `${ch.name}毛利率(%)`])).concat(['組成明細']));
     PRODS.forEach(p => {
       const c = calcProduct(p);
-      const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','']);
-      rows.push([STORE, p.name, r2(c.cost)].concat(cells)
+      const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.tax), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','','']);
+      rows.push([STORE, p.name, c.taxable?'是':'否', r2(c.cost)].concat(cells)
         .concat([c.rows.map(r=>`${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ')]));
     });
   }
