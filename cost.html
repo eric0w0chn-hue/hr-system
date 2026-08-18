@@ -105,6 +105,12 @@ table.pt th.sorted{color:var(--accent)}
 .si{display:inline-block;margin-left:4px;font-size:9px;color:var(--text3)}
 table.pt th.sorted .si{color:var(--accent);font-size:10px}
 .sort-tip{font-size:11.5px;color:var(--text3);white-space:nowrap;padding:0 4px}
+.cp-box{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.cp-item{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-bottom:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:13px;font-weight:600;line-height:1.45}
+.cp-item:last-child{border-bottom:none}
+.cp-item input{width:19px;height:19px;flex-shrink:0;margin-top:1px;accent-color:var(--accent)}
+.cp-item small{display:block;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px}
+.cp-warn{font-size:11.5px;color:var(--text2);background:#FFF8EC;border:1px solid #F2CE8A;border-radius:9px;padding:10px 12px;line-height:1.6;margin-bottom:4px}
 #itable{min-width:560px}
 .rate{display:inline-block;font-weight:800;padding:2px 8px;border-radius:20px;font-size:12px}
 .r-good{background:#E3F5EA;color:var(--ok)} .r-mid{background:#E5EEFB;color:var(--info)}
@@ -248,6 +254,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
     <div class="storebar">
       <span class="lb">🏪 目前店面</span>
       <select id="selStore"></select>
+      <button class="btn btn-sm" id="btnCopy" style="display:none">📋 複製到其他店</button>
     </div>
 
     <div class="hint" id="hintBox"></div>
@@ -299,7 +306,7 @@ table.mini tfoot td{font-weight:800;background:var(--accent-light)}
 
 <script type="module">
 import { authGuard, db, writeOpLog, getLocationTypes } from './auth-guard.js?v=2';
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp }
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ─────────── 設定 ─────────── */
@@ -321,6 +328,7 @@ let TAX_ALL = {};        // { [店名]: {invoice:bool, rate:number} }
 let TAX = { invoice:false, rate:DEF_TAX_RATE };   // 目前店面的開發票設定
 let ITEMS = [], PRODS = [], PLATS = [];               // 目前店面
 let STORE = '';
+let STORES = [];         // 下拉可見的店面清單
 let TAB = 'prod';
 let PSORT = { key:'name', dir:1 };   // 商品表排序（dir: 1 升冪 / -1 降冪）
 let ISORT = { key:'name', dir:1 };   // 原料表排序
@@ -437,6 +445,7 @@ async function init(){
   });
   $('btnNew').addEventListener('click', onNew);
   $('btnCsv').addEventListener('click', exportCsv);
+  $('btnCopy').addEventListener('click', openCopyModal);
   $('fpSearch').addEventListener('input', renderProds);
   $('fiSearch').addEventListener('input', renderItems);
   $('fiCat').addEventListener('change', renderItems);
@@ -450,6 +459,7 @@ async function init(){
     const lt = await getLocationTypes();
     stores = stores.filter(s => (lt[s] || 'store') !== 'central');
   }catch(e){ console.warn('讀取店面類型失敗，不過濾央廚', e); }
+  STORES = stores.slice();
   $('selStore').innerHTML = stores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
   STORE = stores[0] || '';
   if(stores.length <= 1) $('selStore').disabled = true;
@@ -479,6 +489,11 @@ async function loadAll(){
   }
 }
 
+// 可寫入的店面（OWN_LOCS 為空＝admin/consultant 全域）
+function editableStores(){
+  return OWN_LOCS.length === 0 ? STORES.slice() : STORES.filter(s => OWN_LOCS.some(o => sameLoc(o, s)));
+}
+
 function onStoreChange(){
   ITEMS = ALL_ITEMS.filter(x => sameLoc(x.store, STORE));
   PRODS = ALL_PRODS.filter(x => sameLoc(x.store, STORE));
@@ -489,6 +504,8 @@ function onStoreChange(){
   canEdit = OWN_LOCS.length === 0 ? true : OWN_LOCS.some(s => sameLoc(s, STORE));
   $('roNote').style.display = canEdit ? 'none' : '';
   $('btnNew').style.display = canEdit ? '' : 'none';
+  // 只有能寫入兩間以上店面時才顯示複製功能
+  $('btnCopy').style.display = (canEdit && editableStores().length > 1) ? '' : 'none';
   renderHint(); renderTabs(); renderProds(); renderItems(); renderPlats();
 }
 
@@ -1076,6 +1093,173 @@ function refresh(){
   PRODS = ALL_PRODS.filter(x => sameLoc(x.store, STORE));
   PLATS = ALL_PLATS.filter(x => sameLoc(x.store, STORE));
   renderHint(); renderTabs(); renderProds(); renderItems(); renderPlats();
+}
+
+/* ═══════════ 複製此店設定到其他店 ═══════════ */
+function openCopyModal(){
+  const targets = editableStores().filter(x => !sameLoc(x, STORE));
+  if(!targets.length){ toast('沒有其他可寫入的店面'); return; }
+
+  const ov = document.createElement('div'); ov.className='overlay';
+  ov.innerHTML = `<div class="modal">
+    <div class="modal-title">📋 複製設定到其他店</div>
+    <div class="modal-sub">來源：<b>${esc(STORE)}</b>（來源資料不會被改動）</div>
+
+    <div class="sec-h">① 複製哪些內容</div>
+    <div class="cp-box">
+      <label class="cp-item"><input type="checkbox" id="cpItem" checked>
+        <span>🧾 原料成本<small>${ITEMS.length} 筆</small></span></label>
+      <label class="cp-item"><input type="checkbox" id="cpPlat" checked>
+        <span>🚚 平台服務費<small>${PLATS.length} 筆</small></span></label>
+      <label class="cp-item"><input type="checkbox" id="cpProd" checked>
+        <span>🍚 商品定價<small>${PRODS.length} 筆（需一併複製原料與平台才能正確對應）</small></span></label>
+      <label class="cp-item"><input type="checkbox" id="cpTax">
+        <span>🧾 發票設定<small>${TAX.invoice?`開發票 ${money(TAX.rate)}%`:'未開發票'}</small></span></label>
+    </div>
+
+    <div class="sec-h">② 複製到哪些店（可多選）</div>
+    <div class="cp-box" id="cpTargets">
+      ${targets.map((t,i)=>`<label class="cp-item"><input type="checkbox" class="cpT" value="${esc(t)}">
+        <span>${esc(t)}<small id="cpStat${i}"></small></span></label>`).join('')}
+    </div>
+    <button class="btn btn-sm" id="cpAll" style="width:100%;justify-content:center;margin-bottom:14px">全選 / 全不選</button>
+
+    <div class="sec-h">③ 遇到同名項目時</div>
+    <div class="form-row"><select id="cpMode">
+      <option value="skip">跳過（保留目標店現有資料，只補沒有的）</option>
+      <option value="overwrite">覆蓋（以來源店的數值更新同名項目）</option>
+    </select></div>
+
+    <div class="cp-warn">⚠️ 只會<b>新增或更新</b>，不會刪除目標店既有的任何資料。商品的原料與平台會依<b>名稱</b>重新對應到目標店。</div>
+
+    <div class="modal-footer">
+      <button class="btn" id="cpCancel">取消</button>
+      <button class="btn btn-primary" id="cpGo">開始複製</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  // 顯示各目標店現有資料量，避免誤覆蓋
+  targets.forEach((t,i) => {
+    const ni = ALL_ITEMS.filter(x=>sameLoc(x.store,t)).length;
+    const np = ALL_PRODS.filter(x=>sameLoc(x.store,t)).length;
+    const nl = ALL_PLATS.filter(x=>sameLoc(x.store,t)).length;
+    const el = $('cpStat'+i);
+    el.textContent = (ni||np||nl) ? `現有 原料${ni} / 商品${np} / 平台${nl}` : '尚無資料（全新店）';
+  });
+
+  $('cpAll').addEventListener('click', () => {
+    const boxes = [...ov.querySelectorAll('.cpT')];
+    const allOn = boxes.every(b=>b.checked);
+    boxes.forEach(b => b.checked = !allOn);
+  });
+
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target===ov) close(); });
+  $('cpCancel').addEventListener('click', close);
+  $('cpGo').addEventListener('click', async () => {
+    const tg = [...ov.querySelectorAll('.cpT')].filter(b=>b.checked).map(b=>b.value);
+    if(!tg.length) return toast('請選擇至少一間目標店面');
+    const opt = { item:$('cpItem').checked, plat:$('cpPlat').checked,
+                  prod:$('cpProd').checked, tax:$('cpTax').checked,
+                  mode:$('cpMode').value };
+    if(!opt.item && !opt.plat && !opt.prod && !opt.tax) return toast('請選擇要複製的內容');
+    if(!confirm(`確定將「${STORE}」的設定複製到 ${tg.length} 間店面？\n\n${tg.join('、')}`)) return;
+
+    const btn = $('cpGo'); btn.disabled = true; btn.textContent = '複製中…';
+    try{
+      const stat = await doCopy(tg, opt);
+      close();
+      await loadAll();          // 重讀確保 ID 對應正確
+      onStoreChange();
+      toast(`已複製到 ${tg.length} 間店（原料+${stat.item} 商品+${stat.prod} 平台+${stat.plat}）`);
+    }catch(e){
+      console.error(e); toast('複製失敗：'+(e.message||e));
+      btn.disabled = false; btn.textContent = '開始複製';
+    }
+  });
+}
+
+async function doCopy(targets, opt){
+  const stat = { item:0, prod:0, plat:0, tax:0 };
+  const ow = opt.mode === 'overwrite';
+  const byName = (arr, nm) => arr.find(x => String(x.name||'').trim() === String(nm||'').trim());
+
+  for(const tgt of targets){
+    const batch = writeBatch(db);
+    const tItems = ALL_ITEMS.filter(x => sameLoc(x.store, tgt));
+    const tProds = ALL_PRODS.filter(x => sameLoc(x.store, tgt));
+    const tPlats = ALL_PLATS.filter(x => sameLoc(x.store, tgt));
+    const itemMap = {};   // 來源 itemId → 目標 itemId
+    const platMap = {};   // 來源 platId → 目標 platId
+
+    // ── 平台（先做，商品的 chPrices 需要對應）──
+    for(const p of PLATS){
+      const ex = byName(tPlats, p.name);
+      if(ex){
+        platMap[p.id] = ex.id;
+        if(ow){ batch.update(doc(db, COLL_PLAT, ex.id),
+          { feePct:num(p.feePct), fixedFee:num(p.fixedFee), note:p.note||'', updatedAt:serverTimestamp() }); }
+      }else if(opt.plat){
+        const ref = doc(collection(db, COLL_PLAT));
+        batch.set(ref, { store:tgt, name:p.name, feePct:num(p.feePct), fixedFee:num(p.fixedFee),
+                         note:p.note||'', createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
+        platMap[p.id] = ref.id; stat.plat++;
+      }
+    }
+
+    // ── 原料（商品的 comps 需要對應）──
+    for(const i of ITEMS){
+      const ex = byName(tItems, i.name);
+      if(ex){
+        itemMap[i.id] = ex.id;
+        if(ow){ batch.update(doc(db, COLL_ITEM, ex.id),
+          { category:i.category||'食材', packPrice:num(i.packPrice), yieldQty:num(i.yieldQty),
+            unit:i.unit||'份', note:i.note||'', updatedAt:serverTimestamp() }); }
+      }else if(opt.item){
+        const ref = doc(collection(db, COLL_ITEM));
+        batch.set(ref, { store:tgt, name:i.name, category:i.category||'食材',
+                         packPrice:num(i.packPrice), yieldQty:num(i.yieldQty), unit:i.unit||'份',
+                         note:i.note||'', createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
+        itemMap[i.id] = ref.id; stat.item++;
+      }
+    }
+
+    // ── 商品（重新對應 itemId 與 chPrices 的平台 id）──
+    if(opt.prod){
+      for(const p of PRODS){
+        const comps = (p.comps||[])
+          .filter(c => itemMap[c.itemId])                       // 目標店沒有的原料就略過
+          .map(c => ({ itemId:itemMap[c.itemId], name:c.name||'', qty:num(c.qty) }));
+        const chPrices = {};
+        Object.entries(p.chPrices||{}).forEach(([k,v]) => { if(platMap[k]) chPrices[platMap[k]] = num(v); });
+        if(!comps.length) continue;                              // 無可對應組成則不建立
+        const ex = byName(tProds, p.name);
+        const payload = { name:p.name, price:num(p.price), comps, chPrices,
+                          note:p.note||'', updatedAt:serverTimestamp() };
+        if(ex){
+          if(ow) batch.update(doc(db, COLL_PROD, ex.id), payload);
+        }else{
+          const ref = doc(collection(db, COLL_PROD));
+          batch.set(ref, { store:tgt, ...payload, createdAt:serverTimestamp() });
+          stat.prod++;
+        }
+      }
+    }
+
+    await batch.commit();
+
+    // ── 發票設定（單一文件，逐店寫入）──
+    if(opt.tax){
+      const key = Object.keys(TAX_ALL).find(k => sameLoc(k, tgt)) || tgt;
+      TAX_ALL = { ...TAX_ALL, [key]: { invoice:TAX.invoice, rate:num(TAX.rate) } };
+      await setDoc(doc(db, ...DOC_TAX), { stores:TAX_ALL, updatedAt:serverTimestamp() }, { merge:true });
+      stat.tax++;
+    }
+
+    writeOpLog({ editor:CUR.name, role:CUR.role, module:'cost', action:'複製設定',
+                 detail:`${STORE} → ${tgt}（原料${stat.item}/商品${stat.prod}/平台${stat.plat}，${ow?'覆蓋同名':'跳過同名'}）` });
+  }
+  return stat;
 }
 
 /* ═══════════ 匯出 CSV ═══════════ */
