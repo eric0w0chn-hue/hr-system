@@ -423,11 +423,12 @@ const ALL_MODULES=[
   {key:'recruit104', icon:'📣', name:'104排程', desc:'各店 104 職缺需求設定、履歷發放排程與截圖存證', page:'recruit104.html', active:true},
   {key:'alert_settings', icon:'🔔', name:'提醒排程設定', desc:'設定未完成事項的 LINE 主動提醒時間與檢查項目', page:'alert_settings.html', active:true, adminOnly:true},
   {key:'email_bind', icon:'📧', name:'聯絡信箱設定', desc:'設定個人聯絡信箱，接收未完成事項主動提醒', page:'email_bind.html', active:true},
+  {key:'cost',    icon:'🧮', name:'成本利潤',  desc:'食材耗材單位成本換算、商品組成總成本與售價毛利分析', page:'cost.html', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','schedule','price','meeting','salary','bonus','account','cctv','delivery_report','permissions','store_accounts','checkout','task','recruit104','alert_settings','email_bind'],
-  consultant:['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','recruit104','email_bind'],
-  manager:  ['hr','schedule','price','meeting','salary','bonus','cctv','delivery_report','store_accounts','checkout','task','recruit104','email_bind'],
+  admin:    ['hr','schedule','price','meeting','salary','bonus','cost','account','cctv','delivery_report','permissions','store_accounts','checkout','task','recruit104','alert_settings','email_bind'],
+  consultant:['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','email_bind'],
+  manager:  ['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','email_bind'],
   employee: ['schedule']
 };
 
