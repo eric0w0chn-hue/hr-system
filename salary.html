@@ -2171,7 +2171,7 @@ function renderSheet(emp,rec,shifts,c){
       const _sg=segCompute(r,shift,defOt);
       const _otW=(r.otWinH!=null)?Number(r.otWinH):defOt;
       const _lv=_sg?Math.max(0,Math.round((8-_sg.baseWorked)*60)/60):null;
-      const _needBrk=_sg&&Number(r.brkH||0)===0&&_sg.span>8+_otW+0.01;
+      const _needBrk=_sg&&(_sg.span-Number(_sg.brk||0))>8+_otW+0.01;
       subRow=`<div class="sub-row"><div class="sub-leave seg-mode">
         <div class="seg-line">
           <span class="seg-lbl">上班時段</span>
