@@ -111,6 +111,9 @@ table.pt th.sorted .si{color:var(--accent);font-size:10px}
 .cp-item input{width:19px;height:19px;flex-shrink:0;margin-top:1px;accent-color:var(--accent)}
 .cp-item small{display:block;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px}
 .b-act{background:#FFEDD5;color:#C2410C}
+.b-set{background:#E0F2FE;color:#0369A1}
+.comp-row.is-prod{background:#F0F9FF}
+.comp-row.is-prod select{border-color:#7DD3FC}
 .act-chk{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;font-weight:600;color:#C2410C;cursor:pointer;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:8px 10px;min-height:40px}
 .act-chk input{width:18px;height:18px;flex-shrink:0;accent-color:#C2410C}
 .fld-hint{font-size:11px;color:var(--text3);line-height:1.55;margin-top:6px}
@@ -364,13 +367,56 @@ function channels(){
 }
 
 // 商品試算（成本即時對照目前原料價）
+// 組成項目類型：'product' 代表引用其他商品（套餐），其餘一律視為原料
+const isProdComp = c => c.type === 'product';
+const compRef    = c => isProdComp(c) ? c.prodId : c.itemId;
+// 下拉選項的複合值：i:<原料id> / p:<商品id>
+const compKey    = c => (isProdComp(c) ? 'p:' : 'i:') + compRef(c);
+
+// 商品的單份成本（遞迴展開套餐引用；seen 防止循環引用造成無限迴圈）
+function productCost(p, seen){
+  if(!p) return 0;
+  seen = seen || [];
+  if(seen.includes(p.id)) return 0;          // 循環引用 → 該層成本以 0 計
+  const next = seen.concat(p.id);
+  return (p.comps||[]).reduce((sum, c) => {
+    const qty = num(c.qty) || 0;
+    if(isProdComp(c)){
+      const sub = PRODS.find(x => x.id === c.prodId);
+      return sum + (sub ? productCost(sub, next) * qty : 0);
+    }
+    const it = ITEMS.find(x => x.id === c.itemId);
+    return sum + (it ? unitCost(it) * qty : 0);
+  }, 0);
+}
+
+// 某商品是否（直接或間接）用到 targetId — 用於防止循環引用
+function dependsOn(p, targetId, seen){
+  if(!p) return false;
+  seen = seen || [];
+  if(seen.includes(p.id)) return false;
+  const next = seen.concat(p.id);
+  return (p.comps||[]).some(c => {
+    if(!isProdComp(c)) return false;
+    if(c.prodId === targetId) return true;
+    return dependsOn(PRODS.find(x => x.id === c.prodId), targetId, next);
+  });
+}
+
 function calcProduct(p){
   const rows = (p.comps||[]).map(c => {
+    const qty = num(c.qty) || 0;
+    if(isProdComp(c)){
+      const sub = PRODS.find(x => x.id === c.prodId);
+      const cyc = sub ? dependsOn(sub, p.id) : false;    // 子商品反過來含自己
+      const uc  = (sub && !cyc) ? productCost(sub, [p.id]) : 0;
+      return { name: sub ? sub.name : (c.name || '（商品已刪除）'), missing: !sub,
+               cycle: cyc, isProd: true, unit: '份', uc, qty, sub: uc*qty };
+    }
     const it = ITEMS.find(x => x.id === c.itemId);
     const uc = it ? unitCost(it) : 0;
-    const qty = num(c.qty) || 0;
     return { name: it ? it.name : (c.name || '（原料已刪除）'), missing: !it,
-             unit: it ? (it.unit||'份') : '份', uc, qty, sub: uc*qty };
+             cycle: false, isProd: false, unit: it ? (it.unit||'份') : '份', uc, qty, sub: uc*qty };
   });
   const cost = rows.reduce((s,r)=>s+r.sub, 0);
   const taxable = TAX.invoice === true;   // 開發票為「單店全商品」設定
@@ -617,7 +663,7 @@ function renderProds(){
            + `<td><span style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700;margin-right:6px">${pf}</span>${rateHtml(ch.rate)}</td>`;
     }).join('');
     return `<tr class="pr" data-toggle="${p.id}">
-        <td class="nm">${esc(p.name)}${c.chs.some(x=>x.joined&&x.set)?' <span class="badge b-act">🎯活動</span>':''}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
+        <td class="nm">${esc(p.name)}${c.rows.some(r=>r.isProd)?' <span class="badge b-set">套餐</span>':''}${c.chs.some(x=>x.joined&&x.set)?' <span class="badge b-act">🎯活動</span>':''}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
         <td class="cost-cell">$${money(c.cost)}</td>${cells}
       </tr>
       <tr class="det" id="det_${p.id}" style="display:none"><td colspan="${colCount}">${detailHtml(p,c)}</td></tr>`;
@@ -631,7 +677,7 @@ function detailHtml(p,c){
     <table class="mini">
       <thead><tr><th>原料</th><th>單位成本</th><th>數量</th><th>小計</th></tr></thead>
       <tbody>${c.rows.length ? c.rows.map(r=>`<tr>
-        <td>${esc(r.name)}${r.missing?' <span class="miss">✕已刪除</span>':''}</td>
+        <td>${r.isProd?'<span class="badge b-set">套餐</span> ':''}${esc(r.name)}${r.missing?' <span class="miss">✕已刪除</span>':''}${r.cycle?' <span class="miss">✕循環引用</span>':''}</td>
         <td>$${money(r.uc)}</td><td>${money(r.qty)} ${esc(r.unit)}</td><td>$${money(r.sub)}</td></tr>`).join('')
         : '<tr><td colspan="4" class="dim">尚未設定組成</td></tr>'}</tbody>
       <tfoot><tr><td>總成本</td><td></td><td></td><td>$${money(c.cost)}</td></tr></tfoot>
@@ -673,7 +719,7 @@ function renderItems(){
   const cat = $('fiCat').value;
   const list = ITEMS.filter(i => cat==='__all__' || i.category===cat)
                     .filter(i => !kw || String(i.name||'').toLowerCase().includes(kw));
-  const usedCnt = i => PRODS.filter(p => (p.comps||[]).some(c => c.itemId === i.id)).length;
+  const usedCnt = i => PRODS.filter(p => (p.comps||[]).some(c => !isProdComp(c) && c.itemId === i.id)).length;
   list.sort(cmpBy(i => {
     switch(ISORT.key){
       case 'name':     return String(i.name||'');
@@ -789,7 +835,7 @@ function openItemModal(it){
 
 async function delItem(id){
   const it = ITEMS.find(x=>x.id===id); if(!it) return;
-  const used = PRODS.filter(p => (p.comps||[]).some(c => c.itemId===id));
+  const used = PRODS.filter(p => (p.comps||[]).some(c => !isProdComp(c) && c.itemId===id));
   const warn = used.length ? `\n\n⚠️ 目前有 ${used.length} 項商品使用此原料（${used.slice(0,3).map(p=>p.name).join('、')}${used.length>3?'…':''}），刪除後成本會少算。` : '';
   if(!confirm(`確定刪除原料「${it.name}」？${warn}`)) return;
   try{
@@ -965,9 +1011,12 @@ async function delPlat(id){
 /* ═══════════ 商品 Modal ═══════════ */
 function openProdModal(p){
   const isNew = !p;
-  if(!ITEMS.length){ toast('請先到「原料成本」建立此店的原料'); return; }
-  let comps = (p?.comps||[]).map(c => ({ itemId:c.itemId, qty:num(c.qty)||1 }));
-  if(!comps.length) comps = [{ itemId:'', qty:1 }];
+  if(!ITEMS.length && !PRODS.length){ toast('請先到「原料成本」建立此店的原料'); return; }
+  // 組成保留類型：{ref:'i:xxx'|'p:xxx', qty}
+  let comps = (p?.comps||[]).map(c => ({ ref: compKey(c), qty: num(c.qty)||1 }));
+  if(!comps.length) comps = [{ ref:'', qty:1 }];
+  // 可被引用的商品：排除自己，以及會反過來用到自己的商品（防循環）
+  const refProds = PRODS.filter(x => x.id !== p?.id && !(p && dependsOn(x, p.id)));
   const chs = channels();
   const prices = {}, acts = {};
   chs.forEach(ch => {
@@ -981,7 +1030,7 @@ function openProdModal(p){
     <div class="modal-sub">店面：${esc(STORE)}${TAX.invoice?` ・🧾 本店開發票（營業稅 ${money(TAX.rate)}%，已計入下方毛利）`:''}</div>
     <div class="form-row"><label class="req">商品名稱</label>
       <input type="text" id="pName" placeholder="例：雞肉飯" value="${esc(p?.name||'')}"></div>
-    <div class="sec-h">① 組成（食材＋耗材）</div>
+    <div class="sec-h">① 組成（原料，或直接選現有商品組成套餐）</div>
     <div class="comp-editor" id="compEditor"></div>
     <div class="cost-banner"><span>單份總成本</span><span class="v" id="sbCost">$0</span></div>
     <div class="sec-h">② 各通道售價（不填＝該通道未販售）</div>
@@ -1005,21 +1054,36 @@ function openProdModal(p){
   </div>`;
   document.body.appendChild(ov);
 
-  const optHtml = sel => '<option value="">— 選擇原料 —</option>' + ITEMS.map(i =>
-    `<option value="${i.id}" ${sel===i.id?'selected':''}>${esc(i.name)}（$${money(unitCost(i))}/${esc(i.unit||'份')}）</option>`).join('');
+  // 解析 ref → 名稱與單位成本
+  function refInfo(ref){
+    if(!ref) return null;
+    const t = ref.slice(0,1), id = ref.slice(2);
+    if(t === 'p'){
+      const sp = PRODS.find(x => x.id === id);
+      return sp ? { name:sp.name, uc:productCost(sp, p ? [p.id] : []), unit:'份', isProd:true } : null;
+    }
+    const it = ITEMS.find(x => x.id === id);
+    return it ? { name:it.name, uc:unitCost(it), unit:it.unit||'份', isProd:false } : null;
+  }
+  const optHtml = sel =>
+    '<option value="">— 選擇原料或商品 —</option>'
+    + (ITEMS.length ? '<optgroup label="🧾 原料／耗材">' + ITEMS.map(i =>
+        `<option value="i:${i.id}" ${sel==='i:'+i.id?'selected':''}>${esc(i.name)}（$${money(unitCost(i))}/${esc(i.unit||'份')}）</option>`).join('') + '</optgroup>' : '')
+    + (refProds.length ? '<optgroup label="🍚 現有商品（套餐組合）">' + refProds.map(x =>
+        `<option value="p:${x.id}" ${sel==='p:'+x.id?'selected':''}>${esc(x.name)}（成本 $${money(productCost(x, p?[p.id]:[]))}）</option>`).join('') + '</optgroup>' : '');
 
   function curCost(){
     return comps.reduce((s,c) => {
-      const it = ITEMS.find(x=>x.id===c.itemId);
-      return s + (it ? unitCost(it)*num(c.qty) : 0);
+      const inf = refInfo(c.ref);
+      return s + (inf ? inf.uc*num(c.qty) : 0);
     }, 0);
   }
   function renderComps(){
     $('compEditor').innerHTML = comps.map((c,idx) => {
-      const it = ITEMS.find(x=>x.id===c.itemId);
-      const sub = it ? unitCost(it)*num(c.qty) : 0;
-      return `<div class="comp-row">
-        <select data-ci="${idx}">${optHtml(c.itemId)}</select>
+      const inf = refInfo(c.ref);
+      const sub = inf ? inf.uc*num(c.qty) : 0;
+      return `<div class="comp-row${inf&&inf.isProd?' is-prod':''}">
+        <select data-ci="${idx}">${optHtml(c.ref)}</select>
         <input class="qty" type="number" inputmode="decimal" step="0.1" min="0" data-cq="${idx}" value="${c.qty}">
         <span class="sub">$${money(sub)}</span>
         <button class="rm" data-cr="${idx}" title="移除">✕</button></div>`;
@@ -1051,21 +1115,21 @@ function openProdModal(p){
   }
 
   $('compEditor').addEventListener('change', e => {
-    const s = e.target.closest('[data-ci]'); if(s){ comps[+s.dataset.ci].itemId = s.value; renderComps(); }
+    const s = e.target.closest('[data-ci]'); if(s){ comps[+s.dataset.ci].ref = s.value; renderComps(); }
   });
   $('compEditor').addEventListener('input', e => {
     const q = e.target.closest('[data-cq]');
     if(q){
       const i = +q.dataset.cq; comps[i].qty = q.value;
-      const it = ITEMS.find(x=>x.id===comps[i].itemId);
-      q.closest('.comp-row').querySelector('.sub').textContent = '$' + money(it ? unitCost(it)*num(comps[i].qty) : 0);
+      const inf = refInfo(comps[i].ref);
+      q.closest('.comp-row').querySelector('.sub').textContent = '$' + money(inf ? inf.uc*num(comps[i].qty) : 0);
       updAll();
     }
   });
   $('compEditor').addEventListener('click', e => {
-    if(e.target.id === 'compAdd'){ comps.push({ itemId:'', qty:1 }); renderComps(); return; }
+    if(e.target.id === 'compAdd'){ comps.push({ ref:'', qty:1 }); renderComps(); return; }
     const rm = e.target.closest('[data-cr]');
-    if(rm){ comps.splice(+rm.dataset.cr, 1); if(!comps.length) comps.push({itemId:'',qty:1}); renderComps(); }
+    if(rm){ comps.splice(+rm.dataset.cr, 1); if(!comps.length) comps.push({ref:'',qty:1}); renderComps(); }
   });
   $('chEditor').addEventListener('input', e => { if(e.target.dataset.cp) updAll(); });
   $('chEditor').addEventListener('change', e => { if(e.target.dataset.ca) updAll(); });
@@ -1077,9 +1141,13 @@ function openProdModal(p){
   $('pSave').addEventListener('click', async () => {
     const name = $('pName').value.trim();
     if(!name) return toast('請填寫商品名稱');
-    const clean = comps.filter(c => c.itemId && num(c.qty) > 0)
-      .map(c => ({ itemId:c.itemId, name:(ITEMS.find(x=>x.id===c.itemId)?.name)||'', qty:num(c.qty) }));
-    if(!clean.length) return toast('請至少選擇一項原料');
+    const clean = comps.filter(c => c.ref && num(c.qty) > 0).map(c => {
+      const id = c.ref.slice(2);
+      if(c.ref.slice(0,1) === 'p')
+        return { type:'product', prodId:id, name:(PRODS.find(x=>x.id===id)?.name)||'', qty:num(c.qty) };
+      return { type:'item', itemId:id, name:(ITEMS.find(x=>x.id===id)?.name)||'', qty:num(c.qty) };
+    });
+    if(!clean.length) return toast('請至少選擇一項原料或商品');
     const chPrices = {}, actSel = {};
     chs.filter(ch=>ch.id!=='onsite').forEach(ch => {
       const v = num(ov.querySelector(`[data-cp="${ch.id}"]`).value);
@@ -1109,7 +1177,9 @@ function openProdModal(p){
 
 async function delProd(id){
   const p = PRODS.find(x=>x.id===id); if(!p) return;
-  if(!confirm(`確定刪除商品「${p.name}」？`)) return;
+  const usedBy = PRODS.filter(x => (x.comps||[]).some(c => isProdComp(c) && c.prodId === id));
+  const warn = usedBy.length ? `\n\n⚠️ 有 ${usedBy.length} 項套餐引用此商品（${usedBy.slice(0,3).map(x=>x.name).join('、')}${usedBy.length>3?'…':''}），刪除後這些套餐的成本會少算。` : '';
+  if(!confirm(`確定刪除商品「${p.name}」？${warn}`)) return;
   try{
     await deleteDoc(doc(db, COLL_PROD, id));
     ALL_PRODS = ALL_PRODS.filter(x=>x.id!==id);
@@ -1257,25 +1327,33 @@ async function doCopy(targets, opt){
       }
     }
 
-    // ── 商品（重新對應 itemId 與 chPrices 的平台 id）──
+    // ── 商品（重新對應 itemId、套餐引用的 prodId、chPrices 的平台 id）──
     if(opt.prod){
+      // 先為所有來源商品配置目標店的 id（同名沿用既有、否則預先產生新 ref），
+      // 套餐互相引用才有辦法正確對應
+      const prodMap = {}, newRefs = {};
+      for(const p of PRODS){
+        const ex = byName(tProds, p.name);
+        if(ex){ prodMap[p.id] = ex.id; }
+        else { const ref = doc(collection(db, COLL_PROD)); newRefs[p.id] = ref; prodMap[p.id] = ref.id; }
+      }
       for(const p of PRODS){
         const comps = (p.comps||[])
-          .filter(c => itemMap[c.itemId])                       // 目標店沒有的原料就略過
-          .map(c => ({ itemId:itemMap[c.itemId], name:c.name||'', qty:num(c.qty) }));
+          .filter(c => isProdComp(c) ? prodMap[c.prodId] : itemMap[c.itemId])   // 對應不到就略過
+          .map(c => isProdComp(c)
+            ? { type:'product', prodId:prodMap[c.prodId], name:c.name||'', qty:num(c.qty) }
+            : { type:'item',    itemId:itemMap[c.itemId], name:c.name||'', qty:num(c.qty) });
         const chPrices = {}, actSel = {};
         Object.entries(p.chPrices||{}).forEach(([k,v]) => { if(platMap[k]) chPrices[platMap[k]] = num(v); });
         Object.entries(p.acts||{}).forEach(([k,v]) => { if(platMap[k] && v === true) actSel[platMap[k]] = true; });
         if(!comps.length) continue;                              // 無可對應組成則不建立
-        const ex = byName(tProds, p.name);
         const payload = { name:p.name, price:num(p.price), comps, chPrices, acts:actSel,
                           note:p.note||'', updatedAt:serverTimestamp() };
-        if(ex){
-          if(ow) batch.update(doc(db, COLL_PROD, ex.id), payload);
-        }else{
-          const ref = doc(collection(db, COLL_PROD));
-          batch.set(ref, { store:tgt, ...payload, createdAt:serverTimestamp() });
+        if(newRefs[p.id]){
+          batch.set(newRefs[p.id], { store:tgt, ...payload, createdAt:serverTimestamp() });
           stat.prod++;
+        }else if(ow){
+          batch.update(doc(db, COLL_PROD, prodMap[p.id]), payload);
         }
       }
     }
@@ -1316,7 +1394,7 @@ function exportCsv(){
       const c = calcProduct(p);
       const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.tax), r2(ch.act), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','','','']);
       rows.push([STORE, p.name, r2(c.cost)].concat(cells)
-        .concat([c.rows.map(r=>`${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ')]));
+        .concat([c.rows.map(r=>`${r.isProd?'[套餐]':''}${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ')]));
     });
   }
   const csv = '\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n');
