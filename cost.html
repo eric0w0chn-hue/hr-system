@@ -110,6 +110,10 @@ table.pt th.sorted .si{color:var(--accent);font-size:10px}
 .cp-item:last-child{border-bottom:none}
 .cp-item input{width:19px;height:19px;flex-shrink:0;margin-top:1px;accent-color:var(--accent)}
 .cp-item small{display:block;font-size:11px;color:var(--text3);font-weight:400;margin-top:2px}
+.b-act{background:#FFEDD5;color:#C2410C}
+.act-chk{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;font-weight:600;color:#C2410C;cursor:pointer;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:8px 10px;min-height:40px}
+.act-chk input{width:18px;height:18px;flex-shrink:0;accent-color:#C2410C}
+.fld-hint{font-size:11px;color:var(--text3);line-height:1.55;margin-top:6px}
 .cp-warn{font-size:11.5px;color:var(--text2);background:#FFF8EC;border:1px solid #F2CE8A;border-radius:9px;padding:10px 12px;line-height:1.6;margin-bottom:4px}
 #itable{min-width:560px}
 .rate{display:inline-block;font-weight:800;padding:2px 8px;border-radius:20px;font-size:12px}
@@ -354,8 +358,9 @@ function unitCost(it){ const q = num(it.yieldQty); return q > 0 ? num(it.packPri
 
 // 通道清單：現場 + 各外送平台
 function channels(){
-  return [{ id:'onsite', name:'🏠 現場', fee:0, fixed:0 }]
-    .concat(PLATS.map(p => ({ id:p.id, name:p.name, fee:num(p.feePct), fixed:num(p.fixedFee) })));
+  return [{ id:'onsite', name:'🏠 現場', fee:0, fixed:0, act:0 }]
+    .concat(PLATS.map(p => ({ id:p.id, name:p.name, fee:num(p.feePct),
+                              fixed:num(p.fixedFee), act:num(p.actFee) })));
 }
 
 // 商品試算（成本即時對照目前原料價）
@@ -369,14 +374,18 @@ function calcProduct(p){
   });
   const cost = rows.reduce((s,r)=>s+r.sub, 0);
   const taxable = TAX.invoice === true;   // 開發票為「單店全商品」設定
+  const acts = p.acts || {};             // 逐商品勾選的平台活動（{平台id:true}）
   const chs = channels().map(ch => {
     const price = ch.id==='onsite' ? num(p.price) : num((p.chPrices||{})[ch.id]);
     const svc    = price>0 ? price*ch.fee/100 + ch.fixed : 0;    // 服務費（抽佣＋固定費）
     const tax    = (taxable && price>0) ? price*num(TAX.rate)/100 : 0; // 營業稅（開發票）
+    const joined = acts[ch.id] === true && ch.act > 0;            // 本商品是否參加該平台活動
+    const act    = (joined && price>0) ? ch.act : 0;              // 活動費（每單固定額）
     const net    = price - svc;                                   // 平台實收
-    const profit = price - svc - tax - cost;                      // 毛利
+    const profit = price - svc - tax - act - cost;                // 毛利
     const rate   = price>0 ? profit/price*100 : null;              // 毛利率＝毛利÷售價
-    return { ...ch, price, svc, tax, net, profit, rate, deduct: svc+tax, set: price>0 };
+    return { ...ch, price, svc, tax, act, joined, net, profit, rate,
+             deduct: svc+tax+act, set: price>0 };
   });
   return { rows, cost, chs, taxable, hasMissing: rows.some(r=>r.missing) };
 }
@@ -589,7 +598,7 @@ function renderProds(){
       </tr>
       <tr>
         ${chs.map(ch=> th(PSORT,'price:'+ch.id,'售價','gl',true)
-                     + th(PSORT,'deduct:'+ch.id,'服務費/稅','',true)
+                     + th(PSORT,'deduct:'+ch.id,'扣項','',true)
                      + th(PSORT,'rate:'+ch.id,'毛利 / 毛利率','',true)).join('')}
       </tr>
     </thead>`;
@@ -598,14 +607,17 @@ function renderProds(){
     const cells = c.chs.map(ch => {
       if(!ch.set) return `<td class="gl dim">—</td><td class="dim">—</td><td class="dim">—</td>`;
       const pf = `${ch.profit<0?'-':''}$${money(Math.abs(ch.profit))}`;
+      const parts = [];
+      if(ch.tax>0 && ch.svc>0) parts.push(`稅$${money(ch.tax)}`);
+      if(ch.act>0) parts.push(`活動$${money(ch.act)}`);
       const ded = ch.deduct>0
-        ? `<span style="color:#7C3AED">-$${money(ch.deduct)}</span>${ch.tax>0&&ch.svc>0?`<span class="ch-fee"> (稅$${money(ch.tax)})</span>`:''}`
+        ? `<span style="color:#7C3AED">-$${money(ch.deduct)}</span>${parts.length?`<span class="ch-fee"> (${parts.join('+')})</span>`:''}`
         : '<span class="dim">—</span>';
       return `<td class="gl">$${money(ch.price)}</td><td>${ded}</td>`
            + `<td><span style="color:${ch.profit<0?'var(--danger)':'var(--ok)'};font-weight:700;margin-right:6px">${pf}</span>${rateHtml(ch.rate)}</td>`;
     }).join('');
     return `<tr class="pr" data-toggle="${p.id}">
-        <td class="nm">${esc(p.name)}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
+        <td class="nm">${esc(p.name)}${c.chs.some(x=>x.joined&&x.set)?' <span class="badge b-act">🎯活動</span>':''}${c.hasMissing?' <span class="badge b-warn">原料缺失</span>':''}<span class="exp">▾</span></td>
         <td class="cost-cell">$${money(c.cost)}</td>${cells}
       </tr>
       <tr class="det" id="det_${p.id}" style="display:none"><td colspan="${colCount}">${detailHtml(p,c)}</td></tr>`;
@@ -627,13 +639,14 @@ function detailHtml(p,c){
 
   const ch = `<div><div class="det-h">💰 各通道利潤</div>
     <table class="mini">
-      <thead><tr><th>通道</th><th>售價</th><th>服務費</th><th>營業稅</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead>
+      <thead><tr><th>通道</th><th>售價</th><th>服務費</th><th>營業稅</th><th>活動費</th><th>成本</th><th>毛利</th><th>毛利率</th></tr></thead>
       <tbody>${c.chs.map(x=>`<tr>
         <td>${esc(x.name)}${x.id!=='onsite'?` <span class="dim">${money(x.fee)}%</span>`:''}</td>
         ${x.set ? `<td>$${money(x.price)}</td><td style="color:#7C3AED">${x.svc?'-$'+money(x.svc):'—'}</td>
-        <td style="color:#7C3AED">${x.tax?'-$'+money(x.tax):'—'}</td><td>-$${money(c.cost)}</td>
+        <td style="color:#7C3AED">${x.tax?'-$'+money(x.tax):'—'}</td>
+        <td style="color:#C2410C">${x.act?'-$'+money(x.act):'—'}</td><td>-$${money(c.cost)}</td>
         <td style="color:${x.profit<0?'var(--danger)':'var(--ok)'};font-weight:800">${x.profit<0?'-':''}$${money(Math.abs(x.profit))}</td>
-        <td>${rateHtml(x.rate)}</td>` : '<td colspan="6" class="dim">未定價</td>'}
+        <td>${rateHtml(x.rate)}</td>` : '<td colspan="7" class="dim">未定價</td>'}
       </tr>`).join('')}</tbody>
     </table>
     ${c.taxable?`<div style="font-size:11.5px;color:var(--text2);margin-top:8px">🧾 本店開發票：營業稅 ${money(TAX.rate)}% 依各通道售價計入成本</div>`:''}
@@ -857,10 +870,11 @@ function renderPlats(){
   }
   $('pllist').innerHTML = PLATS.map(p => {
     const used = PRODS.filter(x => num((x.chPrices||{})[p.id]) > 0).length;
+    const joined = PRODS.filter(x => (x.acts||{})[p.id] === true).length;
     return `<div class="plat-card">
       <div class="ic-main">
         <div class="ic-name">${esc(p.name)}${used?`<span class="badge b-gray">${used} 項商品已定價</span>`:''}</div>
-        <div class="ic-formula">服務費 ${money(p.feePct)}%${num(p.fixedFee)?` ＋ 固定 $${money(p.fixedFee)}／單`:''}${p.note?` · ${esc(p.note)}`:''}</div>
+        <div class="ic-formula">服務費 ${money(p.feePct)}%${num(p.fixedFee)?` ＋ 固定 $${money(p.fixedFee)}／單`:''}${num(p.actFee)?` ・🎯 活動費 $${money(p.actFee)}／單（${joined} 項商品參加）`:''}${p.note?` · ${esc(p.note)}`:''}</div>
       </div>
       <div class="pl-fee">${money(p.feePct)}<small>%</small></div>
       ${canEdit?`<div class="ic-act">
@@ -888,6 +902,9 @@ function openPlatModal(pl){
       <div class="form-row"><label>固定費用（每單 $，選填）</label>
         <input type="number" id="lFix" inputmode="decimal" step="0.1" min="0" placeholder="0" value="${pl?.fixedFee??''}"></div>
     </div>
+    <div class="form-row"><label>活動費（每單 $，選填）</label>
+      <input type="number" id="lAct" inputmode="decimal" step="0.1" min="0" placeholder="11" value="${pl?.actFee??''}">
+      <div class="fld-hint">平台活動的每單費用（例：UBER 活動 $11）。設定後，需在<b>商品編輯</b>內逐一勾選參加活動的商品才會扣款，未勾選的商品不受影響。</div></div>
     <div class="calc-preview"><span>售價 $150 時 → 服務費</span><span class="v" id="lPreview">—</span></div>
     <div class="form-row"><label>備註</label><input type="text" id="lNote" placeholder="合約期間、活動費率…" value="${esc(pl?.note||'')}"></div>
     <div class="modal-footer">
@@ -898,10 +915,12 @@ function openPlatModal(pl){
 
   const upd = () => {
     const f = num($('lFee').value), fx = num($('lFix').value);
-    const svc = 150*f/100 + fx;
-    $('lPreview').textContent = f||fx ? `-$${money(svc)}（實收 $${money(150-svc)}）` : '—';
+    const svc = 150*f/100 + fx, ac = num($('lAct').value);
+    $('lPreview').innerHTML = (f||fx)
+      ? `-$${money(svc)}（實收 $${money(150-svc)}）${ac?`<span class="ch-fee"> ・參加活動再 -$${money(ac)}</span>`:''}`
+      : '—';
   };
-  ['lFee','lFix'].forEach(id => $(id).addEventListener('input', upd)); upd();
+  ['lFee','lFix','lAct'].forEach(id => $(id).addEventListener('input', upd)); upd();
 
   const close = () => ov.remove();
   ov.addEventListener('click', e => { if(e.target===ov) close(); });
@@ -911,7 +930,8 @@ function openPlatModal(pl){
     const feePct = num($('lFee').value), fixedFee = num($('lFix').value);
     if(!name) return toast('請填寫平台名稱');
     if(feePct < 0 || feePct >= 100) return toast('服務費需在 0–99.9% 之間');
-    const data = { store:STORE, name, feePct, fixedFee, note:$('lNote').value.trim(), updatedAt:serverTimestamp() };
+    const data = { store:STORE, name, feePct, fixedFee, actFee:num($('lAct').value),
+                   note:$('lNote').value.trim(), updatedAt:serverTimestamp() };
     $('lSave').disabled = true;
     try{
       if(isNew){
@@ -932,7 +952,7 @@ function openPlatModal(pl){
 
 async function delPlat(id){
   const pl = PLATS.find(x=>x.id===id); if(!pl) return;
-  const used = PRODS.filter(x => num((x.chPrices||{})[id]) > 0).length;
+  const used = PRODS.filter(x => num((x.chPrices||{})[id]) > 0 || (x.acts||{})[id] === true).length;
   if(!confirm(`確定刪除平台「${pl.name}」？${used?`\n\n⚠️ 有 ${used} 項商品已填此平台售價，刪除後該欄位一併消失。`:''}`)) return;
   try{
     await deleteDoc(doc(db, COLL_PLAT, id));
@@ -949,8 +969,11 @@ function openProdModal(p){
   let comps = (p?.comps||[]).map(c => ({ itemId:c.itemId, qty:num(c.qty)||1 }));
   if(!comps.length) comps = [{ itemId:'', qty:1 }];
   const chs = channels();
-  const prices = {};
-  chs.forEach(ch => { prices[ch.id] = ch.id==='onsite' ? (p?.price ?? '') : ((p?.chPrices||{})[ch.id] ?? ''); });
+  const prices = {}, acts = {};
+  chs.forEach(ch => {
+    prices[ch.id] = ch.id==='onsite' ? (p?.price ?? '') : ((p?.chPrices||{})[ch.id] ?? '');
+    acts[ch.id]   = (p?.acts||{})[ch.id] === true;
+  });
 
   const ov = document.createElement('div'); ov.className='overlay';
   ov.innerHTML = `<div class="modal">
@@ -968,6 +991,8 @@ function openProdModal(p){
           <span class="ch-nm">${esc(ch.name)}${ch.id!=='onsite'?`<span class="ch-fee"> 服務費 ${money(ch.fee)}%${ch.fixed?` +$${money(ch.fixed)}`:''}</span>`:''}</span>
           <input type="number" inputmode="decimal" step="0.5" min="0" placeholder="售價" data-cp="${ch.id}" value="${prices[ch.id]}">
         </div>
+        ${ch.act>0?`<label class="act-chk"><input type="checkbox" data-ca="${ch.id}" ${acts[ch.id]?'checked':''}>
+          <span>🎯 參加活動（每單 -$${money(ch.act)}）</span></label>`:''}
         <div class="ch-out" id="out_${ch.id}"></div>
       </div>`).join('')}
       ${chs.length===1?`<div class="ch-row" style="background:var(--surface2);font-size:12px;color:var(--text2)">尚未設定外送平台 → 到「🚚 平台服務費」新增後，這裡會出現對應欄位。</div>`:''}
@@ -1011,11 +1036,14 @@ function openProdModal(p){
       if(price <= 0){ out.innerHTML = '<span class="dim">未定價</span>'; return; }
       const svc = price*ch.fee/100 + ch.fixed;
       const tax = TAX.invoice ? price*num(TAX.rate)/100 : 0;
-      const profit = price - svc - tax - cost;
+      const aChk = ov.querySelector(`[data-ca="${ch.id}"]`);
+      const act = (aChk && aChk.checked) ? ch.act : 0;
+      const profit = price - svc - tax - act - cost;
       const rate = profit/price*100;
       out.innerHTML =
         (ch.id==='onsite' ? '' : `<span>服務費 <b style="color:#7C3AED">-$${money(svc)}</b></span><span>實收 <b>$${money(price-svc)}</b></span>`) +
         (tax ? `<span>營業稅 <b style="color:#7C3AED">-$${money(tax)}</b></span>` : '') +
+        (act ? `<span>活動費 <b style="color:#C2410C">-$${money(act)}</b></span>` : '') +
         `<span>成本 <b>-$${money(cost)}</b></span>` +
         `<span class="p ${profit<0?'neg':''}">毛利 <b>${profit<0?'-':''}$${money(Math.abs(profit))}</b></span>` +
         `<span>${rateHtml(rate)}</span>`;
@@ -1040,6 +1068,7 @@ function openProdModal(p){
     if(rm){ comps.splice(+rm.dataset.cr, 1); if(!comps.length) comps.push({itemId:'',qty:1}); renderComps(); }
   });
   $('chEditor').addEventListener('input', e => { if(e.target.dataset.cp) updAll(); });
+  $('chEditor').addEventListener('change', e => { if(e.target.dataset.ca) updAll(); });
   renderComps();
 
   const close = () => ov.remove();
@@ -1051,13 +1080,15 @@ function openProdModal(p){
     const clean = comps.filter(c => c.itemId && num(c.qty) > 0)
       .map(c => ({ itemId:c.itemId, name:(ITEMS.find(x=>x.id===c.itemId)?.name)||'', qty:num(c.qty) }));
     if(!clean.length) return toast('請至少選擇一項原料');
-    const chPrices = {};
+    const chPrices = {}, actSel = {};
     chs.filter(ch=>ch.id!=='onsite').forEach(ch => {
       const v = num(ov.querySelector(`[data-cp="${ch.id}"]`).value);
       if(v > 0) chPrices[ch.id] = v;
+      const a = ov.querySelector(`[data-ca="${ch.id}"]`);
+      if(a && a.checked) actSel[ch.id] = true;
     });
     const data = { store:STORE, name, price:num(ov.querySelector('[data-cp="onsite"]').value),
-                   comps:clean, chPrices,
+                   comps:clean, chPrices, acts:actSel,
                    note:$('pNote').value.trim(), updatedAt:serverTimestamp() };
     $('pSave').disabled = true;
     try{
@@ -1198,11 +1229,13 @@ async function doCopy(targets, opt){
       if(ex){
         platMap[p.id] = ex.id;
         if(ow){ batch.update(doc(db, COLL_PLAT, ex.id),
-          { feePct:num(p.feePct), fixedFee:num(p.fixedFee), note:p.note||'', updatedAt:serverTimestamp() }); }
+          { feePct:num(p.feePct), fixedFee:num(p.fixedFee), actFee:num(p.actFee),
+            note:p.note||'', updatedAt:serverTimestamp() }); }
       }else if(opt.plat){
         const ref = doc(collection(db, COLL_PLAT));
         batch.set(ref, { store:tgt, name:p.name, feePct:num(p.feePct), fixedFee:num(p.fixedFee),
-                         note:p.note||'', createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
+                         actFee:num(p.actFee), note:p.note||'',
+                         createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
         platMap[p.id] = ref.id; stat.plat++;
       }
     }
@@ -1230,11 +1263,12 @@ async function doCopy(targets, opt){
         const comps = (p.comps||[])
           .filter(c => itemMap[c.itemId])                       // 目標店沒有的原料就略過
           .map(c => ({ itemId:itemMap[c.itemId], name:c.name||'', qty:num(c.qty) }));
-        const chPrices = {};
+        const chPrices = {}, actSel = {};
         Object.entries(p.chPrices||{}).forEach(([k,v]) => { if(platMap[k]) chPrices[platMap[k]] = num(v); });
+        Object.entries(p.acts||{}).forEach(([k,v]) => { if(platMap[k] && v === true) actSel[platMap[k]] = true; });
         if(!comps.length) continue;                              // 無可對應組成則不建立
         const ex = byName(tProds, p.name);
-        const payload = { name:p.name, price:num(p.price), comps, chPrices,
+        const payload = { name:p.name, price:num(p.price), comps, chPrices, acts:actSel,
                           note:p.note||'', updatedAt:serverTimestamp() };
         if(ex){
           if(ow) batch.update(doc(db, COLL_PROD, ex.id), payload);
@@ -1273,14 +1307,14 @@ function exportCsv(){
     rows.push(['店面','開發票','營業稅率(%)']);
     rows.push([STORE, TAX.invoice?'是':'否', TAX.invoice?TAX.rate:0]);
     rows.push([]);
-    rows.push(['店面','平台','服務費(%)','固定費用','備註']);
-    PLATS.forEach(p => rows.push([STORE, p.name, p.feePct, p.fixedFee||0, p.note||'']));
+    rows.push(['店面','平台','服務費(%)','固定費用','活動費','備註']);
+    PLATS.forEach(p => rows.push([STORE, p.name, p.feePct, p.fixedFee||0, p.actFee||0, p.note||'']));
   }else{
     const chs = channels();
-    rows.push(['店面','商品','成本'].concat(chs.flatMap(ch => [`${ch.name}售價`, `${ch.name}服務費`, `${ch.name}營業稅`, `${ch.name}毛利`, `${ch.name}毛利率(%)`])).concat(['組成明細']));
+    rows.push(['店面','商品','成本'].concat(chs.flatMap(ch => [`${ch.name}售價`, `${ch.name}服務費`, `${ch.name}營業稅`, `${ch.name}活動費`, `${ch.name}毛利`, `${ch.name}毛利率(%)`])).concat(['組成明細']));
     PRODS.forEach(p => {
       const c = calcProduct(p);
-      const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.tax), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','','']);
+      const cells = c.chs.flatMap(ch => ch.set ? [r2(ch.price), r2(ch.svc), r2(ch.tax), r2(ch.act), r2(ch.profit), ch.rate.toFixed(1)] : ['','','','','','']);
       rows.push([STORE, p.name, r2(c.cost)].concat(cells)
         .concat([c.rows.map(r=>`${r.name}x${r.qty}=$${r2(r.sub)}`).join(' + ')]));
     });
