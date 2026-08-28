@@ -362,15 +362,17 @@ function empBonusInfo(e){
 function pendingBonusesOf(e){
   const i = empBonusInfo(e);
   const items = [];
+  // 兼職／正職轉兼職（職稱含「兼職」）：只提示三節獎金與健檢，其餘（廚師鞋、生日、久任）不提示
+  const isPT = (e.title||'').includes('兼職');
 
-  // 廚師鞋：到職滿3個月一次性；健檢：每年到職週年日觸發（須滿3個月）
-  if(i.reached3mo && !i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
+  // 廚師鞋：到職滿3個月一次性（兼職不發）；健檢：每年到職週年日觸發（須滿3個月，兼職也發）
+  if(!isPT && i.reached3mo && !i.shoePaid) items.push({key:i.shoeKey, label:'👟 廚師鞋補助', amount:2000, cat:'fixed'});
   if(i.isHealthDue && !i.healthPaid){
     const amt = parseInt(i.fi.healthAmt||'640');
     items.push({key:i.healthKey, label:'🏥 '+i.yr+'健康檢查補助', amount:amt, cat:'fixed', hasAmt:true, curAmt:i.fi.healthAmt||'640', zeroReason:i.fi.healthZeroReason||'', hint:'今年度已有符合餐飲從業人員體檢報告並交付正本或影本，金額可輸入為0。'});
   }
-  if(i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
-  if(i.isTenureToday && !i.tenurePaid){
+  if(!isPT && i.isBirthday && !i.birthdayPaid) items.push({key:i.birthdayKey, label:'🎂 生日禮金', amount:1000, cat:'alert', tag:i.yr+'/'+(e.birthday||'').slice(5)});
+  if(!isPT && i.isTenureToday && !i.tenurePaid){
     // 用週年當天的年資計算獎金
     const p = e.startDate.split('-');
     const yearsAtAnniv = i.yr - parseInt(p[0]);
@@ -533,6 +535,36 @@ window.markPaid = async function(empId, key, cat, amount, label, checkbox){
     checkbox.checked = false;
     return;
   }
+
+  // ── 並發防護：重讀最新資料，避免他人已標記造成同一項目重複發放 ──
+  try {
+    const [empSnap, logSnap] = await Promise.all([
+      getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','bonus_log'))
+    ]);
+    const freshList = empSnap.exists() ? (empSnap.data().list||[]) : [];
+    const freshLog  = logSnap.exists() ? (logSnap.data().list||[]) : [];
+    const freshEmp  = freshList.find(x=>String(x.id)===String(empId));
+    let already = false;
+    if(cat === 'fixed'){
+      already = !!(freshEmp && freshEmp.fixedBonuses && freshEmp.fixedBonuses[key])
+                || freshLog.some(l=>String(l.empId)===String(empId) && l.key===key);
+    } else if(cat === 'custom'){
+      const ci = parseInt(key.split('_')[1]);
+      already = !!(freshEmp && freshEmp.bonuses && freshEmp.bonuses[ci] && freshEmp.bonuses[ci].status==='已發放');
+    } else { // alert（生日/久任/三節）：同一 key 一年一次
+      already = freshLog.some(l=>String(l.empId)===String(empId) && l.key===key);
+    }
+    if(already){
+      alert('此項目已由其他人標記為已發放，請重新整理頁面後再確認。');
+      checkbox.checked = false;
+      bonusLog = freshLog;                 // 同步最新紀錄
+      if(e){ if(!e.fixedBonuses) e.fixedBonuses={}; if(cat==='fixed') e.fixedBonuses[key]=true; }
+      renderList();
+      return;
+    }
+    bonusLog = freshLog;                    // 以最新紀錄為底 append，避免整份覆蓋抹掉他人紀錄
+  } catch(err){ console.warn('並發檢查讀取失敗，續行寫入', err); }
 
   const today = new Date().toISOString().slice(0,10);
 
