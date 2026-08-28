@@ -155,14 +155,22 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 
 
 @media(max-width:700px){
+  html,body{max-width:100%;overflow-x:hidden}
   .dg,.dg3,.fg{grid-template-columns:1fr}
   .stats{grid-template-columns:1fr 1fr}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{table-layout:auto;min-width:480px}
+  table:not(.list-table){table-layout:auto;min-width:480px}
+  /* 主列表卡片式：外層不橫向捲動，鎖住不左右拖曳 */
+  .list-table{display:block}
+  .list-wrap.tw{overflow-x:hidden;border:none;box-shadow:none;-webkit-overflow-scrolling:auto}
+  /* 體系現有人數：三欄窄表，不需 min-width，鎖住不橫向捲 */
+  .ov-table{min-width:0!important;width:100%;table-layout:auto;font-size:12.5px}
+  .ov-table th,.ov-table td{padding:8px 6px}
+  .ov-wrap.tw{overflow-x:hidden}
   th,td{padding:8px 10px;font-size:12px}
 
   /* ── 主列表（在職／離職／求職者）改卡片式，不需左右滑動 ── */
-  .list-table{display:block;min-width:0;width:100%}
+  .list-table{display:block;min-width:0!important;width:100%;table-layout:auto}
   .list-table thead{display:none}
   .list-table tbody{display:block}
   .list-table>tbody>tr.data-row{display:block;background:#fff;border:1px solid var(--border);border-radius:10px;padding:6px 10px;margin-bottom:8px}
@@ -944,7 +952,7 @@ function render() {
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增求職者</button>
     </div>
-    <div class="tw"><table class="list-table">
+    <div class="tw list-wrap"><table class="list-table">
       <thead><tr>
         ${sth('姓名','name','130px')}
         ${sth('面試地點','location','120px')}
@@ -1024,7 +1032,7 @@ function render() {
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
     </div>
-    <div class="tw"><table class="list-table">
+    <div class="tw list-wrap"><table class="list-table">
       <thead><tr>
         ${sth('姓名','name','130px')}
         ${sth('工作地點','workLocation','100px')}
@@ -1111,7 +1119,7 @@ function render() {
       ${currentUserRole==='admin'?`<button class="btn btn-outline" onclick="window.location.href='backup.html'" title="備份管理">🗄 備份管理</button>`:''}
       <button class="btn btn-primary" onclick="openModal('addEmployee')">＋ 新增同仁</button>
     </div>
-    <div class="tw"><table class="list-table">
+    <div class="tw list-wrap"><table class="list-table">
       <thead><tr>
         ${sth('同仁編號','empNo','110px')}
         ${sth('姓名','name','130px')}
@@ -1744,11 +1752,11 @@ function renderOverview(){
     <div class="sc"><div class="sl">人數異常店面</div><div class="sn" style="${anomalyCount>0?'color:#DC2626':'color:#16A34A'}">${anomalyCount}</div></div>
   </div>`;
 
-  const body=`<div class="tw" style="margin-top:6px"><table>
+  const body=`<div class="tw ov-wrap" style="margin-top:6px"><table class="ov-table">
     <thead><tr>
-      <th style="min-width:160px">店面名稱</th>
-      <th style="width:120px;text-align:center">在職人數</th>
-      <th style="width:120px;text-align:center">投保人數</th>
+      <th style="min-width:120px">店面名稱</th>
+      <th style="width:90px;text-align:center">在職人數</th>
+      <th style="width:90px;text-align:center">投保人數</th>
     </tr></thead>
     <tbody>
       ${rows.map((r,ri)=>{
