@@ -1779,8 +1779,24 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const autoGrade=(insMode==='same_month'?getHireGrade(emp,viewYear,viewMonth):getInsGrade(emp,viewYear,viewMonth)); // 人事資料自動級距
   const insGrade=(rec?.gradeOverride)||autoGrade;
   const ins=insFromGrade(insGrade);
-  const finalLabor=insMode==='new'?0:(rec?.laborDeduct!=null?rec.laborDeduct:0);
-  const finalHealth=insMode==='new'?0:(rec?.healthDeduct!=null?rec.healthDeduct:0);
+  // 兼職勞健保：預設整月自付（依級距），可手動覆蓋；支援離職預扣次月（上月+本月）
+  const _ptIns=insFromGrade(autoGrade);
+  const laborMonthly=rec?.laborDeduct!=null?rec.laborDeduct:(_ptIns.labor||0);
+  const healthMonthly=rec?.healthDeduct!=null?rec.healthDeduct:(_ptIns.health||0);
+  const laborPrev=rec?.laborPrev!=null?rec.laborPrev:laborMonthly;
+  const laborCurr=rec?.laborCurr!=null?rec.laborCurr:laborMonthly;
+  const healthPrev=rec?.healthPrev!=null?rec.healthPrev:healthMonthly;
+  const healthCurr=rec?.healthCurr!=null?rec.healthCurr:healthMonthly;
+  let finalLabor, finalHealth;
+  if(insMode==='new'){
+    finalLabor=0; finalHealth=0;                 // 新人首月免扣
+  } else if(insMode==='quit_prepay'){
+    finalLabor=laborPrev+laborCurr;              // 離職預扣：上月+本月
+    finalHealth=healthPrev+healthCurr;
+  } else {
+    finalLabor=laborMonthly;
+    finalHealth=healthMonthly;
+  }
   const pensionRate=rec?.pensionRate!=null?rec.pensionRate:Number(emp.insurance?.pensionRate||0);
   const pensionAmt=pensionRate>0?Math.round(insGrade*pensionRate):0;
 
@@ -1813,7 +1829,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
     finalLabor, finalHealth, pensionRate, pensionAmt, insGrade, insMode, insMatched:ins.matched,
     laborBase:finalLabor, healthBase:finalHealth, healthTotal:finalHealth,
     dependents:0, healthCharged:true, laborInsuredDays:0,
-    laborPrev:finalLabor, laborCurr:finalLabor, healthPrev:finalHealth, healthCurr:finalHealth,
+    laborPrev, laborCurr, healthPrev, healthCurr,
     hireDate:emp2.hireDate, leaveDate:emp2.leaveDate, unenrollDate:null,
     depsFromHR:false, pensionFromHR:!!emp.insurance?.pensionRate,
     mgrPoints, mgrDeduct, mgrNoBonus,
