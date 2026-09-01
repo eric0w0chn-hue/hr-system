@@ -1742,7 +1742,7 @@ function renderOverview(){
 
   const totalActive  = rows.reduce((s,r)=>s+r.active,0);
   const totalInsured = rows.reduce((s,r)=>s+r.insured,0);
-  const centralNames=['鑫雞肉央廚','泉州鑫廚房','新莊央廚'];
+  const centralNames=['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'];
   const anomalyCount = rows.filter(r=>r.active!==r.insured && !centralNames.includes(r.loc)).length;
 
   const stats=`<div class="stats">
@@ -1761,7 +1761,7 @@ function renderOverview(){
     <tbody>
       ${rows.map((r,ri)=>{
         // 央廚三店投保掛在梁平，投保人數為 0 屬正常，不標紅
-        const centralPass = ['鑫雞肉央廚','泉州鑫廚房','新莊央廚'].includes(r.loc);
+        const centralPass = ['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'].includes(r.loc);
         const anomaly = (r.active !== r.insured) && !centralPass;
         const rowStyle = anomaly ? 'background:#FEF2F2;cursor:pointer' : '';
         const cellRed  = anomaly ? 'color:#DC2626;font-weight:700' : '';
