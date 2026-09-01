@@ -1246,6 +1246,7 @@ authGuard('salary',({user,uid,role,locations,userData})=>{
 async function init(locations,userData){
   await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes(),loadConfig()]);
   await mergeSnapshotEmployees(viewYear,viewMonth);
+  await loadSnapStoreMap(viewYear,viewMonth);
   renderMain();
 }
 // 載入系統設定（底薪 + 費率表），僅 ADMIN 可改
@@ -1321,6 +1322,33 @@ async function mergeSnapshotEmployees(y,m){
   checks.filter(Boolean).forEach(e=>{
     if(!employees.some(x=>String(x.id)===String(e.id)))employees.push(e);
   });
+}
+// ── 歷史月份店別回溯（人員轉店後，過去月份仍依當時快照歸屬）──
+// 只在「已鎖定的過去月份」啟用；當月一律用現況 workLocation，不受影響。
+const _snapStoreCache = new Map(); // ym -> Map(empId -> workLocation)
+let _snapStoreMap = null;          // 當前檢視月份適用的對照表（null = 用現況）
+async function loadSnapStoreMap(y,m){
+  if(!isMonthLocked(y,m)){ _snapStoreMap=null; return; }   // 當月/未來：不回溯
+  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  if(_snapStoreCache.has(ym)){ _snapStoreMap=_snapStoreCache.get(ym); return; }
+  // 只需查現職同仁（_fromSnapshot 的離職者其 workLocation 已是快照值）
+  const targets=employees.filter(e=>e&&e.id!=null&&!e._fromSnapshot);
+  const pairs=await Promise.all(targets.map(async e=>{
+    try{
+      const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
+      const loc=snap.exists()?(snap.data().empSnapshot||{}).workLocation:null;
+      return loc?[String(e.id),loc]:null;
+    }catch(_){ return null; }
+  }));
+  const map=new Map(pairs.filter(Boolean));
+  _snapStoreCache.set(ym,map);
+  _snapStoreMap=map;
+}
+// 取得某員工「在當前檢視月份」所屬店別
+function empStoreAt(e){
+  if(!e)return '';
+  if(_snapStoreMap){ const v=_snapStoreMap.get(String(e.id)); if(v)return v; }
+  return e.workLocation||'';
 }
 async function loadStores(locations,userData){
   try{const s=await getDoc(doc(db,'hr','settings'));
@@ -1891,7 +1919,7 @@ function _titleRank(t){
   return 5;
 }
 function storeEmps(store){
-  return employees.filter(e=>normStore(e.workLocation)===normStore(store)).sort((a,b)=>{
+  return employees.filter(e=>normStore(empStoreAt(e))===normStore(store)).sort((a,b)=>{
     const ra=_titleRank(a.title),rb=_titleRank(b.title);
     if(ra!==rb)return ra-rb;
     const ta=a.startDate?new Date(a.startDate).getTime():Infinity;
@@ -2050,6 +2078,7 @@ window.chgMonth=async function(){
   // 移除上個月補進的快照離職員工，重新載入現職 + 當月快照
   employees=employees.filter(e=>!e._fromSnapshot);
   await mergeSnapshotEmployees(viewYear,viewMonth);
+  await loadSnapStoreMap(viewYear,viewMonth);
   renderMain();
 };
 window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
@@ -2881,7 +2910,7 @@ window.syncAllToSheet=async function(){
     const results=await Promise.all(emps.map(async emp=>{
       const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
-      return{name:emp.name,netPay:authNetPay(rec,c,viewYear,viewMonth),store:emp.workLocation}; // 過去月份推存檔值
+      return{name:emp.name,netPay:authNetPay(rec,c,viewYear,viewMonth),store:empStoreAt(emp)||store}; // 過去月份推存檔值（店別依當月歸屬）
     }));
     // 逐筆推送（no-cors 無回傳，序列送避免瞬間爆量）
     for(const r of results){ await pushNetPayToSheet(r.store,viewYear,viewMonth,r.name,r.netPay); cnt++; }
@@ -3231,7 +3260,7 @@ window.batchExportSlips=async function(){
       const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
       const c=calcSalary(emp,rec||{dailyData:{}},shifts);
       const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
-      const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
+      const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${empStoreAt(emp)||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
       const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
       const slipHtml=buildSlipHtml(c,customRows,authNetPay(rec,c,viewYear,viewMonth));
 
@@ -3734,7 +3763,7 @@ window.exportSlip=async function(){
       以下明細為目前規則重新計算的結果（$${Math.round(c.netPay).toLocaleString()}），與發放金額不同，僅供內部參考，請勿作為薪資單發給同仁。
     </div>`+slipHtml;
   }
-  const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${emp.workLocation||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
+  const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${empStoreAt(emp)||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
 
   const ov=document.createElement('div');
   ov.className='slip-overlay';
