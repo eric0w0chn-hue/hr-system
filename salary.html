@@ -2419,7 +2419,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="sheet-title">💰 ${emp.name} — ${viewYear}年${viewMonth}月 ${c.isPartial?'<span class="partial-flag">不足月</span>':''}${locked?'🔒':''}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge badge-g">實領 $${_shownNet.toLocaleString()}${_hasStored&&_diff!==0?' <span style="font-weight:600;opacity:.75">(存檔值)</span>':''}</span>
-          ${!locked?`<button class="btn-sm p" onclick="saveSheet()">💾 儲存</button>`:''}
+          ${isMonthLocked(viewYear,viewMonth)&&CU.role==='admin'?`<button class="btn-sm p" onclick="saveSheet()" title="過去月份手動覆蓋存檔">💾 重新存檔</button>`:(!isMonthLocked(viewYear,viewMonth)?`<span class="badge" style="background:#E5F5EB;color:#1A9B4C;font-size:11px" title="當月資料變動時自動更新存檔金額">✓ 自動儲存</span>`:'')}
           <button class="btn-sm o" onclick="showLeaveProofs()" title="檢視本月所有請假證明">🖼 請假證明</button>
           <button class="btn-sm o" onclick="exportSlip()">📄 薪資單</button>
             ${(CU.role==='admin'&&!isMonthLocked(viewYear,viewMonth))?`<button class="btn-sm o" onclick="deleteThisRec()" style="color:#D33A3A;border-color:#f0b0b0" title="刪除本月薪資記錄（僅未鎖定月份）">🗑 刪除記錄</button>`:''}
@@ -2670,7 +2670,7 @@ function renderSheet(emp,rec,shifts,c){
         <div class="np-val" id="npDisp">$${_shownNet.toLocaleString()}${_hasStored&&_diff!==0?'<span style="font-size:11px;opacity:.7;font-weight:600"> 存檔值</span>':''}</div>
       </div>
       <div style="padding:0 16px 14px;display:flex;justify-content:flex-end;gap:8px">
-        ${!locked?`<button class="btn btn-primary" onclick="saveSheet()">💾 儲存薪資記錄</button>`:''}
+        ${isMonthLocked(viewYear,viewMonth)&&CU.role==='admin'?`<button class="btn btn-primary" onclick="saveSheet()" title="過去月份手動覆蓋存檔">💾 重新存檔</button>`:''}
         <button class="btn btn-outline" onclick="exportSlip()">📄 匯出薪資單</button>
       </div>
     </div>`;
@@ -2680,7 +2680,26 @@ window.setHalf=function(h){halfView=h;rerender();};
 window.toggleEmployBox=function(){employBoxOpen=!employBoxOpen;rerender();};
 
 // 統一儲存：改記憶體 currentRec + 立即重繪 + 背景存 Firestore
-function persist(){ if(selectedEmpId&&currentRec) saveRec(selectedEmpId,viewYear,viewMonth,currentRec); }
+// 【當月自動鎖存】未鎖定月份（＝當月及未來）且為在職者，每次改動自動更新 snapshot 為當下重算值，
+// 免手動按儲存。已離職結算者（_fromSnapshot 快照來源）與已鎖定過去月份不動，保護已發放金額。
+function persist(){
+  if(!selectedEmpId||!currentRec)return;
+  try{
+    const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
+    // 僅當月（未鎖定）+ 非離職快照來源 + 當月有在職天數 → 自動更新 snapshot
+    if(emp && !emp._fromSnapshot && !isMonthLocked(viewYear,viewMonth)){
+      const _ed=calcEmployedDays(emp,viewYear,viewMonth,currentRec);
+      if(_ed.days>0){
+        const c=calcSalary(emp,currentRec,curShifts);
+        currentRec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString(),autoSaved:true};
+        // 同步基本資料/排班快照（供離職後查閱）
+        currentRec.empSnapshot={id:emp.id,name:emp.name,workLocation:emp.workLocation,title:emp.title||'',hireDate:getHireDate(emp)||null,leaveDate:getLeaveDate(emp)||null,hourlyRate:emp.hourlyRate||null,insurance:emp.insurance?JSON.parse(JSON.stringify(emp.insurance)):null,salaryHistory:emp.salaryHistory?JSON.parse(JSON.stringify(emp.salaryHistory)):null,snapAt:new Date().toISOString()};
+        currentRec.shiftsSnapshot=curShifts?JSON.parse(JSON.stringify(curShifts)):{};
+      }
+    }
+  }catch(e){ /* 自動鎖存失敗不影響原始資料儲存 */ }
+  saveRec(selectedEmpId,viewYear,viewMonth,currentRec);
+}
 // 刪除本月薪資記錄（admin，僅未鎖定月份）——清除誤存的殘留資料
 window.deleteThisRec=async function(){
   if(CU.role!=='admin'){showToast('⚠️ 僅管理員可刪除');return;}
