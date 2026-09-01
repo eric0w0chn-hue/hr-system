@@ -1382,14 +1382,26 @@ async function saveRec(empId,y,m,data){
 }
 async function loadShifts(empId,y,m){
   const emp=employees.find(e=>String(e.id)===String(empId));
-  if(!emp||!emp.workLocation)return{};
+  if(!emp)return{};
   const ym=`${y}-${String(m).padStart(2,'0')}`;
-  // 嘗試多種店名變體
-  const variants=[emp.workLocation, normStore(emp.workLocation), String(emp.workLocation).replace(/舖/g,'鋪')];
-  for(const loc of [...new Set(variants)]){
-    try{const s=await getDoc(doc(db,'schedules',`${ym}_${loc}`));
-      if(s.exists())return s.data().shifts||{};}catch(e){}
+  // 店別依「當月歸屬」判定（人員轉店後，過去月份仍讀當時所屬店的班表）
+  const baseLoc=empStoreAt(emp)||emp.workLocation;
+  if(baseLoc){
+    // 嘗試多種店名變體
+    const variants=[baseLoc, normStore(baseLoc), String(baseLoc).replace(/舖/g,'鋪')];
+    for(const loc of [...new Set(variants)]){
+      try{const s=await getDoc(doc(db,'schedules',`${ym}_${loc}`));
+        if(s.exists())return s.data().shifts||{};}catch(e){}
+    }
   }
+  // 保險：班表已不存在（店面關閉/改名）時，改用薪資記錄內的排班快照
+  try{
+    const r=await getDoc(doc(db,'salary_records',`${empId}_${ym}`));
+    if(r.exists()){
+      const snap=r.data().shiftsSnapshot;
+      if(snap&&Object.keys(snap).length)return snap;
+    }
+  }catch(e){}
   return {};
 }
 
@@ -1402,7 +1414,7 @@ function calcSalary(emp,rec,shifts){
   const target=getTarget(emp,viewYear,viewMonth);
   const days=getDaysInMonth(viewYear,viewMonth);
   const dd=rec?.dailyData||{};
-  const defOt=getDefOt(emp.workLocation);
+  const defOt=getDefOt(empStoreAt(emp)||emp.workLocation);
   const emp2=calcEmployedDays(emp,viewYear,viewMonth,rec);
   const isPartial=emp2.partial&&emp2.days<30;
 
@@ -1639,7 +1651,7 @@ function calcSalary(emp,rec,shifts){
   const redComp=rec?.redComp??0;
   const autoRedComp=redComp>0?Math.round(dailyBase*redComp):0;
   // 央廚餐費補助：每排一天班 +100，預設=排班天數，可手動覆蓋
-  const isCen=isCentral(emp.workLocation);
+  const isCen=isCentral(empStoreAt(emp)||emp.workLocation);
   const mealDays=rec?.mealDays!=null?rec.mealDays:(isCen?scheduledDays:0);
   const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
   const customAdds=rec?.customAdds||[]; // [{name, amount}]
@@ -1834,7 +1846,7 @@ function calcPartTimeSalary(emp,rec,shifts,emp2,defOt){
   const mgrNoBonus=mgrPoints>=9;
 
   // 加項（其他加項、餐費補助）
-  const isCen=isCentral(emp.workLocation);
+  const isCen=isCentral(empStoreAt(emp)||emp.workLocation);
   const mealDays=rec?.mealDays!=null?rec.mealDays:(isCen?scheduledDays:0);
   const mealAllowance=isCen?Math.round(mealDays*MEAL_PER_DAY):0;
   const customAdds=rec?.customAdds||[];
@@ -3349,7 +3361,7 @@ window.patchDaySeg=function(ds,field,val){
   else r[field]=String(val||'');
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const shift=emp?getShift(curShifts,emp,ds):null;
-  const _defOt=Number(getDefOt(emp&&emp.workLocation)||0);
+  const _defOt=Number(getDefOt(emp&&(empStoreAt(emp)||emp.workLocation))||0);
   const res=segCompute(r,shift,_defOt);
   if(res){
     r.baseWorked=res.baseWorked;     // 基本工時（0～8h）：請假時數＝8−此值
