@@ -93,7 +93,7 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .docs-wrap{max-width:100%}
 .docs-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .docs-warn{font-size:11px;color:#C47A00;font-weight:600;word-break:break-word}
-.docs-hint{font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.7;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
+.docs-hint{font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.7;white-space:normal;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
 .docs-cat{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff;max-width:100%}
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -198,6 +198,9 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .detail,.detail-body{max-width:100%}
   .detail-body{overflow-x:hidden}
   .docs-head{flex-direction:column;align-items:flex-start;gap:3px}
+  /* 祖先為 shrink-to-fit，100% 無法約束 → 用視窗寬度硬上限 */
+  .docs-wrap,.docs-hint,.docs-warn,.docs-cat{max-width:calc(100vw - 80px)!important}
+  .docs-hint{white-space:normal!important}
   .toolbar{flex-wrap:wrap}
   .toolbar .search-input{min-width:100%;order:-1}
   .btn{font-size:12px;padding:5px 10px}
@@ -1677,7 +1680,8 @@ function render() {
             <span class="docs-warn">⚠️ 含個人敏感資料，請勿外流</span>
           </div>
           <div class="docs-hint">
-            每類可上傳多個檔案，支援圖片（JPG／PNG／HEIC）與 PDF，單檔上限 10MB。點縮圖或檔名可線上預覽。
+            每類可上傳多個檔案，支援圖片與 PDF，單檔上限 10MB。<br>
+            點縮圖或檔名可線上預覽。
           </div>
           ${DOC_CATS.map(cat=>{
             const files = Array.isArray(docs[cat.key]) ? docs[cat.key] : [];
