@@ -60,6 +60,10 @@ tr:hover td{background:var(--surface2)}
 .pw-hidden{letter-spacing:.1em;color:var(--text3)}
 .pw-toggle{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 5px;border-radius:4px;transition:all .15s;line-height:1}
 .pw-toggle:hover{background:var(--surface2);color:var(--accent)}
+.copy-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 5px;border-radius:4px;transition:all .15s;line-height:1;flex-shrink:0}
+.copy-btn:hover{background:var(--surface2);color:var(--accent)}
+.copy-btn.copied{color:#16A34A}
+.cell-flex{display:flex;align-items:center;gap:6px}
 
 /* Actions */
 .btn{font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent;font-family:inherit;transition:all .15s;font-weight:500;white-space:nowrap}
@@ -538,8 +542,8 @@ function renderRow(e) {
 
   return `<tr data-id="${e.id}" data-store="${esc(e.store)}" onclick="_toggleAcc(this)">
     <td>${esc(e.name)}</td>
-    <td data-label="帳號"><span style="font-family:monospace">${e.account ? esc(e.account) : '<span style=color:var(--text3)>—</span>'}</span></td>
-    <td data-label="密碼" data-pw="${esc(e.password||'')}"><div class="pw-cell">${pwDisplay}${eyeBtn}</div></td>
+    <td data-label="帳號" data-acc="${esc(e.account||'')}"><div class="cell-flex">${e.account ? `<span style="font-family:monospace">${esc(e.account)}</span><button class="copy-btn" title="複製帳號" onclick="event.stopPropagation();copyText(this,'acc')">📋</button>` : '<span style="color:var(--text3)">—</span>'}</div></td>
+    <td data-label="密碼" data-pw="${esc(e.password||'')}"><div class="pw-cell">${pwDisplay}${eyeBtn}${e.password ? `<button class="copy-btn" title="複製密碼" onclick="event.stopPropagation();copyText(this,'pw')">📋</button>` : ''}</div></td>
     <td data-label="備註">${e.note ? esc(e.note) : '<span style=color:var(--text3)>—</span>'}</td>
     <td data-label="修改日期"><span class="date-chip">${e.updatedAt || '—'}</span></td>
     ${_role !== 'employee' ? `<td data-label="操作"><div class="btns-row">
@@ -569,9 +573,33 @@ window._togglePw = function(id) {
   if(!pwTd) return;
   const show = _pwVisible[id];
   const pw = pwTd.dataset.pw || '';
-  pwTd.innerHTML = show
-    ? `${pw} <button onclick="event.stopPropagation();_togglePw('${id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 4px">🙈</button>`
-    : `<span style="letter-spacing:2px;color:var(--text3)">••••••</span> <button onclick="event.stopPropagation();_togglePw('${id}')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 4px">👁</button>`;
+  const pwHtml = show
+    ? `<span class="pw-text">${esc(pw)}</span>`
+    : `<span class="pw-hidden" style="letter-spacing:2px;color:var(--text3)">••••••</span>`;
+  pwTd.innerHTML = `<div class="pw-cell">${pwHtml}<button class="pw-toggle" onclick="event.stopPropagation();_togglePw('${id}')">${show?'🙈':'👁'}</button><button class="copy-btn" title="複製密碼" onclick="event.stopPropagation();copyText(this,'pw')">📋</button></div>`;
+};
+
+// ── 複製功能（execCommand 確保 iframe 相容）──
+window.copyText = function(btn, kind) {
+  const td = btn.closest('td');
+  const text = kind === 'pw' ? (td.dataset.pw || '') : (td.dataset.acc || '');
+  if (!text) return;
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) { ok = false; }
+  document.body.removeChild(ta);
+  if (ok) {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1200);
+    showToast(kind === 'pw' ? '已複製密碼' : '已複製帳號', 1200);
+  } else {
+    showToast('複製失敗，請手動選取');
+  }
 };
 
 window._edit = function(id) {
