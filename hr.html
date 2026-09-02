@@ -89,6 +89,12 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .dtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .dtab:hover:not(.active){background:#F1F5F9;color:var(--text)}
 .detail-body{padding:18px 20px}
+/* 上傳文件分頁 */
+.docs-wrap{max-width:100%}
+.docs-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.docs-warn{font-size:11px;color:#C47A00;font-weight:600;word-break:break-word}
+.docs-hint{font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.7;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
+.docs-cat{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff;max-width:100%}
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .dg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .di .dl{font-size:11px;color:var(--text-2);margin-bottom:3px;font-weight:500;text-transform:uppercase;letter-spacing:.3px}
@@ -187,7 +193,11 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   /* 展開的明細列：占滿寬度、無內距 */
   .list-table>tbody>tr.detail-row{display:block;margin:0 0 8px}
   .list-table>tbody>tr.detail-row>td{display:block;width:100%;padding:0!important}
-  .list-table>tbody>tr.detail-row .detail{border-radius:10px;border:1px solid var(--border)}
+  .list-table>tbody>tr.detail-row .detail{border-radius:10px;border:1px solid var(--border);max-width:100%}
+  /* 展開內容不得超出畫面，避免文字被切 */
+  .detail,.detail-body{max-width:100%}
+  .detail-body{overflow-x:hidden}
+  .docs-head{flex-direction:column;align-items:flex-start;gap:3px}
   .toolbar{flex-wrap:wrap}
   .toolbar .search-input{min-width:100%;order:-1}
   .btn{font-size:12px;padding:5px 10px}
@@ -356,6 +366,7 @@ const _lpStorage = getStorage(getApp());
 const DOC_CATS = [
   {key:'resume',   icon:'📄', name:'個人履歷'},
   {key:'idcard',   icon:'🪪', name:'身分證／居留證'},
+  {key:'bank',     icon:'🏦', name:'銀行帳戶'},
   {key:'flexLeave',icon:'📝', name:'彈性休假同意書'},
   {key:'insJoin',  icon:'🟢', name:'加保資訊'},
   {key:'insLeave', icon:'🔴', name:'退保資訊'},
@@ -1660,16 +1671,17 @@ function render() {
         </div>`;
       } else if(detailTab==='docs'){
         const docs = sel.docs || {};
-        body = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        body = `<div class="docs-wrap">
+          <div class="docs-head">
             <span class="sec-title" style="margin:0">上傳文件</span>
-            <span style="font-size:11px;color:#C47A00;font-weight:600">⚠️ 含個人敏感資料，請勿外流</span>
+            <span class="docs-warn">⚠️ 含個人敏感資料，請勿外流</span>
           </div>
-          <div style="font-size:11px;color:#9AA0B4;margin-bottom:14px;line-height:1.7">
-            每類可上傳多個檔案，支援 圖片（JPG／PNG／HEIC）與 PDF，單檔上限 10MB。點縮圖或檔名可線上預覽。
+          <div class="docs-hint">
+            每類可上傳多個檔案，支援圖片（JPG／PNG／HEIC）與 PDF，單檔上限 10MB。點縮圖或檔名可線上預覽。
           </div>
           ${DOC_CATS.map(cat=>{
             const files = Array.isArray(docs[cat.key]) ? docs[cat.key] : [];
-            return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff">
+            return `<div class="docs-cat">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${files.length?'10px':'0'}">
                 <div style="font-size:13px;font-weight:600">${cat.icon} ${cat.name}
                   <span style="font-size:11px;color:var(--text2);font-weight:400">（${files.length}）</span></div>
@@ -1702,7 +1714,8 @@ function render() {
                 }).join('')}
               </div>`:'<div style="font-size:12px;color:var(--text3);padding:6px 0">尚未上傳</div>'}
             </div>`;
-          }).join('')}`;
+          }).join('')}
+        </div>`;
       } else if(detailTab==='training'){
         body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <span class="sec-title" style="margin:0">教育訓練紀錄</span>
