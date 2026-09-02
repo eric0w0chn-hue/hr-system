@@ -346,8 +346,20 @@ import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collec
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 
 import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 // 次要實例建立帳號時需要 config（不影響主要登入狀態）
 const firebaseConfig = {apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
+
+// ── Storage（同仁文件上傳）──
+const _lpStorage = getStorage(getApp());
+// 文件分類定義
+const DOC_CATS = [
+  {key:'resume',   icon:'📄', name:'個人履歷'},
+  {key:'idcard',   icon:'🪪', name:'身分證／居留證'},
+  {key:'flexLeave',icon:'📝', name:'彈性休假同意書'},
+  {key:'insJoin',  icon:'🟢', name:'加保資訊'},
+  {key:'insLeave', icon:'🔴', name:'退保資訊'},
+];
 
 // ── 日期 & 時鐘 ──
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
@@ -828,10 +840,12 @@ function copyText(txt, label){
 window.copyText = copyText;
 
 // ── Toast ──
-function showToast(msg) {
+function showToast(msg, duration) {
   const t=document.getElementById('toast');
+  if(t._tid) clearTimeout(t._tid);
+  if(!msg){ t.classList.remove('show'); return; }
   t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2000);
+  t._tid=setTimeout(()=>t.classList.remove('show'), duration||2000);
 }
 
 // ── 工具函式 ──
@@ -1202,6 +1216,8 @@ function render() {
     const sel=employees.find(r=>r.id===selId);
     if(sel){
       const dtabs=[['basic','基本資料'],['emergency','緊急聯絡人'],['salary','薪資歷程'],['insurance','投保資料'],['leave','特休假管理']];
+      // 上傳文件含個人敏感資料，開放給具店內管理權限者（管理員／顧問／店長）
+      if(['admin','consultant','manager'].includes(currentUserRole)) dtabs.push(['docs','上傳文件']);
       let body='';
       if(detailTab==='basic'){
         body=`<div class="dg">
@@ -1642,6 +1658,51 @@ function render() {
             </tr>`).join('')}</tbody>
           </table></div>`:'<div class="empty-state" style="padding:20px">尚無眷屬資料，點上方按鈕新增</div>'}
         </div>`;
+      } else if(detailTab==='docs'){
+        const docs = sel.docs || {};
+        body = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+            <span class="sec-title" style="margin:0">上傳文件</span>
+            <span style="font-size:11px;color:#C47A00;font-weight:600">⚠️ 含個人敏感資料，請勿外流</span>
+          </div>
+          <div style="font-size:11px;color:#9AA0B4;margin-bottom:14px;line-height:1.7">
+            每類可上傳多個檔案，支援 圖片（JPG／PNG／HEIC）與 PDF，單檔上限 10MB。點縮圖或檔名可線上預覽。
+          </div>
+          ${DOC_CATS.map(cat=>{
+            const files = Array.isArray(docs[cat.key]) ? docs[cat.key] : [];
+            return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:#fff">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${files.length?'10px':'0'}">
+                <div style="font-size:13px;font-weight:600">${cat.icon} ${cat.name}
+                  <span style="font-size:11px;color:var(--text2);font-weight:400">（${files.length}）</span></div>
+                <div>
+                  <input type="file" id="docfile-${sel.id}-${cat.key}" multiple accept="image/*,application/pdf" style="display:none"
+                    onchange="uploadEmpDocs(${sel.id},'${cat.key}',this)">
+                  <button class="btn btn-sm btn-outline" onclick="document.getElementById('docfile-${sel.id}-${cat.key}').click()">⬆ 上傳</button>
+                </div>
+              </div>
+              ${files.length?`<div style="display:flex;flex-wrap:wrap;gap:10px">
+                ${files.map((f,i)=>{
+                  const isImg = (f.type||'').startsWith('image/');
+                  return `<div style="width:104px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#F8FAFC">
+                    <div style="height:76px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fff"
+                         onclick="previewEmpDoc(${sel.id},'${cat.key}',${i})">
+                      ${isImg
+                        ? `<img src="${f.url}" alt="${f.name}" style="width:100%;height:100%;object-fit:cover">`
+                        : `<div style="font-size:26px">📕</div>`}
+                    </div>
+                    <div style="padding:5px 6px">
+                      <div title="${f.name}" style="font-size:10.5px;line-height:1.4;max-height:29px;overflow:hidden;word-break:break-all;cursor:pointer;color:#1D4ED8"
+                           onclick="previewEmpDoc(${sel.id},'${cat.key}',${i})">${f.name}</div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+                        <span style="font-size:9.5px;color:var(--text3)">${(f.at||'').slice(0,10)}</span>
+                        <button class="ibt" style="color:#e24b4a;font-size:11px" title="刪除"
+                          onclick="deleteEmpDoc(${sel.id},'${cat.key}',${i})">✕</button>
+                      </div>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>`:'<div style="font-size:12px;color:var(--text3);padding:6px 0">尚未上傳</div>'}
+            </div>`;
+          }).join('')}`;
       } else if(detailTab==='training'){
         body=`<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
           <span class="sec-title" style="margin:0">教育訓練紀錄</span>
@@ -2939,6 +3000,105 @@ window.addInterviewFile=async function(empId){
   nameEl.value=''; urlEl.value='';
   render(); showToast('儲存中...'); await saveData(); showToast('文件連結已新增 ✓');
 };
+// ══════════ 同仁文件上傳 / 預覽 / 刪除 ══════════
+const DOC_MAX = 10 * 1024 * 1024; // 單檔 10MB
+
+window.uploadEmpDocs = async function(empId, catKey, inputEl){
+  if(!['admin','consultant','manager'].includes(currentUserRole)){ showToast('⚠️ 您沒有上傳文件的權限'); return; }
+  const files = Array.from(inputEl.files||[]);
+  inputEl.value = ''; // 允許重複選同一檔
+  if(!files.length) return;
+
+  const r = employees.find(x=>x.id===empId);
+  if(!r){ showToast('找不到同仁資料'); return; }
+
+  // 驗證
+  const bad = files.filter(f=>!(f.type.startsWith('image/')||f.type==='application/pdf'));
+  if(bad.length){ alert('僅支援圖片或 PDF：\n'+bad.map(f=>f.name).join('\n')); return; }
+  const tooBig = files.filter(f=>f.size>DOC_MAX);
+  if(tooBig.length){ alert('以下檔案超過 10MB：\n'+tooBig.map(f=>`${f.name}（${(f.size/1048576).toFixed(1)}MB）`).join('\n')); return; }
+
+  showToast(`上傳中 0/${files.length}...`, 60000);
+  const uploaded = [];
+  try{
+    for(let i=0;i<files.length;i++){
+      const f = files[i];
+      showToast(`上傳中 ${i+1}/${files.length}：${f.name}`, 60000);
+      // 路徑：employee_docs/{empId}/{分類}/{時間戳}_{原檔名}
+      const safe = f.name.replace(/[#?\[\]]/g,'_');
+      const path = `employee_docs/${empId}/${catKey}/${Date.now()}_${i}_${safe}`;
+      const ref  = sRef(_lpStorage, path);
+      await uploadBytes(ref, f, {contentType:f.type});
+      const url  = await getDownloadURL(ref);
+      uploaded.push({ name:f.name, path, url, type:f.type, size:f.size,
+                      at:new Date().toISOString(), by:currentUserName });
+    }
+  }catch(err){
+    console.error(err);
+    showToast('');
+    alert('上傳失敗：'+err.message+'\n\n若顯示權限不足，請確認 Firebase Storage 規則已開放 employee_docs/ 路徑給管理職角色。');
+    return;
+  }
+
+  if(!r.docs) r.docs = {};
+  if(!Array.isArray(r.docs[catKey])) r.docs[catKey] = [];
+  r.docs[catKey] = [...r.docs[catKey], ...uploaded];
+
+  render();
+  showToast('儲存中...');
+  const catName = (DOC_CATS.find(c=>c.key===catKey)||{}).name || catKey;
+  await saveData('上傳文件', `${r.name}／${catName} ${uploaded.length}件`);
+  showToast(`已上傳 ${uploaded.length} 個檔案 ✓`);
+};
+
+window.previewEmpDoc = function(empId, catKey, idx){
+  const r = employees.find(x=>x.id===empId);
+  const f = r && r.docs && r.docs[catKey] && r.docs[catKey][idx];
+  if(!f) return;
+  const isImg = (f.type||'').startsWith('image/');
+  const inner = isImg
+    ? `<img src="${f.url}" alt="${f.name}" style="max-width:100%;max-height:74vh;display:block;margin:0 auto;border-radius:8px">`
+    : `<iframe src="${f.url}" style="width:100%;height:74vh;border:1px solid var(--border);border-radius:8px" title="${f.name}"></iframe>`;
+  document.getElementById('modalArea').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:900px;width:96%">
+        <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="word-break:break-all;font-size:14px">${f.name}</span>
+          <span style="font-size:11px;color:var(--text2);font-weight:400;white-space:nowrap">
+            ${(f.size/1024).toFixed(0)} KB · ${(f.at||'').slice(0,10)} · ${f.by||'—'}</span>
+        </div>
+        ${inner}
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <a class="btn btn-sm btn-outline" href="${f.url}" target="_blank" rel="noopener">↗ 開新視窗</a>
+          <a class="btn btn-sm btn-outline" href="${f.url}" download="${f.name}">⬇ 下載</a>
+          <button class="btn btn-sm" style="margin-left:auto" onclick="closeModal()">關閉</button>
+        </div>
+      </div>
+    </div>`;
+};
+
+window.deleteEmpDoc = async function(empId, catKey, idx){
+  if(!['admin','consultant','manager'].includes(currentUserRole)){ showToast('⚠️ 您沒有刪除文件的權限'); return; }
+  const r = employees.find(x=>x.id===empId);
+  const list = r && r.docs && r.docs[catKey];
+  const f = list && list[idx];
+  if(!f) return;
+  const catName = (DOC_CATS.find(c=>c.key===catKey)||{}).name || catKey;
+  if(!confirm(`確定要刪除「${r.name}」的${catName}檔案？\n\n${f.name}\n\n此操作無法復原。`)) return;
+
+  // 先刪 Storage 檔案（失敗不阻擋移除紀錄，避免孤立紀錄卡住）
+  try{
+    if(f.path) await deleteObject(sRef(_lpStorage, f.path));
+  }catch(err){
+    console.warn('Storage 刪除失敗（可能已不存在）:', err.message);
+  }
+  list.splice(idx,1);
+  render();
+  showToast('儲存中...');
+  await saveData('刪除文件', `${r.name}／${catName}`);
+  showToast('已刪除 ✓');
+};
+
 window.deleteInterviewFile=async function(empId,idx){
   if(!confirm('確定要刪除此文件連結？'))return;
   const r=employees.find(x=>x.id===empId);if(!r||!r.interviewRecord)return;
