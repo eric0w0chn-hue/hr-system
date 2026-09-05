@@ -1499,15 +1499,15 @@ function calcSalary(emp,rec,shifts){
         // （6月及以前維持舊行為：請假未滿8h一律不給固定加班）
           // 【2026-08 起】時段輸入模式下，即使基本工時為 0（只上最後加班段），加班段仍應給付
           const _otGate=_segOn?(worked>0||_segOt>0):(worked>0);
-            // 實付固定加班：有實際上到加班段才給
-            if(_newRule&&_otGate&&lt.pay!=='full'){
-              fixedOtHours+=_segOn?_segOt:(r.autoOt!=null?Number(r.autoOt):defOt);
+            // 實付固定加班：有實際上到加班段才給（不論假別）
+            const _otWorked=_segOn?_segOt:((_otGate&&lt.pay!=='full')?(r.autoOt!=null?Number(r.autoOt):defOt):0);
+            if(_newRule&&_otWorked>0){
+              fixedOtHours+=_otWorked;
               extraOtHours+=Number(r.ot167||0);
             }
-            // 滿額基準（鎖定目標薪資用）：非全薪假一律計入當天 defOt——
-            // 使「非全薪假請整天、當天無加班」也從目標薪資扣除當天缺的加班；
-            // 全薪假（特休/婚/喪/紅字）不計入 → 維持全薪不扣（符合勞基法）。
-            if(_newRule&&lt.pay!=='full'){
+            // 滿額基準（鎖定約定薪資用）：只要當天沒實際上滿當日固定加班，差額即從薪資扣——
+            // 依「固定加班費＝加班對價」認定：不論任何假別（含特休/婚/喪/國定），當天沒上到的加班一律扣。
+            if(_newRule){
               fullFixedOtHours+=defOt;
             }
         const wh=worked>0?`(上班${Math.round(worked*100)/100}h)`:'';  // 小數第2位
