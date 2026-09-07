@@ -663,67 +663,101 @@ async function writeOpLog(action, detail=''){
 let _dataVersion = null;
 
 async function saveData(action='', detail='') {
-  try {
-    // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
-    let finalEmployees = employees;
-    let finalResigned  = resigned;
-    if((currentUserRole==='manager' || currentUserRole==='consultant') && currentUserLocations.length){
-      const [fullEmpSnap, fullResSnap] = await Promise.all([
-        getDoc(doc(db,'hr','employees')),
-        getDoc(doc(db,'hr','resigned')),
-      ]);
-      if(fullEmpSnap.exists()){
-        const fullList = fullEmpSnap.data().list || [];
-        // 其他店的員工（自己店的用本地版本，以 id 去重）
-        const myIds = new Set(employees.map(r=>r.id));
-        const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation) && !myIds.has(r.id));
-        finalEmployees = [...employees, ...othersEmp];
-      }
-      if(fullResSnap.exists()){
-        const fullResList = fullResSnap.data().list || [];
-        const myResIds = new Set(resigned.map(r=>r.id));
-        const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation) && !myResIds.has(r.id));
-        finalResigned = [...resigned, ...othersRes];
-      }
-    }
+  const MAX_TRY = 3;
+  let lastErr = null;
 
-    await runTransaction(db, async tx => {
-      const vRef = doc(db,'hr','_version');
-      const vSnap = await tx.get(vRef);
-      const remoteVer = vSnap.exists() ? vSnap.data().v : 0;
-
-      if(_dataVersion !== null && remoteVer !== _dataVersion){
-        throw Object.assign(new Error('VERSION_CONFLICT'), {isConflict:true});
-      }
-
-      const nextVer = (remoteVer||0) + 1;
-      tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
-      tx.set(doc(db,'hr','interviews'), {list:interviews});
-      tx.set(doc(db,'hr','employees'),  {list:finalEmployees});
-      tx.set(doc(db,'hr','resigned'),   {list:finalResigned});
-      tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
-      _dataVersion = nextVer;
-    });
-    // 儲存成功後同步刷新 sessionStorage 快取（避免下次進來還用舊資料）
+  for(let attempt = 1; attempt <= MAX_TRY; attempt++){
     try {
-      sessionStorage.setItem('hr_cache_v1', JSON.stringify({
-        ts: Date.now(), v: _dataVersion,
-        interviews, employees, resigned,
-        interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
-      }));
-    } catch(e) {}
-    if(action) writeOpLog(action, detail);
-  } catch(e) {
-    if(e.isConflict){
-      showToast('⚠️ 資料已被其他人更新，正在重新載入...', 3000);
-      await loadData();
-      render();
-      showToast('已重新載入最新資料，請再操作一次');
-    } else {
-      console.error(e);
-      showToast('儲存失敗，請檢查網路連線');
+      // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
+      //    （每次重試都重讀，確保其他店資料是最新的）
+      let finalEmployees = employees;
+      let finalResigned  = resigned;
+      if((currentUserRole==='manager' || currentUserRole==='consultant') && currentUserLocations.length){
+        const [fullEmpSnap, fullResSnap] = await Promise.all([
+          getDoc(doc(db,'hr','employees')),
+          getDoc(doc(db,'hr','resigned')),
+        ]);
+        if(fullEmpSnap.exists()){
+          const fullList = fullEmpSnap.data().list || [];
+          const myIds = new Set(employees.map(r=>r.id));
+          const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation) && !myIds.has(r.id));
+          finalEmployees = [...employees, ...othersEmp];
+        }
+        if(fullResSnap.exists()){
+          const fullResList = fullResSnap.data().list || [];
+          const myResIds = new Set(resigned.map(r=>r.id));
+          const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation) && !myResIds.has(r.id));
+          finalResigned = [...resigned, ...othersRes];
+        }
+      }
+
+      await runTransaction(db, async tx => {
+        const vRef = doc(db,'hr','_version');
+        const vSnap = await tx.get(vRef);
+        const remoteVer = vSnap.exists() ? vSnap.data().v : 0;
+
+        // 版本不符：第 1~2 次自動接受最新版本重試（保住使用者剛輸入的資料），
+        // 最後一次才視為真正衝突。
+        if(_dataVersion !== null && remoteVer !== _dataVersion){
+          if(attempt < MAX_TRY){
+            _dataVersion = remoteVer;            // 接受最新版本
+            throw Object.assign(new Error('RETRY'), {isRetry:true});
+          }
+          throw Object.assign(new Error('VERSION_CONFLICT'), {isConflict:true});
+        }
+
+        const nextVer = (remoteVer||0) + 1;
+        tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
+        tx.set(doc(db,'hr','interviews'), {list:interviews});
+        tx.set(doc(db,'hr','employees'),  {list:finalEmployees});
+        tx.set(doc(db,'hr','resigned'),   {list:finalResigned});
+        tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
+        _dataVersion = nextVer;
+      });
+
+      // ── 成功 ──
+      try {
+        sessionStorage.setItem('hr_cache_v1', JSON.stringify({
+          ts: Date.now(), v: _dataVersion,
+          interviews, employees, resigned,
+          interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
+        }));
+      } catch(e) {}
+      if(action) writeOpLog(action, detail);
+      return true;
+
+    } catch(e) {
+      lastErr = e;
+      if(e.isRetry){
+        console.warn(`[saveData] 版本已更新，自動重試 ${attempt}/${MAX_TRY}`);
+        await new Promise(r=>setTimeout(r, 250 * attempt)); // 稍等再試，降低碰撞
+        continue;
+      }
+      break; // 非重試類錯誤，直接跳出
     }
   }
+
+  // ── 失敗處理 ──
+  const e = lastErr;
+  console.error('[saveData] 失敗', e);
+  if(e && e.isConflict){
+    showToast('⚠️ 資料被其他人同時修改，正在重新載入...', 3000);
+    await loadData();
+    render();
+    showToast('已重新載入最新資料，請再操作一次', 4000);
+  } else {
+    const code = (e && (e.code || e.name)) || '未知';
+    const msg  = (e && e.message) || '';
+    // 常見原因給明確指引
+    let hint = '';
+    if(/permission|PERMISSION_DENIED/i.test(code + msg)) hint = '（權限不足：請確認 Firestore 規則 hr/{docId} 已開放 isStaff）';
+    else if(/exceeds|maximum size|INVALID_ARGUMENT/i.test(code + msg)) hint = '（資料量超過 Firestore 單一文件 1MB 上限）';
+    else if(/unavailable|network|deadline/i.test(code + msg)) hint = '（網路連線不穩，請稍後再試）';
+    else if(/undefined/i.test(msg)) hint = '（有欄位值為 undefined）';
+    showToast(`儲存失敗：${code} ${hint}`, 6000);
+    alert(`儲存失敗，資料未變更。\n\n錯誤代碼：${code}\n訊息：${msg}\n${hint}\n\n請把此訊息回報給系統管理員。`);
+  }
+  return false;
 }
 
 let interviews=[], employees=[], resigned=[];
