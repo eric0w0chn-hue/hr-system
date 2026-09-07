@@ -1499,23 +1499,20 @@ function calcSalary(emp,rec,shifts){
         // （6月及以前維持舊行為：請假未滿8h一律不給固定加班）
           // 【2026-08 起】時段輸入模式下，即使基本工時為 0（只上最後加班段），加班段仍應給付
           const _otGate=_segOn?(worked>0||_segOt>0):(worked>0);
-            // 【全薪假】特休/婚/喪/國定假：當天視同正常上班，基本工資與固定加班費均正常給付、不扣。
-            //   （政府單位確認：約定薪資制下，全薪假之基本工資與加班費應照給）
-            // 【非全薪假】病假/事假：當天實際有上到加班段才給付固定加班，沒上到則不給（＝從薪資扣）。
+            // 【全薪假】特休/婚/喪/國定/公傷：當天視同正常上班，固定加班時數與加班費照給整日 defOt（政府確認）。
+            // 【非全薪假】病假/事假：有實際上到加班段才給付固定加班，沒上到則不給（＝從薪資扣）。
             const _isFullPay=(lt.pay==='full');
             let _otPaid;
             if(_isFullPay){
-              _otPaid=defOt;                          // 全薪假：固定加班照給整日 defOt
+              _otPaid=defOt;                          // 全薪假：整日固定加班照給
             }else{
-              _otPaid=_segOn?_segOt:((_otGate)?(r.autoOt!=null?Number(r.autoOt):defOt):0);  // 非全薪假：有實際上到才給
+              _otPaid=_segOn?_segOt:(_otGate?(r.autoOt!=null?Number(r.autoOt):defOt):0);
             }
             if(_newRule&&_otPaid>0){
               fixedOtHours+=_otPaid;
               extraOtHours+=Number(r.ot167||0);
             }
-            // 滿額基準（鎖定約定薪資用）：一律計入 defOt。
-            //   全薪假：實付=defOt、滿額=defOt → 不扣（加班照給）。
-            //   非全薪假當天沒上到加班：實付<defOt、滿額=defOt → 差額從薪資扣。
+            // 滿額基準（鎖定約定薪資用）：一律計入 defOt。全薪假實付=滿額→不扣；非全薪假沒上到→差額扣。
             if(_newRule){
               fullFixedOtHours+=defOt;
             }
@@ -2230,7 +2227,9 @@ function renderSheet(emp,rec,shifts,c){
     // 全薪假不含出勤、整日請假(worked=0)不給加班 → 皆不可編輯
     // 【2026-07起】請假有出勤日也可編輯固定加班；舊制僅正常日
     const _leaveWorked=isNewRule(viewYear,viewMonth)&&type!=='normal'&&type!=='dayoff'&&r.workedHours!=null&&Number(r.workedHours)>0&&(LEAVE_TYPES[type]||{}).pay!=='full';
-    const hasFixedOt=(type==='normal'||_leaveWorked)&&shift&&inEmp;
+    // 全薪假（特休/婚/喪/國定/公傷）視同正常上班，固定加班照給 → 也顯示固定加班欄
+  const _fullPayLeave=isNewRule(viewYear,viewMonth)&&(LEAVE_TYPES[type]?.pay==='full')&&type!=='normal';
+  const hasFixedOt=(type==='normal'||_leaveWorked||_fullPayLeave)&&shift&&inEmp;
     const autoOt=r.autoOt!=null?Number(r.autoOt):defOt;
     const ot167=r.ot167||'';
     const lateMins=r.lateMins||'';
