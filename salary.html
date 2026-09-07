@@ -1499,14 +1499,23 @@ function calcSalary(emp,rec,shifts){
         // （6月及以前維持舊行為：請假未滿8h一律不給固定加班）
           // 【2026-08 起】時段輸入模式下，即使基本工時為 0（只上最後加班段），加班段仍應給付
           const _otGate=_segOn?(worked>0||_segOt>0):(worked>0);
-            // 實付固定加班：有實際上到加班段才給（不論假別）
-            const _otWorked=_segOn?_segOt:((_otGate&&lt.pay!=='full')?(r.autoOt!=null?Number(r.autoOt):defOt):0);
-            if(_newRule&&_otWorked>0){
-              fixedOtHours+=_otWorked;
+            // 【全薪假】特休/婚/喪/國定假：當天視同正常上班，基本工資與固定加班費均正常給付、不扣。
+            //   （政府單位確認：約定薪資制下，全薪假之基本工資與加班費應照給）
+            // 【非全薪假】病假/事假：當天實際有上到加班段才給付固定加班，沒上到則不給（＝從薪資扣）。
+            const _isFullPay=(lt.pay==='full');
+            let _otPaid;
+            if(_isFullPay){
+              _otPaid=defOt;                          // 全薪假：固定加班照給整日 defOt
+            }else{
+              _otPaid=_segOn?_segOt:((_otGate)?(r.autoOt!=null?Number(r.autoOt):defOt):0);  // 非全薪假：有實際上到才給
+            }
+            if(_newRule&&_otPaid>0){
+              fixedOtHours+=_otPaid;
               extraOtHours+=Number(r.ot167||0);
             }
-            // 滿額基準（鎖定約定薪資用）：只要當天沒實際上滿當日固定加班，差額即從薪資扣——
-            // 依「固定加班費＝加班對價」認定：不論任何假別（含特休/婚/喪/國定），當天沒上到的加班一律扣。
+            // 滿額基準（鎖定約定薪資用）：一律計入 defOt。
+            //   全薪假：實付=defOt、滿額=defOt → 不扣（加班照給）。
+            //   非全薪假當天沒上到加班：實付<defOt、滿額=defOt → 差額從薪資扣。
             if(_newRule){
               fullFixedOtHours+=defOt;
             }
