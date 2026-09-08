@@ -358,6 +358,7 @@ function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').tri
 
 import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 // 次要實例建立帳號時需要 config（不影響主要登入狀態）
 const firebaseConfig = {apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 
@@ -1011,6 +1012,7 @@ function render() {
       <input type="text" placeholder="搜尋姓名、面試地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSf(this.value)">${sopts}</select>
       <button class="btn btn-primary" onclick="openModal('addInterview')">＋ 新增求職者</button>
+      ${(currentUserRole==='admin'||currentUserRole==='consultant')?`<button class="btn btn-outline" onclick="openTalentImport()" style="white-space:nowrap" title="從招募系統拉取官網應徵者">⬇ 從招募系統匯入</button>`:''}
     </div>
     <div class="tw list-wrap"><table class="list-table">
       <thead><tr>
@@ -2741,6 +2743,207 @@ function showCustomModal(title, html){
     </div>
   </div>`;
 }
+
+// ══════════════════════════════════════════════════════════
+// 招募系統求職者匯入（storeId 為關聯鍵，talentId 去重）
+// ══════════════════════════════════════════════════════════
+
+// storeId → 我方店名關鍵字。招募系統的 location 字串不一定與我方一致，
+// 一律以 storeId 為準，再比對 interviewLocations 找出正式名稱。
+const TALENT_STORE_MAP = {
+  jingxin:'景新', tianjin:'天津', xingfu:'幸福', xindian:'心惦',
+  xinying:'鑫營', xiangri:'巷日', fucheng:'福城', quanzhou:'泉州',
+  xinyaoxin:'鑫耀鑫', liangxin:'梁鑫', fuzhong:'府中', dazhi:'大直',
+  xinjirou:'鑫雞肉', huaan:'華安', xinzhuang:'新莊'
+};
+
+// 我方合法的面試狀態，招募系統若傳來未知值一律歸為「待通知」
+const VALID_INTERVIEW_STATUS = ['待通知','錄取','已婉拒','未前來面試'];
+
+let talentImportRows = [];
+
+// 解析店別：先用 storeId 對照，再回退到原始 location 字串
+function resolveTalentLocation(storeId, rawLoc){
+  const opts = interviewLocations || [];
+  const kw = TALENT_STORE_MAP[storeId||''];
+  if(kw){
+    const hit = opts.find(l => normLoc(l).includes(normLoc(kw)));
+    if(hit) return { loc: hit, matched: true };
+  }
+  if(rawLoc){
+    const exact = opts.find(l => normLoc(l) === normLoc(rawLoc));
+    if(exact) return { loc: exact, matched: true };
+    const partial = opts.find(l => normLoc(l).includes(normLoc(rawLoc)) || normLoc(rawLoc).includes(normLoc(l)));
+    if(partial) return { loc: partial, matched: true };
+  }
+  return { loc: rawLoc || '', matched: false };
+}
+
+window.openTalentImport = async function(){
+  if(!(currentUserRole==='admin'||currentUserRole==='consultant')){
+    showToast('僅管理員與顧問可執行匯入'); return;
+  }
+  showCustomModal('從招募系統匯入求職者',
+    '<div id="talentBody" style="padding:4px 0"><div style="text-align:center;padding:28px 0;color:#5A6175;font-size:13px">讀取招募系統資料中…</div></div>');
+
+  let items = [];
+  try{
+    const fns = getFunctions(getApp(), 'us-central1');
+    const call = httpsCallable(fns, 'importTalentApplications');
+    const res = await call({});
+    items = (res && res.data && res.data.items) || [];
+  }catch(err){
+    console.error('匯入失敗', err);
+    const body = document.getElementById('talentBody');
+    if(body) body.innerHTML =
+      '<div style="color:#C62828;font-size:13px;padding:10px 0">讀取失敗：'
+      + ((err && err.message) || '未知錯誤')
+      + '</div><div style="font-size:12px;color:#5A6175">請確認 Cloud Function 已部署、共享密鑰已設定。</div>'
+      + '<div class="modal-actions" style="margin-top:14px"><button class="btn btn-outline" onclick="closeModal()">關閉</button></div>';
+    return;
+  }
+
+  // 去重：talentId 已存在於 interviews 者標為「已匯入」
+  const existing = new Set((interviews||[]).map(r=>r.talentId).filter(Boolean));
+  talentImportRows = items.map(r=>{
+    const { loc, matched } = resolveTalentLocation(r.storeId, r.location);
+    const st = VALID_INTERVIEW_STATUS.includes(r.status) ? r.status : '待通知';
+    return {
+      raw: r,
+      dup: existing.has(r.talentId),
+      loc, locMatched: matched,
+      status: st,
+      statusFixed: st !== r.status,
+      checked: !existing.has(r.talentId)
+    };
+  });
+
+  renderTalentImport();
+};
+
+function renderTalentImport(){
+  const body = document.getElementById('talentBody');
+  if(!body) return;
+
+  if(!talentImportRows.length){
+    body.innerHTML = '<div style="text-align:center;padding:24px 0;color:#5A6175;font-size:13px">招募系統目前沒有應徵資料</div>'
+      + '<div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">關閉</button></div>';
+    return;
+  }
+
+  const newRows = talentImportRows.filter(r=>!r.dup);
+  const dupCount = talentImportRows.length - newRows.length;
+  const unmatched = newRows.filter(r=>!r.locMatched).length;
+  const selCount = talentImportRows.filter(r=>r.checked && !r.dup).length;
+
+  let warn = '';
+  if(unmatched > 0){
+    warn = '<div style="background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:12px;color:#92400E">'
+      + '⚠ 有 ' + unmatched + ' 筆的店別無法對應到我方面試地點清單，匯入後請手動修正該筆的面試地點。</div>';
+  }
+
+  const rowsHtml = talentImportRows.map((r,i)=>{
+    const d = r.raw;
+    const dis = r.dup;
+    const locTag = r.locMatched
+      ? ''
+      : '<span style="color:#B45309;font-size:11px;margin-left:4px">⚠ 店別待確認</span>';
+    const stTag = r.statusFixed
+      ? '<span style="color:#5A6175;font-size:11px;margin-left:4px">（原：' + (d.status||'空白') + '）</span>'
+      : '';
+    return '<label style="display:flex;align-items:flex-start;gap:9px;padding:9px 4px;border-bottom:1px solid #DDE1E9;'
+      + (dis?'opacity:.5':'cursor:pointer') + '">'
+      + '<input type="checkbox" ' + (r.checked?'checked':'') + ' ' + (dis?'disabled':'')
+      + ' onchange="toggleTalentRow(' + i + ',this.checked)" style="margin-top:3px;flex-shrink:0">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="font-size:13px;font-weight:600;color:#1A1D23">' + (d.name||'（無姓名）')
+      +     (dis?'<span style="color:#9AA0B4;font-size:11px;font-weight:400;margin-left:6px">已匯入</span>':'') + '</div>'
+      +   '<div style="font-size:12px;color:#5A6175;margin-top:2px">'
+      +     (r.loc||'—') + locTag + ' · ' + (d.date||'—') + ' · ' + r.status + stTag
+      +   '</div>'
+      +   ((d.email||d.experience)
+            ? '<div style="font-size:11px;color:#9AA0B4;margin-top:2px">'
+              + [d.email, d.experience?('經驗 '+d.experience):''].filter(Boolean).join(' · ')
+              + '</div>'
+            : '')
+      + '</div></label>';
+  }).join('');
+
+  body.innerHTML = warn
+    + '<div style="font-size:12px;color:#5A6175;margin-bottom:8px">'
+    +   '共 ' + talentImportRows.length + ' 筆'
+    +   (dupCount?('，其中 ' + dupCount + ' 筆已匯入過（自動略過）'):'')
+    + '</div>'
+    + (newRows.length
+        ? '<div style="display:flex;gap:8px;margin-bottom:6px">'
+          + '<button class="btn btn-sm btn-outline" onclick="toggleAllTalent(true)">全選</button>'
+          + '<button class="btn btn-sm btn-outline" onclick="toggleAllTalent(false)">全不選</button></div>'
+        : '')
+    + '<div style="max-height:46vh;overflow-y:auto;border:1px solid #DDE1E9;border-radius:8px;padding:0 8px">'
+    +   rowsHtml
+    + '</div>'
+    + '<div class="modal-actions" style="margin-top:14px">'
+    +   '<button class="btn btn-outline" onclick="closeModal()">取消</button>'
+    +   '<button class="btn btn-primary" onclick="applyTalentImport()" ' + (selCount?'':'disabled') + '>'
+    +     '匯入選取的 ' + selCount + ' 筆</button>'
+    + '</div>';
+}
+
+window.toggleTalentRow = function(i, val){
+  if(talentImportRows[i] && !talentImportRows[i].dup){
+    talentImportRows[i].checked = val;
+    renderTalentImport();
+  }
+};
+
+window.toggleAllTalent = function(val){
+  talentImportRows.forEach(r=>{ if(!r.dup) r.checked = val; });
+  renderTalentImport();
+};
+
+window.applyTalentImport = async function(){
+  const sel = talentImportRows.filter(r=>r.checked && !r.dup);
+  if(!sel.length) return;
+
+  // 再次去重（防止 modal 開啟期間其他人已匯入）
+  const existing = new Set((interviews||[]).map(r=>r.talentId).filter(Boolean));
+  const toAdd = sel.filter(r=>!existing.has(r.raw.talentId));
+  if(!toAdd.length){ closeModal(); showToast('選取的資料都已匯入過'); return; }
+
+  let baseId = Date.now();
+  const usedIds = new Set((interviews||[]).map(r=>r.id));
+  toAdd.forEach(r=>{
+    const d = r.raw;
+    while(usedIds.has(baseId)) baseId++;   // 避開 id 撞號
+    usedIds.add(baseId);
+    interviews.unshift({
+      id: baseId++,
+      talentId: d.talentId,
+      name: d.name,
+      location: r.loc,
+      storeId: d.storeId || '',
+      date: d.date || '',
+      source: d.source || '官網應徵',
+      status: r.status,
+      fit: d.fit || '',
+      age: (d.age === 0 || d.age) ? d.age : null,
+      military: d.military || '',
+      experience: d.experience || '',
+      phone: d.phone || '',
+      email: d.email || '',
+      resumeUrl: d.resumeUrl || '',
+      note: d.note || ''
+    });
+  });
+
+  closeModal();
+  render();
+  showToast('儲存中...');
+  await saveData();
+  showToast('已匯入 ' + toAdd.length + ' 筆求職者 ✓');
+  writeOpLog({editor:currentUserName, role:currentRole, module:'hr', action:'匯入招募系統求職者', detail: toAdd.length+'筆'});
+};
+
 
 
 
