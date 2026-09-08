@@ -2750,11 +2750,13 @@ function showCustomModal(title, html){
 
 // storeId → 我方店名關鍵字。招募系統的 location 字串不一定與我方一致，
 // 一律以 storeId 為準，再比對 interviewLocations 找出正式名稱。
+// 13 間有效店別（quanzhou 泉州、tianjin 天津 對方已停用刪除，2026/09）
+// ⚠ 對方新增/停用店面時這張表要同步，否則會靜默對不上（只標警告不報錯）
 const TALENT_STORE_MAP = {
-  jingxin:'景新', tianjin:'天津', xingfu:'幸福', xindian:'心惦',
-  xinying:'鑫營', xiangri:'巷日', fucheng:'福城', quanzhou:'泉州',
-  xinyaoxin:'鑫耀鑫', liangxin:'梁鑫', fuzhong:'府中', dazhi:'大直',
-  xinjirou:'鑫雞肉', huaan:'華安', xinzhuang:'新莊'
+  jingxin:'景新', xingfu:'幸福', xindian:'心惦', xinying:'鑫營',
+  xiangri:'巷日', fucheng:'福城', xinyaoxin:'鑫耀鑫', liangxin:'梁鑫',
+  fuzhong:'府中', dazhi:'大直', xinjirou:'鑫雞肉', huaan:'華安',
+  xinzhuang:'新莊'
 };
 
 // 我方合法的面試狀態，招募系統若傳來未知值一律歸為「待通知」
