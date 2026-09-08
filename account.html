@@ -95,6 +95,17 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 .form-input:focus{border-color:var(--accent);background:#fff}
 .form-row .note{font-size:11px;color:var(--text3);margin-top:4px}
 .btn-row{display:flex;gap:10px;margin-top:20px}
+.sync-panel{margin-bottom:18px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);display:none}
+.sync-panel.show{display:block}
+.sync-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.sync-tt{font-size:13px;font-weight:600;color:var(--text)}
+.sync-x{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:2px 6px;line-height:1}
+.sync-sum{font-size:13px;color:var(--text2);margin-bottom:6px}
+.sync-sum b{color:var(--text)}
+.sync-warn{margin-top:10px;padding:9px 11px;border:1px solid #F59E0B;background:#FFFBEB;border-radius:8px}
+.sync-warn-hd{font-size:12px;font-weight:600;color:#92400E;margin-bottom:5px}
+.sync-warn-li{font-size:12px;color:#92400E;line-height:1.7}
+.sync-err{margin-top:8px;padding:9px 11px;border:1px solid #EF4444;background:#FEF2F2;border-radius:8px;font-size:12px;color:#991B1B}
 .close-modal{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
 /* loading */
 #loading{position:fixed;inset:0;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px}
@@ -169,6 +180,14 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
       <span class="count-label" id="countLabel"></span>
       <button class="btn btn-primary" onclick="openBatchPage()">⚡ 批次建立帳號</button>
       <button class="btn" onclick="window.location.href='/hr-system/oplog.html'" style="white-space:nowrap">📋 操作日誌</button>
+      <button class="btn" id="syncTalentBtn" onclick="runTalentSync()" style="white-space:nowrap;display:none" title="把所有帳號的角色與店別重新推送到招募系統">🔄 同步招募系統</button>
+    </div>
+    <div class="sync-panel" id="syncPanel">
+      <div class="sync-hd">
+        <span class="sync-tt">招募系統管理員同步</span>
+        <button class="sync-x" onclick="document.getElementById('syncPanel').classList.remove('show')" title="關閉">✕</button>
+      </div>
+      <div id="syncBody"></div>
     </div>
     <div id="listWrap"></div>
   </div>
@@ -210,6 +229,8 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
 import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
 const PAGE_SIZE = 10;
 let allUsers = [];
@@ -428,6 +449,64 @@ function updateStats(){
 window.closeModal = function(id){ document.getElementById(id).style.display='none'; };
 window.closeMOv = function(e,id){ if(e.target.classList.contains('modal-ov')) closeModal(id); };
 
+// ══════════════════════════════════════════════════════
+// 招募系統管理員同步（呼叫 resyncAllTalentAdmins）
+//
+// 平時 role 變動會由 Firestore 觸發器自動同步，這顆按鈕是
+// 全量重推的後路：補完員工 email、或懷疑同步漏掉時使用。
+// ⚠ 補 email 是改 hr/employees，不會觸發 users 的觸發器，
+//    所以補完要按這裡重推一次。
+// ══════════════════════════════════════════════════════
+window.runTalentSync = async function(){
+  const btn = document.getElementById('syncTalentBtn');
+  const panel = document.getElementById('syncPanel');
+  const body = document.getElementById('syncBody');
+  if(!btn || !panel || !body) return;
+
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = '⏳ 同步中...';
+  panel.classList.add('show');
+  body.innerHTML = '<div class="sync-sum">正在推送所有帳號，約需 10～30 秒，請勿關閉頁面…</div>';
+
+  try{
+    const fns = getFunctions(getApp(), 'us-central1');
+    const res = await httpsCallable(fns, 'resyncAllTalentAdmins')({});
+    const d = (res && res.data) || {};
+    const warns = Array.isArray(d.warnings) ? d.warnings : [];
+
+    let html = '<div class="sync-sum">共 <b>' + (d.total||0) + '</b> 筆　成功 <b>' + (d.ok||0)
+             + '</b>　失敗 <b>' + (d.fail||0) + '</b></div>';
+
+    if(d.fail > 0){
+      html += '<div class="sync-err">有 ' + d.fail + ' 筆同步失敗，請查看下方清單並重試。若持續失敗，'
+            + '請確認招募系統的 endpoint 是否正常。</div>';
+    }
+
+    if(warns.length){
+      html += '<div class="sync-warn"><div class="sync-warn-hd">⚠ ' + warns.length + ' 筆提醒</div>'
+            + warns.map(w => '<div class="sync-warn-li">• ' + String(w).replace(/</g,'&lt;') + '</div>').join('')
+            + '</div>';
+    }else if(d.fail === 0){
+      html += '<div class="sync-sum" style="color:#15803D">✓ 全部正常，無需處理</div>';
+    }
+
+    body.innerHTML = html;
+    showToast(d.fail ? ('同步完成，' + d.fail + ' 筆失敗') : '同步完成 ✓');
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'account',
+      action:'同步招募系統管理員', detail:(d.ok||0)+'/'+(d.total||0)+'筆' });
+
+  }catch(err){
+    console.error('同步失敗', err);
+    body.innerHTML = '<div class="sync-err">同步失敗：' + ((err && err.message) || '未知錯誤')
+      + '<br>請確認 resyncAllTalentAdmins 已部署，且你的角色為管理員。</div>';
+    showToast('同步失敗');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+};
+
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
@@ -437,6 +516,11 @@ function showToast(msg){
 // auth
 authGuard('account', async ({ user, role, uid, userData }) => {
   currentRole = role;
+  // 同步招募系統：僅 admin（Function 端也有 role 檢查，雙重防護）
+  if(role === 'admin'){
+    const _sb = document.getElementById('syncTalentBtn');
+    if(_sb) _sb.style.display = '';
+  }
   currentUid  = uid;
   currentUserName = userData?.name || '管理員';
   try{
