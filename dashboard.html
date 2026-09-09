@@ -916,16 +916,22 @@ onAuthStateChanged(auth,async user=>{
             VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='price');
           }
         }catch(_){}
-        // delivery_report 只有央廚（type='central'）才顯示
-        // 若使用者所屬店面全部都是門市，則隱藏卡片
+        // ── 依「適用店面類型」過濾所有模組（通用邏輯）──
+        // permissions.html 的 locationType 設定：'all' 不限 / 'central' 央廚 / 'store' 門市。
+        // 使用者所屬店面若沒有一間符合該類型，就隱藏側邊欄與首頁卡片。
+        // （auth-guard 第⑤段本來就會擋進入，這裡是同步「看不到入口」，避免點了才被踢回來）
         try{
           const permSnap=await getDoc(doc(db,'settings','permissions'));
-          const locTypes=(permSnap.exists()?permSnap.data().locationTypes:null)||{};
+          const pd=permSnap.exists()?permSnap.data():{};
+          const locTypes=pd.locationTypes||{};
+          const mods=pd.modules||{};
           const userLocs=data.locations||[];
-          const hasCentral=userLocs.some(l=>locTypes[l]==='central');
-          if(!hasCentral){
-            VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='delivery_report');
-          }
+          VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>{
+            const lt=mods[k]&&mods[k].locationType;
+            if(!lt||lt==='all') return true;              // 不限類型
+            // 未設定類型的店面預設視為門市（與 auth-guard 一致）
+            return userLocs.some(l=>(locTypes[l]||'store')===lt);
+          });
         }catch(_){}
       }
       await loadGroupsFromFirestore();
