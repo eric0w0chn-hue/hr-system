@@ -420,6 +420,7 @@ const ALL_MODULES=[
   {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
   {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
   {key:'checkout', icon:'💰', name:'結帳系統', desc:'跳轉至梁平結帳系統', page:'checkout.html', active:true},
+  {key:'order',    icon:'📦', name:'叫貨系統', desc:'跳轉至叫貨系統（外部）', page:'order.html', active:true},
   {key:'task',    icon:'📌', name:'店務追蹤',  desc:'記錄並追蹤各店執行中的事項與進度，逾期/停滯自動標記', page:'task.html', active:true},
   {key:'recruit104', icon:'📣', name:'104排程', desc:'各店 104 職缺需求設定、履歷發放排程與截圖存證', page:'recruit104.html', active:true},
   {key:'alert_settings', icon:'🔔', name:'提醒排程設定', desc:'設定未完成事項的 LINE 主動提醒時間與檢查項目', page:'alert_settings.html', active:true, adminOnly:true},
@@ -428,9 +429,9 @@ const ALL_MODULES=[
   {key:'talent',   icon:'🧑‍💼', name:'招募管理',   desc:'招募職缺管理、求職者履歷審閱（外部招募系統）', page:'https://liangping-talent.web.app/admin', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','schedule','price','meeting','salary','bonus','cost','account','cctv','delivery_report','permissions','store_accounts','checkout','task','recruit104','talent','alert_settings','email_bind'],
-  consultant:['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','talent','email_bind'],
-  manager:  ['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','talent','email_bind'],
+  admin:    ['hr','schedule','price','meeting','salary','bonus','cost','account','cctv','delivery_report','permissions','store_accounts','checkout','order','task','recruit104','talent','alert_settings','email_bind'],
+  consultant:['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','order','task','recruit104','talent','email_bind'],
+  manager:  ['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','order','task','recruit104','talent','email_bind'],
   employee: ['schedule']
 };
 
@@ -1031,7 +1032,7 @@ async function _pushTalentSSO(page, frame){
 
 window.goTo=function(page){
   if(!page) return;
-  if(page === 'checkout.html'){ window.location.href = page; return; }
+  if(page === 'checkout.html' || page === 'order.html'){ window.location.href = page; return; }
   const frame = document.getElementById('contentFrame');
   const sep = page.includes('?') ? '&' : '?';
   frame.src = page + sep + 'embed=1&v=' + Date.now();
