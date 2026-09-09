@@ -1278,9 +1278,12 @@ authGuard('salary',({user,uid,role,locations,userData})=>{
 
 async function init(locations,userData){
   await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes(),loadConfig()]);
-  await mergeSnapshotEmployees(viewYear,viewMonth);
-  await loadSnapStoreMap(viewYear,viewMonth);
-  renderMain();
+  await loadSnapStoreMap(viewYear,viewMonth); // 當月直接 return，過去月才讀快照
+  renderMain(); // 先畫出畫面（在職員工，不含離職快照）
+  // 背景補進「當月有薪資紀錄的離職員工」，有變化才 re-render（不阻塞首次顯示）
+  mergeSnapshotEmployees(viewYear,viewMonth).then(()=>{
+    if(employees.some(e=>e._fromSnapshot)) renderMain();
+  }).catch(()=>{});
 }
 // 載入系統設定（底薪 + 費率表），僅 ADMIN 可改
 async function loadConfig(){
@@ -2132,11 +2135,14 @@ function renderMain(){
 
 window.chgMonth=async function(){
   viewYear=+document.getElementById('yearSel').value;viewMonth=+document.getElementById('monthSel').value;selectedEmpId=null;
-  // 移除上個月補進的快照離職員工，重新載入現職 + 當月快照
+  // 移除上個月補進的快照離職員工
   employees=employees.filter(e=>!e._fromSnapshot);
-  await mergeSnapshotEmployees(viewYear,viewMonth);
-  await loadSnapStoreMap(viewYear,viewMonth);
-  renderMain();
+  await loadSnapStoreMap(viewYear,viewMonth); // 過去月讀快照店別，當月直接 return
+  renderMain(); // 先畫出在職員工
+  // 背景補進當月有薪資紀錄的離職員工，有變化才 re-render
+  mergeSnapshotEmployees(viewYear,viewMonth).then(()=>{
+    if(employees.some(e=>e._fromSnapshot)) renderMain();
+  }).catch(()=>{});
 };
 window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
 window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
