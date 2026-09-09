@@ -124,7 +124,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── Main content ── */
 .main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);height:100vh;overflow:hidden}
 .main{height:100%;padding:0}
-.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg)}
+.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg);position:relative}
+.lp-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:block;background:var(--bg)}
+.lp-frame.lp-hidden{display:none}
 .main{height:100%;padding:0}
 .main-header{margin-bottom:24px}
 .main-header h2{font-size:20px;font-weight:700;color:var(--text)}
@@ -365,7 +367,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <span id="previewNoticeText">目前為預覽模式</span>
         <span style="margin-left:auto;cursor:pointer;opacity:.7" onclick="setPreview(realRole)">✕ 返回實際視角</span>
       </div>
-      <iframe id="contentFrame" class="content-frame" src="" title="功能頁面"></iframe>
+      <div id="contentFrame" class="content-frame"></div>
     </div>
   </div>
 </div>
@@ -952,11 +954,7 @@ onAuthStateChanged(auth,async user=>{
     if(yearEl) yearEl.textContent=now.getFullYear();
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
-    const _frame = document.getElementById('contentFrame');
-    if(_frame) {
-      _frame.src = 'welcome.html?embed=1';
-      _frame.onload = function(){ try{ _frame.contentDocument.documentElement.setAttribute('data-embed','1'); document.getElementById('iframeActionBar').innerHTML=''; }catch(_){} };
-    }
+    try{ window._showFrame('welcome.html'); }catch(_){}
   }
 });
 
@@ -964,6 +962,9 @@ onAuthStateChanged(auth,async user=>{
 window._syncIframeActions = function(frame){
   const bar = document.getElementById('iframeActionBar');
   if(!bar) return;
+  // keep-alive：同一 iframe 會重覆 sync，先斷開上次 observers 避免堆積
+  if(frame._lpObservers){ frame._lpObservers.forEach(function(o){ try{o.disconnect();}catch(_){} }); }
+  frame._lpObservers = [];
   bar.innerHTML = '';
   try{
     const fdoc = frame.contentDocument;
@@ -987,10 +988,12 @@ window._syncIframeActions = function(frame){
         try{ origBtn.click(); }catch(e){}
       });
       // 監聽 iframe 按鈕狀態變化（用 MutationObserver）
-      new MutationObserver(function(){
+      var _mo = new MutationObserver(function(){
         proxyBtn.disabled = origBtn.disabled;
         proxyBtn.textContent = origBtn.textContent.trim();
-      }).observe(origBtn, {attributes:true, childList:true, subtree:true, characterData:true});
+      });
+      _mo.observe(origBtn, {attributes:true, childList:true, subtree:true, characterData:true});
+      frame._lpObservers.push(_mo);
       bar.appendChild(proxyBtn);
     });
   }catch(e){}
@@ -1030,23 +1033,77 @@ async function _pushTalentSSO(page, frame){
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// 換頁 keep-alive：每頁保留一個 iframe，切換只顯示/隱藏，回訪不重載（秒開）
+//   · FRAME_TTL_MS 內回訪同頁 → 直接顯示（不重載）
+//   · 超過 TTL 或首次進入 → 載入／重新載入抓最新資料
+//   · 最多保留 FRAME_MAX 個頁面（welcome 常駐、不淘汰）
+//   · checkout/order 仍整頁跳轉（不進池）；talent 也走池、首次載入才推 SSO
+// ══════════════════════════════════════════════════════════
+const FRAME_TTL_MS = 90 * 1000;  // 90 秒內回訪視為新鮮，直接顯示
+const FRAME_MAX    = 6;          // 同時保留的頁面上限（不含常駐 welcome）
+const _framePool   = new Map();  // page -> { el, last }
+
+function _buildFrameSrc(page){
+  const sep = page.includes('?') ? '&' : '?';
+  return page + sep + 'embed=1&v=' + Date.now();
+}
+function _wireFrame(el, page){
+  el.onload = function(){
+    try{
+      el.contentDocument.documentElement.setAttribute('data-embed','1');
+      _syncIframeActions(el);
+    }catch(_){}
+    _pushTalentSSO(page, el);
+  };
+}
+function _evictFrames(keepPage){
+  const evictable = [];
+  _framePool.forEach(function(rec, p){
+    if(p !== 'welcome.html' && p !== keepPage) evictable.push([p, rec.last]);
+  });
+  evictable.sort(function(a,b){ return a[1]-b[1]; }); // 最舊在前
+  while(_framePool.size > FRAME_MAX && evictable.length){
+    const p = evictable.shift()[0];
+    const rec = _framePool.get(p);
+    if(rec && rec.el && rec.el.parentNode) rec.el.parentNode.removeChild(rec.el);
+    _framePool.delete(p);
+  }
+}
+window._showFrame = function(page){
+  const host = document.getElementById('contentFrame');
+  if(!host) return;
+  const bar = document.getElementById('iframeActionBar');
+  if(bar) bar.innerHTML = '';                       // 先清舊按鈕，避免載入中殘留
+  _framePool.forEach(function(rec){ rec.el.classList.add('lp-hidden'); });
+  const now = Date.now();
+  let rec = _framePool.get(page);
+  if(rec){
+    const stale = (page !== 'welcome.html') && (now - rec.last > FRAME_TTL_MS);
+    if(stale){
+      _wireFrame(rec.el, page);
+      rec.el.src = _buildFrameSrc(page);             // 重新載入抓新資料（onload 重跑 sync）
+    }else{
+      try{ _syncIframeActions(rec.el); }catch(_){}   // 秒開：只重建功能按鈕
+    }
+    rec.el.classList.remove('lp-hidden');
+    rec.last = now;
+  }else{
+    const el = document.createElement('iframe');
+    el.className = 'lp-frame';
+    el.title = '功能頁面';
+    _wireFrame(el, page);
+    el.src = _buildFrameSrc(page);
+    host.appendChild(el);
+    _framePool.set(page, { el: el, last: now });
+    _evictFrames(page);
+  }
+};
+
 window.goTo=function(page){
   if(!page) return;
   if(page === 'checkout.html' || page === 'order.html'){ window.location.href = page; return; }
-  const frame = document.getElementById('contentFrame');
-  const sep = page.includes('?') ? '&' : '?';
-  frame.src = page + sep + 'embed=1&v=' + Date.now();
-  // iframe 載入後直接設 data-embed，繞過 URLSearchParams 安全限制
-  frame.onload = function(){
-    try{
-      const fdoc = frame.contentDocument;
-      fdoc.documentElement.setAttribute('data-embed','1');
-      // 把 iframe topbar 的功能按鈕搬到主框架
-      _syncIframeActions(frame);
-    }catch(_){}
-    // 跨網域頁面（招募系統）需要主動推送 SSO token
-    _pushTalentSSO(page, frame);
-  };
+  window._showFrame(page);
   document.querySelectorAll('.sidebar-item').forEach(el=>{
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -1057,12 +1114,8 @@ window.addEventListener('message', function(e){
   if(!e.data || e.data.type !== 'navigate') return;
   const page = e.data.page;
   if(page === 'dashboard.html'){
-    const frame = document.getElementById('contentFrame');
-    if(frame) {
-      frame.src = 'welcome.html?embed=1';
-      frame.onload = function(){ try{ frame.contentDocument.documentElement.setAttribute('data-embed','1'); document.getElementById('iframeActionBar').innerHTML=''; }catch(_){} };
-      document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
-    }
+    window._showFrame('welcome.html');
+    document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
   } else {
     window.goTo(page);
   }
