@@ -563,6 +563,18 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 .badge-g{background:var(--green-bg);color:var(--green)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
 .loading-text{font-size:13px;color:var(--text3);text-align:center;padding:20px}
+/* 載入骨架：進頁先鋪版面形狀，取代空白＋轉圈；renderMain 一執行即覆蓋 */
+.sk{position:relative;overflow:hidden;background:var(--surface2);border-radius:8px}
+.sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:sk-sh 1.3s ease-in-out infinite}
+@keyframes sk-sh{100%{transform:translateX(100%)}}
+.sk-wrap{padding:14px}
+.sk-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.sk-chip{height:14px;width:44px;flex:0 0 auto}
+.sk-box{height:34px}
+.sk-btn{height:30px;width:96px;border-radius:7px}
+.sk-sheet{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface)}
+.sk-line{height:16px;margin:10px 0;display:block}
+@media(max-width:600px){.sk-box{flex:1 1 auto;min-width:120px}}
 
 /* 自製選同仁下拉 */
 .cdd{position:relative;flex:1;min-width:0}
@@ -619,7 +631,28 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
   }
 </script>
 
-<div class="main" id="mainArea"><div class="loading-text">載入中…</div></div>
+<div class="main" id="mainArea"><div class="sk-wrap" id="salSkeleton" aria-label="載入中">
+  <div class="sk-bar">
+    <span class="sk sk-chip"></span>
+    <span class="sk sk-box" style="width:96px"></span>
+    <span class="sk sk-box" style="width:78px"></span>
+    <span class="sk sk-chip"></span>
+    <span class="sk sk-box" style="width:210px"></span>
+    <span class="sk sk-btn" style="margin-left:auto"></span>
+  </div>
+  <div class="sk-bar">
+    <span class="sk sk-chip" style="width:64px"></span>
+    <span class="sk sk-box" style="width:240px"></span>
+    <span class="sk sk-chip" style="width:52px"></span>
+  </div>
+  <div class="sk-sheet">
+    <span class="sk sk-line" style="width:40%"></span>
+    <span class="sk sk-line" style="width:90%"></span>
+    <span class="sk sk-line" style="width:75%"></span>
+    <span class="sk sk-line" style="width:85%"></span>
+    <span class="sk sk-line" style="width:60%"></span>
+  </div>
+</div></div>
 
 <div class="toast" id="toast"></div>
 
