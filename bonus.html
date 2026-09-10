@@ -803,7 +803,7 @@ window.saveLogImage = function(btn){
   }, 'image/png');
 };
 
-
+window.revertLog = async function(logId){
   const log = bonusLog.find(l=>l.id===logId);
   if(!log) return;
   if(!confirm(`確定要撤銷「${log.empName} - ${log.label} $${(log.amount||0).toLocaleString()}」？\n該項目將重新回到待發放列表。`)) return;
