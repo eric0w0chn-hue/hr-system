@@ -684,6 +684,15 @@ window.renderLog = function(){
           </div>
           <div style="text-align:right">
             <div style="font-weight:600;color:#16A34A">$${(l.amount||0).toLocaleString()}</div>
+            <button class="btn btn-sm" style="margin-top:4px"
+              data-nm="${(logSelectedEmp.name||'').replace(/"/g,'&quot;')}"
+              data-loc="${(l.workLocation||logSelectedEmp.workLocation||'').replace(/"/g,'&quot;')}"
+              data-label="${(l.label||'').replace(/"/g,'&quot;')}"
+              data-amt="${l.amount||0}"
+              data-date="${l.date||''}"
+              data-op="${(l.operator||'').replace(/"/g,'&quot;')}"
+              data-note="${(l.note||'').replace(/"/g,'&quot;')}"
+              onclick="saveLogImage(this)">🖼 存圖</button>
             ${currentRole==='admin'?`<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="revertLog('${l.id}')">↩ 撤銷</button>`:''}
           </div>
         </div>`).join('') : '<div class="empty-state">此員工尚無發放紀錄</div>'}`;
@@ -729,7 +738,72 @@ window.clearLogEmp = function(){
   renderLog();
 };
 
-window.revertLog = async function(logId){
+// ── 產出單筆發放憑證小圖（店面作帳用）──
+window.saveLogImage = function(btn){
+  const d = btn.dataset;
+  const nm = d.nm||'—', loc = d.loc||'—', label = d.label||'—';
+  const amt = parseInt(d.amt||'0')||0, date = d.date||'—', op = d.op||'—', note = d.note||'';
+
+  const scale = 2; // 高解析度
+  const W = 440, pad = 24;
+  const rows = [['員工', nm], ['店面', loc], ['項目', label], ['金額', '$'+amt.toLocaleString()], ['發放日期', date], ['經手人', op]];
+  if(note) rows.push(['備註', note]);
+  const rowH = 34, headerH = 92, footerH = 40;
+  const H = headerH + rows.length*rowH + footerH + pad;
+
+  const cv = document.createElement('canvas');
+  cv.width = W*scale; cv.height = H*scale;
+  const ctx = cv.getContext('2d');
+  ctx.scale(scale, scale);
+
+  // 背景
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+  // 外框
+  ctx.strokeStyle = '#DDE1E9'; ctx.lineWidth = 1; ctx.strokeRect(0.5,0.5,W-1,H-1);
+  // 標題列
+  ctx.fillStyle = '#2D3142'; ctx.fillRect(0,0,W,64);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 20px system-ui,"PingFang TC","Microsoft JhengHei",sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('獎金發放憑證', pad, 32);
+  ctx.font = '400 12px system-ui,"PingFang TC","Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.fillText('鑫系統 LIANGPING', W-pad-140, 32);
+  // 分隔
+  let y = headerH;
+  ctx.textBaseline = 'alphabetic';
+  rows.forEach((r,idx)=>{
+    if(idx%2===1){ ctx.fillStyle='#F7F8FA'; ctx.fillRect(pad-6, y-rowH+8, W-(pad-6)*2, rowH); }
+    ctx.font = '400 14px system-ui,"PingFang TC","Microsoft JhengHei",sans-serif';
+    ctx.fillStyle = '#5A6175';
+    ctx.fillText(r[0], pad, y);
+    ctx.font = (r[0]==='金額' ? '700 16px' : '600 14px') + ' system-ui,"PingFang TC","Microsoft JhengHei",sans-serif';
+    ctx.fillStyle = (r[0]==='金額' ? '#16A34A' : '#1A1D23');
+    // 值靠右
+    const val = String(r[1]);
+    const vw = ctx.measureText(val).width;
+    ctx.fillText(val, W-pad-vw, y);
+    y += rowH;
+  });
+  // 頁尾：產出時間
+  ctx.font = '400 11px system-ui,"PingFang TC","Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = '#9AA0B4';
+  const stamp = '產出時間：' + new Date().toLocaleString('zh-TW', {hour12:false});
+  ctx.fillText(stamp, pad, y+16);
+
+  // 下載
+  const fname = `獎金憑證_${nm}_${label.replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g,'')}_${date}.png`;
+  cv.toBlob(function(blob){
+    if(!blob){ alert('產圖失敗，請重試'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
+};
+
+
   const log = bonusLog.find(l=>l.id===logId);
   if(!log) return;
   if(!confirm(`確定要撤銷「${log.empName} - ${log.label} $${(log.amount||0).toLocaleString()}」？\n該項目將重新回到待發放列表。`)) return;
