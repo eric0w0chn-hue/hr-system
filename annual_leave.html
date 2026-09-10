@@ -47,13 +47,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei
 /* 總表 */
 /* sticky 生效關鍵：table 直接置於此捲動容器內（不可多包一層 div），
    且容器需明確 overflow:auto + 高度限制，sticky 才會相對於它定位 */
-.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh;-webkit-overflow-scrolling:touch;position:relative}
+/* 捲動容器：iOS 上 -webkit-overflow-scrolling:touch 會破壞 sticky，故移除；
+   position:relative 也會干擾 sticky 的定位基準，一併移除。 */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:1180px}
 /* 表頭凍結：兩列表頭各自 sticky（第2列需下移第1列高度）；第一欄同時凍結 */
-thead th{position:sticky;z-index:3;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
-thead tr:first-child th{top:0}
-thead tr:nth-child(2) th{top:34px}
-thead tr:first-child th[rowspan="2"]{top:0}
+/* 單列表頭 sticky（top:0 即可，不需猜高度）；border-collapse 必須為 separate */
+thead th{position:-webkit-sticky;position:sticky;top:0;z-index:5;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;line-height:1.45}
 thead th.dcol{text-align:center;padding:9px 4px;min-width:48px;color:var(--text3)}
 tbody td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody td.dcol{text-align:center;padding:9px 4px;font-size:10px}
@@ -63,7 +63,6 @@ tbody tr:hover{background:var(--accent-light)}
 .settle{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--danger)}
 .settle.zero{color:var(--text3);font-weight:400}
 /* 欄位分組配色：本週期＝藍、上週期＝橘 */
-thead tr.grp th{text-align:center;font-size:11px;border-bottom:1px solid var(--border)}
 th.g-cur,td.g-cur{background:#F5F9FF}
 th.g-last,td.g-last{background:#FFFAF2}
 thead th.g-cur{color:var(--info)}
@@ -93,7 +92,9 @@ td.settle.none{color:var(--text3);font-weight:400;font-size:15px}
 #dateToast.out{opacity:0;transform:translateX(-50%) translateY(8px)}
 #dateToast b{font-weight:700}
 .dchip{cursor:pointer;display:inline-block;padding:2px 6px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-td.sticky-l,th.sticky-l{position:-webkit-sticky;position:sticky;left:0;background:var(--surface);z-index:3;box-shadow:2px 0 4px -2px rgba(0,0,0,.12)}
+/* 第一欄凍結：sticky 儲存格必須自帶不透明背景，否則捲動時會透出下層內容 */
+td.sticky-l{position:-webkit-sticky;position:sticky;left:0;background:var(--surface);z-index:3;box-shadow:2px 0 4px -2px rgba(0,0,0,.12)}
+th.sticky-l{position:-webkit-sticky;position:sticky;left:0;top:0;background:var(--surface2);z-index:9;box-shadow:2px 0 4px -2px rgba(0,0,0,.12)}
 thead th.sticky-l{z-index:7!important;background:var(--surface2)}
 tbody tr:hover .sticky-l{background:var(--accent-light)}
 .link{color:var(--info);cursor:pointer;text-decoration:none;font-weight:600}
@@ -390,18 +391,13 @@ window.render=function(){
 
   $('tbl').innerHTML=`<table>
     <thead>
-      <tr class="grp">
-        <th class="sticky-l" rowspan="2">姓名 / 店面</th>
-        <th rowspan="2">到職日 / 週期截止</th>
-        <th class="g-cur" colspan="2">本週期（進行中）</th>
-        <th class="g-last" colspan="2">上週期（已到期）</th>
-        <th class="dcol" colspan="${maxUsed}">本週期休假日期</th>
-      </tr>
       <tr>
-        <th class="g-cur">休假進度</th>
-        <th class="g-cur">還可休</th>
-        <th class="g-last">已放 / 應有</th>
-        <th class="g-last">須補薪</th>
+        <th class="sticky-l">姓名 / 店面</th>
+        <th>到職日 / 週期截止</th>
+        <th class="g-cur">本週期<br>休假進度</th>
+        <th class="g-cur">本週期<br>還可休</th>
+        <th class="g-last">上週期<br>已放 / 應有</th>
+        <th class="g-last">上週期<br>須補薪</th>
         ${dcols.join('')}
       </tr>
     </thead>
