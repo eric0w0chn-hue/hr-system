@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>特休假管理</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
+  --ok:#1F9D55;--warn:#D98A00;--danger:#C0392B;--info:#2D6CDF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar h1{font-size:15px;font-weight:600;color:#fff;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.back-btn{background:rgba(255,255,255,.12);border:none;color:#fff;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.tb-dv{width:1px;height:22px;background:rgba(255,255,255,.2)}
+.role-chip{background:rgba(255,255,255,.14);color:#fff;font-size:11px;padding:5px 10px;border-radius:20px;white-space:nowrap}
+
+.main{max-width:1600px;margin:0 auto;padding:18px}
+#loading{padding:60px;text-align:center;color:var(--text3);font-size:13px}
+
+.btn{border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:12px;padding:8px 13px;border-radius:9px;cursor:pointer;font-family:inherit;min-height:36px;white-space:nowrap}
+.btn:hover{border-color:var(--text3)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-sm{font-size:11px;padding:5px 10px;min-height:30px}
+
+/* 工具列 */
+.toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tool-lbl{font-size:12px;color:var(--text2);font-weight:600;white-space:nowrap}
+.sel{font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-family:inherit;min-height:34px;color:var(--text)}
+.search{flex:1;min-width:160px;font-size:13px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;font-family:inherit;min-height:36px}
+
+/* 模式切換 */
+.mode-tabs{display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.mode-tab{border:none;background:transparent;font-size:12px;padding:8px 14px;cursor:pointer;font-family:inherit;color:var(--text2);white-space:nowrap;min-height:34px}
+.mode-tab.active{background:var(--accent);color:#fff;font-weight:600}
+
+/* 統計卡 */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:11px 14px}
+.stat.warn{border-left-color:var(--warn)}
+.stat.danger{border-left-color:var(--danger)}
+.stat-l{font-size:11px;color:var(--text2);margin-bottom:3px}
+.stat-n{font-size:21px;font-weight:700;letter-spacing:.3px}
+
+/* 總表 */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:1180px}
+thead th{position:sticky;top:0;z-index:3;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.dcol{text-align:center;padding:9px 3px;min-width:30px;color:var(--text3)}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+tbody td.dcol{text-align:center;padding:9px 2px;font-size:10px}
+tbody tr:hover{background:var(--accent-light)}
+tbody tr.expired td{background:#FDF2F2}
+tbody tr.expired:hover td{background:#FAE5E5}
+.nm{font-weight:600}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.settle{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--danger)}
+.settle.zero{color:var(--text3);font-weight:400}
+.dmark{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:9px;font-weight:700}
+.sticky-l{position:sticky;left:0;background:var(--surface);z-index:2}
+thead th.sticky-l{z-index:4;background:var(--surface2)}
+tbody tr:hover .sticky-l{background:var(--accent-light)}
+tbody tr.expired .sticky-l{background:#FDF2F2}
+.link{color:var(--info);cursor:pointer;text-decoration:none;font-weight:600}
+.link:hover{text-decoration:underline}
+.empty{padding:44px;text-align:center;color:var(--text3);font-size:13px}
+.legend{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.8}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;background:var(--surface2);color:var(--text2)}
+.badge.ok{background:#E5F5EB;color:var(--ok)}
+.badge.warn{background:#FFF4E0;color:var(--warn)}
+
+/* 詳情 modal */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal{background:var(--surface);border-radius:14px;border:1px solid var(--border);width:720px;max-width:100%;max-height:90vh;overflow-y:auto;padding:20px}
+.modal-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.modal-ttl{font-size:15px;font-weight:600}
+.modal-sub{font-size:11px;color:var(--text2);margin-top:3px}
+.sec{font-size:12px;font-weight:600;color:var(--text2);margin:16px 0 8px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px}
+.box{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px}
+.box-l{font-size:10px;color:var(--text2);margin-bottom:3px}
+.box-n{font-size:17px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:4px 9px;font-size:11px;font-variant-numeric:tabular-nums}
+.chip-x{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;line-height:1;padding:0 1px}
+.chip-x:hover{color:var(--danger)}
+.chip.auto{border-color:#A7D8B8;background:#F2FBF5}
+.addrow{display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.addrow input[type="date"]{font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-family:inherit;min-height:34px}
+.note{font-size:11px;color:var(--text3);line-height:1.7;margin-top:8px}
+.warnbox{background:#FFFBEB;border:1px dashed var(--warn);border-radius:10px;padding:12px;margin-top:14px}
+.warnbox-t{font-size:12px;font-weight:700;color:#92400E;margin-bottom:4px}
+.warnbox-d{font-size:11px;color:#B45309;line-height:1.6}
+
+@media(max-width:600px){
+  .topbar{padding:0 12px}
+  .main{padding:12px}
+  .toolbar{padding:10px}
+  .search{min-width:100%}
+  .modal{padding:14px;border-radius:14px 14px 0 0;max-height:92vh}
+  .overlay{padding:0;align-items:flex-end}
+  .btn{min-height:40px}
+  .mode-tab{flex:1;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+    <div class="tb-dv"></div>
+    <h1>🌴 特休假管理</h1>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" onclick="exportCsv()">⬇ 匯出CSV</button>
+    <span class="role-chip" id="roleChip">—</span>
+  </div>
+</div>
+
+<div id="loading">載入中…</div>
+<div class="main" id="app" style="display:none">
+  <div class="toolbar">
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabTemp" onclick="setMode('temp')">臨時版（現行）</button>
+      <button class="mode-tab" id="tabLegal" onclick="setMode('legal')">正規版（勞基法）</button>
+    </div>
+    <span class="tool-lbl">店面</span>
+    <select class="sel" id="fLoc" onchange="render()"><option value="">全部</option></select>
+    <span class="tool-lbl">狀態</span>
+    <select class="sel" id="fStat" onchange="render()">
+      <option value="">全部</option>
+      <option value="settle">有待結算</option>
+      <option value="expired">已到期</option>
+    </select>
+    <input class="search" id="fKw" placeholder="搜尋姓名…" oninput="render()">
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="tbl-wrap"><div id="tbl"></div></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div id="modalArea"></div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ═══ 狀態 ═══ */
+let CUR={role:'',name:'',uid:''};
+let VIEW_LOCS=[];
+let employees=[];
+let workLocations=[];
+let mode='temp';               // temp=臨時版（extraLeave）／legal=正規版（勞基法週期）
+let selId=null;
+
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+
+/* ═══ 店名正規化（舖/鋪 異體字）═══ */
+function normLoc(s){return String(s||'').replace(/\s/g,'').replace(/鋪/g,'舖').trim();}
+
+/* ═══ 勞基法特休計算（自 hr.html 抽出，邏輯一致）═══ */
+function parseLocalDate(str){
+  if(!str)return null;
+  const p=String(str).split('-');
+  if(p.length<3)return null;
+  const d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  return isNaN(d.getTime())?null:d;
+}
+// 該「年度」給幾天：滿6個月3天、1年7天、2年10天、3~4年14天、5~9年15天、10年起每年+1（上限30）
+function getDaysForYear(yearsCompleted){
+  if(yearsCompleted===0)return 3;
+  if(yearsCompleted===1)return 7;
+  if(yearsCompleted===2)return 10;
+  if(yearsCompleted===3||yearsCompleted===4)return 14;
+  if(yearsCompleted<10)return 15;
+  return Math.min(15+(yearsCompleted-9),30);
+}
+// 所有特休週期邊界：到職日 → 滿6個月 → 每年到職日
+function getAllPeriodBoundaries(startDate){
+  const sd=parseLocalDate(startDate);
+  if(!sd)return [];
+  const b=[new Date(sd)];
+  b.push(new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate()));
+  let y=1;
+  while(true){
+    const a=new Date(sd.getFullYear()+y,sd.getMonth(),sd.getDate());
+    b.push(a);
+    if(a>new Date(new Date().getFullYear()+5,0,1))break;
+    y++;
+  }
+  return b;
+}
+// 當前週期
+function getAnnivPeriod(startDate){
+  const bounds=getAllPeriodBoundaries(startDate);
+  if(!bounds.length)return {start:null,end:null,startObj:null,endObj:null};
+  const today=new Date();
+  let ps=bounds[0],pe=bounds[1];
+  for(let i=0;i<bounds.length-1;i++){
+    if(bounds[i]<=today&&today<bounds[i+1]){ps=bounds[i];pe=bounds[i+1];break;}
+  }
+  return {start:ps.toLocaleDateString('en-CA'),end:pe.toLocaleDateString('en-CA'),startObj:ps,endObj:pe};
+}
+// 上一週期
+function getLastAnnivPeriod(startDate){
+  const bounds=getAllPeriodBoundaries(startDate);
+  if(!bounds.length)return {start:null,end:null,startObj:null};
+  const today=new Date();
+  for(let i=0;i<bounds.length-1;i++){
+    if(bounds[i]<=today&&today<bounds[i+1]){
+      if(i===0)return {start:null,end:null,startObj:null};
+      return {start:bounds[i-1].toLocaleDateString('en-CA'),end:bounds[i].toLocaleDateString('en-CA'),startObj:bounds[i-1],endObj:bounds[i]};
+    }
+  }
+  return {start:null,end:null,startObj:null};
+}
+// 該週期內已解鎖天數
+function calcUnlockedInPeriod(startDate,periodStartObj,refDate){
+  if(!startDate||!periodStartObj)return 0;
+  const sd=parseLocalDate(startDate);
+  if(!sd)return 0;
+  const ref=refDate||new Date();
+  const bounds=getAllPeriodBoundaries(startDate);
+  let idx=-1;
+  for(let i=0;i<bounds.length;i++){
+    if(bounds[i].getTime()===periodStartObj.getTime()){idx=i;break;}
+  }
+  if(idx<0){
+    const m=(periodStartObj.getFullYear()-sd.getFullYear())*12+(periodStartObj.getMonth()-sd.getMonth());
+    if(m===0){const u=new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate());return ref>=u?3:0;}
+    return getDaysForYear(Math.round(m/12));
+  }
+  if(idx===0)return 0;      // 到職~滿6個月：無特休
+  if(idx===1)return 3;      // 滿6個月~滿1年：3天
+  return getDaysForYear(idx-1);
+}
+
+/* ═══ 每人特休彙總 ═══ */
+function summarize(e){
+  const sd=e.startDate||'';
+  const cur=getAnnivPeriod(sd);
+  const last=getLastAnnivPeriod(sd);
+  const curDays=calcUnlockedInPeriod(sd,cur.startObj,new Date());
+  const lastDays=last.startObj?calcUnlockedInPeriod(sd,last.startObj,cur.startObj):0;
+
+  // 已放日期來源
+  //  臨時版：extraLeave[年份]（班表排特休會自動同步進來，也可手動增刪）
+  //  正規版：leaves[].usedDates
+  const extraAll=[];
+  if(e.extraLeave&&typeof e.extraLeave==='object'){
+    Object.keys(e.extraLeave).forEach(y=>{
+      const arr=e.extraLeave[y];
+      if(Array.isArray(arr))arr.forEach(d=>{if(d)extraAll.push(String(d));});
+    });
+  }
+  const legalAll=(Array.isArray(e.leaves)?e.leaves:[]).flatMap(l=>Array.isArray(l&&l.usedDates)?l.usedDates:[]).filter(Boolean).map(String);
+  const allUsed=(mode==='temp'?extraAll:legalAll);
+
+  const curUsed=cur.start?allUsed.filter(d=>d>=cur.start&&d<cur.end).sort():[];
+  const lastUsed=last.start?allUsed.filter(d=>d>=last.start&&d<last.end).sort():[];
+
+  // 去年未放 → 需結算（到期）
+  const lastRemain=Math.max(0,lastDays-lastUsed.length);
+  const curRemain=Math.max(0,curDays-curUsed.length);
+  const expired=!!(last.start&&lastRemain>0);   // 上一週期已結束且還有未放
+
+  return {
+    startDate:sd, cur, last,
+    curDays, lastDays,
+    curUsed, lastUsed,
+    curUsedN:curUsed.length, lastUsedN:lastUsed.length,
+    curRemain, lastRemain, expired,
+    extraAll:extraAll.sort(), legalAll:legalAll.sort(),
+  };
+}
+
+/* ═══ 篩選 ═══ */
+function visibleEmployees(){
+  const loc=$('fLoc').value, stat=$('fStat').value, kw=($('fKw').value||'').trim();
+  return employees.filter(e=>{
+    if(!e||!e.startDate)return false;                       // 無到職日無法計算
+    if(VIEW_LOCS.length&&!VIEW_LOCS.some(l=>normLoc(l)===normLoc(e.workLocation)))return false;
+    if(loc&&normLoc(loc)!==normLoc(e.workLocation))return false;
+    if(kw&&!String(e.name||'').includes(kw))return false;
+    if(stat){
+      const s=summarize(e);
+      if(stat==='settle'&&s.lastRemain<=0)return false;
+      if(stat==='expired'&&!s.expired)return false;
+    }
+    return true;
+  }).sort((a,b)=>String(a.startDate).localeCompare(String(b.startDate))||String(a.name).localeCompare(String(b.name),'zh-Hant'));
+}
+
+/* ═══ 渲染總表 ═══ */
+window.render=function(){
+  const list=visibleEmployees();
+
+  // 統計
+  let totSettle=0, cntExpired=0, totCurRemain=0;
+  list.forEach(e=>{const s=summarize(e);totSettle+=s.lastRemain;if(s.expired)cntExpired++;totCurRemain+=s.curRemain;});
+  $('stats').innerHTML=`
+    <div class="stat"><div class="stat-l">列入人數</div><div class="stat-n">${list.length}</div></div>
+    <div class="stat"><div class="stat-l">本週期未放（天）</div><div class="stat-n">${totCurRemain}</div></div>
+    <div class="stat warn"><div class="stat-l">待結算天數（上週期未放）</div><div class="stat-n">${totSettle}</div></div>
+    <div class="stat danger"><div class="stat-l">已到期需處理人數</div><div class="stat-n">${cntExpired}</div></div>`;
+
+  if(!list.length){
+    $('tbl').innerHTML='<div class="empty">沒有符合條件的同仁<br><span style="font-size:11px">（需已填到職日才會列入計算）</span></div>';
+    $('legend').innerHTML='';
+    return;
+  }
+
+  // D1~D31 欄（顯示本週期內已放日期落在哪一天）
+  const dcols=[];
+  for(let i=1;i<=31;i++)dcols.push(`<th class="dcol">D${i}</th>`);
+
+  const rows=list.map(e=>{
+    const s=summarize(e);
+    const dayset=new Set(s.curUsed.map(d=>parseInt(String(d).split('-')[2],10)));
+    const dcell=[];
+    for(let i=1;i<=31;i++){
+      dcell.push(`<td class="dcol">${dayset.has(i)?'<span class="dmark">✓</span>':''}</td>`);
+    }
+    return `<tr class="${s.expired?'expired':''}">
+      <td class="sticky-l">${e.startDate||'—'}</td>
+      <td class="nm"><span class="link" onclick="openDetail(${e.id})">${e.name||'—'}</span></td>
+      <td>${e.workLocation||'—'}</td>
+      <td>${s.cur.end||'—'}</td>
+      <td class="num">${s.lastDays}</td>
+      <td class="num">${s.curDays}</td>
+      <td class="num">${s.lastUsedN}</td>
+      <td class="num">${s.curUsedN}</td>
+      <td class="settle ${s.lastRemain?'':'zero'}">${s.lastRemain}</td>
+      <td class="num">${s.curRemain}</td>
+      ${dcell.join('')}
+    </tr>`;
+  }).join('');
+
+  $('tbl').innerHTML=`<table>
+    <thead><tr>
+      <th class="sticky-l">到職日</th><th>姓名</th><th>工作地點</th><th>本週期截止日</th>
+      <th>上週期<br>應有天數</th><th>本週期<br>應有天數</th>
+      <th>上週期<br>已放</th><th>本週期<br>已放</th>
+      <th>待結算<br>（未放）</th><th>本週期<br>未放</th>
+      ${dcols.join('')}
+    </tr></thead>
+    <tbody>${rows}</tbody></table>`;
+
+  $('legend').innerHTML=`
+    D1~D31＝本週期內實際休假日期（該月第幾日）。點姓名可查看個別詳情與增刪日期。<br>
+    紅底＝上一週期尚有未放特休（已到期，需結算未休薪資）。
+    ${mode==='temp'
+      ? '目前為<b>臨時版</b>：已放日期取自班表排定的特休（自動同步），亦可於詳情手動增刪。'
+      : '目前為<b>正規版</b>：依勞基法第38條到職日週期計算，已放日期取自特休使用紀錄。'}<br>
+    週期規則：滿6個月3天、滿1年7天、滿2年10天、滿3~4年14天、滿5~9年15天、滿10年起每年+1天（上限30天）。`;
+};
+
+/* ═══ 模式切換 ═══ */
+window.setMode=function(m){
+  mode=m;
+  $('tabTemp').classList.toggle('active',m==='temp');
+  $('tabLegal').classList.toggle('active',m==='legal');
+  render();
+};
+
+/* ═══ 個別詳情 ═══ */
+window.openDetail=function(id){
+  const e=employees.find(x=>String(x.id)===String(id));
+  if(!e)return;
+  selId=e.id;
+  const s=summarize(e);
+  const isAdmin=(CUR.role==='admin'||CUR.role==='consultant');
+  const yr=new Date().getFullYear();
+
+  const chip=(d,auto)=>`<div class="chip ${auto?'auto':''}"><span>${d}</span>${isAdmin?`<button class="chip-x" onclick="delDate('${d}')" title="移除">✕</button>`:''}</div>`;
+  const curChips=s.curUsed.length?s.curUsed.map(d=>chip(d,mode==='temp')).join(''):'<span style="font-size:11px;color:var(--text3)">本週期尚未登記</span>';
+  const lastChips=s.lastUsed.length?s.lastUsed.map(d=>chip(d,mode==='temp')).join(''):'<span style="font-size:11px;color:var(--text3)">無紀錄</span>';
+
+  $('modalArea').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeDetail()">
+    <div class="modal">
+      <div class="modal-hd">
+        <div>
+          <div class="modal-ttl">${e.name||'—'}　<span class="badge">${e.workLocation||'—'}</span></div>
+          <div class="modal-sub">到職日 ${e.startDate||'—'}　｜　本週期 ${s.cur.start||'—'} ～ ${s.cur.end||'—'}</div>
+        </div>
+        <button class="btn btn-sm" onclick="closeDetail()">✕ 關閉</button>
+      </div>
+
+      <div class="sec">本週期</div>
+      <div class="grid3">
+        <div class="box"><div class="box-l">應有天數</div><div class="box-n">${s.curDays}</div></div>
+        <div class="box"><div class="box-l">已放</div><div class="box-n">${s.curUsedN}</div></div>
+        <div class="box"><div class="box-l">未放</div><div class="box-n" style="color:${s.curRemain?'var(--warn)':'var(--text3)'}">${s.curRemain}</div></div>
+      </div>
+      <div class="chips">${curChips}</div>
+      ${isAdmin?`<div class="addrow">
+        <input type="date" id="addDate" value="${todayStr()}">
+        <button class="btn btn-sm btn-primary" onclick="addDate()">＋ 登記休假日</button>
+        <span class="note" style="margin:0">${mode==='temp'?'登記於臨時版（extraLeave）':'登記於正規版特休紀錄'}</span>
+      </div>`:''}
+
+      <div class="sec">上一週期${s.last.start?`（${s.last.start} ～ ${s.last.end}）`:''}</div>
+      ${s.last.start?`<div class="grid3">
+        <div class="box"><div class="box-l">應有天數</div><div class="box-n">${s.lastDays}</div></div>
+        <div class="box"><div class="box-l">已放</div><div class="box-n">${s.lastUsedN}</div></div>
+        <div class="box"><div class="box-l">未放（待結算）</div><div class="box-n" style="color:${s.lastRemain?'var(--danger)':'var(--text3)'}">${s.lastRemain}</div></div>
+      </div>
+      <div class="chips">${lastChips}</div>`:'<div class="note">尚未進入第二個特休週期。</div>'}
+
+      ${s.lastRemain>0?`<div class="warnbox">
+        <div class="warnbox-t">⚠ 上一週期尚有 ${s.lastRemain} 天未放</div>
+        <div class="warnbox-d">依勞基法第38條，特休於年度終結未休完之日數，雇主應發給工資。請於結算月份處理未休特休薪資。</div>
+      </div>`:''}
+
+      <div class="note">
+        ＊本頁「已放天數」在臨時版取自班表排定的特休（排班時自動同步），可手動增刪校正。<br>
+        ＊明年切換為正規版後，臨時版的休假日期仍完整保留，不會刪除。
+      </div>
+    </div></div>`;
+};
+window.closeDetail=function(){$('modalArea').innerHTML='';selId=null;};
+
+/* ═══ 增刪休假日期 ═══ */
+window.addDate=async function(){
+  if(!(CUR.role==='admin'||CUR.role==='consultant')){alert('僅管理員／顧問可調整');return;}
+  const v=$('addDate')?.value;
+  if(!v){alert('請選擇日期');return;}
+  const e=employees.find(x=>String(x.id)===String(selId));
+  if(!e)return;
+  const yr=new Date(v).getFullYear();
+  if(mode==='temp'){
+    if(!e.extraLeave)e.extraLeave={};
+    if(!Array.isArray(e.extraLeave[yr]))e.extraLeave[yr]=[];
+    if(e.extraLeave[yr].includes(v)){alert('此日期已登記');return;}
+    e.extraLeave[yr].push(v);e.extraLeave[yr].sort();
+  }else{
+    if(!Array.isArray(e.leaves))e.leaves=[];
+    if(!e.leaves.length)e.leaves.push({usedDates:[]});
+    const t=e.leaves[0];
+    if(!Array.isArray(t.usedDates))t.usedDates=[];
+    if(t.usedDates.includes(v)){alert('此日期已登記');return;}
+    t.usedDates.push(v);t.usedDates.sort();
+  }
+  await save(`登記特休 ${v}`, e.name);
+  openDetail(e.id);render();
+};
+window.delDate=async function(d){
+  if(!(CUR.role==='admin'||CUR.role==='consultant')){alert('僅管理員／顧問可調整');return;}
+  const e=employees.find(x=>String(x.id)===String(selId));
+  if(!e)return;
+  if(!confirm(`移除 ${e.name} 的特休日期 ${d}？`))return;
+  if(mode==='temp'){
+    Object.keys(e.extraLeave||{}).forEach(y=>{
+      const arr=e.extraLeave[y];
+      if(Array.isArray(arr)){const i=arr.indexOf(d);if(i>=0)arr.splice(i,1);}
+    });
+  }else{
+    (e.leaves||[]).forEach(l=>{
+      if(Array.isArray(l.usedDates)){const i=l.usedDates.indexOf(d);if(i>=0)l.usedDates.splice(i,1);}
+    });
+  }
+  await save(`移除特休 ${d}`, e.name);
+  openDetail(e.id);render();
+};
+
+/* ═══ 儲存（寫回 hr/employees，維持既有結構）═══ */
+async function save(action,detail){
+  try{
+    // 以最新遠端資料為底，只更新本頁改動的員工，避免覆蓋他人同時的編輯
+    const snap=await getDoc(doc(db,'hr','employees'));
+    const remote=snap.exists()?(snap.data().list||[]):[];
+    const edited=employees.find(x=>String(x.id)===String(selId));
+    if(!edited)return;
+    const idx=remote.findIndex(x=>String(x.id)===String(edited.id));
+    if(idx>=0){
+      remote[idx].extraLeave=edited.extraLeave||{};
+      remote[idx].leaves=edited.leaves||[];
+    }
+    await setDoc(doc(db,'hr','employees'),{list:remote},{merge:true});
+    writeOpLog({editor:CUR.name,role:CUR.role,module:'annual_leave',action,detail:detail||''});
+  }catch(err){
+    console.error(err);alert('儲存失敗：'+(err&&err.message||err));
+  }
+}
+
+/* ═══ 匯出 CSV ═══ */
+window.exportCsv=function(){
+  const list=visibleEmployees();
+  if(!list.length){alert('沒有資料可匯出');return;}
+  const head=['到職日','姓名','工作地點','本週期截止日','上週期應有','本週期應有','上週期已放','本週期已放','待結算未放','本週期未放','本週期休假日期'];
+  const rows=list.map(e=>{
+    const s=summarize(e);
+    return [e.startDate||'',e.name||'',e.workLocation||'',s.cur.end||'',s.lastDays,s.curDays,s.lastUsedN,s.curUsedN,s.lastRemain,s.curRemain,s.curUsed.join(' ')]
+      .map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv='\uFEFF'+[head.map(h=>`"${h}"`).join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`特休假總表_${mode==='temp'?'臨時版':'正規版'}_${todayStr()}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+};
+
+/* ═══ 入口 ═══ */
+authGuard('annual_leave', async ({ uid, role, locations, userData }) => {
+  CUR.role=role; CUR.name=userData?.name||'—'; CUR.uid=uid;
+  VIEW_LOCS=Array.isArray(locations)?locations.slice():[];
+  const rc=$('roleChip');
+  if(rc)rc.textContent=({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
+
+  try{
+    const [empSnap,setSnap]=await Promise.all([
+      getDoc(doc(db,'hr','employees')),
+      getDoc(doc(db,'hr','settings')).catch(()=>null),
+    ]);
+    const all=empSnap.exists()?(empSnap.data().list||[]):[];
+    employees=all.filter(e=>e&&(!e.status||e.status==='在職'));   // 僅在職同仁
+    workLocations=(setSnap&&setSnap.exists()?(setSnap.data().workLocations||[]):[]).slice();
+
+    // 店面下拉（依可視範圍）
+    const opts=(VIEW_LOCS.length?VIEW_LOCS:workLocations).filter(Boolean);
+    $('fLoc').innerHTML='<option value="">全部</option>'+opts.map(l=>`<option value="${l}">${l}</option>`).join('');
+
+    $('loading').style.display='none';
+    $('app').style.display='';
+    render();
+  }catch(e){
+    console.error(e);
+    $('loading').textContent='載入失敗：'+(e&&e.message||e);
+  }
+});
+</script>
+</body>
+</html>
