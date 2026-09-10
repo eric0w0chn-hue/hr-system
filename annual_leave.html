@@ -58,8 +58,6 @@ thead th.dcol{text-align:center;padding:9px 4px;min-width:48px;color:var(--text3
 tbody td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody td.dcol{text-align:center;padding:9px 4px;font-size:10px}
 tbody tr:hover{background:var(--accent-light)}
-tbody tr.expired td{background:#FDF2F2}
-tbody tr.expired:hover td{background:#FAE5E5}
 .nm{font-weight:600}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .settle{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--danger)}
@@ -72,7 +70,6 @@ thead th.g-cur{color:var(--info)}
 thead th.g-last{color:var(--warn)}
 tbody tr:hover td.g-cur{background:#EAF2FF}
 tbody tr:hover td.g-last{background:#FFF4E3}
-tbody tr.expired td.g-last{background:#FBE9E7}
 .sub{font-size:10px;color:var(--text3);font-weight:400;margin-top:2px;white-space:nowrap}
 /* 進度條 */
 .prog{height:6px;background:var(--border);border-radius:4px;overflow:hidden;min-width:76px;margin-bottom:4px}
@@ -82,15 +79,16 @@ tbody tr.expired td.g-last{background:#FBE9E7}
 td.remain,td.settle{text-align:center;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
 td.remain.has{color:var(--info)}
 td.remain.none{color:var(--text3);font-weight:400;font-size:15px}
-td.settle.has{color:var(--danger)}
-td.settle.none{color:var(--text3);font-weight:400;font-size:12px}
+/* 須補薪：紅色只出現在這一格（左紅條＋淡紅底），整列不染色以免視覺疲勞 */
+td.settle.has{color:var(--danger);background:#FDF2F2!important;border-left:3px solid var(--danger)}
+tbody tr:hover td.settle.has{background:#FAE5E5!important}
+td.settle.none{color:var(--text3);font-weight:400;font-size:15px}
 .unit{font-size:10px;font-weight:400;color:var(--text3);margin-left:1px}
 /* 休假日期 chip */
 .dchip{display:inline-block;padding:2px 6px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .sticky-l{position:sticky;left:0;background:var(--surface);z-index:2}
 thead th.sticky-l{z-index:4;background:var(--surface2)}
 tbody tr:hover .sticky-l{background:var(--accent-light)}
-tbody tr.expired .sticky-l{background:#FDF2F2}
 .link{color:var(--info);cursor:pointer;text-decoration:none;font-weight:600}
 .link:hover{text-decoration:underline}
 .empty{padding:44px;text-align:center;color:var(--text3);font-size:13px}
@@ -372,7 +370,7 @@ window.render=function(){
       </td>
       <td class="g-cur remain ${s.curRemain>0?'has':'none'}">${s.curRemain}<span class="unit">天</span></td>
       <td class="g-last">${s.last.start?`${s.lastUsedN} / ${s.lastDays}`:'—'}<div class="sub">${s.last.start?`${s.last.start} ~ ${s.last.end}`:'尚未進入第2週期'}</div></td>
-      <td class="g-last settle ${s.lastRemain>0?'has':'none'}">${s.last.start?(s.lastRemain>0?`${s.lastRemain}<span class="unit">天</span>`:'已休完'):'—'}</td>
+      <td class="g-last settle ${s.lastRemain>0?'has':'none'}" ${s.lastRemain>0?`title="上週期未休完，依勞基法第38條應發給工資"`:''}>${s.last.start?(s.lastRemain>0?`${s.lastRemain}<span class="unit">天</span>`:'✓'):'—'}</td>
       ${dcell.join('')}
     </tr>`;
   }).join('');
@@ -398,7 +396,7 @@ window.render=function(){
 
   $('legend').innerHTML=`
     <b>還可休</b>＝本週期應有天數 − 已放天數，同仁目前還能請的特休。<br>
-    <b>須補薪</b>＝上一週期結束時未休完的天數，依勞基法第38條雇主應發給工資（紅底列即為須處理者）。<br>
+    <b>須補薪</b>＝上一週期結束時未休完的天數，依勞基法第38條雇主應發給工資（<span style="color:var(--danger);font-weight:600">紅色數字</span>即為須處理者，✓ 表示已休完）。<br>
     <b>D1、D2…</b>＝本週期實際休假的日期，依序排列（D1 為第一天）。點姓名可查看詳情與增刪日期。<br>
     ${mode==='temp'
       ? '目前為<b>臨時版</b>：休假日期取自班表排定的特休（排班時自動同步），亦可於詳情手動增刪。'
