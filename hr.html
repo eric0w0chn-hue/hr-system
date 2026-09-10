@@ -1206,31 +1206,9 @@ function render() {
         const tenureKey2='tenure_'+td2.getFullYear();
         const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
         // 特休結算警示：有上一週期未休且未標記已結算
-        const leaveSettleAlert=(()=>{
-          if(!r.startDate)return false;
-          // 計算上一週期起迄
-          const sd3=r.startDate.split('-');const sdObj=new Date(parseInt(sd3[0]),parseInt(sd3[1])-1,parseInt(sd3[2]));
-          const today3=new Date();
-          let pStart=new Date(sdObj);
-          while(true){const next=new Date(pStart.getFullYear()+1,sdObj.getMonth(),sdObj.getDate());if(next>today3)break;pStart=next;}
-          const lastStart=new Date(pStart.getFullYear()-1,sdObj.getMonth(),sdObj.getDate());
-          if(lastStart<sdObj)return false;
-          if(!(today3>=pStart))return false; // 還沒到結算日
-          if(r.leaveSettled===pStart.toLocaleDateString('en-CA'))return false; // 已結算
-          // 檢查上一週期是否有未休
-          const lastS=lastStart.toLocaleDateString('en-CA');
-          const pS=pStart.toLocaleDateString('en-CA');
-          const allD=(r.leaves||[]).flatMap(l=>l.usedDates||[]);
-          const lastUsedN=allD.filter(d=>d>=lastS&&d<pS).length;
-          // 計算上一週期應有天數
-          const ms3=(pStart-sdObj);const mo3=Math.floor(ms3/(1000*60*60*24*30.44));
-          let lastAnn=0;
-          if(mo3>=6&&mo3<12)lastAnn=3;
-          else if(mo3>=12){const y3=Math.floor((pStart-sdObj-365.25*24*3600*1000*(Math.round(mo3/12)-1))/0||0);const yr3=Math.floor(mo3/12);if(yr3===1)lastAnn=7;else if(yr3===2)lastAnn=10;else if(yr3<5)lastAnn=14;else if(yr3<10)lastAnn=15;else lastAnn=Math.min(15+yr3-10,30);}
-          return(lastAnn-lastUsedN)>0;
-        })();
-        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert||leaveSettleAlert;
-        const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':'',leaveSettleAlert?'特休假待結算':''].filter(Boolean).join('、');
+        // 註：特休假待結算提醒已移至獨立功能頁 annual_leave.html（特休假管理）
+        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
+        const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':''].filter(Boolean).join('、');
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
         <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
@@ -2177,32 +2155,7 @@ window.delCustomOption=function(listName, selectId){
 };
 
 // ── 特休結算切換 ──
-window.toggleLeaveSettle=async function(empId){
-  const r=employees.find(x=>x.id===empId); if(!r||!r.startDate)return;
-  // 重新計算當前週期起始日
-  const sd=r.startDate.split('-');
-  const sdObj=new Date(parseInt(sd[0]),parseInt(sd[1])-1,parseInt(sd[2]));
-  const today=new Date();
-  // 建立所有邊界
-  const bounds=[new Date(sdObj)];
-  bounds.push(new Date(sdObj.getFullYear(),sdObj.getMonth()+6,sdObj.getDate()));
-  let y=1;
-  while(bounds[bounds.length-1]<new Date(today.getFullYear()+2,0,1)){
-    bounds.push(new Date(sdObj.getFullYear()+y,sdObj.getMonth(),sdObj.getDate()));y++;
-  }
-  // 找當前週期起始
-  let periodStart=bounds[0];
-  for(let i=0;i<bounds.length-1;i++){
-    if(bounds[i]<=today&&today<bounds[i+1]){periodStart=bounds[i];break;}
-  }
-  const key=periodStart.toLocaleDateString('en-CA');
-  if(r.leaveSettled===key){
-    delete r.leaveSettled;
-  } else {
-    r.leaveSettled=key;
-  }
-  render(); showToast('儲存中...'); await saveData(); showToast('已更新 ✓');
-};
+// 註：特休結算標記（leaveSettled）已移至 annual_leave.html 操作，此處函式移除。
 
 // ── 薪資記錄刪除 ──
 window.deleteSalaryRecord=async function(empId,idx){

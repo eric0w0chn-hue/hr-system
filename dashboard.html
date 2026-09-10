@@ -570,6 +570,36 @@ async function checkUnfinishedAlerts(){
   const targetSet = new Set(targetStores.map(normLoc));
 
   await Promise.allSettled([
+    // ⓐ 特休假管理：上一週期有未休且未標記已發放者
+    (async()=>{
+      try{
+        const es = await getDoc(doc(db,'hr','employees'));
+        if(!es.exists()) return;
+        const list = (es.data().list||[]).filter(e=>e&&(!e.status||e.status==='在職')&&e.startDate);
+        const daysFor = y => y===0?3 : y===1?7 : y===2?10 : (y===3||y===4)?14 : y<10?15 : Math.min(15+(y-9),30);
+        const pd = str => { const p=String(str).split('-'); if(p.length<3)return null; const d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d)?null:d; };
+        const now = new Date();
+        const has = list.some(e=>{
+          if(!seeAll && !targetSet.has(normLoc(e.workLocation))) return false;
+          const sd = pd(e.startDate); if(!sd) return false;
+          const b=[new Date(sd), new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate())];
+          let y=1;
+          while(b[b.length-1] < new Date(now.getFullYear()+2,0,1)){ b.push(new Date(sd.getFullYear()+y,sd.getMonth(),sd.getDate())); y++; }
+          let idx=-1;
+          for(let i=0;i<b.length-1;i++){ if(b[i]<=now && now<b[i+1]){ idx=i; break; } }
+          if(idx<1) return false;
+          const curStart=b[idx].toLocaleDateString('en-CA');
+          if(e.leaveSettled===curStart) return false;
+          const lastStart=b[idx-1].toLocaleDateString('en-CA');
+          const lastDays = (idx-1===0) ? 0 : ((idx-1===1) ? 3 : daysFor(idx-2));
+          if(lastDays<=0) return false;
+          const used=(Array.isArray(e.leaves)?e.leaves:[]).flatMap(l=>Array.isArray(l&&l.usedDates)?l.usedDates:[])
+            .filter(d=>d>=lastStart && d<curStart).length;
+          return (lastDays-used) > 0;
+        });
+        if(has) alerts['annual_leave'] = true;
+      }catch(e){}
+    })(),
     // ① 店務追蹤：pending/in_progress 且 dueDate 已過期
     (async()=>{
       try{

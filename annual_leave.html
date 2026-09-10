@@ -43,17 +43,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei
 .mode-tab.active{background:var(--accent);color:#fff;font-weight:600}
 
 /* 統計卡 */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
-.stat{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:11px 14px}
-.stat.warn{border-left-color:var(--warn)}
-.stat.danger{border-left-color:var(--danger)}
-.stat-l{font-size:11px;color:var(--text2);margin-bottom:3px}
-.stat-n{font-size:21px;font-weight:700;letter-spacing:.3px}
 
 /* 總表 */
 .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:1180px}
-thead th{position:sticky;top:0;z-index:3;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+/* 表頭凍結：兩列表頭各自 sticky（第2列需下移第1列高度）；第一欄同時凍結 */
+thead th{position:sticky;z-index:3;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+thead tr:first-child th{top:0}
+thead tr:nth-child(2) th{top:34px}
+thead tr:first-child th[rowspan="2"]{top:0}
 thead th.dcol{text-align:center;padding:9px 4px;min-width:48px;color:var(--text3)}
 tbody td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody td.dcol{text-align:center;padding:9px 4px;font-size:10px}
@@ -83,11 +81,15 @@ td.remain.none{color:var(--text3);font-weight:400;font-size:15px}
 td.settle.has{color:var(--danger);background:#FDF2F2!important;border-left:3px solid var(--danger)}
 tbody tr:hover td.settle.has{background:#FAE5E5!important}
 td.settle.none{color:var(--text3);font-weight:400;font-size:15px}
+.paid{display:inline-block;font-size:11px;font-weight:600;color:var(--ok);background:#E5F5EB;border:1px solid #A7D8B8;border-radius:5px;padding:3px 8px}
+.settle-act{margin-top:5px}
+.mini{font-size:10px;padding:3px 7px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.mini:hover{border-color:var(--text3);color:var(--text)}
 .unit{font-size:10px;font-weight:400;color:var(--text3);margin-left:1px}
 /* 休假日期 chip */
 .dchip{display:inline-block;padding:2px 6px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.sticky-l{position:sticky;left:0;background:var(--surface);z-index:2}
-thead th.sticky-l{z-index:4;background:var(--surface2)}
+.sticky-l{position:sticky;left:0;background:var(--surface);z-index:2;box-shadow:1px 0 0 var(--border)}
+thead th.sticky-l{z-index:6;background:var(--surface2)}
 tbody tr:hover .sticky-l{background:var(--accent-light)}
 .link{color:var(--info);cursor:pointer;text-decoration:none;font-weight:600}
 .link:hover{text-decoration:underline}
@@ -162,9 +164,9 @@ tbody tr:hover .sticky-l{background:var(--accent-light)}
       <option value="expired">已到期</option>
     </select>
     <input class="search" id="fKw" placeholder="搜尋姓名…" oninput="render()">
+    <button class="btn btn-sm" id="btnBatch" onclick="batchSettle()" style="display:none" title="將指定年度（含以前）到職、上週期尚有未休者一次標記已發放">✅ 批次標記已發放</button>
   </div>
 
-  <div class="stats" id="stats"></div>
   <div class="tbl-wrap"><div id="tbl"></div></div>
   <div class="legend" id="legend"></div>
 </div>
@@ -267,6 +269,9 @@ function calcUnlockedInPeriod(startDate,periodStartObj,refDate){
   return getDaysForYear(idx-1);
 }
 
+/* ═══ 權限 ═══ */
+function canEdit(){return CUR.role==='admin'||CUR.role==='consultant';}
+
 /* ═══ 每人特休彙總 ═══ */
 function summarize(e){
   const sd=e.startDate||'';
@@ -294,14 +299,17 @@ function summarize(e){
   // 去年未放 → 需結算（到期）
   const lastRemain=Math.max(0,lastDays-lastUsed.length);
   const curRemain=Math.max(0,curDays-curUsed.length);
-  const expired=!!(last.start&&lastRemain>0);   // 上一週期已結束且還有未放
+  // 已發放（結算）判定：leaveSettled 記錄「已結算的週期起始日」＝本週期起始日
+  //   沿用 hr.html 既有欄位，兩邊自動同步（hr 紅點提醒也讀它）
+  const settled=!!(cur.start&&e.leaveSettled===cur.start);
+  const expired=!!(last.start&&lastRemain>0&&!settled);   // 上週期有未放且未結算
 
   return {
     startDate:sd, cur, last,
     curDays, lastDays,
     curUsed, lastUsed,
     curUsedN:curUsed.length, lastUsedN:lastUsed.length,
-    curRemain, lastRemain, expired,
+    curRemain, lastRemain, expired, settled,
     extraAll:extraAll.sort(), legalAll:legalAll.sort(),
   };
 }
@@ -328,13 +336,8 @@ window.render=function(){
   const list=visibleEmployees();
 
   // 統計
-  let totSettle=0, cntExpired=0, totCurRemain=0;
-  list.forEach(e=>{const s=summarize(e);totSettle+=s.lastRemain;if(s.expired)cntExpired++;totCurRemain+=s.curRemain;});
-  $('stats').innerHTML=`
-    <div class="stat"><div class="stat-l">列入人數</div><div class="stat-n">${list.length}</div></div>
-    <div class="stat"><div class="stat-l">本週期還可休（總天數）</div><div class="stat-n">${totCurRemain}<span style="font-size:12px;font-weight:400;color:var(--text3)"> 天</span></div></div>
-    <div class="stat danger"><div class="stat-l">須補薪天數（上週期未休）</div><div class="stat-n">${totSettle}<span style="font-size:12px;font-weight:400;color:var(--text3)"> 天</span></div></div>
-    <div class="stat warn"><div class="stat-l">須補薪人數</div><div class="stat-n">${cntExpired}<span style="font-size:12px;font-weight:400;color:var(--text3)"> 人</span></div></div>`;
+  // 統計卡已依需求移除（資訊集中在表格內）
+
 
   if(!list.length){
     $('tbl').innerHTML='<div class="empty">沒有符合條件的同仁<br><span style="font-size:11px">（需已填到職日才會列入計算）</span></div>';
@@ -362,7 +365,7 @@ window.render=function(){
     // 進度條：本週期已放/應有
     const pct=s.curDays>0?Math.min(100,Math.round(s.curUsedN/s.curDays*100)):0;
     return `<tr class="${s.expired?'expired':''}">
-      <td class="sticky-l">${e.name||'—'}<div class="sub">${e.workLocation||'—'}</div></td>
+      <td class="sticky-l"><span class="link" onclick="openDetail(${e.id})">${e.name||'—'}</span><div class="sub">${e.workLocation||'—'}</div></td>
       <td>${e.startDate||'—'}<div class="sub">週期至 ${s.cur.end||'—'}</div></td>
       <td class="g-cur">
         <div class="prog"><div class="prog-bar" style="width:${pct}%"></div></div>
@@ -370,7 +373,12 @@ window.render=function(){
       </td>
       <td class="g-cur remain ${s.curRemain>0?'has':'none'}">${s.curRemain}<span class="unit">天</span></td>
       <td class="g-last">${s.last.start?`${s.lastUsedN} / ${s.lastDays}`:'—'}<div class="sub">${s.last.start?`${s.last.start} ~ ${s.last.end}`:'尚未進入第2週期'}</div></td>
-      <td class="g-last settle ${s.lastRemain>0?'has':'none'}" ${s.lastRemain>0?`title="上週期未休完，依勞基法第38條應發給工資"`:''}>${s.last.start?(s.lastRemain>0?`${s.lastRemain}<span class="unit">天</span>`:'✓'):'—'}</td>
+      <td class="g-last settle ${s.expired?'has':'none'}">${
+        !s.last.start ? '—'
+        : s.lastRemain<=0 ? '<span title="上週期已休完">✓</span>'
+        : s.settled ? `<span class="paid" title="已於 ${e.leaveSettled} 標記結算發放">已發放</span>`
+        : `<span title="上週期未休完，依勞基法第38條應發給工資">${s.lastRemain}<span class="unit">天</span></span>`
+      }${(s.last.start&&s.lastRemain>0&&canEdit())?`<div class="settle-act"><button class="mini" onclick="toggleSettled(${e.id})">${s.settled?'取消':'標記已發放'}</button></div>`:''}</td>
       ${dcell.join('')}
     </tr>`;
   }).join('');
@@ -396,7 +404,7 @@ window.render=function(){
 
   $('legend').innerHTML=`
     <b>還可休</b>＝本週期應有天數 − 已放天數，同仁目前還能請的特休。<br>
-    <b>須補薪</b>＝上一週期結束時未休完的天數，依勞基法第38條雇主應發給工資（<span style="color:var(--danger);font-weight:600">紅色數字</span>即為須處理者，✓ 表示已休完）。<br>
+    <b>須補薪</b>＝上一週期結束時未休完的天數，依勞基法第38條雇主應發給工資（<span style="color:var(--danger);font-weight:600">紅色數字</span>＝待處理，<span style="color:var(--ok);font-weight:600">已發放</span>＝已結清，✓＝已休完）。已發放標記與人員資訊的紅點提醒同步。<br>
     <b>D1、D2…</b>＝本週期實際休假的日期，依序排列（D1 為第一天）。點姓名可查看詳情與增刪日期。<br>
     ${mode==='temp'
       ? '目前為<b>臨時版</b>：休假日期取自班表排定的特休（排班時自動同步），亦可於詳情手動增刪。'
@@ -456,9 +464,10 @@ window.openDetail=function(id){
       </div>
       <div class="chips">${lastChips}</div>`:'<div class="note">尚未進入第二個特休週期。</div>'}
 
-      ${s.lastRemain>0?`<div class="warnbox">
-        <div class="warnbox-t">⚠ 上一週期尚有 ${s.lastRemain} 天未放</div>
-        <div class="warnbox-d">依勞基法第38條，特休於年度終結未休完之日數，雇主應發給工資。請於結算月份處理未休特休薪資。</div>
+      ${s.lastRemain>0?`<div class="warnbox" style="${s.settled?'border-color:var(--ok);background:#F2FBF5':''}">
+        <div class="warnbox-t" style="${s.settled?'color:var(--ok)':''}">${s.settled?`✓ 上週期未休 ${s.lastRemain} 天　已標記發放`:`⚠ 上一週期尚有 ${s.lastRemain} 天未放`}</div>
+        <div class="warnbox-d">依勞基法第38條，特休於年度終結未休完之日數，雇主應發給工資。${s.settled?`（已於 ${e.leaveSettled} 標記結算）`:'請於結算月份處理未休特休薪資。'}</div>
+        ${canEdit()?`<div style="margin-top:9px"><button class="btn btn-sm ${s.settled?'':'btn-primary'}" onclick="toggleSettled(${e.id})">${s.settled?'取消已發放標記':'✅ 標記為已發放'}</button></div>`:''}
       </div>`:''}
 
       <div class="note">
@@ -512,25 +521,91 @@ window.delDate=async function(d){
   openDetail(e.id);render();
 };
 
+/* ═══ 上週期結算：標記／取消已發放 ═══ */
+// 沿用 hr/employees 的 leaveSettled 欄位（值＝已結算的「本週期起始日」），
+// 與 hr.html 的紅點提醒共用同一欄位，標記後該提醒也會消失。
+window.toggleSettled=async function(id){
+  if(!canEdit()){alert('僅管理員／顧問可調整');return;}
+  const e=employees.find(x=>String(x.id)===String(id));
+  if(!e)return;
+  const s=summarize(e);
+  if(!s.cur.start){alert('無法判定週期');return;}
+  const on=(e.leaveSettled===s.cur.start);
+  if(on){
+    if(!confirm(`取消「${e.name}」上週期未休 ${s.lastRemain} 天的已發放標記？`))return;
+    delete e.leaveSettled;
+  }else{
+    if(!confirm(`將「${e.name}」上週期未休 ${s.lastRemain} 天標記為已發放薪資？\n\n（週期 ${s.last.start} ~ ${s.last.end}）`))return;
+    e.leaveSettled=s.cur.start;
+  }
+  await saveEmp(e, on?'取消特休結算標記':'標記特休已發放', e.name);
+  render();
+  if(document.querySelector('.overlay'))openDetail(e.id);
+};
+
+// 批次：把「到職日在指定年度（含以前）」且上週期有未休的人，一次標記為已發放
+window.batchSettle=async function(){
+  if(!canEdit()){alert('僅管理員／顧問可調整');return;}
+  const yr=prompt('將「到職日為此年度（含以前）」且上週期尚有未休特休的同仁，一次標記為已發放。\n\n請輸入年度（例如 2025 代表 2025 年底前到職者）：', String(new Date().getFullYear()-1));
+  if(yr===null)return;
+  const y=parseInt(yr,10);
+  if(!y||y<2000||y>2100){alert('年度格式不正確');return;}
+
+  const targets=visibleEmployees().filter(e=>{
+    const sd=parseLocalDate(e.startDate);
+    if(!sd||sd.getFullYear()>y)return false;      // 只取該年度（含以前）到職者
+    const s=summarize(e);
+    return !!(s.last.start&&s.lastRemain>0&&!s.settled);
+  });
+  if(!targets.length){alert('沒有需要標記的同仁。\n（條件：'+y+' 年（含以前）到職、上週期有未休、且尚未標記）');return;}
+
+  const tot=targets.reduce((a,e)=>a+summarize(e).lastRemain,0);
+  const names=targets.slice(0,12).map(e=>`・${e.name}（${summarize(e).lastRemain} 天）`).join('\n');
+  if(!confirm(`將以下 ${targets.length} 位同仁的上週期未休特休標記為「已發放」\n合計 ${tot} 天：\n\n${names}${targets.length>12?`\n…其餘 ${targets.length-12} 位`:''}\n\n確定執行？`))return;
+
+  let n=0;
+  targets.forEach(e=>{
+    const s=summarize(e);
+    if(s.cur.start){e.leaveSettled=s.cur.start;n++;}
+  });
+  await saveAll(`批次標記特休已發放（${y}年含以前到職）`, `${n} 位、共 ${tot} 天`);
+  render();
+  alert(`✓ 已標記 ${n} 位同仁的上週期特休為已發放。`);
+};
+
 /* ═══ 儲存（寫回 hr/employees，維持既有結構）═══ */
-async function save(action,detail){
+// 以遠端最新資料為底，只覆寫指定員工的特休相關欄位，避免蓋掉他人同時的編輯
+async function writeBack(empList,action,detail){
   try{
-    // 以最新遠端資料為底，只更新本頁改動的員工，避免覆蓋他人同時的編輯
     const snap=await getDoc(doc(db,'hr','employees'));
     const remote=snap.exists()?(snap.data().list||[]):[];
-    const edited=employees.find(x=>String(x.id)===String(selId));
-    if(!edited)return;
-    const idx=remote.findIndex(x=>String(x.id)===String(edited.id));
-    if(idx>=0){
+    let hit=0;
+    empList.forEach(edited=>{
+      const idx=remote.findIndex(x=>String(x.id)===String(edited.id));
+      if(idx<0)return;
       remote[idx].extraLeave=edited.extraLeave||{};
       remote[idx].leaves=edited.leaves||[];
-    }
+      if(edited.leaveSettled)remote[idx].leaveSettled=edited.leaveSettled;
+      else delete remote[idx].leaveSettled;
+      hit++;
+    });
+    if(!hit)return;
     await setDoc(doc(db,'hr','employees'),{list:remote},{merge:true});
     writeOpLog({editor:CUR.name,role:CUR.role,module:'annual_leave',action,detail:detail||''});
   }catch(err){
     console.error(err);alert('儲存失敗：'+(err&&err.message||err));
   }
 }
+// 單筆（詳情頁增刪日期用，沿用 selId）
+async function save(action,detail){
+  const edited=employees.find(x=>String(x.id)===String(selId));
+  if(!edited)return;
+  await writeBack([edited],action,detail);
+}
+// 單筆（指定員工）
+async function saveEmp(e,action,detail){ await writeBack([e],action,detail); }
+// 批次
+async function saveAll(action,detail){ await writeBack(visibleEmployees(),action,detail); }
 
 /* ═══ 匯出 CSV ═══ */
 window.exportCsv=function(){
@@ -538,13 +613,13 @@ window.exportCsv=function(){
   if(!list.length){alert('沒有資料可匯出');return;}
   const maxUsed=Math.max(1,...list.map(e=>summarize(e).curUsedN));
   const dhead=[];for(let i=1;i<=maxUsed;i++)dhead.push('D'+i);
-  const head=['姓名','工作地點','到職日','本週期截止','本週期應有','本週期已放','還可休','上週期應有','上週期已放','須補薪',...dhead];
+  const head=['姓名','工作地點','到職日','本週期截止','本週期應有','本週期已放','還可休','上週期應有','上週期已放','須補薪','結算狀態',...dhead];
   const rows=list.map(e=>{
     const s=summarize(e);
     const ds=[];for(let i=0;i<maxUsed;i++)ds.push(s.curUsed[i]||'');
     return [e.name||'',e.workLocation||'',e.startDate||'',s.cur.end||'',
             s.curDays,s.curUsedN,s.curRemain,
-            s.last.start?s.lastDays:'',s.last.start?s.lastUsedN:'',s.last.start?s.lastRemain:'',
+            s.last.start?s.lastDays:'',s.last.start?s.lastUsedN:'',s.last.start?s.lastRemain:'',(s.last.start?(s.lastRemain<=0?'已休完':(s.settled?'已發放':'待發放')):''),
             ...ds]
       .map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
   });
@@ -575,6 +650,7 @@ authGuard('annual_leave', async ({ uid, role, locations, userData }) => {
     const opts=(VIEW_LOCS.length?VIEW_LOCS:workLocations).filter(Boolean);
     $('fLoc').innerHTML='<option value="">全部</option>'+opts.map(l=>`<option value="${l}">${l}</option>`).join('');
 
+    if(canEdit()){const bb=$('btnBatch');if(bb)bb.style.display='';}
     $('loading').style.display='none';
     $('app').style.display='';
     render();
