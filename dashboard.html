@@ -124,9 +124,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 /* ── Main content ── */
 .main-wrap{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);height:100vh;overflow:hidden}
 .main{height:100%;padding:0}
-.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg);position:relative}
-.lp-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:block;background:var(--bg)}
-.lp-frame.lp-hidden{display:none}
+.content-frame{width:100%;height:100%;border:none;display:block;background:var(--bg)}
 .main{height:100%;padding:0}
 .main-header{margin-bottom:24px}
 .main-header h2{font-size:20px;font-weight:700;color:var(--text)}
@@ -367,7 +365,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <span id="previewNoticeText">目前為預覽模式</span>
         <span style="margin-left:auto;cursor:pointer;opacity:.7" onclick="setPreview(realRole)">✕ 返回實際視角</span>
       </div>
-      <div id="contentFrame" class="content-frame"></div>
+      <iframe id="contentFrame" class="content-frame" src="" title="功能頁面"></iframe>
     </div>
   </div>
 </div>
@@ -415,7 +413,6 @@ const ALL_MODULES=[
   {key:'price',   icon:'🥬', name:'菜價回報',  desc:'每日菜價回報、廠商比價、各店價格同步',         page:'price.html',active:true},
   {key:'meeting', icon:'📋', name:'會議紀錄',  desc:'各店會議音檔、文字紀錄、報告文件管理與備份',   page:'meeting.html',active:true},
   {key:'salary',  icon:'💰', name:'薪資計算',  desc:'月薪結算、固定獎金、勞健保自負額試算',         page:'salary.html',active:true},
-  {key:'annual_leave',icon:'🌴', name:'特休假管理', desc:'全體特休天數總表、休假日期登記、未休結算',     page:'annual_leave.html',active:true},
   {key:'bonus',   icon:'🎁', name:'獎金補助',  desc:'廚師鞋、健康檢查、生日禮金、久任獎金統一管理', page:'bonus.html',active:true},
   {key:'account', icon:'🔑', name:'帳號管理',  desc:'帳號角色設定、店面權限管理、帳號停用',         page:'account.html',active:true,adminOnly:true},
   {key:'cctv',       icon:'📹', name:'監視器回報',desc:'每日監視器影片回報、各店回報狀況查閱、未回報追蹤',page:'cctv_report.html',active:true},
@@ -423,18 +420,18 @@ const ALL_MODULES=[
   {key:'permissions',icon:'🔐', name:'權限管理',  desc:'各功能模組的身分可見性設定，變更後立即生效',     page:'permissions.html',active:true,adminOnly:true},
   {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
   {key:'checkout', icon:'💰', name:'結帳系統', desc:'跳轉至梁平結帳系統', page:'checkout.html', active:true},
-  {key:'order',    icon:'📦', name:'叫貨系統', desc:'跳轉至叫貨系統（外部）', page:'order.html', active:true},
   {key:'task',    icon:'📌', name:'店務追蹤',  desc:'記錄並追蹤各店執行中的事項與進度，逾期/停滯自動標記', page:'task.html', active:true},
   {key:'recruit104', icon:'📣', name:'104排程', desc:'各店 104 職缺需求設定、履歷發放排程與截圖存證', page:'recruit104.html', active:true},
   {key:'alert_settings', icon:'🔔', name:'提醒排程設定', desc:'設定未完成事項的 LINE 主動提醒時間與檢查項目', page:'alert_settings.html', active:true, adminOnly:true},
   {key:'email_bind', icon:'📧', name:'聯絡信箱設定', desc:'設定個人聯絡信箱，接收未完成事項主動提醒', page:'email_bind.html', active:true},
   {key:'cost',    icon:'🧮', name:'成本利潤',  desc:'食材耗材單位成本換算、商品組成總成本與售價毛利分析', page:'cost.html', active:true},
   {key:'talent',   icon:'🧑‍💼', name:'招募管理',   desc:'招募職缺管理、求職者履歷審閱（外部招募系統）', page:'https://liangping-talent.web.app/admin', active:true},
+  {key:'store_manage', icon:'🏪', name:'店家管理',  desc:'店家主檔、招募系統代號、工作與面試地點下拉選單來源', page:'store_manage.html', active:true},
 ];
 const VISIBLE_KEYS={
-  admin:    ['hr','schedule','price','meeting','salary','annual_leave','bonus','cost','account','cctv','delivery_report','permissions','store_accounts','checkout','order','task','recruit104','talent','alert_settings','email_bind'],
-  consultant:['hr','schedule','price','meeting','salary','annual_leave','bonus','cost','cctv','delivery_report','store_accounts','checkout','order','task','recruit104','talent','email_bind'],
-  manager:  ['hr','schedule','price','meeting','salary','annual_leave','bonus','cost','cctv','delivery_report','store_accounts','checkout','order','task','recruit104','talent','email_bind'],
+  admin:    ['hr','schedule','price','meeting','salary','bonus','cost','account','cctv','delivery_report','permissions','store_accounts','checkout','task','recruit104','talent','store_manage','alert_settings','email_bind'],
+  consultant:['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','talent','email_bind'],
+  manager:  ['hr','schedule','price','meeting','salary','bonus','cost','cctv','delivery_report','store_accounts','checkout','task','recruit104','talent','email_bind'],
   employee: ['schedule']
 };
 
@@ -570,36 +567,6 @@ async function checkUnfinishedAlerts(){
   const targetSet = new Set(targetStores.map(normLoc));
 
   await Promise.allSettled([
-    // ⓐ 特休假管理：上一週期有未休且未標記已發放者
-    (async()=>{
-      try{
-        const es = await getDoc(doc(db,'hr','employees'));
-        if(!es.exists()) return;
-        const list = (es.data().list||[]).filter(e=>e&&(!e.status||e.status==='在職')&&e.startDate);
-        const daysFor = y => y===0?3 : y===1?7 : y===2?10 : (y===3||y===4)?14 : y<10?15 : Math.min(15+(y-9),30);
-        const pd = str => { const p=String(str).split('-'); if(p.length<3)return null; const d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d)?null:d; };
-        const now = new Date();
-        const has = list.some(e=>{
-          if(!seeAll && !targetSet.has(normLoc(e.workLocation))) return false;
-          const sd = pd(e.startDate); if(!sd) return false;
-          const b=[new Date(sd), new Date(sd.getFullYear(),sd.getMonth()+6,sd.getDate())];
-          let y=1;
-          while(b[b.length-1] < new Date(now.getFullYear()+2,0,1)){ b.push(new Date(sd.getFullYear()+y,sd.getMonth(),sd.getDate())); y++; }
-          let idx=-1;
-          for(let i=0;i<b.length-1;i++){ if(b[i]<=now && now<b[i+1]){ idx=i; break; } }
-          if(idx<1) return false;
-          const curStart=b[idx].toLocaleDateString('en-CA');
-          if(e.leaveSettled===curStart) return false;
-          const lastStart=b[idx-1].toLocaleDateString('en-CA');
-          const lastDays = (idx-1===0) ? 0 : ((idx-1===1) ? 3 : daysFor(idx-2));
-          if(lastDays<=0) return false;
-          const used=(Array.isArray(e.leaves)?e.leaves:[]).flatMap(l=>Array.isArray(l&&l.usedDates)?l.usedDates:[])
-            .filter(d=>d>=lastStart && d<curStart).length;
-          return (lastDays-used) > 0;
-        });
-        if(has) alerts['annual_leave'] = true;
-      }catch(e){}
-    })(),
     // ① 店務追蹤：pending/in_progress 且 dueDate 已過期
     (async()=>{
       try{
@@ -950,22 +917,16 @@ onAuthStateChanged(auth,async user=>{
             VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='price');
           }
         }catch(_){}
-        // ── 依「適用店面類型」過濾所有模組（通用邏輯）──
-        // permissions.html 的 locationType 設定：'all' 不限 / 'central' 央廚 / 'store' 門市。
-        // 使用者所屬店面若沒有一間符合該類型，就隱藏側邊欄與首頁卡片。
-        // （auth-guard 第⑤段本來就會擋進入，這裡是同步「看不到入口」，避免點了才被踢回來）
+        // delivery_report 只有央廚（type='central'）才顯示
+        // 若使用者所屬店面全部都是門市，則隱藏卡片
         try{
           const permSnap=await getDoc(doc(db,'settings','permissions'));
-          const pd=permSnap.exists()?permSnap.data():{};
-          const locTypes=pd.locationTypes||{};
-          const mods=pd.modules||{};
+          const locTypes=(permSnap.exists()?permSnap.data().locationTypes:null)||{};
           const userLocs=data.locations||[];
-          VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>{
-            const lt=mods[k]&&mods[k].locationType;
-            if(!lt||lt==='all') return true;              // 不限類型
-            // 未設定類型的店面預設視為門市（與 auth-guard 一致）
-            return userLocs.some(l=>(locTypes[l]||'store')===lt);
-          });
+          const hasCentral=userLocs.some(l=>locTypes[l]==='central');
+          if(!hasCentral){
+            VISIBLE_KEYS[role]=(VISIBLE_KEYS[role]||[]).filter(k=>k!=='delivery_report');
+          }
         }catch(_){}
       }
       await loadGroupsFromFirestore();
@@ -985,7 +946,11 @@ onAuthStateChanged(auth,async user=>{
     if(yearEl) yearEl.textContent=now.getFullYear();
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
-    try{ window._showFrame('welcome.html'); }catch(_){}
+    const _frame = document.getElementById('contentFrame');
+    if(_frame) {
+      _frame.src = 'welcome.html?embed=1';
+      _frame.onload = function(){ try{ _frame.contentDocument.documentElement.setAttribute('data-embed','1'); document.getElementById('iframeActionBar').innerHTML=''; }catch(_){} };
+    }
   }
 });
 
@@ -993,9 +958,6 @@ onAuthStateChanged(auth,async user=>{
 window._syncIframeActions = function(frame){
   const bar = document.getElementById('iframeActionBar');
   if(!bar) return;
-  // keep-alive：同一 iframe 會重覆 sync，先斷開上次 observers 避免堆積
-  if(frame._lpObservers){ frame._lpObservers.forEach(function(o){ try{o.disconnect();}catch(_){} }); }
-  frame._lpObservers = [];
   bar.innerHTML = '';
   try{
     const fdoc = frame.contentDocument;
@@ -1019,12 +981,10 @@ window._syncIframeActions = function(frame){
         try{ origBtn.click(); }catch(e){}
       });
       // 監聽 iframe 按鈕狀態變化（用 MutationObserver）
-      var _mo = new MutationObserver(function(){
+      new MutationObserver(function(){
         proxyBtn.disabled = origBtn.disabled;
         proxyBtn.textContent = origBtn.textContent.trim();
-      });
-      _mo.observe(origBtn, {attributes:true, childList:true, subtree:true, characterData:true});
-      frame._lpObservers.push(_mo);
+      }).observe(origBtn, {attributes:true, childList:true, subtree:true, characterData:true});
       bar.appendChild(proxyBtn);
     });
   }catch(e){}
@@ -1064,77 +1024,23 @@ async function _pushTalentSSO(page, frame){
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// 換頁 keep-alive：每頁保留一個 iframe，切換只顯示/隱藏，回訪不重載（秒開）
-//   · FRAME_TTL_MS 內回訪同頁 → 直接顯示（不重載）
-//   · 超過 TTL 或首次進入 → 載入／重新載入抓最新資料
-//   · 最多保留 FRAME_MAX 個頁面（welcome 常駐、不淘汰）
-//   · checkout/order 仍整頁跳轉（不進池）；talent 也走池、首次載入才推 SSO
-// ══════════════════════════════════════════════════════════
-const FRAME_TTL_MS = 90 * 1000;  // 90 秒內回訪視為新鮮，直接顯示
-const FRAME_MAX    = 6;          // 同時保留的頁面上限（不含常駐 welcome）
-const _framePool   = new Map();  // page -> { el, last }
-
-function _buildFrameSrc(page){
-  const sep = page.includes('?') ? '&' : '?';
-  return page + sep + 'embed=1&v=' + Date.now();
-}
-function _wireFrame(el, page){
-  el.onload = function(){
-    try{
-      el.contentDocument.documentElement.setAttribute('data-embed','1');
-      _syncIframeActions(el);
-    }catch(_){}
-    _pushTalentSSO(page, el);
-  };
-}
-function _evictFrames(keepPage){
-  const evictable = [];
-  _framePool.forEach(function(rec, p){
-    if(p !== 'welcome.html' && p !== keepPage) evictable.push([p, rec.last]);
-  });
-  evictable.sort(function(a,b){ return a[1]-b[1]; }); // 最舊在前
-  while(_framePool.size > FRAME_MAX && evictable.length){
-    const p = evictable.shift()[0];
-    const rec = _framePool.get(p);
-    if(rec && rec.el && rec.el.parentNode) rec.el.parentNode.removeChild(rec.el);
-    _framePool.delete(p);
-  }
-}
-window._showFrame = function(page){
-  const host = document.getElementById('contentFrame');
-  if(!host) return;
-  const bar = document.getElementById('iframeActionBar');
-  if(bar) bar.innerHTML = '';                       // 先清舊按鈕，避免載入中殘留
-  _framePool.forEach(function(rec){ rec.el.classList.add('lp-hidden'); });
-  const now = Date.now();
-  let rec = _framePool.get(page);
-  if(rec){
-    const stale = (page !== 'welcome.html') && (now - rec.last > FRAME_TTL_MS);
-    if(stale){
-      _wireFrame(rec.el, page);
-      rec.el.src = _buildFrameSrc(page);             // 重新載入抓新資料（onload 重跑 sync）
-    }else{
-      try{ _syncIframeActions(rec.el); }catch(_){}   // 秒開：只重建功能按鈕
-    }
-    rec.el.classList.remove('lp-hidden');
-    rec.last = now;
-  }else{
-    const el = document.createElement('iframe');
-    el.className = 'lp-frame';
-    el.title = '功能頁面';
-    _wireFrame(el, page);
-    el.src = _buildFrameSrc(page);
-    host.appendChild(el);
-    _framePool.set(page, { el: el, last: now });
-    _evictFrames(page);
-  }
-};
-
 window.goTo=function(page){
   if(!page) return;
-  if(page === 'checkout.html' || page === 'order.html'){ window.location.href = page; return; }
-  window._showFrame(page);
+  if(page === 'checkout.html'){ window.location.href = page; return; }
+  const frame = document.getElementById('contentFrame');
+  const sep = page.includes('?') ? '&' : '?';
+  frame.src = page + sep + 'embed=1&v=' + Date.now();
+  // iframe 載入後直接設 data-embed，繞過 URLSearchParams 安全限制
+  frame.onload = function(){
+    try{
+      const fdoc = frame.contentDocument;
+      fdoc.documentElement.setAttribute('data-embed','1');
+      // 把 iframe topbar 的功能按鈕搬到主框架
+      _syncIframeActions(frame);
+    }catch(_){}
+    // 跨網域頁面（招募系統）需要主動推送 SSO token
+    _pushTalentSSO(page, frame);
+  };
   document.querySelectorAll('.sidebar-item').forEach(el=>{
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -1145,8 +1051,12 @@ window.addEventListener('message', function(e){
   if(!e.data || e.data.type !== 'navigate') return;
   const page = e.data.page;
   if(page === 'dashboard.html'){
-    window._showFrame('welcome.html');
-    document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    const frame = document.getElementById('contentFrame');
+    if(frame) {
+      frame.src = 'welcome.html?embed=1';
+      frame.onload = function(){ try{ frame.contentDocument.documentElement.setAttribute('data-embed','1'); document.getElementById('iframeActionBar').innerHTML=''; }catch(_){} };
+      document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    }
   } else {
     window.goTo(page);
   }

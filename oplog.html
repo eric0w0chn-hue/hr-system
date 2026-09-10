@@ -182,6 +182,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
         <option value="recruit104">📣 104排程</option>
         <option value="cost">🧮 成本利潤</option>
         <option value='backup'>💾 備份管理</option>
+        <option value="store_manage">🏪 店家管理</option>
       </select>
       <select id="fAction" onchange="applyFilter()">
         <option value="">全部動作</option>
@@ -249,7 +250,7 @@ function showToast(msg){ const t=document.getElementById('toast');t.textContent=
 // ── Module badge ──
 const MODULE_MAP = {
   hr:'👥 人員', account:'🔑 帳號', schedule:'📅 排班',
-  meeting:'📝 會議', price:'💰 物價', anomaly:'⚠️ 異常', cctv:'📹 監視器', delivery_report:'🚚 配送回報', store_accounts:'🏪 店內帳號', salary:'💰 薪資計算', annual_leave:'🌴 特休假管理', bonus:'🎁 獎金補助', task:'📌 店務追蹤', recruit104:'📣 104排程', cost:'🧮 成本利潤', backup:'💾 備份管理', '—':'—'
+  meeting:'📝 會議', price:'💰 物價', anomaly:'⚠️ 異常', cctv:'📹 監視器', delivery_report:'🚚 配送回報', store_accounts:'🏪 店內帳號', salary:'💰 薪資計算', annual_leave:'🌴 特休假管理', bonus:'🎁 獎金補助', task:'📌 店務追蹤', recruit104:'📣 104排程', cost:'🧮 成本利潤', backup:'💾 備份管理', store_manage:'🏪 店家管理', '—':'—'
 };
 function modBadge(mod){
   const label = MODULE_MAP[mod] || mod || '—';

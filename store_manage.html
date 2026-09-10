@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://www.googleapis.com" crossorigin>
+<title>店家管理 — 鑫系統</title>
+<style>
+:root{
+  --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;--border2:#C8CDD8;
+  --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
+  --green:#087443;--green-bg:#E6FAF0;
+  --red:#C0392B;--red-bg:#FEECEB;
+  --amber:#92400E;--amber-bg:#FFFBEB;--amber-bd:#F59E0B;
+  --blue:#3B5BDB;--blue-bg:#E8EEFF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── Topbar ── */
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.back-btn{font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.tb-dv{width:1px;height:22px;background:rgba(255,255,255,.2)}
+.topbar h1{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;min-width:0}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.role-chip{font-size:11px;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;white-space:nowrap}
+[data-embed="1"] .topbar,[data-embed="1"] .topbar *{display:none!important;height:0!important;min-height:0!important;overflow:hidden!important}
+
+/* ── Buttons ── */
+.btn{padding:7px 14px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text);white-space:nowrap;transition:all .15s}
+.btn:hover{background:var(--surface2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.btn-primary:hover{background:#1f2230}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{color:var(--red);border-color:#E8B4AE}
+.btn-danger:hover{background:var(--red-bg)}
+.save-btn{padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:#fff;color:var(--accent);white-space:nowrap}
+.save-btn:hover{background:#f0f0f0}
+.save-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Main ── */
+.main{max-width:1000px;margin:0 auto;padding:24px 20px 80px}
+.page-header{margin-bottom:18px}
+.page-header h2{font-size:18px;font-weight:700}
+.page-header p{font-size:13px;color:var(--text2);margin-top:5px;line-height:1.65}
+
+.notice{padding:11px 13px;border-radius:9px;font-size:12.5px;line-height:1.7;margin-bottom:16px;border:1px solid var(--amber-bd);background:var(--amber-bg);color:var(--amber)}
+.notice b{font-weight:700}
+
+.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar .spacer{flex:1}
+.count{font-size:12px;color:var(--text2)}
+
+/* ── Card / Table ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface2);font-size:12px;font-weight:600;color:var(--text2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.off{background:#FAFAFB;color:var(--text3)}
+tbody tr.off .st-name{color:var(--text3)}
+.st-name{font-weight:600}
+.sid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--text2)}
+.sid.empty{color:var(--red)}
+.tag{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.tag-store{background:var(--blue-bg);color:var(--blue)}
+.tag-kitchen{background:var(--green-bg);color:var(--green)}
+.tag-corp{background:var(--surface2);color:var(--text3)}
+.tag-off{background:var(--red-bg);color:var(--red)}
+.chk{font-size:12px;color:var(--text2);text-align:center}
+.ops{display:flex;gap:6px;justify-content:flex-end}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:400;padding:16px}
+.modal{background:var(--surface);border-radius:14px;padding:22px;width:100%;max-width:440px;max-height:88vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.fld input,.fld select{width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text)}
+.fld input:disabled{background:var(--surface2);color:var(--text3)}
+.fld .hint{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.6}
+.fld .hint.warn{color:var(--amber)}
+.cbrow{display:flex;gap:16px;margin-top:4px}
+.cbrow label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer;margin:0}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+
+/* ── Diff panel ── */
+.diff{margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);font-size:12.5px;line-height:1.8}
+.diff b{font-weight:700}
+.diff .add{color:var(--green)}
+.diff .del{color:var(--red)}
+.diff .keep{color:var(--text3)}
+
+/* ── Toast ── */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:var(--accent);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;z-index:600;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.toast.show{opacity:1;visibility:visible}
+
+#loading{text-align:center;padding:60px 20px;color:var(--text2);font-size:13px}
+
+/* ── RWD ── */
+@media(max-width:600px){
+  .main{padding:16px 12px 80px}
+  thead{display:none}
+  tbody td{display:block;border:none;padding:4px 12px}
+  tbody tr{display:block;border-bottom:1px solid var(--border);padding:10px 0}
+  tbody td::before{content:attr(data-label);font-size:11px;color:var(--text3);display:inline-block;min-width:70px}
+  .ops{justify-content:flex-start;padding:8px 12px 0}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="if(window.self!==window.top){window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*');}else{window.location.href='dashboard.html';}">← 主選單</button>
+    <div class="tb-dv"></div>
+    <h1>🏪 店家管理</h1>
+  </div>
+  <div class="topbar-right">
+    <button class="save-btn" id="saveBtn" onclick="saveAll()" disabled>儲存變更</button>
+    <span class="role-chip" id="roleChip">—</span>
+  </div>
+</div>
+
+<div id="loading">載入中…</div>
+
+<div class="main" id="app" style="display:none">
+  <div class="page-header">
+    <h2>店家主檔</h2>
+    <p>統一維護店家資料。儲存後會自動同步到人事的「工作地點」與「面試地點」下拉選單，不需要在新增人員時另外建立。</p>
+  </div>
+
+  <div class="notice">
+    <b>店名不可修改。</b>排班、薪資快照、各類回報都以店名字串當關聯鍵，改名會導致過去月份的資料查不到。
+    需要更名時請「新增一間新的 + 停用舊的」，歷史資料會完整保留。
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openEdit(null)">＋ 新增店家</button>
+    <button class="btn" id="pushBtn" onclick="pushToTalent()">🔄 推送招募系統</button>
+    <div class="spacer"></div>
+    <span class="count" id="cnt"></span>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>店名</th><th>代號</th><th>類型</th><th>區域</th>
+          <th style="text-align:center">工作</th><th style="text-align:center">面試</th>
+          <th>狀態</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div id="diffArea"></div>
+</div>
+
+<div id="modalArea"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+if(window.self!==window.top){
+  document.documentElement.setAttribute('data-embed','1');
+}
+
+let stores = [];          // [{storeId,name,type,area,active,inWork,inInterview}]
+let origWork = [];        // hr/settings.workLocations 原始值
+let origInterview = [];   // hr/settings.interviewLocations 原始值
+let dirty = false;
+let currentUserName = '', currentRole = '';
+
+const TYPE_LABEL = { store:'門市', kitchen:'央廚', corporate:'法人（非店面）' };
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function closeModal(){ document.getElementById('modalArea').innerHTML=''; }
+window.closeModal = closeModal;
+
+function markDirty(){
+  dirty = true;
+  document.getElementById('saveBtn').disabled = false;
+  renderDiff();
+}
+
+// ── 正規化（舖/鋪 異體字），與其他模組一致 ──
+function normLoc(s){ return String(s||'').replace(/鋪/g,'舖').replace(/\s+/g,'').trim(); }
+
+authGuard('store_manage', async ({ user, uid, role, userData }) => {
+  currentRole = role;
+  currentUserName = (userData && userData.name) || '';
+  const rc = document.getElementById('roleChip');
+  if(rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role;
+
+  if(role !== 'admin'){
+    document.getElementById('loading').innerHTML =
+      '<div style="color:#C0392B">此頁僅管理員可使用</div>';
+    return;
+  }
+
+  await loadData();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='';
+});
+
+async function loadData(){
+  const [hrSnap, stSnap] = await Promise.all([
+    getDoc(doc(db,'hr','settings')),
+    getDoc(doc(db,'settings','stores')),
+  ]);
+
+  const hr = hrSnap.exists() ? hrSnap.data() : {};
+  origWork      = Array.isArray(hr.workLocations)      ? hr.workLocations.slice()      : [];
+  origInterview = Array.isArray(hr.interviewLocations) ? hr.interviewLocations.slice() : [];
+
+  if(stSnap.exists() && Array.isArray(stSnap.data().list) && stSnap.data().list.length){
+    stores = stSnap.data().list.map(s=>({
+      storeId:s.storeId||'', name:s.name||'', type:s.type||'store',
+      area:s.area||'', active:s.active!==false,
+      inWork:s.inWork!==false, inInterview:s.inInterview!==false,
+    }));
+  }else{
+    // 首次進入：從既有兩份清單建立主檔（聯集），代號留空待填
+    const all = [];
+    const seen = new Set();
+    [...origWork, ...origInterview].forEach(n=>{
+      const k = normLoc(n);
+      if(!k || seen.has(k)) return;
+      seen.add(k);
+      all.push({
+        storeId:'', name:n,
+        type: String(n).includes('央廚') ? 'kitchen'
+            : (String(n).includes('有限公司') ? 'corporate' : 'store'),
+        area:'', active:true,
+        inWork: origWork.some(x=>normLoc(x)===k),
+        inInterview: origInterview.some(x=>normLoc(x)===k),
+      });
+    });
+    stores = all;
+    showToast('已從現有清單建立主檔草稿，請補上代號後儲存');
+    dirty = true;
+    document.getElementById('saveBtn').disabled = false;
+  }
+  render();
+}
+
+function render(){
+  const tb = document.getElementById('rows');
+  tb.innerHTML = stores.map((s,i)=>{
+    const off = !s.active;
+    return `<tr class="${off?'off':''}">
+      <td data-label="店名"><span class="st-name">${esc(s.name)}</span></td>
+      <td data-label="代號"><span class="sid ${s.storeId?'':'empty'}">${s.storeId?esc(s.storeId):'未設定'}</span></td>
+      <td data-label="類型"><span class="tag tag-${s.type==='kitchen'?'kitchen':(s.type==='corporate'?'corp':'store')}">${TYPE_LABEL[s.type]||s.type}</span></td>
+      <td data-label="區域">${s.area?esc(s.area):'<span style="color:var(--text3)">—</span>'}</td>
+      <td data-label="工作地點" class="chk">${s.inWork&&s.active?'✓':'—'}</td>
+      <td data-label="面試地點" class="chk">${s.inInterview&&s.active?'✓':'—'}</td>
+      <td data-label="狀態">${off?'<span class="tag tag-off">已停用</span>':'<span class="tag tag-kitchen">啟用中</span>'}</td>
+      <td><div class="ops">
+        <button class="btn btn-sm" onclick="openEdit(${i})">編輯</button>
+        <button class="btn btn-sm ${off?'':'btn-danger'}" onclick="toggleActive(${i})">${off?'啟用':'停用'}</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  const act = stores.filter(s=>s.active);
+  const noId = act.filter(s=>s.type!=='corporate' && !s.storeId).length;
+  document.getElementById('cnt').textContent =
+    `啟用 ${act.length} 間（門市 ${act.filter(s=>s.type==='store').length}、`
+    + `央廚 ${act.filter(s=>s.type==='kitchen').length}）`
+    + (noId?`　⚠ ${noId} 間未設代號`:'');
+  document.getElementById('pushBtn').disabled = dirty;
+  document.getElementById('pushBtn').title = dirty ? '請先儲存變更' : '把啟用中的店家推送到招募系統';
+  renderDiff();
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]); }
+
+// ── 計算儲存後兩份清單的變化（保留不在主檔中的既有項目）──
+function computeTargets(){
+  const known = new Set(stores.map(s=>normLoc(s.name)));
+  const pick = (flag, orig) => {
+    const from = stores.filter(s=>s.active && s[flag]).map(s=>s.name);
+    // 不在主檔裡的既有項目一律保留，避免誤刪不明資料
+    const keep = orig.filter(n=>!known.has(normLoc(n)));
+    return { list:[...from, ...keep], keep };
+  };
+  return { work: pick('inWork', origWork), interview: pick('inInterview', origInterview) };
+}
+
+function renderDiff(){
+  const area = document.getElementById('diffArea');
+  if(!area) return;
+  if(!dirty){ area.innerHTML=''; return; }
+  const t = computeTargets();
+  const mk = (label, target, orig) => {
+    const add = target.list.filter(n=>!orig.some(o=>normLoc(o)===normLoc(n)));
+    const del = orig.filter(o=>!target.list.some(n=>normLoc(n)===normLoc(o)));
+    let h = `<div><b>${label}</b>：${orig.length} → ${target.list.length} 項`;
+    if(add.length) h += `<br><span class="add">＋ 新增：${add.map(esc).join('、')}</span>`;
+    if(del.length) h += `<br><span class="del">－ 移除：${del.map(esc).join('、')}</span>`;
+    if(target.keep.length) h += `<br><span class="keep">（保留不在主檔中的既有項目：${target.keep.map(esc).join('、')}）</span>`;
+    if(!add.length && !del.length) h += `<br><span class="keep">無變化</span>`;
+    return h + '</div>';
+  };
+  area.innerHTML = `<div class="diff">
+    <div style="font-weight:700;margin-bottom:6px">儲存後的變更預覽</div>
+    ${mk('工作地點', t.work, origWork)}
+    <div style="height:8px"></div>
+    ${mk('面試地點', t.interview, origInterview)}
+  </div>`;
+}
+
+window.openEdit = function(idx){
+  const isNew = idx === null;
+  const s = isNew
+    ? { storeId:'', name:'', type:'store', area:'', active:true, inWork:true, inInterview:true }
+    : stores[idx];
+
+  document.getElementById('modalArea').innerHTML = `
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-title">${isNew?'新增店家':'編輯店家'}</div>
+      <div class="fld">
+        <label>店名 ${isNew?'<span style="color:#C0392B">*</span>':''}</label>
+        <input id="f-name" value="${esc(s.name)}" ${isNew?'placeholder="例：景新雞肉飯專門店"':'disabled'}>
+        <div class="hint ${isNew?'':'warn'}">${isNew
+          ? '請填寫正式全名。建立後不可修改，因為排班與薪資都以此為關聯鍵。'
+          : '店名不可修改。需要更名請新增一間新的並停用這間。'}</div>
+      </div>
+      <div class="fld">
+        <label>招募系統代號（storeId）</label>
+        <input id="f-sid" value="${esc(s.storeId)}" placeholder="例：jingxin">
+        <div class="hint">必須與招募系統「店家管理」頁的代號一致，否則會產生重複的店。法人實體可留空。</div>
+      </div>
+      <div class="fld">
+        <label>類型</label>
+        <select id="f-type">
+          <option value="store"${s.type==='store'?' selected':''}>門市</option>
+          <option value="kitchen"${s.type==='kitchen'?' selected':''}>央廚</option>
+          <option value="corporate"${s.type==='corporate'?' selected':''}>法人（非店面，不推送招募系統）</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>區域</label>
+        <input id="f-area" value="${esc(s.area)}" placeholder="例：新北市 / 台北市">
+        <div class="hint">選填，供招募系統分區顯示用。</div>
+      </div>
+      <div class="fld">
+        <label>出現在哪些下拉選單</label>
+        <div class="cbrow">
+          <label><input type="checkbox" id="f-work" ${s.inWork?'checked':''}> 工作地點</label>
+          <label><input type="checkbox" id="f-int" ${s.inInterview?'checked':''}> 面試地點</label>
+        </div>
+        <div class="hint">兩份清單是獨立的。只勾工作地點會導致面試時選不到這間店。</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEdit(${isNew?'null':idx})">確定</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+window.saveEdit = function(idx){
+  const isNew = idx === null;
+  const name = document.getElementById('f-name').value.trim();
+  const sid  = document.getElementById('f-sid').value.trim();
+  const type = document.getElementById('f-type').value;
+  const area = document.getElementById('f-area').value.trim();
+  const inWork = document.getElementById('f-work').checked;
+  const inInterview = document.getElementById('f-int').checked;
+
+  if(isNew){
+    if(!name){ showToast('請填寫店名'); return; }
+    if(stores.some(s=>normLoc(s.name)===normLoc(name))){ showToast('這個店名已存在'); return; }
+  }
+  if(sid){
+    const dup = stores.find((s,i)=>i!==idx && s.storeId && s.storeId===sid);
+    if(dup){ showToast(`代號 ${sid} 已被「${dup.name}」使用`); return; }
+  }
+
+  if(isNew){
+    stores.push({ storeId:sid, name, type, area, active:true, inWork, inInterview });
+  }else{
+    Object.assign(stores[idx], { storeId:sid, type, area, inWork, inInterview });
+  }
+  closeModal();
+  markDirty();
+  render();
+  showToast(isNew?'已新增，請記得儲存':'已修改，請記得儲存');
+};
+
+window.toggleActive = function(idx){
+  const s = stores[idx];
+  if(s.active){
+    if(!confirm(`停用「${s.name}」？\n\n它會從工作地點與面試地點的下拉選單消失，`
+      + `但歷史資料（排班、薪資、回報）完全保留，不受影響。`)) return;
+  }
+  s.active = !s.active;
+  markDirty();
+  render();
+};
+
+window.saveAll = async function(){
+  const btn = document.getElementById('saveBtn');
+  const act = stores.filter(s=>s.active && s.type!=='corporate');
+  const noId = act.filter(s=>!s.storeId);
+  if(noId.length){
+    if(!confirm(`有 ${noId.length} 間店未設定招募系統代號：\n${noId.map(s=>s.name).join('、')}\n\n`
+      + `未設代號的店無法推送到招募系統。仍要儲存嗎？`)) return;
+  }
+
+  const t = computeTargets();
+  btn.disabled = true;
+  const label = btn.textContent; btn.textContent = '儲存中…';
+
+  try{
+    await setDoc(doc(db,'settings','stores'), {
+      list: stores,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUserName || '',
+    });
+    // 只更新這兩個欄位，不動 hr/settings 的其他設定
+    await updateDoc(doc(db,'hr','settings'), {
+      workLocations: t.work.list,
+      interviewLocations: t.interview.list,
+    });
+
+    origWork = t.work.list.slice();
+    origInterview = t.interview.list.slice();
+    dirty = false;
+    btn.textContent = label;
+    render();
+    showToast('已儲存 ✓');
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'store_manage',
+      action:'編輯店家主檔', detail:`${stores.filter(s=>s.active).length}間啟用` });
+  }catch(err){
+    console.error('儲存失敗', err);
+    btn.disabled = false; btn.textContent = label;
+    showToast('儲存失敗：' + (err.message||'未知錯誤'));
+  }
+};
+
+window.pushToTalent = async function(){
+  if(dirty){ showToast('請先儲存變更'); return; }
+  const btn = document.getElementById('pushBtn');
+  btn.disabled = true;
+  const label = btn.textContent; btn.textContent = '⏳ 推送中…';
+  try{
+    const fns = getFunctions(getApp(), 'us-central1');
+    const res = await httpsCallable(fns, 'syncTalentStores')({});
+    const d = (res && res.data) || {};
+    const w = Array.isArray(d.warnings) ? d.warnings : [];
+    let msg = `推送 ${d.total||0} 間：成功 ${d.ok||0}、失敗 ${d.fail||0}`;
+    if(w.length) msg += `，${w.length} 筆提醒（見主控台）`;
+    showToast(msg);
+    if(w.length) console.warn('[店家推送提醒]', w);
+    if(Array.isArray(d.sent)) console.log('[店家推送明細]', d.sent);
+    writeOpLog({ editor:currentUserName, role:currentRole, module:'store_manage',
+      action:'推送店家至招募系統', detail:`${d.ok||0}/${d.total||0}間` });
+  }catch(err){
+    console.error('推送失敗', err);
+    showToast('推送失敗：' + (err.message||'未知錯誤'));
+  }finally{
+    btn.disabled = false; btn.textContent = label;
+  }
+};
+
+window.addEventListener('beforeunload', e=>{
+  if(dirty){ e.preventDefault(); e.returnValue=''; }
+});
+</script>
+</body>
+</html>

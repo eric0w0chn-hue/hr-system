@@ -263,7 +263,6 @@ const ALL_MODULES = [
   {key:'price',    icon:'🥬', name:'菜價回報',   desc:'每日菜價回報、廠商比價、各店同步',        page:'price.html',    active:true},
   {key:'meeting',  icon:'📋', name:'會議紀錄',   desc:'各店會議音檔、文字紀錄、報告管理',        page:'meeting.html',  active:true},
   {key:'salary',   icon:'💰', name:'薪資計算',   desc:'月薪結算、固定獎金、勞健保試算',          page:'salary.html',   active:true},
-  {key:'annual_leave', icon:'🌴', name:'特休假管理', desc:'全體特休天數總表、休假日期、未休結算',   page:'annual_leave.html', active:true},
   {key:'bonus',    icon:'🎁', name:'獎金補助',   desc:'廚師鞋、健康檢查、生日禮金、久任獎金統一管理', page:'bonus.html', active:true},
   {key:'account',  icon:'🔑', name:'帳號管理',   desc:'帳號角色設定、店面權限管理、帳號停用',    page:'account.html',  active:true},
   {key:'cctv',     icon:'📹', name:'監視器回報', desc:'每日監視器影片回報、未回報追蹤',          page:'cctv_report.html', active:true},
@@ -272,7 +271,6 @@ const ALL_MODULES = [
   {key:'permissions',icon:'🔐',name:'權限管理',  desc:'各功能模組的 role 可見性設定',            page:'permissions.html', active:true},
   {key:'backup',   icon:'💾', name:'備份管理',   desc:'資料備份與還原',                          page:'backup.html',   active:true},
   {key:'checkout', icon:'💰', name:'結帳系統', desc:'跳轉至梁平結帳系統', page:'checkout.html', active:true},
-  {key:'order',    icon:'📦', name:'叫貨系統', desc:'跳轉至叫貨系統（外部）', page:'order.html', active:true},
   {key:'store_accounts', icon:'🔐', name:'店內帳號管理', desc:'各店系統帳號密碼集中管理，支援新增、編輯、查閱', page:'store_accounts.html', active:true},
   {key:'task',     icon:'📌', name:'店務追蹤',   desc:'記錄並追蹤各店執行中的事項與進度，逾期/停滯自動標記', page:'task.html', active:true},
   {key:'recruit104', icon:'📣', name:'104排程',   desc:'各店 104 職缺需求設定、履歷發放排程與截圖存證', page:'recruit104.html', active:true},
@@ -280,6 +278,7 @@ const ALL_MODULES = [
   {key:'email_bind', icon:'📧', name:'聯絡信箱設定', desc:'設定個人聯絡信箱，接收未完成事項主動提醒', page:'email_bind.html', active:true},
   {key:'cost',     icon:'🧮', name:'成本利潤',   desc:'食材耗材單位成本換算、商品組成總成本與售價毛利分析', page:'cost.html', active:true},
   {key:'talent',   icon:'🧑‍💼', name:'招募管理',   desc:'招募職缺管理、求職者履歷審閱（外部招募系統）', page:'https://liangping-talent.web.app/admin', active:true},
+  {key:'store_manage', icon:'🏪', name:'店家管理',   desc:'店家主檔、招募系統代號、工作與面試地點下拉選單來源', page:'store_manage.html', active:true},
 ];
 
 // ── 預設權限（Firestore 沒資料時的 fallback）──
@@ -289,7 +288,6 @@ const DEFAULT_PERMISSIONS = {
   price:       {roles:['admin','consultant','manager']},
   meeting:     {roles:['admin','consultant','manager']},
   salary:      {roles:['admin','consultant']},
-  annual_leave:{roles:['admin','consultant','manager']},
   bonus:       {roles:['admin','consultant','manager']},
   account:     {roles:['admin','consultant']},
   cctv:        {roles:['admin','consultant','manager']},
@@ -298,7 +296,6 @@ const DEFAULT_PERMISSIONS = {
   permissions: {roles:['admin']},
   backup:      {roles:['admin']},
   checkout:     {roles:['admin','consultant','manager']},
-  order:        {roles:['admin','consultant','manager']},
   store_accounts: {roles:['admin','consultant','manager']},
   task:        {roles:['admin','consultant','manager']},
   recruit104:  {roles:['admin','consultant','manager']},
@@ -306,6 +303,7 @@ const DEFAULT_PERMISSIONS = {
   email_bind:  {roles:['admin','consultant','manager']},
   cost:        {roles:['admin','consultant','manager']},
   talent:      {roles:['admin','consultant','manager']},
+  store_manage:{roles:['admin']},
 };
 
 const ROLES = ['admin','consultant','manager','employee'];
