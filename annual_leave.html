@@ -45,7 +45,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft JhengHei
 /* 統計卡 */
 
 /* 總表 */
-.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh}
+/* sticky 生效關鍵：table 直接置於此捲動容器內（不可多包一層 div），
+   且容器需明確 overflow:auto + 高度限制，sticky 才會相對於它定位 */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:74vh;-webkit-overflow-scrolling:touch;position:relative}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:1180px}
 /* 表頭凍結：兩列表頭各自 sticky（第2列需下移第1列高度）；第一欄同時凍結 */
 thead th{position:sticky;z-index:3;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -87,9 +89,12 @@ td.settle.none{color:var(--text3);font-weight:400;font-size:15px}
 .mini:hover{border-color:var(--text3);color:var(--text)}
 .unit{font-size:10px;font-weight:400;color:var(--text3);margin-left:1px}
 /* 休假日期 chip */
-.dchip{display:inline-block;padding:2px 6px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.sticky-l{position:sticky;left:0;background:var(--surface);z-index:2;box-shadow:1px 0 0 var(--border)}
-thead th.sticky-l{z-index:6;background:var(--surface2)}
+#dateToast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:13px;padding:11px 16px;border-radius:10px;z-index:2000;box-shadow:0 6px 20px rgba(0,0,0,.22);white-space:nowrap;max-width:92vw;transition:opacity .3s,transform .3s}
+#dateToast.out{opacity:0;transform:translateX(-50%) translateY(8px)}
+#dateToast b{font-weight:700}
+.dchip{cursor:pointer;display:inline-block;padding:2px 6px;border-radius:5px;background:#E5F5EB;color:var(--ok);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.sticky-l,th.sticky-l{position:-webkit-sticky;position:sticky;left:0;background:var(--surface);z-index:3;box-shadow:2px 0 4px -2px rgba(0,0,0,.12)}
+thead th.sticky-l{z-index:7!important;background:var(--surface2)}
 tbody tr:hover .sticky-l{background:var(--accent-light)}
 .link{color:var(--info);cursor:pointer;text-decoration:none;font-weight:600}
 .link:hover{text-decoration:underline}
@@ -164,10 +169,10 @@ tbody tr:hover .sticky-l{background:var(--accent-light)}
       <option value="expired">已到期</option>
     </select>
     <input class="search" id="fKw" placeholder="搜尋姓名…" oninput="render()">
-    <button class="btn btn-sm" id="btnBatch" onclick="batchSettle()" style="display:none" title="將指定年度（含以前）到職、上週期尚有未休者一次標記已發放">✅ 批次標記已發放</button>
+    <button class="btn btn-sm" id="btnBatch" onclick="batchSettle()" style="display:none" title="將上週期跨越指定年度（如 2025→2026）且尚有未休者一次標記已發放">✅ 批次標記已發放</button>
   </div>
 
-  <div class="tbl-wrap"><div id="tbl"></div></div>
+  <div class="tbl-wrap" id="tbl"></div>
   <div class="legend" id="legend"></div>
 </div>
 
@@ -359,7 +364,7 @@ window.render=function(){
       const d=s.curUsed[i];
       if(d){
         const p=String(d).split('-');
-        dcell.push(`<td class="dcol"><span class="dchip" title="${d}">${parseInt(p[1],10)}/${parseInt(p[2],10)}</span></td>`);
+        dcell.push(`<td class="dcol"><span class="dchip" title="${d}" onclick="showDate('${d}','${(e.name||'').replace(/'/g,'')}')">${parseInt(p[1],10)}/${parseInt(p[2],10)}</span></td>`);
       }else dcell.push('<td class="dcol"></td>');
     }
     // 進度條：本週期已放/應有
@@ -418,6 +423,18 @@ window.setMode=function(m){
   $('tabTemp').classList.toggle('active',m==='temp');
   $('tabLegal').classList.toggle('active',m==='legal');
   render();
+};
+
+/* ═══ 點日期顯示完整年月日（手機無 hover，改用點擊）═══ */
+window.showDate=function(d,nm){
+  const old=document.getElementById('dateToast'); if(old)old.remove();
+  const p=String(d).split('-');
+  const wd=['日','一','二','三','四','五','六'][new Date(+p[0],+p[1]-1,+p[2]).getDay()];
+  const el=document.createElement('div');
+  el.id='dateToast';
+  el.innerHTML=`<b>${nm||''}</b> 特休：${p[0]} 年 ${parseInt(p[1],10)} 月 ${parseInt(p[2],10)} 日（週${wd}）`;
+  document.body.appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),300);},2600);
 };
 
 /* ═══ 個別詳情 ═══ */
@@ -546,29 +563,39 @@ window.toggleSettled=async function(id){
 // 批次：把「到職日在指定年度（含以前）」且上週期有未休的人，一次標記為已發放
 window.batchSettle=async function(){
   if(!canEdit()){alert('僅管理員／顧問可調整');return;}
-  const yr=prompt('將「到職日為此年度（含以前）」且上週期尚有未休特休的同仁，一次標記為已發放。\n\n請輸入年度（例如 2025 代表 2025 年底前到職者）：', String(new Date().getFullYear()-1));
+
+  // 條件：上一週期「跨年度」符合指定區間（例如上週期 2025-xx-xx ~ 2026-xx-xx），
+  //       且該週期尚有未休、且尚未標記已發放。
+  //       去年底已全數結清者用此一次標記，比用「到職年度」更精準。
+  const yr=prompt('將「上一週期跨越指定年度」且尚有未休特休的同仁，一次標記為已發放。\n\n請輸入上週期的起始年度（例如輸入 2025，代表上週期為 2025→2026 者）：','2025');
   if(yr===null)return;
   const y=parseInt(yr,10);
   if(!y||y<2000||y>2100){alert('年度格式不正確');return;}
 
   const targets=visibleEmployees().filter(e=>{
-    const sd=parseLocalDate(e.startDate);
-    if(!sd||sd.getFullYear()>y)return false;      // 只取該年度（含以前）到職者
     const s=summarize(e);
-    return !!(s.last.start&&s.lastRemain>0&&!s.settled);
+    if(!s.last.start||s.lastRemain<=0||s.settled)return false;
+    // 上週期起始年 === y（即該週期自 y 年跨到 y+1 年）
+    return parseInt(String(s.last.start).slice(0,4),10)===y;
   });
-  if(!targets.length){alert('沒有需要標記的同仁。\n（條件：'+y+' 年（含以前）到職、上週期有未休、且尚未標記）');return;}
+  if(!targets.length){
+    alert(`沒有需要標記的同仁。\n（條件：上週期為 ${y}→${y+1}、尚有未休、且未標記）`);
+    return;
+  }
 
   const tot=targets.reduce((a,e)=>a+summarize(e).lastRemain,0);
-  const names=targets.slice(0,12).map(e=>`・${e.name}（${summarize(e).lastRemain} 天）`).join('\n');
-  if(!confirm(`將以下 ${targets.length} 位同仁的上週期未休特休標記為「已發放」\n合計 ${tot} 天：\n\n${names}${targets.length>12?`\n…其餘 ${targets.length-12} 位`:''}\n\n確定執行？`))return;
+  const names=targets.slice(0,12).map(e=>{
+    const s=summarize(e);
+    return `・${e.name}　${s.last.start}~${s.last.end}　未休 ${s.lastRemain} 天`;
+  }).join('\n');
+  if(!confirm(`將以下 ${targets.length} 位同仁「上週期（${y}→${y+1}）」未休特休標記為已發放\n合計 ${tot} 天：\n\n${names}${targets.length>12?`\n…其餘 ${targets.length-12} 位`:''}\n\n確定執行？`))return;
 
   let n=0;
   targets.forEach(e=>{
     const s=summarize(e);
     if(s.cur.start){e.leaveSettled=s.cur.start;n++;}
   });
-  await saveAll(`批次標記特休已發放（${y}年含以前到職）`, `${n} 位、共 ${tot} 天`);
+  await saveAll(`批次標記特休已發放（上週期 ${y}→${y+1}）`, `${n} 位、共 ${tot} 天`);
   render();
   alert(`✓ 已標記 ${n} 位同仁的上週期特休為已發放。`);
 };
