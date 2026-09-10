@@ -1191,24 +1191,9 @@ function render() {
         if(currentPage>totalPages)currentPage=1;
         const pageList=list.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
         return pageList.map(r=>{
-        const ms=r.startDate?Date.now()-new Date(r.startDate).getTime():0;
-        const mo=Math.floor(ms/(1000*60*60*24*30.44));
-        const fi=r.fixedBonuses||{};
-        const over3=mo>=3;
-        const shoeAlert=over3&&!fi.shoe;
-        const healthAlert=over3&&!fi.health;
-        const todayMD=new Date().toISOString().slice(5,10);
-        const bdMD=r.birthday?r.birthday.slice(5,10):'';
-        const sd2=r.startDate?(()=>{const p=r.startDate.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})():null;
-        const td2=new Date();
-        const yrs=sd2?(td2.getFullYear()-sd2.getFullYear()-(td2.getMonth()<sd2.getMonth()||(td2.getMonth()===sd2.getMonth()&&td2.getDate()<sd2.getDate())?1:0)):0;
-        const birthdayAlert=bdMD&&todayMD===bdMD&&!fi.birthday&&yrs>=1;
-        const tenureKey2='tenure_'+td2.getFullYear();
-        const tenureAlert=sd2&&yrs>=2&&sd2.getMonth()===td2.getMonth()&&sd2.getDate()===td2.getDate()&&!fi[tenureKey2];
-        // 特休結算警示：有上一週期未休且未標記已結算
-        // 註：特休假待結算提醒已移至獨立功能頁 annual_leave.html（特休假管理）
-        const hasAlert=shoeAlert||healthAlert||birthdayAlert||tenureAlert;
-        const alertMsg=[shoeAlert?'廚師鞋補助未發放':'',healthAlert?'健康檢查補助未發放':'',birthdayAlert?'生日禮金未發放':'',tenureAlert?'久任獎金未發放':''].filter(Boolean).join('、');
+          // 註：獎金提醒（廚師鞋／健康檢查／生日禮金／久任獎金）與特休結算提醒
+          //     皆由專屬功能頁負責：bonus.html（獎金補助）、annual_leave.html（特休假管理）。
+          //     原本此處計算的 hasAlert / alertMsg 未被任何 UI 使用（死代碼），已移除。
         return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
         <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
