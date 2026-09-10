@@ -2786,6 +2786,7 @@ function persist(){
       if(_ed.days>0){
         const c=calcSalary(emp,currentRec,curShifts);
         currentRec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString(),autoSaved:true};
+    currentRec.slipSnap=buildSlipSnap(c);   // 薪資單原始版本（供調閱／補發，不隨日後重算變動）
         // 同步基本資料/排班快照（供離職後查閱）
         currentRec.empSnapshot={id:emp.id,name:emp.name,workLocation:emp.workLocation,title:emp.title||'',hireDate:getHireDate(emp)||null,leaveDate:getLeaveDate(emp)||null,hourlyRate:emp.hourlyRate||null,insurance:emp.insurance?JSON.parse(JSON.stringify(emp.insurance)):null,salaryHistory:emp.salaryHistory?JSON.parse(JSON.stringify(emp.salaryHistory)):null,snapAt:new Date().toISOString()};
         currentRec.shiftsSnapshot=curShifts?JSON.parse(JSON.stringify(curShifts)):{};
@@ -3323,7 +3324,8 @@ window.batchExportSlips=async function(){
   for(const emp of emps){
     try{
       const[shifts,rec]=await Promise.all([loadShifts(emp.id,viewYear,viewMonth),loadRec(emp.id,viewYear,viewMonth)]);
-      const c=calcSalary(emp,rec||{dailyData:{}},shifts);
+      const _cLiveB=calcSalary(emp,rec||{dailyData:{}},shifts);
+      const c=slipSource(rec,_cLiveB).src;   // 批次匯出同樣以原始版本為準
       const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
       const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${empStoreAt(emp)||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
       const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
@@ -3704,6 +3706,7 @@ window.commitMissingSnapshots=async function(){
       const _lockNet=(t.net!=null&&isFinite(t.net))?Math.round(t.net):Math.round(c.netPay);
       // ⚠️ 不可寫入 undefined：Firestore 會拒絕整份文件（專案未開 ignoreUndefinedProperties）
       rec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:_lockNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+    rec.slipSnap=buildSlipSnap(c);   // 薪資單原始版本（供調閱／補發，不隨日後重算變動）
       if(_lockNet!==Math.round(c.netPay))rec.snapshot.manualNet=true; // 僅在手動指定金額時才加此欄位
       const ok=await saveRec(t.id,viewYear,viewMonth,rec);
       if(ok){done++;snapCache[`${t.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`]=rec.snapshot.netPay;
@@ -3732,6 +3735,7 @@ window.adoptRecalc=async function(){
     : `確定要以目前金額 $${newNet.toLocaleString()} 建立 ${emp.name} ${viewYear}年${viewMonth}月 的存檔紀錄？`;
   if(!confirm(msg))return;
   currentRec.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:newNet,isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+    currentRec.slipSnap=buildSlipSnap(c);   // 薪資單原始版本（供調閱／補發，不隨日後重算變動）
   const ok=await saveRec(selectedEmpId,viewYear,viewMonth,currentRec);
   if(ok){
     writeOpLog({editor:CU.name,role:CU.role,module:'salary',action:'更新存檔金額',detail:`${emp.name} ${viewYear}年${viewMonth}月 $${Number(oldNet||0).toLocaleString()}→$${newNet.toLocaleString()}`});
@@ -3784,11 +3788,14 @@ window.saveSheet=async function(){
   // 過去月份若已有存檔金額 → 保留原值不覆蓋（避免誤按儲存動到已發放金額）。
   // 要更新請用「採用新值並重新存檔」(adoptRecalc)，那是明確的覆蓋動作。
   const _prevSnap=currentRec&&currentRec.snapshot;
+  const _prevSlip=currentRec&&currentRec.slipSnap;
   const _keepSnap=isMonthLocked(viewYear,viewMonth)&&_prevSnap&&typeof _prevSnap.netPay==='number';
   if(_keepSnap){
     record.snapshot=_prevSnap; // 原封不動保留
+    if(_prevSlip)record.slipSnap=_prevSlip;   // 薪資單原始版本同步保留，不被重算覆蓋
   }else{
     record.snapshot={target:c.target,base:c.base,elastic:Math.round(c.elastic),otPayTotal:Math.round(c.otPayTotal),netPay:Math.round(c.netPay),isPartial:c.isPartial,employedDays:c.employedDays,savedAt:new Date().toISOString()};
+    record.slipSnap=buildSlipSnap(c);   // 薪資單原始版本（供調閱／補發，不隨日後重算變動）
   }
   // 快照：員工基本資料 + 當月排班（離職後仍可查閱/下載）
   record.empSnapshot={
@@ -3816,16 +3823,20 @@ window.saveSheet=async function(){
 
 window.exportSlip=async function(){
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));if(!emp||!currentRec)return;
-  const c=calcSalary(emp,currentRec,curShifts);
+  const _cLive=calcSalary(emp,currentRec,curShifts);
+  const _ss=slipSource(currentRec,_cLive);
+  const c=_ss.src;                       // 有原始版本就用原始版本呈現
   const insLabel={normal:'',new:'首月免扣',quit_prepay:'含離職預扣',same_month:'當月到離職'}[c.insMode]||'';
   const customRows=(c.customAdds||[]).filter(a=>Number(a.amount)>0).map(a=>`<tr><td>${a.name||'其他加項'}</td><td>$${Number(a.amount).toLocaleString()}</td></tr>`).join('');
   let slipHtml=buildSlipHtml(c,customRows,authNetPay(currentRec,c,viewYear,viewMonth));
   // 方案C：過去月份若重算值與存檔金額不同，在薪資單上明確警示（避免拿錯數字給同仁）
   const _sn=currentRec&&currentRec.snapshot;
-  if(isMonthLocked(viewYear,viewMonth)&&_sn&&typeof _sn.netPay==='number'&&Math.round(c.netPay)!==_sn.netPay){
+  // 已有原始版本（slipSnap）→ 薪資單即為當初發放內容，不需警示。
+  // 僅「舊資料無原始版本、且重算與存檔金額不符」時才警示。
+  if(!_ss.fromSnap&&isMonthLocked(viewYear,viewMonth)&&_sn&&typeof _sn.netPay==='number'&&Math.round(_cLive.netPay)!==_sn.netPay){
     slipHtml=`<div style="margin:0 0 12px;padding:10px 12px;border:1px solid #FDDFA0;background:#FFF4E0;border-radius:8px;font-size:12px;line-height:1.6">
       <b>⚠️ 注意：本月實際發放金額為 $${_sn.netPay.toLocaleString()}</b>${_sn.savedAt?`（${String(_sn.savedAt).slice(0,10)} 存檔）`:''}<br>
-      以下明細為目前規則重新計算的結果（$${Math.round(c.netPay).toLocaleString()}），與發放金額不同，僅供內部參考，請勿作為薪資單發給同仁。
+      以下明細為目前規則重新計算的結果（$${Math.round(_cLive.netPay).toLocaleString()}），與發放金額不同，僅供內部參考，請勿作為薪資單發給同仁。
     </div>`+slipHtml;
   }
   const sub=`${emp.name}｜${viewYear}年${viewMonth}月｜${empStoreAt(emp)||''}${c.isPartial?'｜不足月(在職'+c.employedDays+'天)':''}${insLabel?'｜'+insLabel:''}`;
@@ -3876,6 +3887,37 @@ function slipDisplayInts(c, slipNet){
   fl.forEach(x=>D[x.k]=x.f);
   D.adjusted=true;
   return D;
+}
+// ── 薪資單原始版本快照 ──
+// 薪資單可能被政府調閱或同仁補發，必須永遠呈現「當初發放時」的原始明細，
+// 不能因日後規則調整或人事資料變動而改變。因此存檔時將完整計算結果一併存下，
+// 薪資單優先以此還原；只有明確執行「採用新值並重新存檔」才會覆蓋。
+const SLIP_SNAP_FIELDS=['absentDates','absentDays','absentDeduct','annualComp','attendBonus','attendBonusRate','autoAnnualComp','autoRedComp','base','basePay','customAdds','customAddTotal','customDeds','customDedTotal','dependents','elastic','extraOtHours','extraOtPay','finalHealth','finalLabor','fixedOtHours','fixedOtPay','fullLeaveHours','fullLeavePay','gross','halfLeaveDates','halfLeaveHours','halfLeavePay','healthCharged','healthCurr','healthPrev','hourly','hourlyRate','insGrade','insMode','isPartTime','isPartial','laborCurr','laborInsuredDays','laborPrev','mealAllowance','mealDays','mgrDeduct','mgrNoBonus','mgrPoints','netPay','otHoursTotal','otPayTotal','paidLeaves','pensionAmt','pensionRate','personalDates','personalDeduct','personalMins','proratedTarget','redComp','sickDates','sickDeduct','sickHours','target','tempOtPay','tempOtSegs','totalAdd','totalDeduct','unpaidLeaveDates','unpaidLeaveHours','workedHoursTotal','employedDays'];
+// 決定薪資單的資料來源：
+//   有存檔的原始版本（slipSnap）→ 一律用它，確保薪資單永遠等於當初發放的內容。
+//   沒有（舊資料）→ 退回即時重算，並由呼叫端顯示警示。
+function slipSource(rec,c){
+  const ss=rec&&rec.slipSnap;
+  if(ss&&typeof ss.netPay==='number'){
+    // 以存檔明細為主，缺漏欄位用即時值補（避免舊版 slipSnap 少存欄位造成畫面空白）
+    return {src:Object.assign({},c,ss), fromSnap:true};
+  }
+  return {src:c, fromSnap:false};
+}
+function buildSlipSnap(c){
+  const o={};
+  for(const k of SLIP_SNAP_FIELDS){
+    const v=c[k];
+    if(v===undefined)continue;                  // Firestore 不接受 undefined
+    if(v===null){o[k]=null;continue;}
+    if(typeof v==='object'){
+      try{o[k]=JSON.parse(JSON.stringify(v));}catch(e){}
+    }else if(typeof v==='number'){
+      o[k]=isFinite(v)?v:0;
+    }else o[k]=v;
+  }
+  o._snapAt=new Date().toISOString();
+  return o;
 }
 function buildSlipHtml(c,customRows,authNet){
   // 自訂扣項列（比照 customRows 的加項列；金額為整數，不影響明細與總額的一致性）
