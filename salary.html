@@ -657,7 +657,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
+import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
 import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
   import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -1270,7 +1270,9 @@ window.closeManual=function(){
   const ov=document.getElementById('manualOverlay');if(ov)ov.remove();
 };
 
-authGuard('salary',({user,uid,role,locations,userData})=>{
+authGuard('salary',async({user,uid,role,locations,userData})=>{
+  // 載入店家主檔以取得顯示名稱；失敗時 dispStore() 原樣回傳店名
+  try{ await initStoreDisplay(); }catch(_){}
   CU={name:userData.name||user.email,role,uid};
   document.getElementById('roleChip').textContent=ROLE_NAMES[role]||role;
   init(locations,userData);
@@ -2026,7 +2028,7 @@ function renderMain(){
   let otPanelHtml='';
   if((CU.role==='admin'||CU.role==='consultant')&&showOtPanel){
     otPanelHtml=`<div class="ot-panel"><div class="ot-panel-title"><span>⚙️ 各店固定加班時數設定</span><button class="btn-sm p" onclick="doSaveOtConfig()">儲存</button></div>
-    <div class="ot-grid">${viewableStores.map(s=>`<div class="ot-item"><div class="ot-item-name" title="${s}">${s}</div>
+    <div class="ot-grid">${viewableStores.map(s=>`<div class="ot-item"><div class="ot-item-name" title="${dispStore(s)}">${dispStore(s)}</div>
     <select class="ot-sel" onchange="setStoreOt('${s}',Number(this.value))">
     <option value="0"${getDefOt(s)===0?' selected':''}>無固定</option>
     <option value="1"${getDefOt(s)===1?' selected':''}>+1h</option>
@@ -2101,7 +2103,7 @@ function renderMain(){
       <div class="fdv"></div>
       <span class="fl">店面</span>
       <select id="storeSel" onchange="chgStore(this.value)" style="max-width:220px">
-      ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${s}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
+      ${viewableStores.map(s=>`<option value="${s}"${normStore(s)===normStore(selectedStore)?' selected':''}>${dispStore(s)}（${storeEmps(s).length}人 +${getDefOt(s)}h/天）</option>`).join('')}</select>
       ${(CU.role==='admin'||CU.role==='consultant')?`<button class="btn-sm o" style="margin-left:auto" onclick="toggleOtPanel()">⚙️ 加班設定</button>`:''}
       ${CU.role==='admin'?`<button class="btn-sm o" onclick="toggleSysPanel()">🔧 系統設定</button>`:''}
       <button class="btn-sm o" onclick="openManual()" style="${(CU.role==='admin'||CU.role==='consultant')?'':'margin-left:auto'}">📖 操作說明</button>
@@ -3620,7 +3622,7 @@ window.scanMissingSnapshots=async function(){
           <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border)">將鎖定金額</th>
         </tr>
         ${targets.map(r=>`<tr data-snaprow="${r.id}">
-          <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2)">${r.store}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text2)">${dispStore(r.store)}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--border)">${r.name}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--text3)">$${r.net.toLocaleString()}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--border);text-align:right">

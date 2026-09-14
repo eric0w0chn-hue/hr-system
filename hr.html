@@ -350,7 +350,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth, writeOpLog as sysWriteOpLog, initStoreDisplay, isKitchen } from './auth-guard.js?v=5';
+import { authGuard, db, auth, writeOpLog as sysWriteOpLog, initStoreDisplay, isKitchen, dispStore } from './auth-guard.js?v=6';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 // 店面名稱正規化（異體字容錯：舖/鋪）
@@ -1172,7 +1172,7 @@ function render() {
     // 照 workLocations 設定順序；若有不在清單的店名，補到最後
     const empLocs=new Set(visibleAll.map(r=>r.workLocation).filter(Boolean));
     const visibleLocs=[...workLocations.filter(l=>empLocs.has(l)),...[...empLocs].filter(l=>!workLocations.includes(l))];
-    const lopts=['<option value="">全部店面</option>',...visibleLocs.map(l=>`<option value="${l}"${sloc===l?' selected':''}>${l}</option>`)].join('');
+    const lopts=['<option value="">全部店面</option>',...visibleLocs.map(l=>`<option value="${l}"${sloc===l?' selected':''}>${dispStore(l)}</option>`)].join('');
     tbl=`<div class="toolbar">
       <input type="text" placeholder="搜尋姓名、工作地點..." value="${sq}" class="search-input" onkeydown="if(event.key==='Enter')triggerSearch()"> <button class="btn btn-outline" onclick="triggerSearch()" style="white-space:nowrap">🔍 搜尋</button>
       <select onchange="setSloc(this.value)">${lopts}</select>
@@ -1374,7 +1374,7 @@ function render() {
               <div style="font-size:11px;color:#9AA0B4;margin-bottom:4px;font-weight:600">投保地點</div>
               <select id="ins-loc-${sel.id}" ${_insAdmin?'':'disabled'} style="width:100%;padding:9px 11px;border:1px solid #DDE1E9;border-radius:8px;font-size:14px;font-family:inherit;min-height:42px">
                 <option value="">未設定</option>
-                ${workLocations.map(l=>`<option value="${l}"${ins.insLocation===l?' selected':''}>${l}</option>`).join('')}
+                ${workLocations.map(l=>`<option value="${l}"${ins.insLocation===l?' selected':''}>${dispStore(l)}</option>`).join('')}
               </select>
             </div>
             ${_insAdmin?`<button class="btn btn-sm btn-primary" style="align-self:flex-end" onclick="saveInsLocation(${sel.id})">儲存</button>`:''}
@@ -1639,7 +1639,7 @@ function renderOverview(){
           </td></tr>`;
         }
         return `<tr style="${rowStyle}" ${anomaly&&r.loc!=='梁平有限公司'?`onclick="var d=document.getElementById('ov-detail-${ri}');if(d)d.style.display=d.style.display==='none'?'table-row':'none';"`:''}>
-        <td data-label="店面名稱" style="font-weight:500${anomaly?';color:#DC2626':''}">${anomaly?'⚠️ ':''}${r.loc}${anomaly&&r.loc!=='梁平有限公司'?' <span style="font-size:10px;color:#DC2626;font-weight:400">▼ 點擊查看</span>':''}</td>
+        <td data-label="店面名稱" style="font-weight:500${anomaly?';color:#DC2626':''}">${anomaly?'⚠️ ':''}${dispStore(r.loc)}${anomaly&&r.loc!=='梁平有限公司'?' <span style="font-size:10px;color:#DC2626;font-weight:400">▼ 點擊查看</span>':''}</td>
         <td data-label="在職人數" style="text-align:center;${cellRed}">${r.active}</td>
         <td data-label="投保人數" style="text-align:center;${cellRed}">${r.insured}${anomaly?` <span style="font-size:10px;color:#DC2626">(差${r.active-r.insured>0?'+':''}${r.active-r.insured})</span>`:''}</td>
       </tr>${detailRow}`;}).join('')}
@@ -1671,7 +1671,7 @@ function openModal(mode, targetId, extraIdx) {
   if(mode==='addInterview'||mode==='editInterview'){
     const r=mode==='editInterview'?interviews.find(x=>x.id===targetId):{};
     title=(mode==='addInterview'?'新增':'編輯')+'求職者';
-    const locOpts=interviewLocations.map(l=>`<option value="${l}"${r.location===l?' selected':''}>${l}</option>`).join('');
+    const locOpts=interviewLocations.map(l=>`<option value="${l}"${r.location===l?' selected':''}>${dispStore(l)}</option>`).join('');
     html=`<div class="fg">
       <div class="fr"><label>姓名 *</label><input id="m-name" value="${r.name||''}"></div>
       <div class="fr"><label>面試日期</label><input id="m-date" type="date" value="${r.date||''}"></div>
@@ -1708,7 +1708,7 @@ function openModal(mode, targetId, extraIdx) {
       ? workLocations
       : (currentUserLocations.length ? currentUserLocations : workLocations);
     const defaultLoc = mode==='addEmployee' ? (availLocs[0]||'') : (r.workLocation||'');
-    const wlocOpts=availLocs.map(l=>`<option value="${l}"${defaultLoc===l?' selected':''}>${l}</option>`).join('');
+    const wlocOpts=availLocs.map(l=>`<option value="${l}"${defaultLoc===l?' selected':''}>${dispStore(l)}</option>`).join('');
     const titleOpts=titleOptions.map(l=>`<option value="${l}"${r.title===l?' selected':''}>${l}</option>`).join('');
     html=`${needAccountHint}<div id="interview-match-hint" style="display:none;background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#E65100"></div>
     <div class="fg">
@@ -2334,7 +2334,7 @@ window.checkInterviewMatch = function(){
   );
   if(matched.length === 0){ hint.style.display='none'; return; }
   const m = matched[0];
-  const locTxt = m.location ? `「${m.location}」` : '';
+  const locTxt = m.location ? `「${dispStore(m.location)}」` : '';
   hint.style.display = 'block';
   hint.innerHTML = `⚠️ 求職者資訊中已有同名人員${locTxt}（狀態：${m.status||'—'}），`
     + `建議改由<b>求職者資訊</b>頁面使用「✦ 轉為在職同仁」功能，以保留面試紀錄。`
@@ -2687,7 +2687,7 @@ window.transferToEmployee=async function(id){
   // 預設選中與面試地點最接近的
   const suggested = locOpts.find(l=>l===r.location) || locOpts[0] || r.location || '';
   const locOptHtml = locOpts.map(l=>`<option value="${l}"${l===suggested?' selected':''}>${l}</option>`).join('');
-  const extraOpt = (!locOpts.includes(r.location) && r.location) ? `<option value="${r.location}" selected>${r.location}（面試地點）</option>` : '';
+  const extraOpt = (!locOpts.includes(r.location) && r.location) ? `<option value="${r.location}" selected>${dispStore(r.location)}（面試地點）</option>` : '';
   const html = `<div id="transfer-form-anchor" style="font-size:13px;color:#5A6175;margin-bottom:14px">
       ⚠️ 此操作會將求職者資料轉移為正式員工紀錄，原求職者紀錄將移除（可在轉移完成後短時間內復原）。請確認工作地點，系統將以此比對管理員權限。
     </div>

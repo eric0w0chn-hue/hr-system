@@ -356,7 +356,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth, writeOpLog, initStoreDisplay, storeMeta } from './auth-guard.js?v=5';
+import { authGuard, db, auth, writeOpLog, initStoreDisplay, storeMeta, dispStore } from './auth-guard.js?v=6';
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
@@ -1285,7 +1285,7 @@ function getEmpOptions(selectedId=''){
       const label = e.status && e.status!=='在職' ? `${e.name}（${e.status}）` : e.name;
       return `<option value="${e.id}" data-name="${e.name}" ${e.id==selectedId?'selected':''}>${label}</option>`;
     }).join('');
-    return `<optgroup label="${loc}">${opts}</optgroup>`;
+    return `<optgroup label="${dispStore(loc)}">${opts}</optgroup>`;
   }).join('');
 }
 
@@ -1469,7 +1469,7 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
     currentRole==='employee'
       ? workLocations.filter(l=> allEmployees.find(e=>e.uid===user.uid&&normLoc(e.workLocation)===normLoc(l)) || currentLocations.some(cl=>normLoc(cl)===normLoc(l)))
       : currentLocations.filter(l=>workLocations.includes(l));
-  availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locSelect.appendChild(o);});
+  availLocs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=dispStore(l);locSelect.appendChild(o);});
 
   if(availLocs.length===1){
     locSelect.value=availLocs[0];selectedLocation=availLocs[0];

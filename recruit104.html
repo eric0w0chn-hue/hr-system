@@ -237,7 +237,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate } from './auth-guard.js?v=5';
+import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate, dispStore } from './auth-guard.js?v=6';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -569,7 +569,7 @@ function openDoneModal(s){
   const ov=document.createElement('div'); ov.className='overlay';
   ov.innerHTML=`<div class="modal">
     <div class="modal-title">✅ 完成發放 — ${fmtDate(s.date)}</div>
-    <div class="chips" style="margin:0 0 12px">${(s.stores||[]).map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</div>
+    <div class="chips" style="margin:0 0 12px">${(s.stores||[]).map(n=>`<span class="chip">${esc(dispStore(n))}</span>`).join('')}</div>
     <div class="form-row"><label>發放截圖（存證，可多張；僅保留 3 天）</label><div id="donePhotos"></div></div>
     <div class="modal-footer">
       <button class="btn" id="dCancel">取消</button>
@@ -685,7 +685,7 @@ function renderStores(){
     const hold=on&&!!c.holdMail;
     return `<div class="store-card ${on?'on':'collapsed'} ${hold?'hold':''}">
       <div class="sc-head">
-        <div class="sc-name">${esc(name)}</div>
+        <div class="sc-name">${esc(dispStore(name))}</div>
         ${hold?'<span class="badge b-hold">⏸ 暫不發信</span>':''}
         <span class="sc-caret">▾</span>
         <label class="switch"><input type="checkbox" data-tg="${esc(name)}" ${on?'checked':''} ${editable?'':'disabled'}><span class="sl"></span></label>

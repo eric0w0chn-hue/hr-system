@@ -333,7 +333,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate } from './auth-guard.js?v=5';
+import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate, dispStore } from './auth-guard.js?v=6';
 import {
   doc, getDoc, addDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, orderBy, serverTimestamp
@@ -502,7 +502,7 @@ function renderOverview(dates){
     const w = weekdays[new Date(dateStr+'T00:00:00').getDay()];
     const isToday = dateStr===today;
 
-    const doneTags = done.map(s=>`<span class="ov-tag done" onclick="jumpToDate('${dateStr}')" title="點擊查看詳細">${s}</span>`).join('');
+    const doneTags = done.map(s=>`<span class="ov-tag done" onclick="jumpToDate('${dateStr}')" title="點擊查看詳細">${dispStore(s)}</span>`).join('');
     const missTags = miss.map(s=>`<span class="ov-tag miss">✗ ${s}</span>`).join('');
 
     return `<div class="ov-row">
@@ -560,7 +560,7 @@ function renderMissing(){
     banner.classList.add('show');
     document.getElementById('missingTitle').textContent =
       '⚠️ ' + (viewDate===today?'今日':'該日（'+viewDate.slice(5).replace('-','/')+'）') + ' 以下店面尚未回報';
-    document.getElementById('missingTags').innerHTML = missing.map(s=>`<span class="missing-tag">${s}</span>`).join('');
+    document.getElementById('missingTags').innerHTML = missing.map(s=>`<span class="missing-tag">${dispStore(s)}</span>`).join('');
   } else {
     banner.classList.remove('show');
   }
@@ -584,7 +584,7 @@ function renderStoreTabs(){
   const stores = [...new Set(allReports.map(r=>r.store))].sort();
   document.getElementById('storeTabs').innerHTML =
     `<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setSF('all')">全部（${allReports.length}）</button>`
-    + stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setSF('${s}')">${s}</button>`).join('');
+    + stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setSF('${s}')">${dispStore(s)}</button>`).join('');
 }
 window.setSF = function(s){ storeFilter=s; renderStoreTabs(); renderReports(); };
 
@@ -672,7 +672,7 @@ window.openModal = function(){
   // store picker
   const myStores = cuRole==='admin' ? allStores : cuLocs.filter(Boolean);
   const sp = document.getElementById('fStore');
-  sp.innerHTML = (myStores.length ? myStores : allStores).map(s=>`<option value="${s}">${s}</option>`).join('');
+  sp.innerHTML = (myStores.length ? myStores : allStores).map(s=>`<option value="${s}">${dispStore(s)}</option>`).join('');
   document.getElementById('storePickWrap').style.display = (myStores.length>1||cuRole==='admin') ? 'flex' : myStores.length===1 ? 'none' : 'flex';
 
   pendingFiles = [];

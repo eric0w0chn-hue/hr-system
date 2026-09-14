@@ -363,7 +363,7 @@ tr.dragging{opacity:.4}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -387,6 +387,9 @@ let _hiddenMapDraft = {}; // 管理 modal 編輯中的暫存
 const _pwVisible = {};
 
 authGuard('store_accounts', async ({ user, uid, role, locations, userData, db: dbRef }) => {
+  // 載入店家主檔以取得顯示名稱；失敗時 dispStore() 原樣回傳店名，不影響功能
+  try{ await initStoreDisplay(); }catch(_){}
+
   _role = role;
   _uid  = uid;
   _name = userData?.name || '—';
@@ -449,7 +452,7 @@ function buildStoreBar() {
   if (visibleLocs.length > 1) {
     sel.style.display = 'block';
     sel.innerHTML = `<option value="">🏪 全部店面</option>`
-      + visibleLocs.map(loc => `<option value="${esc(loc)}">${esc(loc)}</option>`).join('');
+      + visibleLocs.map(loc => `<option value="${esc(loc)}">${esc(dispStore(loc))}</option>`).join('');
   } else {
     sel.style.display = 'none';
   }
@@ -703,7 +706,7 @@ window.toggleModalPw = function() {
 function populateStoreSelect(selectedStore) {
   const sel = document.getElementById('fStore');
   sel.innerHTML = _locations.map(loc => {
-    return `<option value="${esc(loc)}" ${loc === selectedStore ? 'selected' : ''}>${esc(loc)}</option>`;
+    return `<option value="${esc(loc)}" ${loc === selectedStore ? 'selected' : ''}>${esc(dispStore(loc))}</option>`;
   }).join('');
 }
 
@@ -805,7 +808,7 @@ function renderMgmtList() {
     const userLocs = u.locations.length ? u.locations : _locations;
     const tags = userLocs.map(loc => {
       const isHidden = hidden.has(loc);
-      return `<span class="mgmt-store-tag${isHidden?' hidden':''}" data-uid="${u.uid}" data-loc="${esc(loc)}" onclick="_toggleHidden(this)">${esc(loc)}</span>`;
+      return `<span class="mgmt-store-tag${isHidden?' hidden':''}" data-uid="${u.uid}" data-loc="${esc(loc)}" onclick="_toggleHidden(this)">${esc(dispStore(loc))}</span>`;
     }).join('');
     return `<div class="mgmt-user-row">
       <span class="mgmt-user-name">${esc(u.name)}</span>

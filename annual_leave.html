@@ -180,7 +180,7 @@ tbody tr:hover .sticky-l{background:var(--accent-light)}
 <div id="modalArea"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ═══ 狀態 ═══ */
@@ -722,6 +722,9 @@ window.exportCsv=function(){
 
 /* ═══ 入口 ═══ */
 authGuard('annual_leave', async ({ uid, role, locations, userData }) => {
+  // 載入店家主檔以取得顯示名稱；失敗時 dispStore() 原樣回傳店名，不影響功能
+  try{ await initStoreDisplay(); }catch(_){}
+
   CUR.role=role; CUR.name=userData?.name||'—'; CUR.uid=uid;
   VIEW_LOCS=Array.isArray(locations)?locations.slice():[];
   const rc=$('roleChip');
@@ -738,7 +741,7 @@ authGuard('annual_leave', async ({ uid, role, locations, userData }) => {
 
     // 店面下拉（依可視範圍）
     const opts=(VIEW_LOCS.length?VIEW_LOCS:workLocations).filter(Boolean);
-    $('fLoc').innerHTML='<option value="">全部</option>'+opts.map(l=>`<option value="${l}">${l}</option>`).join('');
+    $('fLoc').innerHTML='<option value="">全部</option>'+opts.map(l=>`<option value="${l}">${dispStore(l)}</option>`).join('');
 
     // 批次鈕僅正規版需要（臨時版 2025 年底已結算）
     $('loading').style.display='none';
