@@ -355,7 +355,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 </div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog, initStoreDisplay, dispStore, storeMeta } from './auth-guard.js?v=7';
 import {
   doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, orderBy, serverTimestamp
@@ -431,15 +431,34 @@ authGuard('delivery_report', async ({ user, role, locations, userData }) => {
 
 // ── 載入央廚清單（從 settings/permissions.locationTypes 篩 type='central'）──
 async function loadCentralStores(){
+  // 央廚清單優先序：
+  //   ① settings/stores 主檔（store_manage.html 維護，type==='kitchen' 且啟用中）
+  //   ② 回退 settings/permissions.locationTypes 的 type==='central'
+  // ⚠ 回退設計確保主檔不可用時行為與改動前完全一致
   try{
-    const snap=await getDoc(doc(db,'settings','permissions'));
-    if(snap.exists()){
-      const types=snap.data().locationTypes||{};
-      centralStores=Object.entries(types)
-        .filter(([loc,t])=>t==='central' && !EXCLUDE_STORES.includes(loc))
-        .map(([loc])=>loc).sort();
+    await initStoreDisplay();
+    const stSnap=await getDoc(doc(db,'settings','stores'));
+    if(stSnap.exists()){
+      const list=stSnap.data().list;
+      if(Array.isArray(list)&&list.length){
+        centralStores=list
+          .filter(s=>s&&s.name&&s.type==='kitchen'&&s.active!==false&&!EXCLUDE_STORES.includes(s.name))
+          .map(s=>s.name).sort();
+      }
     }
-  }catch(e){console.error('loadCentralStores',e)}
+  }catch(e){console.warn('loadCentralStores 主檔讀取失敗，改用 locationTypes',e)}
+
+  if(!centralStores.length){
+    try{
+      const snap=await getDoc(doc(db,'settings','permissions'));
+      if(snap.exists()){
+        const types=snap.data().locationTypes||{};
+        centralStores=Object.entries(types)
+          .filter(([loc,t])=>t==='central' && !EXCLUDE_STORES.includes(loc))
+          .map(([loc])=>loc).sort();
+      }
+    }catch(e){console.error('loadCentralStores',e)}
+  }
   // manager 可編輯：自己所屬且為央廚的；admin/consultant：全部央廚
   if(cuRole==='manager'){
     myEditableStores=cuOwnLocs.filter(l=>centralStores.includes(l));
@@ -517,7 +536,7 @@ function renderVehicleSelect(store,selected){
   const sel=document.getElementById('rmVehicle');
   const ordered=getOrderedVehicles(store||currentReportStore);
   const pick=selected||(ordered[0]||'');
-  sel.innerHTML=ordered.map(v=>`<option value="${esc(v)}"${v===pick?' selected':''}>${esc(v)}</option>`).join('')
+  sel.innerHTML=ordered.map(v=>`<option value="${esc(v)}"${v===pick?' selected':''}>${esc(dispStore(v))}</option>`).join('')
     +'<option value="__add__">＋ 自行輸入車牌…</option>';
   sel.value=pick;
 }
@@ -701,7 +720,7 @@ function renderTomorrowCards(){
         </div>`).join('');
       return `<div class="tcard done">
         <div class="tcard-head">
-          <span class="tcard-store">${esc(store)}</span>
+          <span class="tcard-store">${esc(dispStore(store))}</span>
           <span class="tcard-status s-done">✓ 已回報 ${list.length} 人</span>
         </div>
         <div class="tcard-people">${peopleHtml}</div>
@@ -713,7 +732,7 @@ function renderTomorrowCards(){
     }else{
       return `<div class="tcard empty">
         <div class="tcard-head">
-          <span class="tcard-store">${esc(store)}</span>
+          <span class="tcard-store">${esc(dispStore(store))}</span>
           <span class="tcard-status s-empty">⚠ 尚未回報</span>
         </div>
         <div class="tcard-empty-msg">— 等待回報 —</div>
@@ -823,7 +842,7 @@ window.openPersonnelModal=function(preStore){
   editingPersonnelId=null;
   document.getElementById('personnelModalTitle').textContent='新增聯絡人';
   const sel=document.getElementById('pmStore');
-  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(dispStore(s))}</option>`).join('');
   if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
   renderPmEmployeeOptions(sel.value);
   document.getElementById('pmName').value='';
@@ -841,7 +860,7 @@ window.editPersonnel=function(id){
   editingPersonnelId=id;
   document.getElementById('personnelModalTitle').textContent='編輯聯絡人';
   const sel=document.getElementById('pmStore');
-  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(dispStore(s))}</option>`).join('');
   sel.value=p.store;
   renderPmEmployeeOptions(p.store);
   document.getElementById('pmName').value=p.name||'';
@@ -895,7 +914,7 @@ window.openReportModal=function(preStore){
   if(!myEditableStores.length){toast('無可回報的央廚');return}
   document.getElementById('rmDate').value=dateDisp(tomorrowStr());
   const sel=document.getElementById('rmStore');
-  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  sel.innerHTML=myEditableStores.map(s=>`<option value="${esc(s)}">${esc(dispStore(s))}</option>`).join('');
   if(preStore && myEditableStores.includes(preStore)) sel.value=preStore;
   currentReportStore=sel.value;
   onReportStoreChange();
