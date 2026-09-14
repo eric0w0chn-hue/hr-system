@@ -419,23 +419,24 @@ window.render=function(){
     const pct=s.curDays>0?Math.min(100,Math.round(s.curUsedN/s.curDays*100)):0;
     return `<tr class="${s.expired?'expired':''}">
       <td class="sticky-l"><span class="link" onclick="openDetail(${e.id})">${e.name||'—'}</span><div class="sub">${e.workLocation||'—'}</div></td>
-      <td>${e.startDate||'—'}<div class="sub">${s.isTemp?(s.cur.grant?`${s.cur.grant} 取得`:'2026 無取得'):`週期至 ${s.cur.end||'—'}`}</div></td>
+      <td>${e.startDate||'—'}${s.isTemp?'':`<div class="sub">週期至 ${s.cur.end||'—'}</div>`}</td>
+      ${s.isTemp?`<td class="g-cur">${s.cur.grant
+          ? `${s.cur.grant}<div class="sub">可用至 ${s.cur.end||'—'}</div>`
+          : '<span class="sub">2026 無取得</span>'}</td>`:''}
       <td class="g-cur">
         <div class="prog"><div class="prog-bar" style="width:${pct}%"></div></div>
         <div class="prog-txt">已放 ${s.curUsedN} / 應有 ${s.curDays} 天</div>
       </td>
       <td class="g-cur remain ${s.curRemain>0?'has':'none'}">${s.curRemain}<span class="unit">天</span></td>
-      <td class="g-last">${s.isTemp
-        ? `<span class="paid">2025 年底已結算</span>`
-        : `${s.last.start?`${s.lastUsedN} / ${s.lastDays}`:'—'}<div class="sub">${s.last.start?`${s.last.start} ~ ${s.last.end}`:'尚未進入第2週期'}</div>`}</td>
-      <td class="g-last ${s.isTemp?'':'settle'} ${(!s.isTemp&&s.expired)?'has':'none'}">${
-        s.isTemp
-          ? (s.cur.end?`<div class="sub" style="font-size:11px;color:var(--text2)">${s.cur.start} ~ ${s.cur.end}</div><div class="sub">${s.cur.grant} 取得 ${s.curDays} 天</div>`:'<span class="sub">—</span>')
-        : !s.last.start ? '—'
-        : s.lastRemain<=0 ? '<span title="上週期已休完">✓</span>'
-        : s.settled ? `<span class="paid" title="已於 ${e.leaveSettled} 標記結算發放">已發放</span>`
-        : `<span title="上週期未休完，依勞基法第38條應發給工資">${s.lastRemain}<span class="unit">天</span></span>`
-      }${(!s.isTemp&&s.last.start&&s.lastRemain>0&&canEdit())?`<div class="settle-act"><button class="mini" onclick="toggleSettled(${e.id})">${s.settled?'取消':'標記已發放'}</button></div>`:''}</td>
+      ${s.isTemp
+        ? `<td class="g-last"><span class="paid">2025 年底已結算</span></td>`
+        : `<td class="g-last">${s.last.start?`${s.lastUsedN} / ${s.lastDays}`:'—'}<div class="sub">${s.last.start?`${s.last.start} ~ ${s.last.end}`:'尚未進入第2週期'}</div></td>
+           <td class="g-last settle ${s.expired?'has':'none'}">${
+              !s.last.start ? '—'
+              : s.lastRemain<=0 ? '<span title="上週期已休完">✓</span>'
+              : s.settled ? `<span class="paid" title="已於 ${e.leaveSettled} 標記結算發放">已發放</span>`
+              : `<span title="上週期未休完，依勞基法第38條應發給工資">${s.lastRemain}<span class="unit">天</span></span>`
+           }${(s.last.start&&s.lastRemain>0&&canEdit())?`<div class="settle-act"><button class="mini" onclick="toggleSettled(${e.id})">${s.settled?'取消':'標記已發放'}</button></div>`:''}</td>`}
       ${dcell.join('')}
     </tr>`;
   }).join('');
@@ -444,11 +445,11 @@ window.render=function(){
     <thead>
       <tr>
         <th class="sticky-l">姓名 / 店面</th>
-        <th>到職日 / 週期截止</th>
+        <th>到職日</th>
+        ${mode==='temp'?`<th class="g-cur">2026 年度<br>取得 / 可用至</th>`:''}
         <th class="g-cur">${mode==='temp'?'2026 年度<br>休假進度':'本週期<br>休假進度'}</th>
         <th class="g-cur">${mode==='temp'?'2026 年度<br>還可休':'本週期<br>還可休'}</th>
-        <th class="g-last">${mode==='temp'?'2025 年度<br>結算狀態':'上週期<br>已放 / 應有'}</th>
-        <th class="g-last">${mode==='temp'?'可用期間':'上週期<br>須補薪'}</th>
+        ${mode==='temp'?`<th class="g-last">2025 年度<br>結算狀態</th>`:`<th class="g-last">上週期<br>已放 / 應有</th><th class="g-last">上週期<br>須補薪</th>`}
         ${dcols.join('')}
       </tr>
     </thead>
@@ -698,7 +699,7 @@ window.exportCsv=function(){
   const maxUsed=Math.max(1,...list.map(e=>summarize(e).curUsedN));
   const dhead=[];for(let i=1;i<=maxUsed;i++)dhead.push('D'+i);
   const head = mode==='temp'
-    ? ['姓名','工作地點','到職日','2026取得日','可用至','年度應有','已放','還可休','2025年度',...dhead]
+    ? ['姓名','工作地點','到職日','2026取得日','可用至','年度應有','已放','還可休','2025年度結算',...dhead]
     : ['姓名','工作地點','到職日','本週期截止','本週期應有','本週期已放','還可休','上週期應有','上週期已放','須補薪','結算狀態',...dhead];
   const rows=list.map(e=>{
     const s=summarize(e);
