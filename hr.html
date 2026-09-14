@@ -350,7 +350,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth, writeOpLog as sysWriteOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, auth, writeOpLog as sysWriteOpLog, initStoreDisplay, isKitchen } from './auth-guard.js?v=5';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 // 店面名稱正規化（異體字容錯：舖/鋪）
@@ -830,6 +830,8 @@ let currentUserLocations = [];
 let currentUserName = 'Admin';
 
 authGuard('hr', async ({ role, locations, userData }) => {
+  // 載入店家主檔（供央廚判定用；失敗時 isCentralLoc 會自動回退到寫死清單）
+  try{ await initStoreDisplay(); }catch(_){}
   currentUserRole      = role;
   currentUserLocations = locations;
   currentUserName      = userData.name || userData.idNo || 'Unknown';
@@ -1551,6 +1553,19 @@ function render() {
 }
 
 // ── 體系現有人數總覽 ──
+// 是否為央廚（央廚投保掛在梁平公司，投保人數 0 屬正常，不標紅）
+//
+// 優先用 settings/stores 主檔的 type 判斷；主檔查不到該店（或主檔不可用）
+// 時 isKitchen 回傳 null → 回退到下方寫死清單。
+// ⚠ 回退設計確保主檔不可用時行為與改動前完全一致。
+// ⚠ 這只影響「體系現有人數」分頁的標紅提示，不涉及任何投保金額計算。
+const CENTRAL_FALLBACK = ['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'];
+function isCentralLoc(loc){
+  const k = isKitchen(loc);
+  if(k !== null) return k;
+  return CENTRAL_FALLBACK.includes(loc);
+}
+
 function renderOverview(){
   if(currentUserRole!=='admin'){ tab='employee'; render(); return; }
   // 依 workLocations 設定順序；排除公司實體「梁平有限公司」以外全列（保留公司列以符合範例）
@@ -1576,8 +1591,7 @@ function renderOverview(){
 
   const totalActive  = rows.reduce((s,r)=>s+r.active,0);
   const totalInsured = rows.reduce((s,r)=>s+r.insured,0);
-  const centralNames=['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'];
-  const anomalyCount = rows.filter(r=>r.active!==r.insured && !centralNames.includes(r.loc)).length;
+  const anomalyCount = rows.filter(r=>r.active!==r.insured && !isCentralLoc(r.loc)).length;
 
   const stats=`<div class="stats">
     <div class="sc"><div class="sl">店面數</div><div class="sn">${rows.filter(r=>r.active>0).length}</div></div>
@@ -1595,7 +1609,7 @@ function renderOverview(){
     <tbody>
       ${rows.map((r,ri)=>{
         // 央廚三店投保掛在梁平，投保人數為 0 屬正常，不標紅
-        const centralPass = ['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'].includes(r.loc);
+        const centralPass = isCentralLoc(r.loc);
         const anomaly = (r.active !== r.insured) && !centralPass;
         const rowStyle = anomaly ? 'background:#FEF2F2;cursor:pointer' : '';
         const cellRed  = anomaly ? 'color:#DC2626;font-weight:700' : '';
