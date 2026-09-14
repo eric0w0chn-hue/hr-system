@@ -160,6 +160,15 @@ async function fetchStoreMaster() {
  * 載入店家主檔（帶 5 分鐘 sessionStorage 快取）
  * 呼叫 dispStore() 之前要先 await 這個
  */
+/**
+ * 清除店家主檔快取
+ * store_manage.html 儲存後必須呼叫，否則其他頁面在 5 分鐘內仍讀到舊的顯示名稱
+ */
+export function clearStoreCache() {
+  try { sessionStorage.removeItem(STORE_KEY); } catch {}
+  _storeMap = null; _storeMeta = null; _storeFetch = null;
+}
+
 export async function initStoreDisplay() {
   const r = await fetchStoreMaster();
   _storeMap  = r.disp || {};
