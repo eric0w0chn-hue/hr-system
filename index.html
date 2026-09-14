@@ -52,19 +52,21 @@ body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height
     <p>輔助管理系統</p>
   </div>
   <div class="card">
+    <form id="loginForm" action="#" method="post">
     <div class="fr">
-      <label>身分證號</label>
-      <input id="idNo" type="text" placeholder="A123456789" autocomplete="username" maxlength="10">
+      <label for="idNo">身分證號</label>
+      <input id="idNo" name="username" type="text" placeholder="A123456789" autocomplete="username" maxlength="10">
     </div>
     <div class="fr">
-      <label>密碼</label>
-      <input id="pwd" type="password" placeholder="••••••" autocomplete="current-password">
+      <label for="pwd">密碼</label>
+      <input id="pwd" name="password" type="password" placeholder="••••••" autocomplete="current-password">
     </div>
     <div class="err" id="errMsg"></div>
     <label class="remember-row">
       <input type="checkbox" id="rememberMe"> 記住帳號
     </label>
-    <button class="btn-login" id="loginBtn" onclick="doLogin()">登入</button>
+    <button class="btn-login" id="loginBtn" type="submit">登入</button>
+    </form>
     <hr class="divider">
     <p class="hint">首次登入密碼為民國生日<br><strong>例：民國83年1月1日 → 830101</strong></p>
   </div>
@@ -77,7 +79,7 @@ const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomai
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
-document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();doLogin();});
 // 讀取記憶的帳號
 (function(){
   const saved=localStorage.getItem('rememberedIdNo');
@@ -111,7 +113,8 @@ window.doLogin=async function(){
     } else {
       localStorage.removeItem('rememberedIdNo');
     }
-    window.location.href='dashboard.html';
+    // 稍作延遲再轉頁，讓瀏覽器的「儲存密碼」提示有機會出現
+    setTimeout(()=>{ window.location.href='dashboard.html'; }, 150);
   }catch(e){
     btn.disabled=false;btn.textContent='登入';
     if(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'){

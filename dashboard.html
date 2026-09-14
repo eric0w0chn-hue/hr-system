@@ -486,7 +486,10 @@ function renderAll(role){
   const sb=document.getElementById('sidebarContent');
   let sHtml='';
   groups.forEach(g=>{
-    const gMods=ALL_MODULES.filter(m=>g.keys.includes(m.key)&&visKeys.includes(m.key));
+    // ⚠ 必須照 g.keys 的順序（使用者拖拉後儲存的順序），
+    //   不能用 ALL_MODULES.filter，否則排序永遠被 ALL_MODULES 的固定順序覆蓋。
+    const gMods=(g.keys||[]).map(k=>ALL_MODULES.find(m=>m.key===k))
+                            .filter(m=>m&&visKeys.includes(m.key));
     if(!gMods.length) return; // 空群組一律隱藏
     sHtml+=`<div class="sidebar-group" id="sg_${g.id}" data-gid="${g.id}">
       <div class="sidebar-group-header" onclick="toggleGroup('${g.id}')">

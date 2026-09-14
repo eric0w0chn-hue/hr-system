@@ -1418,14 +1418,16 @@ function render() {
           ${(ins.dependents||[]).length?`<div class="tw"><table>
             <thead><tr>
               <th style="width:90px">姓名</th>
+              <th style="width:70px">稱謂</th>
               <th style="width:130px">生日</th>
               <th style="width:130px">身分證號</th>
               <th style="width:50px">操作</th>
             </tr></thead>
             <tbody>${ins.dependents.map((d,i)=>`<tr>
-              <td>${d.name||'—'}</td>
-              <td>${toROC(d.birthday)}</td>
-              <td>${d.idNo||'—'}</td>
+              <td data-label="姓名">${d.name||'—'}</td>
+              <td data-label="稱謂">${d.relation||'—'}</td>
+              <td data-label="生日">${toROC(d.birthday)}</td>
+              <td data-label="身分證號">${d.idNo||'—'}</td>
               <td>${_insAdmin?`<button class="ibt" onclick="removeDependent(${sel.id},${i})" style="color:#e24b4a" title="刪除">✕</button>`:'—'}</td>
             </tr>`).join('')}</tbody>
           </table></div>`:'<div class="empty-state" style="padding:20px">尚無眷屬資料，點上方按鈕新增</div>'}
@@ -1559,11 +1561,12 @@ function render() {
 // 時 isKitchen 回傳 null → 回退到下方寫死清單。
 // ⚠ 回退設計確保主檔不可用時行為與改動前完全一致。
 // ⚠ 這只影響「體系現有人數」分頁的標紅提示，不涉及任何投保金額計算。
-const CENTRAL_FALLBACK = ['鑫雞肉央廚','泉州鑫廚房','華安央廚','新莊央廚'];
+// ⚠ 這裡列的是「投保轉掛到梁平有限公司」的店，不等於「是不是央廚」。
+//   鑫雞肉央廚自 2026/09 起已獨立投保，故不在此清單（需正常比對在職 vs 投保）。
+//   泉州鑫廚房為華安央廚舊名，一併保留以相容歷史資料。
+const INS_TRANSFER_STORES = ['泉州鑫廚房','華安央廚','新莊央廚'];
 function isCentralLoc(loc){
-  const k = isKitchen(loc);
-  if(k !== null) return k;
-  return CENTRAL_FALLBACK.includes(loc);
+  return INS_TRANSFER_STORES.some(s => normLoc(s) === normLoc(loc));
 }
 
 function renderOverview(){
@@ -1778,8 +1781,19 @@ function openModal(mode, targetId, extraIdx) {
     title='新增眷屬資料';
     html=`<div class="fg">
       <div class="fr"><label>眷屬姓名 *</label><input id="m-dname" placeholder="姓名"></div>
+      <div class="fr"><label>稱謂</label>
+        <select id="m-drel">
+          <option value="">請選擇</option>
+          <option>配偶</option><option>父親</option><option>母親</option>
+          <option>兒子</option><option>女兒</option>
+          <option>祖父</option><option>祖母</option>
+          <option>公公</option><option>婆婆</option>
+          <option>岳父</option><option>岳母</option>
+          <option>其他</option>
+        </select>
+      </div>
       <div class="fr"><label>身分證號</label><input id="m-didNo" placeholder="A123456789"></div>
-      <div class="fr" style="grid-column:span 2"><label>生日（民國）</label>${rocInputHtml('m-dbday','')}</div>
+      <div class="fr"><label>生日（民國）</label>${rocInputHtml('m-dbday','')}</div>
     </div>`;
   } else if(mode==='addBonus'){
     title='新增獎金／補助項目';
@@ -1969,7 +1983,7 @@ async function saveModal(){
     const r=employees.find(x=>x.id===tid);
     if(!r.insurance)r.insurance={grade:'',dependents:[]};
     if(!r.insurance.dependents)r.insurance.dependents=[];
-    r.insurance.dependents.push({name:g('m-dname'),idNo:g('m-didNo'),birthday:getROC('m-dbday')});
+    r.insurance.dependents.push({name:g('m-dname'),relation:g('m-drel'),idNo:g('m-didNo'),birthday:getROC('m-dbday')});
   } else if(m==='addEmergency'){
     if(!g('m-ename')){alert('請填寫聯絡人姓名');return;}
     const r=employees.find(x=>x.id===tid);if(!r)return;
