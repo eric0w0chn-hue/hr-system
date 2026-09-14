@@ -181,6 +181,7 @@ let stores = [];          // [{storeId,name,type,area,active,inWork,inInterview}
 let origWork = [];        // hr/settings.workLocations 原始值
 let origInterview = [];   // hr/settings.interviewLocations 原始值
 let dirty = false;
+let deletedNames = [];    // 本次待刪除的店名（儲存時才真正從各清單移除）
 let currentUserName = '', currentRole = '';
 
 const TYPE_LABEL = { store:'門市', kitchen:'央廚', corporate:'法人（非店面）' };
@@ -277,6 +278,7 @@ function render(){
       <td><div class="ops">
         <button class="btn btn-sm" onclick="openEdit(${i})">編輯</button>
         <button class="btn btn-sm ${off?'':'btn-danger'}" onclick="toggleActive(${i})">${off?'啟用':'停用'}</button>
+        ${off?`<button class="btn btn-sm btn-danger" onclick="askDelete(${i})" title="永久從主檔移除">刪除</button>`:''}
       </div></td>
     </tr>`;
   }).join('');
@@ -300,7 +302,9 @@ function computeTargets(){
   const pick = (flag, orig) => {
     const from = stores.filter(s=>s.active && s[flag]).map(s=>s.name);
     // 不在主檔裡的既有項目一律保留，避免誤刪不明資料
-    const keep = orig.filter(n=>!known.has(normLoc(n)));
+    // ⚠ 但「本次明確刪除」的店名要排除，否則刪了主檔卻還留在下拉選單裡
+    const del = new Set(deletedNames.map(normLoc));
+    const keep = orig.filter(n=>!known.has(normLoc(n)) && !del.has(normLoc(n)));
     return { list:[...from, ...keep], keep };
   };
   return { work: pick('inWork', origWork), interview: pick('inInterview', origInterview) };
@@ -321,8 +325,12 @@ function renderDiff(){
     if(!add.length && !del.length) h += `<br><span class="keep">無變化</span>`;
     return h + '</div>';
   };
+  const delHtml = deletedNames.length
+    ? `<div style="margin-bottom:8px"><span class="del"><b>⚠ 將永久刪除：</b>${deletedNames.map(esc).join('、')}</span></div>`
+    : '';
   area.innerHTML = `<div class="diff">
     <div style="font-weight:700;margin-bottom:6px">儲存後的變更預覽</div>
+    ${delHtml}
     ${mk('工作地點', t.work, origWork)}
     <div style="height:8px"></div>
     ${mk('面試地點', t.interview, origInterview)}
@@ -433,6 +441,88 @@ window.toggleActive = function(idx){
   render();
 };
 
+// ══════════════════════════════════════════════════════════
+// 刪除店家（三層保護）
+//   ① 必須先「停用」——停用鈕是第一道關卡，啟用中的店看不到刪除鈕
+//   ② 檢查是否仍有在職員工掛在該店，有就直接擋下
+//   ③ 必須手動輸入完整店名才能確認
+//
+// ⚠ 刪除只移除「主檔 + 三份下拉/分類設定」，
+//   歷史排班、薪資快照、各類回報都以店名字串儲存，完全不受影響。
+//   也因此刪除後若再建同名店家，歷史資料會重新對上。
+// ══════════════════════════════════════════════════════════
+window.askDelete = async function(idx){
+  const s = stores[idx];
+  if(!s) return;
+  if(s.active){ showToast('請先停用這間店再刪除'); return; }
+
+  showCustomModalDel('檢查中…',
+    '<div style="padding:22px 0;text-align:center;color:var(--text2);font-size:13px">正在確認是否仍有員工掛在這間店…</div>');
+
+  // ── 第二層：在職員工檢查 ──
+  let blockers = [];
+  try{
+    const snap = await getDoc(doc(db,'hr','employees'));
+    const list = (snap.exists() ? snap.data().list : []) || [];
+    blockers = list.filter(e=>{
+      const st = e.status || '在職';
+      if(st !== '在職' && st !== '留職停薪') return false;
+      return normLoc(e.workLocation) === normLoc(s.name);
+    }).map(e=>e.name || e.id);
+  }catch(err){
+    console.error('員工檢查失敗', err);
+    showCustomModalDel('無法刪除',
+      '<div class="notice" style="margin:0">檢查員工資料時發生錯誤，為安全起見中止刪除。<br>'
+      + esc(err.message||'') + '</div>'
+      + '<div class="modal-actions"><button class="btn" onclick="closeModal()">關閉</button></div>');
+    return;
+  }
+
+  if(blockers.length){
+    showCustomModalDel('無法刪除「' + esc(s.name) + '」',
+      '<div class="notice" style="margin:0 0 12px">這間店仍有 <b>' + blockers.length + '</b> 位在職／留停同仁：<br>'
+      + esc(blockers.slice(0,15).join('、')) + (blockers.length>15?' …等':'')
+      + '<br><br>請先將這些同仁調到其他店面，再刪除這間店。</div>'
+      + '<div class="modal-actions"><button class="btn" onclick="closeModal()">我知道了</button></div>');
+    return;
+  }
+
+  // ── 第三層：輸入店名確認 ──
+  showCustomModalDel('永久刪除「' + esc(s.name) + '」',
+    '<div class="notice" style="margin:0 0 14px">'
+    + '<b>這個動作會把這間店從主檔移除</b>，同時從工作地點、面試地點下拉選單與門市／央廚分類中刪除。<br><br>'
+    + '歷史排班、薪資快照、各類回報<b>不會</b>被刪除（那些以店名字串儲存），但這間店將不再出現在任何選單裡。<br><br>'
+    + '若只是暫時不用，建議維持「停用」即可，不必刪除。</div>'
+    + '<div class="fld"><label>請輸入完整店名以確認：<span style="color:var(--red)">' + esc(s.name) + '</span></label>'
+    + '<input id="delConfirm" placeholder="逐字輸入店名" autocomplete="off"></div>'
+    + '<div class="modal-actions">'
+    +   '<button class="btn" onclick="closeModal()">取消</button>'
+    +   '<button class="btn btn-danger" onclick="doDelete(' + idx + ')">確認刪除</button>'
+    + '</div>');
+  setTimeout(()=>{ const el=document.getElementById('delConfirm'); if(el) el.focus(); }, 60);
+};
+
+window.doDelete = function(idx){
+  const s = stores[idx];
+  if(!s) return;
+  const typed = (document.getElementById('delConfirm')||{}).value || '';
+  if(normLoc(typed) !== normLoc(s.name)){ showToast('店名輸入不符，未刪除'); return; }
+
+  deletedNames.push(s.name);
+  stores.splice(idx,1);
+  closeModal();
+  markDirty();
+  render();
+  showToast('已標記刪除「' + s.name + '」，請按「儲存變更」生效');
+};
+
+// 刪除流程專用 modal（與 openEdit 的版型一致）
+function showCustomModalDel(title, html){
+  document.getElementById('modalArea').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal"><div class="modal-title">' + title + '</div>' + html + '</div></div>';
+}
+
 window.saveAll = async function(){
   const btn = document.getElementById('saveBtn');
   const act = stores.filter(s=>s.active && s.type!=='corporate');
@@ -478,6 +568,7 @@ window.saveAll = async function(){
         if(s.type === 'corporate'){ delete next[s.name]; return; }
         next[s.name] = (s.type === 'kitchen') ? 'central' : 'store';
       });
+      deletedNames.forEach(n=>{ delete next[n]; });
       await updateDoc(permRef, { locationTypes: next });
       // 權限快取清掉，讓 authGuard 下次讀到新的分類
       try{ sessionStorage.removeItem('lp_perm_v1'); }catch(_){}
@@ -497,6 +588,12 @@ window.saveAll = async function(){
       sessionStorage.removeItem('lp_store_v1');
       await initStoreDisplay();
     }catch(_){}
+
+    if(deletedNames.length){
+      writeOpLog({ editor:currentUserName, role:currentRole, module:'store_manage',
+        action:'刪除店家', detail:deletedNames.join('、') });
+    }
+    deletedNames = [];
 
     origWork = t.work.list.slice();
     origInterview = t.interview.list.slice();
