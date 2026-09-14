@@ -356,12 +356,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, auth, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, auth, writeOpLog, initStoreDisplay, storeMeta } from './auth-guard.js?v=5';
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[],currentUserName='';
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
+// locationCodes 優先序：settings/stores 主檔的 code ＞ hr/settings.locationCodes ＞ 以下寫死預設
+// ⚠ 主檔 code 留空時不覆蓋，行為與改動前完全一致（見 applyStoreCodes）
 let allEmployees=[],allUsers=[],workLocations=[],shifts={},locationCodes={
   "梁平有限公司":"tw000","鑫耀鑫餐廳":"tw002","梁鑫雞肉飯專門店":"tw003",
   "鑫營雞肉本舖":"tw004","府中雞肉飯專門店":"tw005","景新雞肉飯專門店":"tw006",
@@ -370,6 +372,23 @@ let allEmployees=[],allUsers=[],workLocations=[],shifts={},locationCodes={
   "泉州鑫廚房":"tw007","華安央廚":"tw007","新莊央廚":"tw011","巷日雞肉飯":"tw008"
 };
 let selectedLocation='';
+
+// 以 settings/stores 主檔的 code 覆蓋 locationCodes（最高優先）
+//
+// 只有主檔確實填了 code 才覆蓋；留空或主檔不可用時完全不動，
+// 沿用 hr/settings.locationCodes 與寫死預設，行為與改動前一致。
+// 這樣新增店面只要在店家管理填排班代碼即可，不用改這支程式。
+async function applyStoreCodes(){
+  try{
+    await initStoreDisplay();
+    (workLocations||[]).forEach(loc=>{
+      const m = storeMeta(loc);
+      if(m && m.code) locationCodes[loc] = m.code;
+    });
+  }catch(e){
+    console.warn('[applyStoreCodes] 主檔不可用，沿用既有 locationCodes', e);
+  }
+}
 let shiftTypes=[]; // 自訂班別
 let pendingBatches=[]; // 待儲存的分批指派
 let batchKind='work';  // 目前這批類型 work/annual
@@ -1442,6 +1461,8 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
     }).catch(()=>{allUsers=[];}),
     loadHolidays(viewYear),
   ]);
+
+  await applyStoreCodes();
 
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:
