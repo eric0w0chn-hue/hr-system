@@ -168,7 +168,7 @@ tbody tr.off .st-name{color:var(--text3)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog, clearStoreCache, initStoreDisplay } from './auth-guard.js?v=6';
+import { authGuard, db, writeOpLog, initStoreDisplay } from './auth-guard.js?v=7';
 import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -460,7 +460,15 @@ window.saveAll = async function(){
 
     // 清掉店家主檔快取，讓其他頁面立即讀到新的顯示名稱
     // （不清的話 sessionStorage 會撐 5 分鐘，改了看起來像沒生效）
-    try{ clearStoreCache(); await initStoreDisplay(); }catch(_){}
+    //
+    // ⚠ 這裡直接操作 sessionStorage，不呼叫 auth-guard 的 clearStoreCache()，
+    //   目的是不讓本頁相依於 auth-guard 的新匯出——舊版 auth-guard 還在
+    //   Service Worker 快取裡時，import 不存在的匯出會讓整個模組解析失敗，
+    //   頁面會卡在「載入中」。這個寫法新舊版都能跑。
+    try{
+      sessionStorage.removeItem('lp_store_v1');
+      await initStoreDisplay();
+    }catch(_){}
 
     origWork = t.work.list.slice();
     origInterview = t.interview.list.slice();
