@@ -458,6 +458,34 @@ window.saveAll = async function(){
       interviewLocations: t.interview.list,
     });
 
+    // 同步 settings/permissions.locationTypes（門市／央廚分類）
+    //
+    // ⚠ 為什麼一定要寫這份：auth-guard 的 authGuard() 會依模組的 locationType
+    //   過濾回傳的 locations。當模組設定為「只限門市（allOfType）」時，清單直接
+    //   取自 locationTypes，不在這份設定裡的店會被整個排除——新店在菜價回報、
+    //   監視器回報等頁面就不會出現。
+    //
+    // 對照：主檔 type='kitchen' → 'central'；'store' → 'store'
+    //       法人（corporate）不寫入，它本來就不該出現在店面類型清單裡。
+    // ⚠ 只覆蓋主檔涵蓋到的店名，其他既有設定原樣保留（同 computeTargets 的防呆原則）
+    try{
+      const permRef  = doc(db,'settings','permissions');
+      const permSnap = await getDoc(permRef);
+      const cur = (permSnap.exists() ? permSnap.data().locationTypes : null) || {};
+      const next = { ...cur };
+      stores.forEach(s=>{
+        if(!s || !s.name) return;
+        if(s.type === 'corporate'){ delete next[s.name]; return; }
+        next[s.name] = (s.type === 'kitchen') ? 'central' : 'store';
+      });
+      await updateDoc(permRef, { locationTypes: next });
+      // 權限快取清掉，讓 authGuard 下次讀到新的分類
+      try{ sessionStorage.removeItem('lp_perm_v1'); }catch(_){}
+    }catch(err){
+      console.error('同步 locationTypes 失敗', err);
+      showToast('店面分類同步失敗，請到權限管理手動設定');
+    }
+
     // 清掉店家主檔快取，讓其他頁面立即讀到新的顯示名稱
     // （不清的話 sessionStorage 會撐 5 分鐘，改了看起來像沒生效）
     //
