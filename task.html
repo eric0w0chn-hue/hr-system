@@ -215,7 +215,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { authGuard, db, writeOpLog, initStoreDisplay, dispStore } from './auth-guard.js?v=5';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -310,6 +310,8 @@ authGuard('task', ({ uid, role, locations, userData }) => {
 
 // 讀取全站店面清單（hr/settings.workLocations），失敗時用後備清單
 async function loadAllStores(){
+  // 載入店家主檔以取得顯示名稱；失敗時 dispStore() 會原樣回傳店名，不影響功能
+  try{ await initStoreDisplay(); }catch(_){}
   try{
     const s = await getDoc(doc(db,'hr','settings'));
     if(s.exists()){
@@ -333,7 +335,7 @@ async function init(){
   const fs = document.getElementById('fStore');
   if(dropdownStores.length > 1){
     fs.style.display = '';
-    fs.innerHTML = '<option value="__all__">全部店面</option>' + dropdownStores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    fs.innerHTML = '<option value="__all__">全部店面</option>' + dropdownStores.map(s=>`<option value="${esc(s)}">${esc(dispStore(s))}</option>`).join('');
   } else if(dropdownStores.length === 1){
     fs.style.display = 'none';  // 只有一間，不需要下拉
   } else {
@@ -479,7 +481,7 @@ function cardHTML(t){
   return `<div class="task-card ${lv}" data-id="${t.id}">
     <div class="tc-top">
       <div style="min-width:0">
-        <div class="tc-store">🏪 ${esc(t.store)}</div>
+        <div class="tc-store">🏪 ${esc(dispStore(t.store))}</div>
         <div class="tc-title">${esc(t.title)}</div>
       </div>
     </div>
@@ -496,7 +498,7 @@ function openDetail(id){
   const pct=Math.max(0,Math.min(100,t.progress||0));
 
   let rows='';
-  rows+=drow('店面', esc(t.store));
+  rows+=drow('店面', esc(dispStore(t.store)));
   rows+=drow('狀態', STATUS_LABEL[t.status]||t.status);
   rows+=drow('分類', esc(t.category||'—'));
   rows+=drow('優先', PRI[t.priority]||'一般');
@@ -575,7 +577,7 @@ function openCreate(){
   showModal(`
     <div class="modal-title">＋ 新增任務</div>
     <div class="form-row"><label class="req">店面</label>
-      <select id="cStore">${stores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></div>
+      <select id="cStore">${stores.map(s=>`<option value="${esc(s)}">${esc(dispStore(s))}</option>`).join('')}</select></div>
     <div class="form-row"><label class="req">任務名稱</label><input id="cTitle" maxlength="60" placeholder="例：後場冷氣維修"></div>
     <div class="form-row"><label class="req">分類</label>
       <select id="cCat">${CATS.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
