@@ -237,7 +237,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
+import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate } from './auth-guard.js?v=5';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -339,10 +339,18 @@ authGuard('recruit104', ({ uid, role, locations, userData }) => {
 
 /* ─── 載入 ─── */
 function stripHidden(list){
+  // 優先用 settings/stores 主檔的 type 判斷（type==='corporate' 即非店面）
+  // 主檔查不到該店（或主檔尚未建立）時，isCorporate 回傳 null → 回退到 HIDE_STORES
+  // ⚠ 這個回退設計確保主檔不可用時行為與改動前完全一致
   const hid=HIDE_STORES.map(normLoc);
-  return list.filter(n=>!hid.includes(normLoc(n)));
+  return list.filter(n=>{
+    const corp = isCorporate(n);
+    if(corp !== null) return !corp;
+    return !hid.includes(normLoc(n));
+  });
 }
 async function loadAllStores(){
+  await initStoreDisplay();   // 載入店家主檔（5 分鐘快取，失敗不影響後續回退邏輯）
   try{
     const s = await getDoc(doc(db,'hr','settings'));
     if(s.exists()){

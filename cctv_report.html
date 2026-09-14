@@ -333,7 +333,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate } from './auth-guard.js?v=5';
 import {
   doc, getDoc, addDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, orderBy, serverTimestamp
@@ -347,7 +347,16 @@ const storage = getStorage(getApp());
 // ── State ──
 let cu = null, cuRole = '', cuName = '', cuLocs = [];
 let allStores = [];
-const EXCLUDE_STORES = ['梁平有限公司']; // 不納入統計的特殊店面
+const EXCLUDE_STORES = ['梁平有限公司']; // 不納入統計的特殊店面（主檔不可用時的回退清單）
+
+// 優先用 settings/stores 主檔的 type 判斷；主檔查不到時回退 EXCLUDE_STORES
+// ⚠ 回退設計確保主檔不可用時行為與改動前完全一致
+function notExcluded(s){
+  if(!s) return false;
+  const corp = isCorporate(s);
+  if(corp !== null) return !corp;
+  return !EXCLUDE_STORES.includes(s);
+}
 let allReports = [];
 let viewDate = todayStr();
 let storeFilter = 'all';
@@ -403,11 +412,12 @@ authGuard('cctv', async ({ user, role, locations, userData }) => {
 });
 
 async function loadStores(){
+  await initStoreDisplay();   // 載入店家主檔（5 分鐘快取，失敗不影響後續回退邏輯）
   try {
     // 讀取 hr/settings 的 workLocations 陣列
     const snap = await getDoc(doc(db,'hr','settings'));
     if(snap.exists() && snap.data().workLocations){
-      allStores = [...snap.data().workLocations].filter(s=>s&&!EXCLUDE_STORES.includes(s)).sort();
+      allStores = [...snap.data().workLocations].filter(notExcluded).sort();
       return;
     }
   } catch {}
@@ -416,7 +426,7 @@ async function loadStores(){
     const snap = await getDocs(collection(db,'users'));
     const s = new Set();
     snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
-    allStores = [...s].filter(s=>!EXCLUDE_STORES.includes(s)).sort();
+    allStores = [...s].filter(notExcluded).sort();
   } catch { allStores = ['梁鑫鵝肉飯']; }
 }
 

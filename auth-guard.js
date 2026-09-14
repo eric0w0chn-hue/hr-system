@@ -43,6 +43,7 @@ try { window.__lpAuth = auth; } catch (_) {}
 // permissions 和 userData 在同一 session 只讀一次，換頁不重打
 const PERM_KEY     = 'lp_perm_v1';
 const USERDATA_KEY = 'lp_user_v1';
+const STORE_KEY    = 'lp_store_v1';
 const CACHE_TTL    = 5 * 60 * 1000; // 5 分鐘
 
 function cacheGet(key) {
@@ -58,7 +59,7 @@ function cacheSet(key, data) {
   try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
 export function clearAuthCache() {
-  try { sessionStorage.removeItem(PERM_KEY); sessionStorage.removeItem(USERDATA_KEY); } catch {}
+  try { sessionStorage.removeItem(PERM_KEY); sessionStorage.removeItem(USERDATA_KEY); sessionStorage.removeItem(STORE_KEY); } catch {}
 }
 
 let _permFetch = null;
@@ -86,6 +87,135 @@ async function fetchPermissions() {
 export async function getLocationTypes() {
   const modules = await fetchPermissions();
   return modules['__locationTypes__'] || {};
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * 店名顯示層（displayName）
+ *
+ * 【為什麼需要這個】
+ * 店名字串是全系統的關聯鍵：
+ *   schedules/{yyyy-mm}_{店名}、shift_types/{店名} 是文件 ID
+ *   users/{uid}.locations[]、hr/employees[].workLocation 是陣列值
+ *   各類回報的 store、salary_records 的 empSnapshot.workLocation 是欄位值
+ * 直接改店名會讓歷史資料全部查不到，且 Firestore 文件 ID 無法重新命名。
+ *
+ * 【解法】識別與顯示分離
+ *   settings/stores 的 name        = 內部關聯鍵，建立後永遠不變
+ *   settings/stores 的 displayName = 對外顯示名稱，隨時可改
+ * 資料一律寫 name，畫面一律顯示 dispStore(name)。
+ * 改名只動 displayName → 排班、薪資、回報、員工歸屬零影響、零手動調整。
+ *
+ * 【使用方式】
+ *   import { authGuard, dispStore, initStoreDisplay } from './auth-guard.js?v=5';
+ *   authGuard('moduleKey', async ({ ... }) => {
+ *     await initStoreDisplay();        // 載入一次（有快取，很便宜）
+ *     el.textContent = dispStore(rec.store);   // 同步取用
+ *   });
+ *
+ * ⚠ 只改顯示，不要用 dispStore() 的結果當查詢條件或寫入值。
+ * ══════════════════════════════════════════════════════════════ */
+
+// 店名正規化（舖/鋪 異體字、空白），與各模組的 normLoc() 行為一致
+function _normLoc(s) {
+  return String(s == null ? '' : s).replace(/鋪/g, '舖').replace(/\s+/g, '').trim();
+}
+
+let _storeMap = null;      // { 正規化name: displayName }
+let _storeMeta = null;     // { 正規化name: { storeId, type, area, active } }
+let _storeFetch = null;
+
+async function fetchStoreMaster() {
+  const cached = cacheGet(STORE_KEY);
+  if (cached) return cached;
+  if (_storeFetch) return _storeFetch;
+
+  _storeFetch = getDoc(doc(db, 'settings', 'stores')).then(snap => {
+    const result = { disp: {}, meta: {} };
+    if (snap.exists()) {
+      const list = snap.data().list;
+      if (Array.isArray(list)) {
+        list.forEach(s => {
+          if (!s || !s.name) return;
+          const k = _normLoc(s.name);
+          // displayName 沒填就沿用 name，等於沒改名
+          result.disp[k] = (s.displayName && String(s.displayName).trim()) || String(s.name);
+          result.meta[k] = {
+            storeId: s.storeId || '',
+            code:    s.code    || '',
+            type:    s.type    || 'store',
+            area:    s.area    || '',
+            active:  s.active !== false,
+          };
+        });
+      }
+    }
+    cacheSet(STORE_KEY, result);
+    _storeFetch = null;
+    return result;
+  }).catch(() => { _storeFetch = null; return { disp: {}, meta: {} }; });
+  return _storeFetch;
+}
+
+/**
+ * 載入店家主檔（帶 5 分鐘 sessionStorage 快取）
+ * 呼叫 dispStore() 之前要先 await 這個
+ */
+export async function initStoreDisplay() {
+  const r = await fetchStoreMaster();
+  _storeMap  = r.disp || {};
+  _storeMeta = r.meta || {};
+  return _storeMap;
+}
+
+/**
+ * 內部店名 → 顯示名稱（同步）
+ * 主檔未載入、查不到、或 displayName 未設定時，一律原樣回傳，絕不吞資料
+ */
+export function dispStore(name) {
+  if (name == null || name === '') return '';
+  if (!_storeMap) return String(name);
+  return _storeMap[_normLoc(name)] || String(name);
+}
+
+/** 店名陣列 → 顯示名稱字串，預設以「、」連接 */
+export function dispStores(names, sep = '、') {
+  if (!Array.isArray(names)) return dispStore(names);
+  return names.map(dispStore).filter(Boolean).join(sep);
+}
+
+/** 取得某店的主檔資料（storeId / type / area / active），查不到回 null */
+export function storeMeta(name) {
+  if (!_storeMeta || name == null) return null;
+  return _storeMeta[_normLoc(name)] || null;
+}
+
+/**
+ * 是否為法人實體（非店面，不納入回報/統計/招募）
+ * ⚠ 主檔查不到時回傳 null，呼叫端應自行回退到原本的寫死清單，不要當成 false
+ */
+export function isCorporate(name) {
+  const m = storeMeta(name);
+  return m ? m.type === 'corporate' : null;
+}
+
+/**
+ * 是否為央廚
+ * ⚠ 主檔查不到時回傳 null，語意同上
+ */
+export function isKitchen(name) {
+  const m = storeMeta(name);
+  return m ? m.type === 'kitchen' : null;
+}
+
+/** 顯示名稱 → 內部店名（反查，供搜尋框比對用）。查不到原樣回傳 */
+export function realStore(displayName) {
+  if (displayName == null || displayName === '') return '';
+  if (!_storeMap) return String(displayName);
+  const t = _normLoc(displayName);
+  for (const k in _storeMap) {
+    if (_normLoc(_storeMap[k]) === t) return k;
+  }
+  return String(displayName);
 }
 
 /**

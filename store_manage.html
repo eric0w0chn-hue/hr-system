@@ -136,8 +136,9 @@ tbody tr.off .st-name{color:var(--text3)}
   </div>
 
   <div class="notice">
-    <b>店名不可修改。</b>排班、薪資快照、各類回報都以店名字串當關聯鍵，改名會導致過去月份的資料查不到。
-    需要更名時請「新增一間新的 + 停用舊的」，歷史資料會完整保留。
+    <b>要改店名請改「顯示名稱」，不要開新店。</b>「店名（內部）」是排班、薪資快照、各類回報的關聯鍵，
+    建立後不可修改，改了會導致過去月份的資料查不到。「顯示名稱」則是畫面上呈現的名字，隨時可改、零影響。<br>
+    只有在<b>真的是不同實體</b>（例如關掉一間、另開一間）時，才用「新增一間 + 停用舊的」處理。
   </div>
 
   <div class="toolbar">
@@ -151,7 +152,7 @@ tbody tr.off .st-name{color:var(--text3)}
     <table>
       <thead>
         <tr>
-          <th>店名</th><th>代號</th><th>類型</th><th>區域</th>
+          <th>店名（內部）</th><th>顯示名稱</th><th>代號</th><th>類型</th><th>區域</th>
           <th style="text-align:center">工作</th><th style="text-align:center">面試</th>
           <th>狀態</th><th></th>
         </tr>
@@ -167,7 +168,7 @@ tbody tr.off .st-name{color:var(--text3)}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=5';
 import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -231,7 +232,7 @@ async function loadData(){
 
   if(stSnap.exists() && Array.isArray(stSnap.data().list) && stSnap.data().list.length){
     stores = stSnap.data().list.map(s=>({
-      storeId:s.storeId||'', name:s.name||'', type:s.type||'store',
+      storeId:s.storeId||'', name:s.name||'', displayName:s.displayName||'', code:s.code||'', type:s.type||'store',
       area:s.area||'', active:s.active!==false,
       inWork:s.inWork!==false, inInterview:s.inInterview!==false,
     }));
@@ -244,7 +245,7 @@ async function loadData(){
       if(!k || seen.has(k)) return;
       seen.add(k);
       all.push({
-        storeId:'', name:n,
+        storeId:'', name:n, displayName:'', code:'',
         type: String(n).includes('央廚') ? 'kitchen'
             : (String(n).includes('有限公司') ? 'corporate' : 'store'),
         area:'', active:true,
@@ -266,6 +267,7 @@ function render(){
     const off = !s.active;
     return `<tr class="${off?'off':''}">
       <td data-label="店名"><span class="st-name">${esc(s.name)}</span></td>
+      <td data-label="顯示名稱">${s.displayName?esc(s.displayName):'<span style="color:var(--text3)">（同店名）</span>'}</td>
       <td data-label="代號"><span class="sid ${s.storeId?'':'empty'}">${s.storeId?esc(s.storeId):'未設定'}</span></td>
       <td data-label="類型"><span class="tag tag-${s.type==='kitchen'?'kitchen':(s.type==='corporate'?'corp':'store')}">${TYPE_LABEL[s.type]||s.type}</span></td>
       <td data-label="區域">${s.area?esc(s.area):'<span style="color:var(--text3)">—</span>'}</td>
@@ -330,7 +332,7 @@ function renderDiff(){
 window.openEdit = function(idx){
   const isNew = idx === null;
   const s = isNew
-    ? { storeId:'', name:'', type:'store', area:'', active:true, inWork:true, inInterview:true }
+    ? { storeId:'', name:'', displayName:'', code:'', type:'store', area:'', active:true, inWork:true, inInterview:true }
     : stores[idx];
 
   document.getElementById('modalArea').innerHTML = `
@@ -341,8 +343,14 @@ window.openEdit = function(idx){
         <label>店名 ${isNew?'<span style="color:#C0392B">*</span>':''}</label>
         <input id="f-name" value="${esc(s.name)}" ${isNew?'placeholder="例：景新雞肉飯專門店"':'disabled'}>
         <div class="hint ${isNew?'':'warn'}">${isNew
-          ? '請填寫正式全名。建立後不可修改，因為排班與薪資都以此為關聯鍵。'
-          : '店名不可修改。需要更名請新增一間新的並停用這間。'}</div>
+          ? '內部關聯鍵，建立後不可修改。排班與薪資都以此為準，可視為這間店的流水號。'
+          : '內部關聯鍵不可修改。要改店名請改下方的「顯示名稱」。'}</div>
+      </div>
+      <div class="fld">
+        <label>顯示名稱</label>
+        <input id="f-disp" value="${esc(s.displayName)}" placeholder="留空則與店名相同">
+        <div class="hint">畫面上顯示給使用者看的名稱，<b>隨時可改</b>。改這裡不影響排班、薪資、回報與員工歸屬。<br>
+          需要更改店名時請改這裡，不要開新店。</div>
       </div>
       <div class="fld">
         <label>招募系統代號（storeId）</label>
@@ -361,6 +369,11 @@ window.openEdit = function(idx){
         <label>區域</label>
         <input id="f-area" value="${esc(s.area)}" placeholder="例：新北市 / 台北市">
         <div class="hint">選填，供招募系統分區顯示用。</div>
+      </div>
+      <div class="fld">
+        <label>排班代碼</label>
+        <input id="f-code" value="${esc(s.code)}" placeholder="例：tw001">
+        <div class="hint">排班表匯出時使用的店面代碼。留空則沿用 schedule.html 既有設定。</div>
       </div>
       <div class="fld">
         <label>出現在哪些下拉選單</label>
@@ -382,6 +395,8 @@ window.saveEdit = function(idx){
   const isNew = idx === null;
   const name = document.getElementById('f-name').value.trim();
   const sid  = document.getElementById('f-sid').value.trim();
+  const disp = document.getElementById('f-disp').value.trim();
+  const code = document.getElementById('f-code').value.trim();
   const type = document.getElementById('f-type').value;
   const area = document.getElementById('f-area').value.trim();
   const inWork = document.getElementById('f-work').checked;
@@ -397,9 +412,9 @@ window.saveEdit = function(idx){
   }
 
   if(isNew){
-    stores.push({ storeId:sid, name, type, area, active:true, inWork, inInterview });
+    stores.push({ storeId:sid, name, displayName:disp, code, type, area, active:true, inWork, inInterview });
   }else{
-    Object.assign(stores[idx], { storeId:sid, type, area, inWork, inInterview });
+    Object.assign(stores[idx], { storeId:sid, displayName:disp, code, type, area, inWork, inInterview });
   }
   closeModal();
   markDirty();
