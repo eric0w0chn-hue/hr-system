@@ -2979,11 +2979,38 @@ window.previewEmpDoc = function(empId, catKey, idx){
         ${inner}
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           <a class="btn btn-sm btn-outline" href="${f.url}" target="_blank" rel="noopener">↗ 開新視窗</a>
-          <a class="btn btn-sm btn-outline" href="${f.url}" download="${f.name}">⬇ 下載</a>
+          <button class="btn btn-sm btn-outline" onclick="downloadEmpDoc('${encodeURIComponent(f.url)}','${encodeURIComponent(f.name)}',this)">⬇ 下載</button>
           <button class="btn btn-sm" style="margin-left:auto" onclick="closeModal()">關閉</button>
         </div>
       </div>
     </div>`;
+};
+
+window.downloadEmpDoc = async function(encUrl, encName, btn){
+  const url  = decodeURIComponent(encUrl);
+  const name = decodeURIComponent(encName) || 'download';
+  const old  = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '下載中…'; }
+  try{
+    // 跨網域無法用 <a download>，先抓成 blob 再觸發下載
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(objUrl); a.remove(); }, 1500);
+    showToast('已開始下載 ✓');
+  }catch(err){
+    // CORS 或網路問題 → 退而求其次開新分頁，讓使用者自行另存
+    console.warn('直接下載失敗，改開新視窗', err);
+    window.open(url, '_blank', 'noopener');
+    showToast('無法直接下載，已開新視窗，請長按或按右鍵另存', 5000);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = old; }
+  }
 };
 
 window.deleteEmpDoc = async function(empId, catKey, idx){
