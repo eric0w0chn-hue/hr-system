@@ -64,6 +64,19 @@ tr:hover td{background:var(--surface2)}
 .copy-btn:hover{background:var(--surface2);color:var(--accent)}
 .copy-btn.copied{color:#16A34A}
 .cell-flex{display:flex;align-items:center;gap:6px}
+.extra-list{display:flex;flex-direction:column;gap:4px}
+.extra-row{display:flex;align-items:center;gap:5px;font-size:12px;flex-wrap:wrap}
+.extra-label{color:var(--text3);flex-shrink:0}
+.extra-val{font-family:monospace;color:var(--text);word-break:break-all}
+.note-txt{font-size:13px}
+/* modal 自訂欄位編輯 */
+.xf-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.xf-row input{flex:1;min-width:0}
+.xf-row input.xf-label{flex:0 0 34%}
+.xf-del{background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:7px;cursor:pointer;font-size:13px;width:30px;height:34px;flex-shrink:0;line-height:1}
+.xf-del:hover{background:#FEE2E2}
+.xf-add{background:var(--surface2);border:1px dashed var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;padding:7px 0;width:100%;font-family:inherit;margin-top:2px}
+.xf-add:hover{border-color:var(--accent);color:var(--accent)}
 
 /* Actions */
 .btn{font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent;font-family:inherit;transition:all .15s;font-weight:500;white-space:nowrap}
@@ -314,7 +327,12 @@ tr.dragging{opacity:.4}
       <div class="form-row">
         <label>備註（選填）</label>
         <input type="text" id="fNote" placeholder="例：備用密碼、第二組帳號等">
-        <div class="hint">修改日期將自動記錄今天</div>
+      </div>
+      <div class="form-row">
+        <label>自訂欄位（選填）</label>
+        <div id="xfList"></div>
+        <button class="xf-add" onclick="addExtraRow()">＋ 新增一組（例：店家代號、第二組密碼）</button>
+        <div class="hint">每組可自訂名稱，列表會顯示複製鈕。修改日期自動記錄今天。</div>
       </div>
     </div>
     <div class="modal-foot">
@@ -544,7 +562,7 @@ function renderRow(e) {
     <td>${esc(e.name)}</td>
     <td data-label="帳號" data-acc="${esc(e.account||'')}"><div class="cell-flex">${e.account ? `<span style="font-family:monospace">${esc(e.account)}</span><button class="copy-btn" title="複製帳號" onclick="event.stopPropagation();copyText(this,'acc')">📋</button>` : '<span style="color:var(--text3)">—</span>'}</div></td>
     <td data-label="密碼" data-pw="${esc(e.password||'')}"><div class="pw-cell">${pwDisplay}${eyeBtn}${e.password ? `<button class="copy-btn" title="複製密碼" onclick="event.stopPropagation();copyText(this,'pw')">📋</button>` : ''}</div></td>
-    <td data-label="備註">${e.note ? esc(e.note) : '<span style=color:var(--text3)>—</span>'}</td>
+    <td data-label="備註">${renderNoteCell(e)}</td>
     <td data-label="修改日期"><span class="date-chip">${e.updatedAt || '—'}</span></td>
     ${_role !== 'employee' ? `<td data-label="操作"><div class="btns-row">
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();_edit('${e.id}')">編輯</button>
@@ -552,6 +570,25 @@ function renderRow(e) {
       </div></td>` : ''}
   </tr>`;
 }
+
+function renderNoteCell(e) {
+  const parts = [];
+  if (e.note) parts.push(`<div class="note-txt">${esc(e.note)}</div>`);
+  const xs = Array.isArray(e.extras) ? e.extras : [];
+  if (xs.length) {
+    parts.push('<div class="extra-list">' + xs.map((x, i) => {
+      if (!x || !x.value) return '';
+      return `<div class="extra-row"><span class="extra-label">${esc(x.label||'欄位')}：</span><span class="extra-val">${esc(x.value)}</span><button class="copy-btn" title="複製" onclick="event.stopPropagation();copyExtra(this,'${e.id}',${i})">📋</button></div>`;
+    }).join('') + '</div>');
+  }
+  return parts.length ? parts.join('') : '<span style="color:var(--text3)">—</span>';
+}
+
+window.copyExtra = function(btn, id, idx) {
+  const e = _entries.find(x => x.id === id);
+  if (!e || !Array.isArray(e.extras) || !e.extras[idx]) return;
+  doCopy(btn, e.extras[idx].value || '', e.extras[idx].label || '內容');
+};
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -583,6 +620,10 @@ window._togglePw = function(id) {
 window.copyText = function(btn, kind) {
   const td = btn.closest('td');
   const text = kind === 'pw' ? (td.dataset.pw || '') : (td.dataset.acc || '');
+  doCopy(btn, text, kind === 'pw' ? '密碼' : '帳號');
+};
+
+function doCopy(btn, text, label) {
   if (!text) return;
   const ta = document.createElement('textarea');
   ta.value = text;
@@ -596,11 +637,11 @@ window.copyText = function(btn, kind) {
     btn.textContent = '✓';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1200);
-    showToast(kind === 'pw' ? '已複製密碼' : '已複製帳號', 1200);
+    showToast('已複製' + label, 1200);
   } else {
     showToast('複製失敗，請手動選取');
   }
-};
+}
 
 window._edit = function(id) {
   const e = _entries.find(x => x.id === id);
@@ -612,6 +653,7 @@ window._edit = function(id) {
   document.getElementById('fAccount').value = e.account || '';
   document.getElementById('fPassword').value = e.password || '';
   document.getElementById('fNote').value = e.note || '';
+  renderExtraRows(Array.isArray(e.extras) ? e.extras : []);
   document.getElementById('fPassword').type = 'password';
   document.getElementById('btnModalEye').textContent = '👁';
   document.getElementById('modal').classList.add('show');
@@ -641,6 +683,7 @@ window.openModal = function() {
   document.getElementById('fAccount').value = '';
   document.getElementById('fPassword').value = '';
   document.getElementById('fNote').value = '';
+  renderExtraRows([]);
   document.getElementById('fPassword').type = 'password';
   document.getElementById('btnModalEye').textContent = '👁';
   document.getElementById('modal').classList.add('show');
@@ -664,6 +707,37 @@ function populateStoreSelect(selectedStore) {
   }).join('');
 }
 
+// ── 自訂欄位 UI ──
+function renderExtraRows(list) {
+  const wrap = document.getElementById('xfList');
+  wrap.innerHTML = '';
+  (list.length ? list : []).forEach(x => addExtraRow(x.label, x.value));
+}
+
+window.addExtraRow = function(label, value) {
+  const wrap = document.getElementById('xfList');
+  const row = document.createElement('div');
+  row.className = 'xf-row';
+  const l = document.createElement('input');
+  l.type = 'text'; l.className = 'xf-label'; l.placeholder = '名稱';
+  l.value = typeof label === 'string' ? label : '';
+  const v = document.createElement('input');
+  v.type = 'text'; v.placeholder = '內容';
+  v.value = typeof value === 'string' ? value : '';
+  const d = document.createElement('button');
+  d.className = 'xf-del'; d.textContent = '✕'; d.title = '刪除這組';
+  d.onclick = () => row.remove();
+  row.append(l, v, d);
+  wrap.appendChild(row);
+};
+
+function getExtras() {
+  return [...document.querySelectorAll('#xfList .xf-row')].map(r => {
+    const [l, v] = r.querySelectorAll('input');
+    return { label: l.value.trim(), value: v.value.trim() };
+  }).filter(x => x.value);
+}
+
 window.saveEntry = async function() {
   const store = document.getElementById('fStore').value.trim();
   const name  = document.getElementById('fName').value.trim();
@@ -675,7 +749,8 @@ window.saveEntry = async function() {
   if (!store) { alert('請選擇店面'); return; }
 
   const today = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'/');
-  const data = { store, name, account, password, note, updatedAt: today };
+  const extras = getExtras();
+  const data = { store, name, account, password, note, extras, updatedAt: today };
 
   try {
     if (_editId) {
