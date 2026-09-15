@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v11';
+const CACHE_NAME = 'lp-xin-v12';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -146,18 +146,22 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const page = (event.notification.data && event.notification.data.page) || 'dashboard.html';
   const target = new URL('./dashboard.html?go=' + encodeURIComponent(page), self.location.href).href;
+  console.log('[SW click] page =', page, '| data =', JSON.stringify(event.notification.data), '| target =', target);
   event.waitUntil(
     self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
       // ⚠ matchAll 會把 iframe 也算成 client。
       //   本站是 SPA iframe 架構，若導到 iframe 會變成 dashboard 裡再開一個
       //   dashboard（無限套疊）。只接受 frameType 為 top-level 的視窗。
       for (const c of list) {
+        console.log('[SW click] 候選 client:', c.frameType, c.url);
         if (c.frameType && c.frameType !== 'top-level') continue;
         if (!c.url.includes('/hr-system/')) continue;
         if (!('focus' in c)) continue;
+        console.log('[SW click] 導向此 client →', target);
         if (c.navigate) { return c.navigate(target).then(cc => (cc || c).focus()).catch(() => c.focus()); }
         return c.focus();
       }
+      console.log('[SW click] 找不到可用視窗，開新視窗', target);
       return self.clients.openWindow(target);
     })
   );
