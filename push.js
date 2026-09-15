@@ -25,10 +25,12 @@ function supported(){
 function setBtn(text, title, disabled){
   const b = document.getElementById('pushBtn');
   if(!b) return;
+  // ⚠ 只放圖示，不放文字。topbar 空間很窄，中文狀態字（例如「已開啟」）
+  //   在手機與桌面都會被擠成兩行或截斷。狀態改用透明度＋title 表達。
   b.textContent = text;
   b.title = title || '';
   b.disabled = !!disabled;
-  b.style.opacity = disabled ? '.45' : '1';
+  b.style.opacity = (text === '🔕') ? '.45' : '1';   // 只有不支援時才變淡
 }
 
 // 等 dashboard 的 module script 初始化完 __lpAuth（同一份 App 實例）
@@ -79,7 +81,7 @@ async function register(interactive){
   });
   if(!token) throw new Error('未取得 token');
   await saveToken(token);
-  setBtn('🔔 已開啟', '推播已開啟（本裝置）', true);
+  setBtn('🔔', '推播已開啟（本裝置）', true);
   if(interactive) alert('推播已開啟 ✅\n未完成事項會直接推到這支裝置。');
 }
 
@@ -101,7 +103,7 @@ window.lpTogglePush = async function(){
     alert('通知權限先前被拒絕了。\n請到瀏覽器（或手機設定 → 鑫系統 → 通知）改成允許後再試。');
     return;
   }
-  setBtn('⏳', '處理中', true);
+  setBtn('⏳', '處理中…', true);
   try{
     const perm = await Notification.requestPermission();
     if(perm !== 'granted'){ setBtn('🔔', '開啟推播通知', false); return; }

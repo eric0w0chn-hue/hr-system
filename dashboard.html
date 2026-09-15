@@ -1544,9 +1544,15 @@ window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); })
 window.addEventListener('load', function(){
   try{
     var _go=new URLSearchParams(location.search).get('go');
-    if(_go && /^[a-z0-9_]+\.html$/i.test(_go) && typeof window.goTo==='function'){
-      setTimeout(function(){ window.goTo(_go); }, 800);
+    if(_go && /^[a-z0-9_]+\.html$/i.test(_go)){
       history.replaceState(null,'',location.pathname);
+      // goTo 由 module script 定義，載入順序不保證，等它出現再跳（最多 10 秒）
+      var _t0=Date.now();
+      (function _tryGo(){
+        if(typeof window.goTo==='function'){ window.goTo(_go); return; }
+        if(Date.now()-_t0>10000) return;
+        setTimeout(_tryGo,200);
+      })();
     }
   }catch(_){}
 });

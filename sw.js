@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v9';
+const CACHE_NAME = 'lp-xin-v10';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -97,6 +97,18 @@ self.addEventListener('fetch', event => {
 // ── Web Push（FCM）────────────────────────────────────────────
 // 後端一律送「data-only」訊息（不帶 notification 欄位），
 // 由這裡決定怎麼顯示，避免瀏覽器自動顯示 + 本 handler 重複顯示造成雙份通知。
+// 取得該通知要導向的功能頁。
+// FCM 送來的 payload 依版本/平台可能把資訊放在不同位置，逐一嘗試。
+function pickPage(d, p){
+  if (p && p.page) return p.page;
+  const link = (d.fcmOptions && d.fcmOptions.link)
+            || (d.notification && d.notification.click_action)
+            || '';
+  const m = String(link).match(/[?&]go=([^&]+)/);
+  if (m) { try { return decodeURIComponent(m[1]); } catch(_) {} }
+  return 'dashboard.html';
+}
+
 self.addEventListener('push', event => {
   let d = {};
   try { d = (event.data && event.data.json()) || {}; } catch(_) {}
@@ -116,7 +128,7 @@ self.addEventListener('push', event => {
     tag: n.tag || p.tag || 'lp-alert',
     renotify: false,
     requireInteraction: true,
-    data: { page: p.page || 'dashboard.html' }
+    data: { page: pickPage(d, p) }
   };
   console.log('[SW push] 顯示通知:', title, '|', opts.body);
   event.waitUntil(
