@@ -1138,6 +1138,13 @@ window._showFrame = function(page){
 
 window.goTo=function(page){
   if(!page) return;
+  // ⚠ 主框架頁絕不能進 iframe，否則 dashboard 裡再開 dashboard 無限套疊。
+  //   ?go= 參數若帶到這些值（舊通知或推播回退值）一律轉成 welcome。
+  if(page === 'dashboard.html' || page === 'index.html'){
+    window._showFrame('welcome.html');
+    document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('active'));
+    return;
+  }
   if(page === 'checkout.html' || page === 'order.html'){ window.location.href = page; return; }
   window._showFrame(page);
   document.querySelectorAll('.sidebar-item').forEach(el=>{
@@ -1549,6 +1556,9 @@ window.addEventListener('load', function(){
     //   這段不能執行，否則會 dashboard 裡再開 dashboard 無限套疊。
     if(window.self!==window.top) return;
     var _go=new URLSearchParams(location.search).get('go');
+    if(_go === 'dashboard.html' || _go === 'index.html'){
+      history.replaceState(null,'',location.pathname); _go = null;
+    }
     if(_go && /^[a-z0-9_]+\.html$/i.test(_go)){
       history.replaceState(null,'',location.pathname);
       // goTo 由 module script 定義，載入順序不保證，等它出現再跳（最多 10 秒）
