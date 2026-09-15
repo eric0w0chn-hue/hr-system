@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v14';
+const CACHE_NAME = 'lp-xin-v15';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -145,26 +145,17 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const page = (event.notification.data && event.notification.data.page) || 'dashboard.html';
-  const target = new URL('./dashboard.html?go=' + encodeURIComponent(page), self.location.href).href;
-  console.log('[SW click] page =', page, '→', target);
 
-  event.waitUntil(
-    self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(async list => {
-      // ⚠ 只接受 top-level 視窗。matchAll 會把 iframe 也算進來，
-      //   導到 iframe 會變成 dashboard 裡再開 dashboard（2026/09 踩過）。
-      const win = list.find(c =>
-        (!c.frameType || c.frameType === 'top-level') && c.url.includes('/hr-system/')
-      );
-      if (win) {
-        try {
-          if (win.navigate) { const c2 = await win.navigate(target); return (c2 || win).focus(); }
-        } catch (err) {
-          console.warn('[SW click] navigate 失敗，改開新視窗', err);
-        }
-        try { await win.focus(); } catch(_) {}
-      }
-      console.log('[SW click] 開新視窗', target);
-      return self.clients.openWindow(target);
-    })
-  );
+  // ⚠ 一律用 openWindow 開新視窗，並帶上時間戳。
+  //   先前用 Client.navigate() 導向已開啟的分頁，若該分頁網址剛好相同
+  //   （例如已經是 ?go=price.html），瀏覽器視為沒有變化，不會重新載入，
+  //   load 事件不觸發 → 看起來像「點了沒反應」。（2026/09 反覆踩過）
+  //   時間戳確保每次都是不同網址，必定重新載入並執行 ?go= 處理器。
+  const target = new URL(
+    './dashboard.html?go=' + encodeURIComponent(page) + '&_n=' + Date.now(),
+    self.location.href
+  ).href;
+
+  console.log('[SW click] 開啟', target);
+  event.waitUntil(self.clients.openWindow(target));
 });
