@@ -563,6 +563,16 @@ window.saveAll = async function(){
       const permSnap = await getDoc(permRef);
       const cur = (permSnap.exists() ? permSnap.data().locationTypes : null) || {};
       const next = { ...cur };
+      // ⚠ 先清掉「正規化後與主檔某店相同、但字面不同」的舊鍵
+      //   例如舊資料寫「鑫營雞肉本鋪」(金字旁)、主檔是「鑫營雞肉本舖」(人字旁)，
+      //   兩者是不同的 key，會讓 authGuard 取出重複的店面（下拉選單出現兩次）。
+      const masterNorm = new Set(stores.filter(s=>s&&s.name).map(s=>normLoc(s.name)));
+      Object.keys(next).forEach(k=>{
+        if(!masterNorm.has(normLoc(k))) return;          // 與主檔無關的舊鍵保留
+        const exact = stores.some(s=>s&&s.name===k);
+        if(!exact) delete next[k];                        // 字面不同 → 視為舊寫法，刪除
+      });
+
       stores.forEach(s=>{
         if(!s || !s.name) return;
         if(s.type === 'corporate'){ delete next[s.name]; return; }
