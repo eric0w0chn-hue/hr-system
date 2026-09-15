@@ -1500,6 +1500,46 @@ try{
     var _pb=document.getElementById('pushBtn'); if(_pb) _pb.style.display='';
   }
 }catch(_){}
+// 推播完整清單：通知列只放得下兩三行，完整內容存在 push_inbox/{uid}
+async function _showPushInbox(){
+  try{
+    const a = window.__lpAuth; if(!a || !a.currentUser) return;
+    const uid = a.currentUser.uid;
+    const { getApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const fs = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const db = fs.getFirestore(getApp());
+    const snap = await fs.getDoc(fs.doc(db,'push_inbox',uid));
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(d.readAt) return;                                  // 看過就不再跳
+    const today = new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+    if(d.date !== today) return;                          // 只顯示今天的
+    const lines = Array.isArray(d.lines) ? d.lines : [];
+    if(!lines.length) return;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    wrap.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)">'
+      + '<div style="padding:18px 20px 10px;font-size:17px;font-weight:700;color:#1A1D23">'
+      + (d.title||'今日尚有未完成事項') + '</div>'
+      + '<div style="padding:0 20px 4px"><ul style="margin:0;padding-left:20px;line-height:1.9;font-size:14px;color:#1A1D23">'
+      + lines.map(l=>'<li>'+String(l).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</li>').join('')
+      + '</ul></div>'
+      + '<div style="padding:14px 20px 18px;text-align:right">'
+      + '<button id="_pibClose" style="background:#2D3142;color:#fff;border:0;border-radius:9px;padding:10px 20px;font-size:14px;font-family:inherit;cursor:pointer;min-height:44px">知道了</button>'
+      + '</div></div>';
+    document.body.appendChild(wrap);
+    const close = async ()=>{
+      wrap.remove();
+      try{ await fs.updateDoc(fs.doc(db,'push_inbox',uid), { readAt: new Date().toISOString() }); }catch(_){}
+    };
+    wrap.querySelector('#_pibClose').onclick = close;
+    wrap.onclick = e => { if(e.target===wrap) close(); };
+  }catch(err){ console.warn('[push_inbox] 讀取失敗', err); }
+}
+window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); });
+
 // 通知點擊帶入的 ?go=xxx.html → 開啟對應功能頁
 window.addEventListener('load', function(){
   try{
