@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v13';
+const CACHE_NAME = 'lp-xin-v14';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -146,21 +146,24 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const page = (event.notification.data && event.notification.data.page) || 'dashboard.html';
   const target = new URL('./dashboard.html?go=' + encodeURIComponent(page), self.location.href).href;
+  console.log('[SW click] page =', page, '→', target);
 
   event.waitUntil(
-    self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
-      // ⚠ Client.navigate() 在已開啟的分頁上常會靜默失敗（規格限制）。
-      //   dashboard 已經開著時改用 postMessage 讓它自己 goTo()，
-      //   不重新載入頁面，既可靠又快。只有找不到視窗才開新的。
-      for (const c of list) {
-        if (c.frameType && c.frameType !== 'top-level') continue;
-        if (!c.url.includes('/hr-system/')) continue;
-        console.log('[SW click] postMessage 給現有視窗 →', page);
-        c.postMessage({ type: 'lp-open-page', page });
-        if ('focus' in c) return c.focus();
-        return;
+    self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(async list => {
+      // ⚠ 只接受 top-level 視窗。matchAll 會把 iframe 也算進來，
+      //   導到 iframe 會變成 dashboard 裡再開 dashboard（2026/09 踩過）。
+      const win = list.find(c =>
+        (!c.frameType || c.frameType === 'top-level') && c.url.includes('/hr-system/')
+      );
+      if (win) {
+        try {
+          if (win.navigate) { const c2 = await win.navigate(target); return (c2 || win).focus(); }
+        } catch (err) {
+          console.warn('[SW click] navigate 失敗，改開新視窗', err);
+        }
+        try { await win.focus(); } catch(_) {}
       }
-      console.log('[SW click] 找不到可用視窗，開新視窗', target);
+      console.log('[SW click] 開新視窗', target);
       return self.clients.openWindow(target);
     })
   );
