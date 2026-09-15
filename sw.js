@@ -100,17 +100,28 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let d = {};
   try { d = (event.data && event.data.json()) || {}; } catch(_) {}
-  const p = d.data || d;                       // data-only 時在 d.data
+  const p = d.data || d;
   const title = p.title || '鑫系統提醒';
   const opts = {
     body: p.body || '',
     icon: './icons/icon-192.png',
     badge: './icons/icon-192.png',
-    tag: p.tag || 'lp-alert',                  // 同 tag 會蓋掉舊的，不會疊一堆
+    tag: p.tag || 'lp-alert',
     renotify: false,
+    requireInteraction: true,      // 不自動消失，避免「跳出來但沒注意到」
     data: { page: p.page || 'dashboard.html' }
   };
-  event.waitUntil(self.registration.showNotification(title, opts));
+  console.log('[SW push] 收到推播', title, opts.body);
+  event.waitUntil(
+    self.registration.showNotification(title, opts)
+      .then(() => self.registration.getNotifications({ tag: opts.tag }))
+      .then(list => {
+        // 顯示後回查：list 為空代表系統層把通知吃掉了（非程式問題）
+        console.log('[SW push] showNotification 完成，實際存在的通知數 =', list.length);
+        if (!list.length) console.warn('[SW push] ⚠ 通知已建立但系統未保留 → 作業系統/瀏覽器層攔截');
+      })
+      .catch(err => console.error('[SW push] showNotification 失敗', err))
+  );
 });
 
 self.addEventListener('notificationclick', event => {
