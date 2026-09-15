@@ -395,6 +395,13 @@ window.toggleForm=function(e){
 };
 function twToday(){return new Date(Date.now()+8*3600000).toISOString().slice(0,10);}
 // 店面名稱正規化（處理異體字：舖/鋪）
+// 依 normLoc 去重，保留第一次出現的寫法
+function dedupLoc(arr){
+  const seen = new Set(); const out = [];
+  (arr||[]).forEach(v=>{ const k = normLoc(v); if(!v || seen.has(k)) return; seen.add(k); out.push(v); });
+  return out;
+}
+
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 function fmtDate(ds){if(!ds)return'—';const[y,m,d]=ds.split('-');return`${+y-1911}年${+m}月${+d}日`;}
 function fmtTime(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Taipei'});}
@@ -844,14 +851,16 @@ authGuard('price',async({user,role,locations,userData})=>{
       document.getElementById('myStoreLabel').textContent=dispStore(cStore)||'';
     } else {
       // admin / consultant：顯示 auth-guard 過濾後的店面（locs）
-      const myLocs = locs.length ? locs : allStores;
+      const myLocs = sortStores(dedupLoc(locs.length ? locs : allStores));
       fStore.innerHTML = myLocs.map(s=>`<option value="${s}"${s===cStore?' selected':''}>${dispStore(s)}</option>`).join('');
       storeRow.style.display = myLocs.length > 1 ? 'flex' : 'none';
       if(myLocs.length === 1) cStore = myLocs[0];
     }
 
     // 可見店面：統一用 auth-guard 過濾後的 locs
-    visibleStores = locs.length ? [...locs] : [...allStores];
+    // ⚠ 去重：locationTypes 舊資料可能有異體字造成同一間店出現兩次
+    //   排序：依店家管理的排列順序，不用字母序
+    visibleStores = sortStores(dedupLoc(locs.length ? [...locs] : [...allStores]));
 
     await loadOptions();
     addVendorBlock();

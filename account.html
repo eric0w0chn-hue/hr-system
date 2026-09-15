@@ -438,7 +438,7 @@ window.delUser = async function(uid){
 };
 
 window.openBatchPage = function(){
-  _goPage('batch_accounts.html');
+  window._goPage('batch_accounts.html');
 };
 
 function updateStats(){
@@ -510,13 +510,14 @@ window.runTalentSync = async function(){
 // 在 iframe 內用 postMessage 請主框架換頁，獨立開啟時才整頁跳轉。
 // ⚠ 不要直接 location.href：那會把被保活的 iframe 內容換掉，
 //   點側邊欄回到本功能時會看到跳過去的那一頁（見 dashboard 的 _frameDrifted）。
-function _goPage(page){
+// ⚠ 必須掛在 window：inline onclick 是全域查找，module scope 的函式取不到
+window._goPage = function(page){
   if(window.self !== window.top){
     window.parent.postMessage({ type:'navigate', page }, '*');
   }else{
     window.location.href = '/hr-system/' + page;
   }
-}
+};
 
 function showToast(msg){
   const t=document.getElementById('toast');
