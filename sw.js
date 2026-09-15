@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v8';
+const CACHE_NAME = 'lp-xin-v9';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -100,30 +100,31 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let d = {};
   try { d = (event.data && event.data.json()) || {}; } catch(_) {}
-  // FCM 帶了 notification 欄位時，瀏覽器會自己顯示一則；
-  // 這裡再顯示就會變兩則，所以偵測到 notification 就不重複處理。
-  if (d && d.notification) {
-    console.log('[SW push] FCM notification payload，交由瀏覽器顯示');
-    return;
-  }
-  const p = d.data || d;
-  const title = p.title || '鑫系統提醒';
+
+  // ⚠ 一律由 SW 自己顯示。
+  //   標準 Web Push 中瀏覽器不會自動顯示任何東西，FCM 的 notification payload
+  //   是靠 firebase-messaging 的 SW SDK 代為顯示的；本專案為了避開
+  //   GitHub Pages 子路徑的 /firebase-messaging-sw.js 404 問題並未載入該 SDK，
+  //   所以這裡不能「交給瀏覽器處理」，否則不會有任何通知。（2026/09 實測踩過）
+  const n = d.notification || {};
+  const p = d.data || {};
+  const title = n.title || p.title || '鑫系統提醒';
   const opts = {
-    body: p.body || '',
+    body: n.body || p.body || '',
     icon: './icons/icon-192.png',
     badge: './icons/icon-192.png',
-    tag: p.tag || 'lp-alert',
+    tag: n.tag || p.tag || 'lp-alert',
     renotify: false,
     requireInteraction: true,
     data: { page: p.page || 'dashboard.html' }
   };
-  console.log('[SW push] data-only 推播，自行顯示', title);
+  console.log('[SW push] 顯示通知:', title, '|', opts.body);
   event.waitUntil(
     self.registration.showNotification(title, opts)
       .then(() => self.registration.getNotifications({ tag: opts.tag }))
       .then(list => {
-        console.log('[SW push] showNotification 完成，實際存在的通知數 =', list.length);
-        if (!list.length) console.warn('[SW push] ⚠ 通知已建立但系統未保留 → 作業系統/瀏覽器層攔截');
+        console.log('[SW push] 完成，實際存在的通知數 =', list.length);
+        if (!list.length) console.warn('[SW push] ⚠ 通知已建立但系統未保留 → 作業系統層攔截');
       })
       .catch(err => console.error('[SW push] showNotification 失敗', err))
   );
