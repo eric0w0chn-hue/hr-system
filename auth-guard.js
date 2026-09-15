@@ -120,6 +120,7 @@ function _normLoc(s) {
   return String(s == null ? '' : s).replace(/鋪/g, '舖').replace(/\s+/g, '').trim();
 }
 
+let _storeOrder = null;    // 主檔順序（正規化 name 陣列）
 let _storeMap = null;      // { 正規化name: displayName }
 let _storeMeta = null;     // { 正規化name: { storeId, type, area, active } }
 let _storeFetch = null;
@@ -130,7 +131,7 @@ async function fetchStoreMaster() {
   if (_storeFetch) return _storeFetch;
 
   _storeFetch = getDoc(doc(db, 'settings', 'stores')).then(snap => {
-    const result = { disp: {}, meta: {} };
+    const result = { disp: {}, meta: {}, order: [] };
     if (snap.exists()) {
       const list = snap.data().list;
       if (Array.isArray(list)) {
@@ -139,6 +140,7 @@ async function fetchStoreMaster() {
           const k = _normLoc(s.name);
           // displayName 沒填就沿用 name，等於沒改名
           result.disp[k] = (s.displayName && String(s.displayName).trim()) || String(s.name);
+          result.order.push(k);
           result.meta[k] = {
             storeId: s.storeId || '',
             code:    s.code    || '',
@@ -166,14 +168,31 @@ async function fetchStoreMaster() {
  */
 export function clearStoreCache() {
   try { sessionStorage.removeItem(STORE_KEY); } catch {}
-  _storeMap = null; _storeMeta = null; _storeFetch = null;
+  _storeMap = null; _storeMeta = null; _storeOrder = null; _storeFetch = null;
 }
 
 export async function initStoreDisplay() {
   const r = await fetchStoreMaster();
-  _storeMap  = r.disp || {};
-  _storeMeta = r.meta || {};
+  _storeMap   = r.disp  || {};
+  _storeMeta  = r.meta  || {};
+  _storeOrder = r.order || [];
   return _storeMap;
+}
+
+/**
+ * 依店家管理的排列順序排序店名陣列
+ * 不在主檔中的店名排在最後，彼此維持原本順序（不做字母排序，避免亂插）
+ * 主檔未載入時原樣回傳，不改變順序
+ */
+export function sortStores(names) {
+  if (!Array.isArray(names)) return names;
+  if (!_storeOrder || !_storeOrder.length) return names.slice();
+  const idx = new Map(_storeOrder.map((k, i) => [k, i]));
+  return names.slice().sort((a, b) => {
+    const ia = idx.has(_normLoc(a)) ? idx.get(_normLoc(a)) : Number.MAX_SAFE_INTEGER;
+    const ib = idx.has(_normLoc(b)) ? idx.get(_normLoc(b)) : Number.MAX_SAFE_INTEGER;
+    return ia - ib;
+  });
 }
 
 /**

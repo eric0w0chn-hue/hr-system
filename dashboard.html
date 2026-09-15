@@ -1115,7 +1115,11 @@ window._showFrame = function(page){
   let rec = _framePool.get(page);
   if(rec){
     const stale = (page !== 'welcome.html') && (now - rec.last > FRAME_TTL_MS);
-    if(stale){
+    // ⚠ 功能頁若用 location.href 自行跳轉（例如 account.html 的「操作日誌」鈕），
+    //   被保活的 iframe 內容就不再是 page 本身。此時必須強制重載，
+    //   否則點側邊欄回到該功能會看到上次跳去的那一頁。
+    const drifted = _frameDrifted(rec.el, page);
+    if(stale || drifted){
       _wireFrame(rec.el, page);
       rec.el.src = _buildFrameSrc(page);             // 重新載入抓新資料（onload 重跑 sync）
     }else{
@@ -1134,6 +1138,19 @@ window._showFrame = function(page){
     _evictFrames(page);
   }
 };
+
+// 判斷 iframe 目前顯示的頁面是否已偏離原本的 page
+// 跨網域（招募系統）讀不到 pathname，一律視為未偏離，避免誤重載
+function _frameDrifted(el, page){
+  if(!el || !page) return false;
+  if(page.indexOf('://') !== -1) return false;     // 外部網址不判斷
+  try{
+    const cur = el.contentWindow.location.pathname || '';
+    const want = page.split('?')[0];
+    if(!cur) return false;
+    return cur.split('/').pop() !== want;
+  }catch(_){ return false; }                        // 跨網域或尚未載入
+}
 
 window.goTo=function(page){
   if(!page) return;

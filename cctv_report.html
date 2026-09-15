@@ -333,7 +333,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate, dispStore } from './auth-guard.js?v=6';
+import { authGuard, db, writeOpLog, initStoreDisplay, isCorporate, dispStore, sortStores } from './auth-guard.js?v=7';
 import {
   doc, getDoc, addDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, orderBy, serverTimestamp
@@ -417,7 +417,7 @@ async function loadStores(){
     // 讀取 hr/settings 的 workLocations 陣列
     const snap = await getDoc(doc(db,'hr','settings'));
     if(snap.exists() && snap.data().workLocations){
-      allStores = [...snap.data().workLocations].filter(notExcluded).sort();
+      allStores = sortStores([...snap.data().workLocations].filter(notExcluded));
       return;
     }
   } catch {}
@@ -426,7 +426,7 @@ async function loadStores(){
     const snap = await getDocs(collection(db,'users'));
     const s = new Set();
     snap.docs.forEach(d=>(d.data().locations||[]).forEach(l=>s.add(l)));
-    allStores = [...s].filter(notExcluded).sort();
+    allStores = sortStores([...s].filter(notExcluded));
   } catch { allStores = ['梁鑫鵝肉飯']; }
 }
 
@@ -581,7 +581,7 @@ function renderMyStatus(){
 
 function renderStoreTabs(){
   if(cuRole!=='admin'&&cuRole!=='consultant') return;
-  const stores = [...new Set(allReports.map(r=>r.store))].sort();
+  const stores = sortStores([...new Set(allReports.map(r=>r.store))]);
   document.getElementById('storeTabs').innerHTML =
     `<button class="store-tab${storeFilter==='all'?' active':''}" onclick="setSF('all')">全部（${allReports.length}）</button>`
     + stores.map(s=>`<button class="store-tab${storeFilter===s?' active':''}" onclick="setSF('${s}')">${dispStore(s)}</button>`).join('');

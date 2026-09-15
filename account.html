@@ -179,7 +179,7 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
       </select>
       <span class="count-label" id="countLabel"></span>
       <button class="btn btn-primary" onclick="openBatchPage()">⚡ 批次建立帳號</button>
-      <button class="btn" onclick="window.location.href='/hr-system/oplog.html'" style="white-space:nowrap">📋 操作日誌</button>
+      <button class="btn" onclick="_goPage('oplog.html')" style="white-space:nowrap">📋 操作日誌</button>
       <button class="btn" id="syncTalentBtn" onclick="runTalentSync()" style="white-space:nowrap;display:none" title="把所有帳號的角色與店別重新推送到招募系統">🔄 同步招募系統</button>
     </div>
     <div class="sync-panel" id="syncPanel">
@@ -438,7 +438,7 @@ window.delUser = async function(uid){
 };
 
 window.openBatchPage = function(){
-  window.location.href='/hr-system/batch_accounts.html';
+  _goPage('batch_accounts.html');
 };
 
 function updateStats(){
@@ -506,6 +506,17 @@ window.runTalentSync = async function(){
     btn.textContent = label;
   }
 };
+
+// 在 iframe 內用 postMessage 請主框架換頁，獨立開啟時才整頁跳轉。
+// ⚠ 不要直接 location.href：那會把被保活的 iframe 內容換掉，
+//   點側邊欄回到本功能時會看到跳過去的那一頁（見 dashboard 的 _frameDrifted）。
+function _goPage(page){
+  if(window.self !== window.top){
+    window.parent.postMessage({ type:'navigate', page }, '*');
+  }else{
+    window.location.href = '/hr-system/' + page;
+  }
+}
 
 function showToast(msg){
   const t=document.getElementById('toast');

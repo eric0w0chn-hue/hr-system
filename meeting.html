@@ -320,7 +320,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initStoreDisplay, dispStore, authGuard, db, auth, writeOpLog } from './auth-guard.js?v=6';
+import { initStoreDisplay, dispStore, sortStores, authGuard, db, auth, writeOpLog } from './auth-guard.js?v=7';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -386,7 +386,7 @@ async function loadRecords(){
   // 從 hr/settings 讀取全店清單（比照菜價回報）
   try{
     const hrSnap = await getDoc(doc(db,'hr','settings'));
-    allStores = (hrSnap.exists() ? hrSnap.data().workLocations||[] : []).filter(Boolean).sort();
+    allStores = sortStores((hrSnap.exists() ? hrSnap.data().workLocations||[] : []).filter(Boolean));
   } catch(e){ allStores = []; }
 
   const q = query(collection(db,'meeting_records'), orderBy('date','desc'));
