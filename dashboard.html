@@ -1538,11 +1538,16 @@ async function _showPushInbox(){
     wrap.onclick = e => { if(e.target===wrap) close(); };
   }catch(err){ console.warn('[push_inbox] 讀取失敗', err); }
 }
-window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); });
+if(window.self===window.top){
+  window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); });
+}
 
 // 通知點擊帶入的 ?go=xxx.html → 開啟對應功能頁
 window.addEventListener('load', function(){
   try{
+    // ⚠ dashboard 若被載進 iframe（例如通知誤導到 iframe），
+    //   這段不能執行，否則會 dashboard 裡再開 dashboard 無限套疊。
+    if(window.self!==window.top) return;
     var _go=new URLSearchParams(location.search).get('go');
     if(_go && /^[a-z0-9_]+\.html$/i.test(_go)){
       history.replaceState(null,'',location.pathname);

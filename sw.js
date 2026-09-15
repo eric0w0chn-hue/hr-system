@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v10';
+const CACHE_NAME = 'lp-xin-v11';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -148,11 +148,15 @@ self.addEventListener('notificationclick', event => {
   const target = new URL('./dashboard.html?go=' + encodeURIComponent(page), self.location.href).href;
   event.waitUntil(
     self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
+      // ⚠ matchAll 會把 iframe 也算成 client。
+      //   本站是 SPA iframe 架構，若導到 iframe 會變成 dashboard 裡再開一個
+      //   dashboard（無限套疊）。只接受 frameType 為 top-level 的視窗。
       for (const c of list) {
-        if (c.url.includes('/hr-system/') && 'focus' in c) {
-          c.navigate && c.navigate(target);
-          return c.focus();
-        }
+        if (c.frameType && c.frameType !== 'top-level') continue;
+        if (!c.url.includes('/hr-system/')) continue;
+        if (!('focus' in c)) continue;
+        if (c.navigate) { return c.navigate(target).then(cc => (cc || c).focus()).catch(() => c.focus()); }
+        return c.focus();
       }
       return self.clients.openWindow(target);
     })
