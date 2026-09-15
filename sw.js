@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v6';
+const CACHE_NAME = 'lp-xin-v7';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -92,4 +92,40 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
+});
+
+// ── Web Push（FCM）────────────────────────────────────────────
+// 後端一律送「data-only」訊息（不帶 notification 欄位），
+// 由這裡決定怎麼顯示，避免瀏覽器自動顯示 + 本 handler 重複顯示造成雙份通知。
+self.addEventListener('push', event => {
+  let d = {};
+  try { d = (event.data && event.data.json()) || {}; } catch(_) {}
+  const p = d.data || d;                       // data-only 時在 d.data
+  const title = p.title || '鑫系統提醒';
+  const opts = {
+    body: p.body || '',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag: p.tag || 'lp-alert',                  // 同 tag 會蓋掉舊的，不會疊一堆
+    renotify: false,
+    data: { page: p.page || 'dashboard.html' }
+  };
+  event.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const page = (event.notification.data && event.notification.data.page) || 'dashboard.html';
+  const target = new URL('./dashboard.html?go=' + encodeURIComponent(page), self.location.href).href;
+  event.waitUntil(
+    self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
+      for (const c of list) {
+        if (c.url.includes('/hr-system/') && 'focus' in c) {
+          c.navigate && c.navigate(target);
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
 });
