@@ -57,24 +57,51 @@ input:checked + .slider::before{transform:translateX(20px)}
   <div class="main">
 
     <div class="card">
-      <h3>⏰ 觸發設定</h3>
+      <h3>⏰ 總開關</h3>
       <div class="row">
-        <div><div class="row-label">啟用 Email 主動提醒</div><div class="row-desc">關閉後不會發送任何郵件</div></div>
+        <div><div class="row-label">啟用主動提醒</div><div class="row-desc">關閉後不會發送任何推播</div></div>
         <label class="switch"><input type="checkbox" id="cfgEnabled"><span class="slider"></span></label>
-      </div>
-      <div class="row">
-        <div><div class="row-label">每日檢查時間</div><div class="row-desc">台灣時間，到此時間仍有未完成事項才發送</div></div>
-        <input type="time" id="cfgTime" value="23:00">
       </div>
     </div>
 
     <div class="card">
-      <h3>✅ 檢查項目</h3>
-      <div class="row"><div class="row-label">📌 店務追蹤（逾期任務）</div><label class="switch"><input type="checkbox" id="item_task"><span class="slider"></span></label></div>
-      <div class="row"><div class="row-label">🥬 菜價回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_price"><span class="slider"></span></label></div>
-      <div class="row"><div class="row-label">📹 監視器回報（今日未填）</div><label class="switch"><input type="checkbox" id="item_cctv"><span class="slider"></span></label></div>
-      <div class="row"><div class="row-label">🚚 配送人員回報（明日未填）</div><label class="switch"><input type="checkbox" id="item_delivery"><span class="slider"></span></label></div>
-      <div class="row"><div class="row-label">💰 獎金補助（有待發放項目）</div><label class="switch"><input type="checkbox" id="item_bonus"><span class="slider"></span></label></div>
+      <h3>✅ 檢查項目與推播時間</h3>
+      <div class="row-desc" style="margin:-8px 0 10px">各項目獨立推播，不合併成一則。時間為台灣時間，到點仍未完成才推。</div>
+      <div class="row">
+        <div class="row-label" style="flex:1">📌 店務追蹤（逾期任務）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_task" style="width:112px">
+          <label class="switch"><input type="checkbox" id="item_task"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label" style="flex:1">🥬 菜價回報（今日未填）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_price" style="width:112px">
+          <label class="switch"><input type="checkbox" id="item_price"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label" style="flex:1">📹 監視器回報（今日未填）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_cctv" style="width:112px">
+          <label class="switch"><input type="checkbox" id="item_cctv"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label" style="flex:1">🚚 配送人員回報（明日未填）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_delivery" style="width:112px">
+          <label class="switch"><input type="checkbox" id="item_delivery"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label" style="flex:1">💰 獎金補助（有待發放項目）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_bonus" style="width:112px">
+          <label class="switch"><input type="checkbox" id="item_bonus"><span class="slider"></span></label>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -83,7 +110,7 @@ input:checked + .slider::before{transform:translateX(20px)}
     </div>
 
     <div class="card">
-      <h3>📧 管理人員 Email 綁定狀況</h3>
+      <h3>📱 管理人員推播綁定狀況</h3>
       <div id="bindList"></div>
     </div>
 
@@ -91,9 +118,13 @@ input:checked + .slider::before{transform:translateX(20px)}
 </div>
 
 <script type="module">
-import { authGuard, db } from './auth-guard.js?v=2';
+import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { doc, getDoc, setDoc, collection, getDocs } from
   "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const KEYS = ['task','price','cctv','delivery','bonus'];
+// 各項目的預設推播時間（首次開啟或舊設定沒有 checkTimes 時使用）
+const DEFAULT_TIMES = { task:'10:00', price:'14:00', cctv:'21:00', delivery:'18:00', bonus:'09:00' };
 
 let hasChanges = false;
 function markChanged(){ hasChanges = true; document.getElementById('saveBtn').disabled = false; }
@@ -102,56 +133,93 @@ authGuard('alert_settings', async ({ role }) => {
   const rc = document.getElementById('roleChip');
   if (rc) rc.textContent = ({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role] || role;
 
-  // 讀現有設定
-  const cfgSnap = await getDoc(doc(db, 'settings', 'alert_config'));
+  // 設定與 push_tokens 並行讀取
+  const [cfgSnap, usersSnap, tokSnap] = await Promise.all([
+    getDoc(doc(db, 'settings', 'alert_config')),
+    getDocs(collection(db, 'users')),
+    getDocs(collection(db, 'push_tokens')),
+  ]);
   const cfg = cfgSnap.exists() ? cfgSnap.data() : {};
+
   document.getElementById('cfgEnabled').checked = !!cfg.enabled;
-  document.getElementById('cfgTime').value = cfg.checkTime || '23:00';
-  const items = cfg.items || { task: true, price: true, cctv: true, delivery: true, bonus: false };
-  ['task', 'price', 'cctv', 'delivery', 'bonus'].forEach(k => {
+
+  const items = cfg.items || { task:true, price:true, cctv:true, delivery:true, bonus:false };
+  // checkTimes 不存在時，沿用舊的單一 checkTime 當各項預設，避免升級後時間突然全變
+  const times = cfg.checkTimes || {};
+  KEYS.forEach(k => {
     document.getElementById('item_' + k).checked = items[k] !== false;
-  });
-  ['cfgEnabled','cfgTime','item_task','item_price','item_cctv','item_delivery','item_bonus'].forEach(id => {
-    document.getElementById(id).addEventListener('change', markChanged);
+    document.getElementById('time_' + k).value =
+      times[k] || cfg.checkTime || DEFAULT_TIMES[k];
   });
 
+  ['cfgEnabled', ...KEYS.map(k=>'item_'+k), ...KEYS.map(k=>'time_'+k)]
+    .forEach(id => document.getElementById(id).addEventListener('change', markChanged));
+
+  // ── 發送狀態 ──
   document.getElementById('statusInfo').innerHTML = cfg.lastSentAt
-    ? `上次發送：${new Date(cfg.lastSentAt).toLocaleString('zh-TW')}　（共 ${cfg.lastSentCount ?? 0} 人收到）`
+    ? `上次發送：${new Date(cfg.lastSentAt).toLocaleString('zh-TW')}<br>`
+      + `推播成功 ${cfg.lastSentPush ?? 0} 人`
+      + ((cfg.lastSentMissed ?? 0) ? `　<span style="color:#e74c3c">未推達 ${cfg.lastSentMissed} 人</span>` : '')
     : '尚未發送過';
 
-  // 綁定狀況：只列 admin/consultant/manager
-  const usersSnap = await getDocs(collection(db, 'users'));
+  // ── 推播綁定狀況 ──
+  // push_tokens/{uid}.tokens 為裝置陣列，一人可綁多台
+  const tokMap = {};
+  tokSnap.forEach(d => {
+    const t = d.data();
+    tokMap[d.id] = {
+      n: Array.isArray(t.tokens) ? t.tokens.length : 0,
+      at: t.updatedAt || ''
+    };
+  });
+
   const relevant = [];
   usersSnap.forEach(d => {
     const u = d.data();
     if (u.disabled) return;
-    if (!['admin', 'consultant', 'manager'].includes(u.role)) return;
-    relevant.push(u);
+    if (!['admin','consultant','manager'].includes(u.role)) return;
+    relevant.push({ uid: d.id, ...u });
   });
-  const roleLabel = { admin: '管理員', consultant: '顧問', manager: '店長/副店長' };
-  document.getElementById('bindList').innerHTML = relevant.map(u => `
-    <div class="bind-item">
-      <span><span class="bind-dot ${u.alertEmail ? 'bind-yes' : 'bind-no'}"></span>${u.name || '（未命名）'}（${roleLabel[u.role] || u.role}）</span>
-      <span style="color:var(--text3)">${u.alertEmail ? '已設定' : '未設定'}</span>
-    </div>
-  `).join('') || '<div style="color:var(--text3);font-size:13px">目前沒有符合條件的人員</div>';
+  // 未綁定的排前面，方便追人
+  relevant.sort((a,b) => (tokMap[a.uid]?.n || 0) - (tokMap[b.uid]?.n || 0));
+
+  const roleLabel = { admin:'管理員', consultant:'顧問', manager:'店長/副店長' };
+  const bound = relevant.filter(u => (tokMap[u.uid]?.n || 0) > 0).length;
+
+  document.getElementById('bindList').innerHTML =
+    `<div style="font-size:12px;color:var(--text2);margin-bottom:10px">已綁定 ${bound} / ${relevant.length} 人</div>`
+    + (relevant.map(u => {
+        const t = tokMap[u.uid];
+        const ok = t && t.n > 0;
+        const when = ok && t.at ? new Date(t.at).toLocaleDateString('zh-TW') : '';
+        return `<div class="bind-item">
+          <span><span class="bind-dot ${ok ? 'bind-yes' : 'bind-no'}"></span>${u.name || '（未命名）'}（${roleLabel[u.role] || u.role}）</span>
+          <span style="color:var(--text3)">${ok ? `${t.n} 台裝置${when ? '・' + when : ''}` : '未開啟'}</span>
+        </div>`;
+      }).join('') || '<div style="color:var(--text3);font-size:13px">目前沒有符合條件的人員</div>');
 
   window.saveConfig = async function(){
     const btn = document.getElementById('saveBtn');
     btn.disabled = true; btn.textContent = '儲存中…';
-    await setDoc(doc(db, 'settings', 'alert_config'), {
-      enabled: document.getElementById('cfgEnabled').checked,
-      checkTime: document.getElementById('cfgTime').value,
-      items: {
-        task: document.getElementById('item_task').checked,
-        price: document.getElementById('item_price').checked,
-        cctv: document.getElementById('item_cctv').checked,
-        delivery: document.getElementById('item_delivery').checked,
-        bonus: document.getElementById('item_bonus').checked,
-      },
-    }, { merge: true });
-    hasChanges = false;
-    btn.textContent = '儲存變更';
+    const items = {}, checkTimes = {};
+    KEYS.forEach(k => {
+      items[k] = document.getElementById('item_' + k).checked;
+      checkTimes[k] = document.getElementById('time_' + k).value || DEFAULT_TIMES[k];
+    });
+    try{
+      await setDoc(doc(db, 'settings', 'alert_config'), {
+        enabled: document.getElementById('cfgEnabled').checked,
+        items, checkTimes,
+      }, { merge: true });
+      writeOpLog({ editor:'', role, module:'alert_settings',
+        action:'編輯提醒排程設定', detail:'推播時間與項目' });
+      hasChanges = false;
+      btn.textContent = '已儲存';
+      setTimeout(()=>{ btn.textContent = '儲存變更'; }, 1500);
+    }catch(e){
+      alert('儲存失敗：' + (e.message || e));
+      btn.disabled = false; btn.textContent = '儲存變更';
+    }
   };
 
   document.getElementById('loading').style.display = 'none';
