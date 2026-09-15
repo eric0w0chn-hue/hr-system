@@ -1544,9 +1544,9 @@ async function _showPushInbox(){
     wrap.onclick = e => { if(e.target===wrap) close(); };
   }catch(err){ console.warn('[push_inbox] 讀取失敗', err); }
 }
-if(window.self===window.top){
-  window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); });
-}
+// 2026/09：點通知改為直接開該功能頁，不再於 dashboard 跳完整清單彈窗。
+// _showPushInbox 保留未刪，日後若要恢復只要把下面這行取消註解。
+// if(window.self===window.top){ window.addEventListener('load', function(){ setTimeout(_showPushInbox, 1500); }); }
 
 // 通知點擊帶入的 ?go=xxx.html → 開啟對應功能頁
 window.addEventListener('load', function(){

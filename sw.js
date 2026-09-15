@@ -6,7 +6,7 @@
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v15';
+const CACHE_NAME = 'lp-xin-v16';
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -146,16 +146,12 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const page = (event.notification.data && event.notification.data.page) || 'dashboard.html';
 
-  // ⚠ 一律用 openWindow 開新視窗，並帶上時間戳。
-  //   先前用 Client.navigate() 導向已開啟的分頁，若該分頁網址剛好相同
-  //   （例如已經是 ?go=price.html），瀏覽器視為沒有變化，不會重新載入，
-  //   load 事件不觸發 → 看起來像「點了沒反應」。（2026/09 反覆踩過）
-  //   時間戳確保每次都是不同網址，必定重新載入並執行 ?go= 處理器。
-  const target = new URL(
-    './dashboard.html?go=' + encodeURIComponent(page) + '&_n=' + Date.now(),
-    self.location.href
-  ).href;
+  // ⚠ 直接開功能頁，不繞 dashboard 的 ?go= 機制。
+  //   功能頁本來就能獨立開啟（自帶 topbar + authGuard + 返回鈕），
+  //   繞過 dashboard 就沒有載入時序、網址相同不重載、iframe 誤判等問題。
+  //   （2026/09 用 navigate / postMessage / ?go= 都失敗，改用這個做法）
+  const target = new URL('./' + page + '?_n=' + Date.now(), self.location.href).href;
 
-  console.log('[SW click] 開啟', target);
+  console.log('[SW click] 開啟功能頁', target);
   event.waitUntil(self.clients.openWindow(target));
 });
