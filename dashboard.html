@@ -1507,19 +1507,28 @@ try{
   }
 }catch(_){}
 // 接收 Service Worker 的導頁指令（點推播通知時觸發）
-// 不重新載入頁面，直接呼叫 goTo，比 Client.navigate() 可靠
-navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function(e){
-  if(!e.data || e.data.type !== 'lp-open-page') return;
-  if(window.self !== window.top) return;
-  var p = e.data.page;
-  if(!p || !/^[a-z0-9_]+\.html$/i.test(p)) return;
-  var t0 = Date.now();
-  (function _go(){
-    if(typeof window.goTo === 'function'){ window.goTo(p); return; }
-    if(Date.now() - t0 > 10000) return;
-    setTimeout(_go, 200);
-  })();
-});
+// ⚠ 用 addEventListener 掛 message 時，若沒有呼叫 startMessages()，
+//   在 controller 就緒前送達的訊息會被暫存不派送。這裡兩者都做。
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  function handle(e){
+    if(!e.data || e.data.type !== 'lp-open-page') return;
+    if(window.self !== window.top) return;
+    var p = e.data.page;
+    console.log('[dashboard] 收到導頁指令:', p);
+    if(!p || !/^[a-z0-9_]+\.html$/i.test(p)) return;
+    var t0 = Date.now();
+    (function _go(){
+      if(typeof window.goTo === 'function'){ window.goTo(p); return; }
+      if(Date.now() - t0 > 10000) return;
+      setTimeout(_go, 200);
+    })();
+  }
+  navigator.serviceWorker.addEventListener('message', handle);
+  try{ navigator.serviceWorker.startMessages(); }catch(_){}
+  // 保險：某些瀏覽器只觸發 onmessage 屬性
+  if(!navigator.serviceWorker.onmessage) navigator.serviceWorker.onmessage = handle;
+})();
 
 // 推播完整清單：通知列只放得下兩三行，完整內容存在 push_inbox/{uid}
 async function _showPushInbox(){
