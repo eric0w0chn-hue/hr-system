@@ -1,0 +1,183 @@
+rules_version = '2';
+
+// =============================================================================
+//  梁平鑫系統 Firestore Security Rules
+//  基準版本：2026/09/16 從 Firebase Console liangpinghri 匯出（首次進版控）
+//
+//  【現況健檢摘要 — 資安計畫用，勿當作已修補】
+//  ✅ 角色隔離良好：employee 讀不到 hr / salary_records / store_accounts（皆需 isStaff）
+//  ✅ 兜底 /{document=**} 為 admin only，未全開
+//  ✅ push_log / push_inbox / push_tokens 權限收斂正確
+//
+//  ⚠️ 待收緊（依資安計畫排程處理，勿在建立基準階段就改動）：
+//   [SEC-02/03] 跨「店」無隔離：任一 manager 可讀寫全部店的 store_accounts /
+//               hr / salary_records / price_reports 等。店隔離目前僅靠前端
+//               normLoc() 過濾，Rules 層未守。需先補穩定 storeId 欄位＋
+//               新增受控讀取路徑後才可收緊（見計畫 B 批）。
+//   [SEC-02]    store_accounts 密碼明文於文件內，staff 整批可讀。需改為
+//               目錄／秘密分離＋後端單筆揭露（見計畫第 5 階段）。
+//   [SEC-05]    無 isActive() 檢查：停用帳號（users.disabled=true）在既有
+//               token 有效期內仍可讀寫。待 disableUser Function 上線後補
+//               isActive() 並於後端撤銷 token（見計畫第 6 階段）。
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return getRole() == 'admin';
+    }
+    function isAdminOrConsultant() {
+      return getRole() in ['admin', 'consultant'];
+    }
+    function isStaff() {
+      return getRole() in ['admin', 'consultant', 'manager'];
+    }
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+    match /users/{uid} {
+      allow read: if isLoggedIn() && (request.auth.uid == uid || isStaff());
+      allow write: if isLoggedIn() && isStaff();
+    }
+    match /hr/{docId} {
+      allow read: if isLoggedIn() && isStaff();
+      allow write: if isLoggedIn() && isStaff();
+    }
+    match /salary_records/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /salary_settings/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /store_accounts/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /attendance/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isStaff();
+    }
+    match /attendance_anomaly/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isStaff();
+    }
+    match /attendance_temp/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isStaff();
+    }
+    match /punch_records/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isStaff();
+    }
+    match /schedules/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isStaff();
+    }
+    match /shift_types/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isStaff();
+    }
+    match /meeting_records/{doc} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /meeting_records/{doc}/versions/{ver} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /price_reports/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /price_settings/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isAdminOrConsultant();
+    }
+    match /cctv_reports/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /delivery_reports/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /delivery_personnel/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /store_tasks/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    // 104排程 — 發放排程（全員可讀；寫入限 admin）
+    match /recruit104_schedule/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isAdmin();
+    }
+
+    // ── 成本利潤（cost.html）2026/08 新增 ──
+    // 各店資料獨立，店面隔離由頁面 ownLocs 控管（讀取需整批取回後用
+    // normLoc() 前端過濾，故此處不做店名比對）
+    match /cost_items/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /cost_products/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /cost_platforms/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    // 發票／營業稅設定（單一文件 cost_settings/tax）
+    match /cost_settings/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isStaff();
+    }
+
+    // ── PWA 推播 2026/09 新增 ──
+    // push_tokens/{uid}：每人一份，只存自己的 FCM token 陣列。
+    // 刻意不寫進 users/{uid}：users 的 write 需要 isStaff()，
+    // 同仁自己註冊推播會被擋；獨立集合可讓本人自行寫入。
+    match /push_tokens/{uid} {
+      allow read, write: if isLoggedIn() && request.auth.uid == uid;
+    }
+    // push_inbox/{uid}：推播的完整清單（通知列放不下，點進系統後顯示）。
+    // 由 Cloud Function 寫入，本人只能讀，以及更新 readAt 標記已讀。
+    match /push_inbox/{uid} {
+      allow read: if isLoggedIn() && request.auth.uid == uid;
+      allow update: if isLoggedIn() && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+      allow create, delete: if false;
+    }
+    // push_log：當日去重記錄，只有 Cloud Function（Admin SDK 繞過規則）會動。
+    // 明確擋掉前端，避免有人清掉記錄造成重複推播洗版。
+    match /push_log/{docId} {
+      allow read: if isLoggedIn() && isAdmin();
+      allow write: if false;
+    }
+
+    match /departure_alerts/{docId} {
+      allow read, write: if isLoggedIn() && isStaff();
+    }
+    match /sys_oplogs/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isAdmin();
+    }
+    match /hr_oplogs/{docId} {
+      allow create: if isLoggedIn();
+      allow read, update, delete: if isLoggedIn() && isAdmin();
+    }
+    match /settings/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isAdmin();
+    }
+    // 104排程 — 各店需求設定（店長/顧問也要能存，頁面再控管店別）
+    match /settings/recruit104 {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && isStaff();
+    }
+    match /hr_backups/{docId} {
+      allow read, write: if isLoggedIn() && isAdmin();
+    }
+    match /devices/{uid} {
+      allow read, write: if isLoggedIn() && request.auth.uid == uid;
+    }
+    match /{document=**} {
+      allow read, write: if isLoggedIn() && isAdmin();
+    }
+  }
+}

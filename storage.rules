@@ -1,0 +1,71 @@
+rules_version = '2';
+
+// =============================================================================
+//  梁平鑫系統 Storage Security Rules
+//  基準版本：2026/09/16 從 Firebase Console liangpinghri 匯出（首次進版控）
+//
+//  【現況健檢摘要 — 資安計畫用，勿當作已修補】
+//  ✅ leave_proofs（醫療個資）／employee_docs（身分證等）限管理職 isMgmt()
+//     ＋限檔案大小與類型，寫得正確。
+//  ✅ recruit104_photos 有大小／類型限制。
+//
+//  ⚠️ 待收緊（依資安計畫排程處理）：
+//   [SEC-07 類] meetings / cctv_videos / task_photos 三個路徑目前只要
+//               request.auth != null 即可讀寫 —— 任何登入者（含 employee）
+//               都能讀寫任何人的檔案，且未限大小與類型。
+//               建議比照 leave_proofs 收緊：限 isMgmt()（或依 taskId/storeId
+//               對應授權）、限 size 與 contentType。CP 值高、相對好補，
+//               可排在 Firestore 跨店隔離之後處理。
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 具店內管理權限者：管理員 / 顧問 / 店長・副店長
+    function isMgmt() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+          in ['admin', 'consultant', 'manager'];
+    }
+
+    // ⚠️ 全開待收緊（見檔頭 TODO）
+    match /meetings/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    // ⚠️ 全開待收緊（見檔頭 TODO）
+    match /cctv_videos/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    // ⚠️ 全開待收緊（見檔頭 TODO）
+    match /task_photos/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    // 104排程 發放截圖（保留 3 天，逾期由頁面自動清除）
+    match /recruit104_photos/{taskId}/{fileName=**} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
+    // 請假證明（薪資計算用）— 含醫療個資，限管理職
+    match /leave_proofs/{empId}/{ym}/{fileName} {
+      allow read: if isMgmt();
+      allow create, update: if isMgmt()
+                   && request.resource.size < 8 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+      allow delete: if isMgmt();
+    }
+    // 同仁文件（履歷／身分證・居留證／彈性休假同意書／加保／退保）
+    // 含個人敏感資料，限管理職
+    match /employee_docs/{empId}/{category}/{fileName} {
+      allow read: if isMgmt();
+      allow create, update: if isMgmt()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+      allow delete: if isMgmt();
+    }
+  }
+}
