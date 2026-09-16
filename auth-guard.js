@@ -77,7 +77,12 @@ async function fetchPermissions() {
     cacheSet(PERM_KEY, result);
     _permFetch = null;
     return result;
-  }).catch(() => { _permFetch = null; return {}; });
+  }).catch(() => {
+    _permFetch = null;
+    // SEC-01: 讀取失敗不可回傳空物件（會被當成「所有模組缺 key」而放行）。
+    // 改回傳帶失敗旗標的物件，讓 authGuard 判斷為「無法確認權限 → 拒絕進入」。
+    return { __permError__: true };
+  });
   return _permFetch;
 }
 
@@ -316,18 +321,39 @@ export async function authGuard(moduleKey, onReady, options = {}) {
     // ③ 讀取集中權限設定
     const modules = await fetchPermissions();
 
-    // ④ 判斷權限
-    //    - Firestore 無此 key → 預設只有 admin 可進
-    //    - roles 為空陣列 → 視為不限制（全部可進）
-    const modPerm  = modules[moduleKey];
-    const allowed  = modPerm?.roles;
-    if (allowed !== undefined && allowed.length > 0 && !allowed.includes(role)) {
+    // ④ 判斷權限（SEC-01：改為缺鍵預設 admin-only、讀取失敗拒絕、空 roles 無人可用）
+    //    - 權限設定讀取失敗 → 無法確認 → 一律拒絕（admin 亦拒，避免誤放）
+    //    - Firestore 無此 key → 依 v6 第 3-2 節：預設只有 admin 可進
+    //    - roles 為空陣列 → 視為無人可用（僅 admin 兜底可進）
+    //    - roles 有值    → 僅列出的角色可進
+    const denyEntry = () => {
       // iframe 內：跳到最上層避免嵌套；獨立開：直接跳
       if (window.self !== window.top) {
         try { window.top.location.href = noPermRedirect; } catch(_){ window.parent.postMessage({type:'navigate',page:'dashboard.html'},'*'); }
       } else {
         window.location.href = noPermRedirect;
       }
+    };
+
+    // 4-1 讀取失敗：無法確認權限，安全起見拒絕進入並提供重試
+    if (modules && modules.__permError__) {
+      denyEntry();
+      return;
+    }
+
+    const modPerm  = modules[moduleKey];
+    const allowed  = modPerm?.roles;
+    const isAdminRole = (role === 'admin');
+
+    // 4-2 缺 key 或 roles 缺失：預設只有 admin 可進
+    if (!modPerm || allowed === undefined) {
+      if (!isAdminRole) { denyEntry(); return; }
+    // 4-3 空 roles：視為無人可用，僅 admin 兜底
+    } else if (allowed.length === 0) {
+      if (!isAdminRole) { denyEntry(); return; }
+    // 4-4 有列角色：不在名單內則拒絕
+    } else if (!allowed.includes(role)) {
+      denyEntry();
       return;
     }
 
