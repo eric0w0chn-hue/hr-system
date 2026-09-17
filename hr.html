@@ -210,7 +210,9 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .topbar{padding:0 12px;gap:6px}
   .topbar h1{font-size:14px}
   .back-btn{font-size:11px;padding:4px 9px}
-  .tabs{padding:0 14px}
+  .tabs{padding:0 10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:11px 12px;font-size:12.5px;flex:0 0 auto}
   .topbar h1{font-size:13px}
   .main{padding:12px 14px}
 }
@@ -1565,19 +1567,39 @@ function render() {
   bindSearchInput();
 }
 
+// 從待審清單跳回「在職同仁」並展開該同仁資料
+window.gotoEmployee = function(id){
+  tab='employee';
+  detailTab='basic';
+  selId=id;
+  // 清掉搜尋／篩選／排序，確保該同仁一定在清單中
+  sq=''; sf=''; sloc=''; sortField=''; sortDir=1;
+  // 找出他在第幾頁
+  const list=getList();
+  const idx=list.findIndex(r=>r.id===id);
+  currentPage = idx>=0 ? Math.floor(idx/PAGE_SIZE)+1 : 1;
+  render();
+  setTimeout(()=>{
+    const row=document.querySelector('tr.data-row.selected');
+    if(!row) return;
+    const tb=document.querySelector('.topbar');
+    let offset=12;
+    if(tb && tb.offsetParent!==null) offset+=tb.getBoundingClientRect().height;
+    const top=row.getBoundingClientRect().top + window.pageYOffset - offset;
+    window.scrollTo({top:Math.max(top,0),behavior:'smooth'});
+  },80);
+};
+
 // ── 離職待審清單（管理員）──
 function renderPendingResign(){
   if(currentUserRole!=='admin'){ tab='employee'; render(); return; }
   const list = employees.filter(e=>e.pendingResign)
     .sort((a,b)=>(a.pendingResign.resignDate||'').localeCompare(b.pendingResign.resignDate||''));
 
-  const thisYM = new Date().toISOString().slice(0,7);
-  const thisMonth = list.filter(e=>(e.pendingResign.resignDate||'').startsWith(thisYM)).length;
-  const noIns     = list.filter(e=>!hasInsLeaveDoc(e)).length;
+  const noIns = list.filter(e=>!hasInsLeaveDoc(e)).length;
 
   const stats=`<div class="stats">
     <div class="sc"><div class="sl">待審總數</div><div class="sn">${list.length}</div></div>
-    <div class="sc"><div class="sl">本月離職</div><div class="sn">${thisMonth}</div></div>
     <div class="sc"><div class="sl">尚未退保</div><div class="sn" style="${noIns?'color:#DC2626':'color:#16A34A'}">${noIns}</div></div>
   </div>`;
 
@@ -1612,7 +1634,12 @@ function renderPendingResign(){
           const withdrawn=hasInsLeaveDoc(e);
           return `<tr class="data-row${withdrawn?'':' pr-row'}">
             <td data-label=""><input type="checkbox" class="pr-check" value="${e.id}" style="width:16px;height:16px"></td>
-            <td data-label="姓名"><b>${e.name}</b><div style="font-size:11px;color:var(--text3)">${e.title||'—'}</div></td>
+            <td data-label="姓名">
+              <a href="javascript:void(0)" onclick="gotoEmployee(${e.id})"
+                 style="font-weight:700;color:#1D4ED8;text-decoration:none;border-bottom:1px dotted #1D4ED8"
+                 title="檢視此同仁的在職資料">${e.name} ↗</a>
+              <div style="font-size:11px;color:var(--text3)">${e.title||'—'}</div>
+            </td>
             <td data-label="工作地點">${dispStore(e.workLocation)||'—'}</td>
             <td data-label="離職日">${pr.resignDate||'—'}</td>
             <td data-label="投保地點">${insLoc?dispStore(insLoc):'<span style="color:#C47A00">未設定</span>'}</td>
