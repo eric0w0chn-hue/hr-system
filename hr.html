@@ -1573,17 +1573,20 @@ function setActiveTab(key){
     t.classList.toggle('active', on);
     if(on) activeEl=t;
   });
-  if(activeEl){
-    requestAnimationFrame(()=>{
-      try{
-        // inline:'center' 只影響水平方向；block:'nearest' 避免動到頁面垂直捲動
-        activeEl.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
-      }catch(_){
-        const bar=activeEl.parentElement;
-        if(bar) bar.scrollLeft = activeEl.offsetLeft - (bar.clientWidth-activeEl.offsetWidth)/2;
-      }
-    });
-  }
+  if(!activeEl) return;
+  // ⚠ 不可用 scrollIntoView：分頁列若完全不在畫面內，即使 block:'nearest'
+  //   也會垂直捲動把整頁拉回最上方（在下方點明細分頁時會很突兀）。
+  //   改為只調整分頁列自己的水平捲軸，絕不影響頁面垂直位置。
+  const bar = activeEl.parentElement;
+  if(!bar) return;
+  requestAnimationFrame(()=>{
+    if(bar.scrollWidth <= bar.clientWidth) return;   // 沒有橫向溢出（桌機）就不動
+    const target = activeEl.offsetLeft - (bar.clientWidth - activeEl.offsetWidth) / 2;
+    const left = Math.max(0, Math.min(target, bar.scrollWidth - bar.clientWidth));
+    if(Math.abs(bar.scrollLeft - left) < 2) return;  // 已在位置就不重複捲動
+    try{ bar.scrollTo({left, behavior:'smooth'}); }
+    catch(_){ bar.scrollLeft = left; }
+  });
 }
 
 // 捲動到選取中的資料列。
