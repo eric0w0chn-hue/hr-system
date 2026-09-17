@@ -1206,7 +1206,7 @@ function render() {
           //     原本此處計算的 hasAlert / alertMsg 未被任何 UI 使用（死代碼），已移除。
         return`<tr class="data-row${selId===r.id?' selected':''}${r.pendingResign?' pr-row':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
-        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button>${r.pendingResign?`<span class="pr-badge" title="離職日 ${r.pendingResign.resignDate}｜${r.pendingResign.insWithdrawn?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}</div></td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button>${r.pendingResign?`<span class="pr-badge" title="離職日 ${r.pendingResign.resignDate}｜${hasInsLeaveDoc(r)?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}</div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
@@ -1542,7 +1542,7 @@ function render() {
       det=`<div class="detail">
         <div class="detail-actionbar">
           ${eBadge(sel.status)}
-          ${sel.pendingResign?`<span class="pr-badge">🚪 離職待審 ${sel.pendingResign.resignDate}｜${sel.pendingResign.insWithdrawn?'已退保':'未退保'}</span>`:''}
+          ${sel.pendingResign?`<span class="pr-badge">🚪 離職待審 ${sel.pendingResign.resignDate}｜${hasInsLeaveDoc(sel)?'已退保':'未退保'}</span>`:''}
           <button class="btn btn-sm btn-outline" onclick="openModal('editEmployee',${sel.id})">編輯</button>
           ${sel.pendingResign
             ? `<button class="btn btn-sm btn-outline" onclick="cancelPendingResign(${sel.id})">↩ 取消離職標記</button>`
@@ -1573,7 +1573,7 @@ function renderPendingResign(){
 
   const thisYM = new Date().toISOString().slice(0,7);
   const thisMonth = list.filter(e=>(e.pendingResign.resignDate||'').startsWith(thisYM)).length;
-  const noIns     = list.filter(e=>!e.pendingResign.insWithdrawn).length;
+  const noIns     = list.filter(e=>!hasInsLeaveDoc(e)).length;
 
   const stats=`<div class="stats">
     <div class="sc"><div class="sl">待審總數</div><div class="sn">${list.length}</div></div>
@@ -1584,8 +1584,8 @@ function renderPendingResign(){
   const body = list.length ? `
     <div class="pr-warn">
       標記離職的同仁<b>仍留在在職名單</b>，狀態維持「在職」，當月薪資、排班與勞健保計算不受影響。<br>
-      請先確認<b>退保</b>完成後，再勾選並按「確認離職」轉入離職同仁（帳號會一併停用）。<br>
-      💡 於「上傳文件 → 退保資訊」上傳檔案時，會<b>自動勾選已退保</b>；點「📎 退保文件」可直接檢視。
+      <b>退保狀態完全依「上傳文件 → 退保資訊」是否有檔案判定</b>，不開放手動勾選。<br>
+      上傳退保文件後會自動標記已退保，並把<b>離職日帶入薪資計算</b>；刪除文件則一併還原。
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
@@ -1609,23 +1609,21 @@ function renderPendingResign(){
           const pr=e.pendingResign;
           const insLoc=(e.insurance&&e.insurance.insLocation)||'';
           const insDocs=(e.docs&&Array.isArray(e.docs.insLeave))?e.docs.insLeave:[];
-          return `<tr class="data-row${pr.insWithdrawn?'':' pr-row'}">
+          const withdrawn=hasInsLeaveDoc(e);
+          return `<tr class="data-row${withdrawn?'':' pr-row'}">
             <td data-label=""><input type="checkbox" class="pr-check" value="${e.id}" style="width:16px;height:16px"></td>
             <td data-label="姓名"><b>${e.name}</b><div style="font-size:11px;color:var(--text3)">${e.title||'—'}</div></td>
             <td data-label="工作地點">${dispStore(e.workLocation)||'—'}</td>
             <td data-label="離職日">${pr.resignDate||'—'}</td>
             <td data-label="投保地點">${insLoc?dispStore(insLoc):'<span style="color:#C47A00">未設定</span>'}</td>
             <td data-label="退保確認">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:${pr.insWithdrawn?'#16A34A':'#DC2626'}">
-                <input type="checkbox" ${pr.insWithdrawn?'checked':''} style="width:16px;height:16px"
-                  onchange="toggleInsWithdrawn(${e.id}, this.checked)">
-                ${pr.insWithdrawn?'已退保':'未退保'}
-              </label>
-              ${pr.insWithdrawn&&pr.insWithdrawnAt?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${pr.insWithdrawnAt.slice(0,10)} ${pr.insWithdrawnBy||''}${pr.insWithdrawnAuto?'（文件）':''}</div>`:''}
-              ${insDocs.length
-                ? `<button class="btn btn-sm btn-outline" style="font-size:10.5px;padding:2px 8px;margin-top:4px"
-                     onclick="previewEmpDoc(${e.id},'insLeave',0)">📎 退保文件 ${insDocs.length}</button>`
-                : `<div style="font-size:10px;color:#C47A00;margin-top:4px">未上傳退保文件</div>`}
+              ${withdrawn
+                ? `<div style="font-size:12px;font-weight:700;color:#16A34A">✓ 已退保</div>
+                   <button class="btn btn-sm btn-outline" style="font-size:10.5px;padding:2px 8px;margin-top:4px"
+                     onclick="previewEmpDoc(${e.id},'insLeave',0)">📎 退保文件 ${insDocs.length}</button>
+                   ${pr.insWithdrawnAt?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${pr.insWithdrawnAt.slice(0,10)} ${pr.insWithdrawnBy||''}</div>`:''}`
+                : `<div style="font-size:12px;font-weight:700;color:#DC2626">✕ 未退保</div>
+                   <div style="font-size:10px;color:#C47A00;margin-top:3px">請至該同仁「上傳文件 → 退保資訊」上傳</div>`}
             </td>
             <td data-label="標記人／原因"><div style="font-size:11.5px">${pr.markedBy||'—'}</div>
               <div style="font-size:11px;color:var(--text3)">${pr.reason||'—'}</div></td>
@@ -3024,6 +3022,22 @@ async function setAccountDisabled(uid, disabled){
 }
 
 // ── 離職：移到離職員工 + 停用帳號 ──
+// ── 退保判定：完全以「上傳文件 → 退保資訊」是否有檔案為準（不開放手動勾選）──
+function hasInsLeaveDoc(e){
+  return !!(e && e.docs && Array.isArray(e.docs.insLeave) && e.docs.insLeave.length > 0);
+}
+
+// 依退保狀態同步 leaveDate（薪資計算的離職日會讀這個欄位）
+// 已退保 → 寫入離職日；未退保 → 清空
+function syncLeaveDateByIns(e){
+  if(!e) return;
+  if(e.pendingResign && hasInsLeaveDoc(e)){
+    e.leaveDate = e.pendingResign.resignDate || '';
+  } else if(e.pendingResign){
+    delete e.leaveDate;
+  }
+}
+
 // ── 標記離職（不立即移出，進入「離職待審」）──
 window.resignEmployee=async function(id){
   const r=employees.find(x=>x.id===id);
@@ -3038,18 +3052,13 @@ window.resignEmployee=async function(id){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ alert('日期格式不正確，請用 YYYY-MM-DD'); return; }
   const reason=prompt('離職原因（選填）：','')||'';
 
-  // 若「上傳文件 → 退保資訊」已有檔案，直接視為已退保
-  const _hasInsDoc = Array.isArray(r.docs && r.docs.insLeave) && r.docs.insLeave.length > 0;
   r.pendingResign = {
     resignDate: d,
     reason: reason.trim(),
     markedBy: currentUserName,
-    markedAt: new Date().toISOString(),
-    insWithdrawn: _hasInsDoc,
-    insWithdrawnAt: _hasInsDoc ? new Date().toISOString() : '',
-    insWithdrawnBy: _hasInsDoc ? currentUserName : '',
-    insWithdrawnAuto: _hasInsDoc
+    markedAt: new Date().toISOString()
   };
+  syncLeaveDateByIns(r);   // 已有退保文件 → 同步帶入離職日
   // ⚠ status 維持「在職」：當月薪資、排班、勞健保計算都還需要這個人
   render();
   showToast('儲存中...');
@@ -3063,23 +3072,11 @@ window.cancelPendingResign=async function(id){
   if(!r||!r.pendingResign)return;
   if(!confirm(`確定要取消「${r.name}」的離職標記嗎？`))return;
   delete r.pendingResign;
+  delete r.leaveDate;      // 一併清除薪資計算用的離職日
   render();
   showToast('儲存中...');
   await saveData('取消離職標記', r.name);
   showToast('已取消離職標記 ✓');
-};
-
-// ── 切換退保狀態（管理員）──
-window.toggleInsWithdrawn=async function(id, checked){
-  if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可確認退保'); return; }
-  const r=employees.find(x=>x.id===id);
-  if(!r||!r.pendingResign)return;
-  r.pendingResign.insWithdrawn = !!checked;
-  r.pendingResign.insWithdrawnAt = checked ? new Date().toISOString() : '';
-  r.pendingResign.insWithdrawnBy = checked ? currentUserName : '';
-  r.pendingResign.insWithdrawnAuto = false;   // 手動調整後不再被文件連動
-  render();
-  await saveData('更新退保狀態', `${r.name}：${checked?'已退保':'未退保'}`);
 };
 
 // ── 批次確認離職：真正移入離職同仁 ──
@@ -3089,7 +3086,7 @@ window.confirmResignBatch=async function(){
   if(!ids.length){ showToast('請先勾選要確認離職的同仁'); return; }
 
   const targets=ids.map(id=>employees.find(e=>e.id===id)).filter(Boolean);
-  const noIns=targets.filter(e=>!e.pendingResign?.insWithdrawn);
+  const noIns=targets.filter(e=>!hasInsLeaveDoc(e));
 
   let msg=`確定要將以下 ${targets.length} 位同仁轉入離職同仁？\n\n`
         + targets.map(e=>`・${e.name}（${e.pendingResign.resignDate}）`).join('\n');
@@ -3212,13 +3209,12 @@ window.uploadEmpDocs = async function(empId, catKey, inputEl){
   if(!Array.isArray(r.docs[catKey])) r.docs[catKey] = [];
   r.docs[catKey] = [...r.docs[catKey], ...uploaded];
 
-  // 上傳「退保資訊」且該同仁在離職待審中 → 自動標記已退保
+  // 上傳「退保資訊」且該同仁在離職待審中 → 自動視為已退保，並帶入薪資離職日
   let autoIns = false;
-  if(catKey==='insLeave' && r.pendingResign && !r.pendingResign.insWithdrawn){
-    r.pendingResign.insWithdrawn   = true;
+  if(catKey==='insLeave' && r.pendingResign){
     r.pendingResign.insWithdrawnAt = new Date().toISOString();
     r.pendingResign.insWithdrawnBy = currentUserName;
-    r.pendingResign.insWithdrawnAuto = true;   // 來源＝文件上傳，刪光文件時可自動回復
+    syncLeaveDateByIns(r);
     autoIns = true;
   }
 
@@ -3227,8 +3223,8 @@ window.uploadEmpDocs = async function(empId, catKey, inputEl){
   const catName = (DOC_CATS.find(c=>c.key===catKey)||{}).name || catKey;
   await saveData('上傳文件', `${r.name}／${catName} ${uploaded.length}件`);
   showToast(autoIns
-    ? `已上傳 ${uploaded.length} 個檔案，並自動標記「已退保」✓`
-    : `已上傳 ${uploaded.length} 個檔案 ✓`, autoIns?5000:2000);
+    ? `已上傳 ${uploaded.length} 個檔案，已標記「已退保」，薪資離職日設為 ${r.pendingResign.resignDate} ✓`
+    : `已上傳 ${uploaded.length} 個檔案 ✓`, autoIns?6000:2000);
 };
 
 window.previewEmpDoc = function(empId, catKey, idx){
@@ -3301,21 +3297,19 @@ window.deleteEmpDoc = async function(empId, catKey, idx){
   }
   list.splice(idx,1);
 
-  // 退保文件全部刪除，且「已退保」是由文件自動標記的 → 自動回復為未退保
+  // 退保文件全部刪除 → 回復為未退保，並清空薪資離職日
   let reverted = false;
-  if(catKey==='insLeave' && list.length===0
-     && r.pendingResign && r.pendingResign.insWithdrawn && r.pendingResign.insWithdrawnAuto){
-    r.pendingResign.insWithdrawn   = false;
+  if(catKey==='insLeave' && list.length===0 && r.pendingResign){
     r.pendingResign.insWithdrawnAt = '';
     r.pendingResign.insWithdrawnBy = '';
-    r.pendingResign.insWithdrawnAuto = false;
+    syncLeaveDateByIns(r);
     reverted = true;
   }
 
   render();
   showToast('儲存中...');
   await saveData('刪除文件', `${r.name}／${catName}`);
-  showToast(reverted ? '已刪除，退保狀態回復為「未退保」' : '已刪除 ✓', reverted?5000:2000);
+  showToast(reverted ? '已刪除，退保狀態回復「未退保」，薪資離職日已清空' : '已刪除 ✓', reverted?6000:2000);
 };
 
 window.deleteInterviewFile=async function(empId,idx){
