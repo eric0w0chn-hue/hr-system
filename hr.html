@@ -210,7 +210,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
   .topbar{padding:0 12px;gap:6px}
   .topbar h1{font-size:14px}
   .back-btn{font-size:11px;padding:4px 9px}
-  .tabs{padding:0 10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  .tabs{padding:0 10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
   .tabs::-webkit-scrollbar{display:none}
   .tab{padding:11px 12px;font-size:12.5px;flex:0 0 auto}
   .topbar h1{font-size:13px}
@@ -1559,12 +1559,31 @@ function render() {
 
   document.getElementById('mainContent').innerHTML = stats+tbl+det;
   attachInlineDetail();
-  document.querySelectorAll('.tab').forEach(t=>{
-    const oc=t.getAttribute('onclick')||'';
-    t.classList.toggle('active', oc.includes("'"+tab+"'"));
-  });
+  setActiveTab(tab);
   updatePendingResignCount();
   bindSearchInput();
+}
+
+// 設定目前分頁的 active 樣式，並把該分頁按鈕捲入可視範圍。
+// 手機版分頁列可橫向捲動，切換後若選中的分頁在畫面外，使用者會看不出已切換。
+function setActiveTab(key){
+  let activeEl=null;
+  document.querySelectorAll('.tab').forEach(t=>{
+    const on=(t.getAttribute('onclick')||'').includes("'"+key+"'");
+    t.classList.toggle('active', on);
+    if(on) activeEl=t;
+  });
+  if(activeEl){
+    requestAnimationFrame(()=>{
+      try{
+        // inline:'center' 只影響水平方向；block:'nearest' 避免動到頁面垂直捲動
+        activeEl.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+      }catch(_){
+        const bar=activeEl.parentElement;
+        if(bar) bar.scrollLeft = activeEl.offsetLeft - (bar.clientWidth-activeEl.offsetWidth)/2;
+      }
+    });
+  }
 }
 
 // 捲動到選取中的資料列。
@@ -1591,7 +1610,14 @@ window.gotoEmployee = function(id){
   const idx=list.findIndex(r=>r.id===id);
   currentPage = idx>=0 ? Math.floor(idx/PAGE_SIZE)+1 : 1;
   render();
-  setTimeout(scrollSelectedRowIntoView, 60);
+  const r = employees.find(x=>x.id===id);
+  showToast(`已切換至在職同仁：${r?r.name:''}`, 2500);
+  // 先回到分頁列位置，確保使用者看得到畫面已切換，再捲到該同仁
+  try{
+    const tabsEl=document.querySelector('.tabs');
+    if(tabsEl) tabsEl.scrollIntoView({behavior:'auto', block:'start'});
+  }catch(_){}
+  setTimeout(scrollSelectedRowIntoView, 180);
 };
 
 // ── 離職待審清單（管理員）──
@@ -1639,9 +1665,9 @@ function renderPendingResign(){
           return `<tr class="data-row${withdrawn?'':' pr-row'}">
             <td data-label=""><input type="checkbox" class="pr-check" value="${e.id}" style="width:16px;height:16px"></td>
             <td data-label="姓名">
-              <a href="javascript:void(0)" onclick="gotoEmployee(${e.id})"
-                 style="font-weight:700;color:#1D4ED8;text-decoration:none;border-bottom:1px dotted #1D4ED8"
-                 title="檢視此同仁的在職資料">${e.name} ↗</a>
+              <button type="button" onclick="event.stopPropagation();gotoEmployee(${e.id})"
+                 style="background:none;border:none;padding:0;font-family:inherit;font-size:13px;cursor:pointer;font-weight:700;color:#1D4ED8;border-bottom:1px dotted #1D4ED8"
+                 title="檢視此同仁的在職資料">${e.name} ↗</button>
               <div style="font-size:11px;color:var(--text3)">${e.title||'—'}</div>
             </td>
             <td data-label="工作地點">${dispStore(e.workLocation)||'—'}</td>
@@ -1668,10 +1694,7 @@ function renderPendingResign(){
     : '<div class="empty-state">目前沒有離職待審的同仁 🎉</div>';
 
   document.getElementById('mainContent').innerHTML = stats + body;
-  document.querySelectorAll('.tab').forEach(t=>{
-    const oc=t.getAttribute('onclick')||'';
-    t.classList.toggle('active', oc.includes("'pendresign'"));
-  });
+  setActiveTab('pendresign');
   updatePendingResignCount();
 }
 
@@ -1787,10 +1810,7 @@ function renderOverview(){
   </div>`;
 
   document.getElementById('mainContent').innerHTML = stats + body;
-  document.querySelectorAll('.tab').forEach(t=>{
-    const oc=t.getAttribute('onclick')||'';
-    t.classList.toggle('active', oc.includes("'overview'"));
-  });
+  setActiveTab('overview');
   updatePendingResignCount();
 }
 
