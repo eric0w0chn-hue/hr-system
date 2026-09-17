@@ -28,7 +28,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 #clockLabel{font-size:13px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.5px}
 .card{background:var(--card-bg);border:none;overflow:visible;margin-bottom:16px}
 /* 分頁列 */
-.tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;padding:0 max(20px, calc(50vw - 630px))}
+.tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;padding:0 max(20px, calc(50vw - 630px));position:sticky;top:60px;z-index:150}
+/* 嵌入 dashboard 時 topbar 隱藏，分頁列直接貼齊頂端 */
+[data-embed="1"] .tabs{top:0}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .tab:hover:not(.active){color:var(--text);background:#F1F5F9}
@@ -1208,7 +1210,7 @@ function render() {
           //     原本此處計算的 hasAlert / alertMsg 未被任何 UI 使用（死代碼），已移除。
         return`<tr class="data-row${selId===r.id?' selected':''}${r.pendingResign?' pr-row':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
-        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button>${r.pendingResign?`<span class="pr-badge" title="離職日 ${r.pendingResign.resignDate}｜${hasInsLeaveDoc(r)?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}</div></td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div>${r.pendingResign?`<span class="pr-badge" style="margin-left:0;margin-right:6px" title="離職日 ${r.pendingResign.resignDate}｜${hasInsLeaveDoc(r)?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}<span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
