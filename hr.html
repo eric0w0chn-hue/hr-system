@@ -3250,6 +3250,7 @@ window.confirmResignBatch=async function(){
 
 // ── 復職 + 啟用帳號 ──
 window.restoreEmployee=async function(id){
+  if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可復職'); return; }
   const r=resigned.find(x=>x.id===id);
   if(!r)return;
   if(!confirm(`確定要將「${r.name}」復職嗎？`))return;
