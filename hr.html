@@ -405,6 +405,9 @@ let interviewLocations=[], workLocations=[], titleOptions=[], bankOptions=[], in
 let sortField='', sortDir=1;
 let currentPage=1;
 const PAGE_SIZE=15; // sortDir: 1=升冪 -1=降冪
+let _hrDataReady=false, _resignedLoaded=false, _resignedLoadPromise=null;
+let _resignedLoadError='', _dataLoadId=0;
+const HR_CACHE_KEY='hr_cache_v2'; // null 代表離職名單尚未載入，不是空名單
 
 // ── 民國年轉換工具 ──
 // 西元 YYYY-MM-DD → 民國 YYY年MM月DD日
@@ -591,23 +594,84 @@ function showLoading(show) {
   el.style.opacity=show?'1':'0';
 }
 
-async function loadData() {
+function cacheHrData(){
+  if(!_hrDataReady) return;
+  try {
+    sessionStorage.setItem(HR_CACHE_KEY, JSON.stringify({
+      ts: Date.now(), v: _dataVersion,
+      interviews, employees, resigned: _resignedLoaded ? resigned : null,
+      interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
+    }));
+  } catch(e) { /* 可能超出 sessionStorage 上限，忽略 */ }
+}
+
+// 離職名單按需載入；用唯讀 transaction 確保名單與版本來自同一快照。
+async function ensureResignedLoaded(){
+  if(_resignedLoaded) return true;
+  if(!_hrDataReady) return false;
+  if(_resignedLoadPromise) return _resignedLoadPromise;
+  const loadId=_dataLoadId;
+  _resignedLoadError='';
+  _resignedLoadPromise=(async()=>{
+    try {
+      const result=await runTransaction(db, async tx=>{
+        const [vSnap,rSnap]=await Promise.all([
+          tx.get(doc(db,'hr','_version')),
+          tx.get(doc(db,'hr','resigned'))
+        ]);
+        return {v:vSnap.exists()?vSnap.data().v:0, list:rSnap.exists()?(rSnap.data().list||[]):[]};
+      });
+      if(loadId!==_dataLoadId) return false;
+      if(result.v!==_dataVersion) throw new Error('HR_VERSION_CHANGED');
+      resigned=result.list;
+      _resignedLoaded=true;
+      // 只補齊已驗證的快取，不把使用者正在編輯／儲存的在職資料提前快取。
+      try {
+        const cached=JSON.parse(sessionStorage.getItem(HR_CACHE_KEY));
+        if(cached && cached.v===result.v){
+          cached.resigned=resigned;
+          sessionStorage.setItem(HR_CACHE_KEY,JSON.stringify(cached));
+        }
+      } catch(e) {}
+      return true;
+    } catch(e) {
+      if(loadId===_dataLoadId){
+        console.error('[hr] 離職名單載入失敗',e);
+        _resignedLoadError=e.message==='HR_VERSION_CHANGED'
+          ? '資料已被更新，請重新整理後再操作'
+          : '離職名單載入失敗，請重試';
+        showToast(_resignedLoadError,4000);
+      }
+      return false;
+    } finally {
+      if(loadId===_dataLoadId) _resignedLoadPromise=null;
+    }
+  })();
+  return _resignedLoadPromise;
+}
+
+async function loadData(storeReady=Promise.resolve()) {
+  _hrDataReady=false;
+  _resignedLoaded=false;
+  _resignedLoadPromise=null;
+  _resignedLoadError='';
+  _dataLoadId++;
   try {
     showLoading(true);
     // ── 5 分鐘快取：先讀 _version 判斷資料是否有變，同 version + 5 分內直接用 sessionStorage ──
-    const CACHE_KEY = 'hr_cache_v1';
+    const CACHE_KEY = HR_CACHE_KEY;
     const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
     let cachedData = null;
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
       if(raw){
         const c = JSON.parse(raw);
-        if(c && (Date.now() - c.ts) < CACHE_TTL) cachedData = c;
+        if(c && (Date.now() - c.ts) < CACHE_TTL && Array.isArray(c.employees) && Array.isArray(c.interviews)) cachedData = c;
       }
     } catch(e) {}
 
-    // 先讀 _version 檢查資料是否過期（單一 doc 讀取，很快）
-    const verSnap = await getDoc(doc(db,'hr','_version'));
+    // 先讀版本再讀主要資料；求職者仍供新增同仁比對，離職名單不阻擋進頁。
+    const verSnap=await getDoc(doc(db,'hr','_version'));
     const remoteVer = verSnap.exists() ? verSnap.data().v : 0;
 
     if(cachedData && cachedData.v === remoteVer){
@@ -615,6 +679,7 @@ async function loadData() {
       interviews         = cachedData.interviews||[];
       employees          = cachedData.employees||[];
       resigned           = cachedData.resigned||[];
+      _resignedLoaded    = Array.isArray(cachedData.resigned);
       _dataVersion       = cachedData.v;
       interviewLocations = cachedData.interviewLocations||[];
       workLocations      = cachedData.workLocations||[];
@@ -623,31 +688,25 @@ async function loadData() {
       insuranceGrades    = cachedData.insuranceGrades||[];
     } else {
       // 快取失效或不存在，重讀
-      const [ivSnap,evSnap,rsSnap,locSnap] = await Promise.all([
+      const [ivSnap,evSnap,locSnap] = await Promise.all([
         getDoc(doc(db,'hr','interviews')),
         getDoc(doc(db,'hr','employees')),
-        getDoc(doc(db,'hr','resigned')),
-        getDoc(doc(db,'hr','settings')),
+        getDoc(doc(db,'hr','settings'))
       ]);
       interviews       = ivSnap.exists() ? ivSnap.data().list : [];
       employees        = evSnap.exists() ? evSnap.data().list : [];
-      resigned         = rsSnap.exists() ? rsSnap.data().list : [];
+      resigned         = [];
       _dataVersion     = remoteVer;
       interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
       workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
       titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
       bankOptions        = locSnap.exists() ? (locSnap.data().bankOptions||[]) : [];
       insuranceGrades    = locSnap.exists() ? (locSnap.data().insuranceGrades||[]) : [];
-      // 存入快取
-      try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-          ts: Date.now(),
-          v: remoteVer,
-          interviews, employees, resigned,
-          interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
-        }));
-      } catch(e) { /* 可能超出 sessionStorage 上限，忽略 */ }
     }
+    await storeReady;
+    _hrDataReady=true;
+    cacheHrData();
+    if(tab==='resigned') await ensureResignedLoaded();
   } catch(e) {
     console.error(e);
     showToast('載入資料失敗，請重新整理');
@@ -677,6 +736,7 @@ async function writeOpLog(action, detail=''){
 let _dataVersion = null;
 
 async function saveData(action='', detail='') {
+  if(!_hrDataReady){ showToast('資料尚未載入完成，請重新整理後再操作'); return false; }
   const MAX_TRY = 3;
   let lastErr = null;
 
@@ -686,10 +746,11 @@ async function saveData(action='', detail='') {
       //    （每次重試都重讀，確保其他店資料是最新的）
       let finalEmployees = employees;
       let finalResigned  = resigned;
+      const writeResigned = _resignedLoaded;
       if((currentUserRole==='manager' || currentUserRole==='consultant') && currentUserLocations.length){
         const [fullEmpSnap, fullResSnap] = await Promise.all([
           getDoc(doc(db,'hr','employees')),
-          getDoc(doc(db,'hr','resigned')),
+          writeResigned ? getDoc(doc(db,'hr','resigned')) : Promise.resolve(null),
         ]);
         if(fullEmpSnap.exists()){
           const fullList = fullEmpSnap.data().list || [];
@@ -697,7 +758,7 @@ async function saveData(action='', detail='') {
           const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation) && !myIds.has(r.id));
           finalEmployees = [...employees, ...othersEmp];
         }
-        if(fullResSnap.exists()){
+        if(fullResSnap && fullResSnap.exists()){
           const fullResList = fullResSnap.data().list || [];
           const myResIds = new Set(resigned.map(r=>r.id));
           const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation) && !myResIds.has(r.id));
@@ -724,19 +785,14 @@ async function saveData(action='', detail='') {
         tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
         tx.set(doc(db,'hr','interviews'), {list:interviews});
         tx.set(doc(db,'hr','employees'),  {list:finalEmployees});
-        tx.set(doc(db,'hr','resigned'),   {list:finalResigned});
+        // 尚未載入的離職名單絕不寫回，避免空陣列覆蓋歷史資料。
+        if(writeResigned) tx.set(doc(db,'hr','resigned'), {list:finalResigned});
         tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
         _dataVersion = nextVer;
       });
 
       // ── 成功 ──
-      try {
-        sessionStorage.setItem('hr_cache_v1', JSON.stringify({
-          ts: Date.now(), v: _dataVersion,
-          interviews, employees, resigned,
-          interviewLocations, workLocations, titleOptions, bankOptions, insuranceGrades
-        }));
-      } catch(e) {}
+      cacheHrData();
       if(action) writeOpLog(action, detail);
       return true;
 
@@ -843,8 +899,6 @@ let currentUserLocations = [];
 let currentUserName = 'Admin';
 
 authGuard('hr', async ({ role, locations, userData }) => {
-  // 載入店家主檔（供央廚判定用；失敗時 isCentralLoc 會自動回退到寫死清單）
-  try{ await initStoreDisplay(); }catch(_){}
   currentUserRole      = role;
   currentUserLocations = locations;
   currentUserName      = userData.name || userData.idNo || 'Unknown';
@@ -856,7 +910,8 @@ authGuard('hr', async ({ role, locations, userData }) => {
   if(ovTab) ovTab.style.display = (role==='admin') ? '' : 'none';
   const prTab = document.getElementById('tab-pendresign');
   if(prTab) prTab.style.display = (role==='admin') ? '' : 'none';
-  await loadData();
+  // 店家主檔與人員資料並行；仍等主檔就緒後才渲染，保留央廚判定與店名顯示。
+  await loadData(initStoreDisplay().catch(()=>{}));
   render();
 });
 
@@ -925,7 +980,17 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { if((t==='overview'||t==='pendresign')&&currentUserRole!=='admin')return; tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
+async function switchTab(t) {
+  if((t==='overview'||t==='pendresign')&&currentUserRole!=='admin')return;
+  if(!_hrDataReady){ showToast('資料載入中，請稍候'); return; }
+  tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;
+  if(t==='resigned' && !_resignedLoaded){
+    const loading=ensureResignedLoaded();
+    render();
+    await loading;
+    if(tab==='resigned') render();
+  } else render();
+}
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
@@ -1009,6 +1074,14 @@ function sth(label,field,w){
   return `<th style="width:${w}" class="sortable ${cls}" onclick="setSort('${field}')">${label}</th>`;
 }
 function render() {
+  if(!_hrDataReady || (tab==='resigned' && !_resignedLoaded)){
+    setActiveTab(tab);
+    const msg=!_hrDataReady ? '人員資料尚未載入完成，請重新整理' : (_resignedLoadError || '正在載入離職同仁…');
+    const retry=_hrDataReady && _resignedLoadError ? `<button class="btn btn-outline" onclick="switchTab('resigned')">重試</button> ` : '';
+    const reload=!_hrDataReady || _resignedLoadError ? '<button class="btn btn-outline" onclick="location.reload()">重新整理</button>' : '';
+    document.getElementById('mainContent').innerHTML=`<div class="empty-state">${msg}<div style="margin-top:12px">${retry}${reload}</div></div>`;
+    return;
+  }
   if(tab==='overview'){ renderOverview(); return; }
   if(tab==='pendresign'){ renderPendingResign(); return; }
   const list=getList();
@@ -3211,6 +3284,7 @@ window.confirmResignBatch=async function(){
   if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可確認離職'); return; }
   const ids=[...document.querySelectorAll('.pr-check:checked')].map(el=>Number(el.value));
   if(!ids.length){ showToast('請先勾選要確認離職的同仁'); return; }
+  if(!await ensureResignedLoaded()) return;
 
   const targets=ids.map(id=>employees.find(e=>e.id===id)).filter(Boolean);
   const noIns=targets.filter(e=>!hasInsLeaveDoc(e));
@@ -3251,6 +3325,7 @@ window.confirmResignBatch=async function(){
 // ── 復職 + 啟用帳號 ──
 window.restoreEmployee=async function(id){
   if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可復職'); return; }
+  if(!await ensureResignedLoaded()) return;
   const r=resigned.find(x=>x.id===id);
   if(!r)return;
   if(!confirm(`確定要將「${r.name}」復職嗎？`))return;
@@ -3452,6 +3527,7 @@ window.deleteInterviewFile=async function(empId,idx){
 
 // ── 刪除離職記錄 ──
 window.delResigned=async function(id){
+  if(!await ensureResignedLoaded()) return;
   const _t = resigned.find(r=>r.id===id) || {};
   const _name = _t.name || String(id);
   const _loc  = _t.workLocation || '';
