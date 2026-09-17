@@ -88,6 +88,10 @@ tr.detail-row .detail{margin:0;border-radius:0;border-left:none;border-right:non
 .dtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .dtab:hover:not(.active){background:#F1F5F9;color:var(--text)}
 .detail-body{padding:18px 20px}
+/* 離職待審 */
+.pr-badge{display:inline-flex;align-items:center;margin-left:6px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;white-space:nowrap}
+tr.data-row.pr-row>td{background:#FFFBFB}
+.pr-warn{background:#FFF7ED;border:1px solid #FDBA74;color:#C2410C;border-radius:8px;padding:10px 14px;font-size:12.5px;line-height:1.7;margin-bottom:12px}
 /* 上傳文件分頁 */
 .docs-wrap{max-width:100%}
 .docs-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -343,6 +347,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
       <button class="tab active" onclick="switchTab('employee')">在職同仁</button>
       <button class="tab" onclick="switchTab('resigned')">離職同仁</button>
       <button class="tab" onclick="switchTab('interview')">求職者資訊</button>
+      <button class="tab" id="tab-pendresign" style="display:none" onclick="switchTab('pendresign')">離職待審<span id="prCount" class="pr-badge" style="margin-left:5px;display:none"></span></button>
       <button class="tab" id="tab-overview" style="display:none" onclick="switchTab('overview')">體系現有人數</button>
     </div>
     <div class="main" id="mainContent"></div>
@@ -844,6 +849,8 @@ authGuard('hr', async ({ role, locations, userData }) => {
   // 「體系現有人數」分頁僅管理員可見
   const ovTab = document.getElementById('tab-overview');
   if(ovTab) ovTab.style.display = (role==='admin') ? '' : 'none';
+  const prTab = document.getElementById('tab-pendresign');
+  if(prTab) prTab.style.display = (role==='admin') ? '' : 'none';
   await loadData();
   render();
 });
@@ -913,7 +920,7 @@ const eBadge  = s => { const m={在職:'bt',留職停薪:'ba',離職:'br'}; retu
 const perfBadge = l => { const m={優秀:'bg',良好:'bb',待改善:'ba',不合格:'br'}; return`<span class="badge ${m[l]||'bgr'}">${l}</span>` };
 const fitBadge = s => { const m={合適:'bg',尚可:'ba',不佳:'br'}; return`<span class="badge ${m[s]||'bgr'}">${s||'—'}</span>` };
 
-function switchTab(t) { if(t==='overview'&&currentUserRole!=='admin')return; tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
+function switchTab(t) { if((t==='overview'||t==='pendresign')&&currentUserRole!=='admin')return; tab=t;selId=null;detailTab='basic';sq='';sf='';sloc='';sortField='';sortDir=1;currentPage=1;render(); }
 
 function getList() {
   const src = tab==='interview' ? interviews : tab==='resigned' ? resigned : employees;
@@ -998,6 +1005,7 @@ function sth(label,field,w){
 }
 function render() {
   if(tab==='overview'){ renderOverview(); return; }
+  if(tab==='pendresign'){ renderPendingResign(); return; }
   const list=getList();
   const all=tab==='interview'?interviews:employees;
   let stats='',tbl='',det='';
@@ -1196,9 +1204,9 @@ function render() {
           // 註：獎金提醒（廚師鞋／健康檢查／生日禮金／久任獎金）與特休結算提醒
           //     皆由專屬功能頁負責：bonus.html（獎金補助）、annual_leave.html（特休假管理）。
           //     原本此處計算的 hasAlert / alertMsg 未被任何 UI 使用（死代碼），已移除。
-        return`<tr class="data-row${selId===r.id?' selected':''}" onclick="detailTab='basic';setSelId(${r.id})">
+        return`<tr class="data-row${selId===r.id?' selected':''}${r.pendingResign?' pr-row':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
-        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button>${r.pendingResign?`<span class="pr-badge" title="離職日 ${r.pendingResign.resignDate}｜${r.pendingResign.insWithdrawn?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}</div></td>
         <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
@@ -1534,8 +1542,11 @@ function render() {
       det=`<div class="detail">
         <div class="detail-actionbar">
           ${eBadge(sel.status)}
+          ${sel.pendingResign?`<span class="pr-badge">🚪 離職待審 ${sel.pendingResign.resignDate}｜${sel.pendingResign.insWithdrawn?'已退保':'未退保'}</span>`:''}
           <button class="btn btn-sm btn-outline" onclick="openModal('editEmployee',${sel.id})">編輯</button>
-          <button class="btn btn-sm btn-outline" style="color:#e24b4a;border-color:#e24b4a" onclick="resignEmployee(${sel.id})">離職</button>
+          ${sel.pendingResign
+            ? `<button class="btn btn-sm btn-outline" onclick="cancelPendingResign(${sel.id})">↩ 取消離職標記</button>`
+            : `<button class="btn btn-sm btn-outline" style="color:#e24b4a;border-color:#e24b4a" onclick="resignEmployee(${sel.id})">離職</button>`}
         </div>
         <div class="detail-tabs">${dtabs.map(([id,lb])=>`<button class="dtab${detailTab===id?' active':''}" onclick="setDetailTab('${id}')">${lb}</button>`).join('')}</div>
         <div class="detail-body">${body}</div>
@@ -1550,7 +1561,98 @@ function render() {
     const oc=t.getAttribute('onclick')||'';
     t.classList.toggle('active', oc.includes("'"+tab+"'"));
   });
+  updatePendingResignCount();
   bindSearchInput();
+}
+
+// ── 離職待審清單（管理員）──
+function renderPendingResign(){
+  if(currentUserRole!=='admin'){ tab='employee'; render(); return; }
+  const list = employees.filter(e=>e.pendingResign)
+    .sort((a,b)=>(a.pendingResign.resignDate||'').localeCompare(b.pendingResign.resignDate||''));
+
+  const thisYM = new Date().toISOString().slice(0,7);
+  const thisMonth = list.filter(e=>(e.pendingResign.resignDate||'').startsWith(thisYM)).length;
+  const noIns     = list.filter(e=>!e.pendingResign.insWithdrawn).length;
+
+  const stats=`<div class="stats">
+    <div class="sc"><div class="sl">待審總數</div><div class="sn">${list.length}</div></div>
+    <div class="sc"><div class="sl">本月離職</div><div class="sn">${thisMonth}</div></div>
+    <div class="sc"><div class="sl">尚未退保</div><div class="sn" style="${noIns?'color:#DC2626':'color:#16A34A'}">${noIns}</div></div>
+  </div>`;
+
+  const body = list.length ? `
+    <div class="pr-warn">
+      標記離職的同仁<b>仍留在在職名單</b>，狀態維持「在職」，當月薪資、排班與勞健保計算不受影響。<br>
+      請先確認<b>退保</b>完成後，再勾選並按「確認離職」轉入離職同仁（帳號會一併停用）。<br>
+      💡 於「上傳文件 → 退保資訊」上傳檔案時，會<b>自動勾選已退保</b>；點「📎 退保文件」可直接檢視。
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+        <input type="checkbox" onchange="document.querySelectorAll('.pr-check').forEach(c=>c.checked=this.checked)"> 全選
+      </label>
+      <button class="btn btn-sm btn-primary" onclick="confirmResignBatch()">✓ 確認離職（批次）</button>
+    </div>
+    <div class="tw list-wrap"><table class="list-table">
+      <thead><tr>
+        <th style="width:40px"></th>
+        <th style="width:110px">姓名</th>
+        <th style="width:120px">工作地點</th>
+        <th style="width:110px">離職日</th>
+        <th style="width:120px">投保地點</th>
+        <th style="width:110px">退保確認</th>
+        <th style="width:130px">標記人／原因</th>
+        <th style="width:60px">操作</th>
+      </tr></thead>
+      <tbody>
+        ${list.map(e=>{
+          const pr=e.pendingResign;
+          const insLoc=(e.insurance&&e.insurance.insLocation)||'';
+          const insDocs=(e.docs&&Array.isArray(e.docs.insLeave))?e.docs.insLeave:[];
+          return `<tr class="data-row${pr.insWithdrawn?'':' pr-row'}">
+            <td data-label=""><input type="checkbox" class="pr-check" value="${e.id}" style="width:16px;height:16px"></td>
+            <td data-label="姓名"><b>${e.name}</b><div style="font-size:11px;color:var(--text3)">${e.title||'—'}</div></td>
+            <td data-label="工作地點">${dispStore(e.workLocation)||'—'}</td>
+            <td data-label="離職日">${pr.resignDate||'—'}</td>
+            <td data-label="投保地點">${insLoc?dispStore(insLoc):'<span style="color:#C47A00">未設定</span>'}</td>
+            <td data-label="退保確認">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:${pr.insWithdrawn?'#16A34A':'#DC2626'}">
+                <input type="checkbox" ${pr.insWithdrawn?'checked':''} style="width:16px;height:16px"
+                  onchange="toggleInsWithdrawn(${e.id}, this.checked)">
+                ${pr.insWithdrawn?'已退保':'未退保'}
+              </label>
+              ${pr.insWithdrawn&&pr.insWithdrawnAt?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${pr.insWithdrawnAt.slice(0,10)} ${pr.insWithdrawnBy||''}${pr.insWithdrawnAuto?'（文件）':''}</div>`:''}
+              ${insDocs.length
+                ? `<button class="btn btn-sm btn-outline" style="font-size:10.5px;padding:2px 8px;margin-top:4px"
+                     onclick="previewEmpDoc(${e.id},'insLeave',0)">📎 退保文件 ${insDocs.length}</button>`
+                : `<div style="font-size:10px;color:#C47A00;margin-top:4px">未上傳退保文件</div>`}
+            </td>
+            <td data-label="標記人／原因"><div style="font-size:11.5px">${pr.markedBy||'—'}</div>
+              <div style="font-size:11px;color:var(--text3)">${pr.reason||'—'}</div></td>
+            <td data-label="操作">
+              <button class="ibt" title="取消離職標記" style="color:#e24b4a" onclick="cancelPendingResign(${e.id})">↩</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`
+    : '<div class="empty-state">目前沒有離職待審的同仁 🎉</div>';
+
+  document.getElementById('mainContent').innerHTML = stats + body;
+  document.querySelectorAll('.tab').forEach(t=>{
+    const oc=t.getAttribute('onclick')||'';
+    t.classList.toggle('active', oc.includes("'pendresign'"));
+  });
+  updatePendingResignCount();
+}
+
+// 分頁上的待審數量徽章
+function updatePendingResignCount(){
+  const el=document.getElementById('prCount');
+  if(!el) return;
+  const n=employees.filter(e=>e.pendingResign).length;
+  if(n>0 && currentUserRole==='admin'){ el.textContent=n; el.style.display=''; }
+  else el.style.display='none';
 }
 
 // ── 體系現有人數總覽 ──
@@ -1660,6 +1762,7 @@ function renderOverview(){
     const oc=t.getAttribute('onclick')||'';
     t.classList.toggle('active', oc.includes("'overview'"));
   });
+  updatePendingResignCount();
 }
 
 // ── Modal ──
@@ -2921,25 +3024,104 @@ async function setAccountDisabled(uid, disabled){
 }
 
 // ── 離職：移到離職員工 + 停用帳號 ──
+// ── 標記離職（不立即移出，進入「離職待審」）──
 window.resignEmployee=async function(id){
   const r=employees.find(x=>x.id===id);
   if(!r)return;
-  const resignDate=prompt('請輸入離職日期（格式：YYYY-MM-DD）：',new Date().toISOString().slice(0,10));
-  if(resignDate===null)return;
-  const record={...r, status:'離職', resignDate:resignDate.trim()};
-  resigned.unshift(record);
-  employees=employees.filter(x=>x.id!==id);
-  if(selId===id)selId=null;
-  render();
-  showToast('已移至離職同仁...');
-  await saveData();
-  // 停用帳號
-  if(r.uid){
-    await setAccountDisabled(r.uid, true);
-    showToast('離職記錄已儲存，帳號已停用 ✓');
-  } else {
-    showToast('離職記錄已儲存 ✓');
+  if(r.pendingResign){
+    showToast('此同仁已在離職待審清單中');
+    return;
   }
+  const resignDate=prompt(`請輸入「${r.name}」的離職日期（格式：YYYY-MM-DD）：`,new Date().toISOString().slice(0,10));
+  if(resignDate===null)return;
+  const d=(resignDate||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ alert('日期格式不正確，請用 YYYY-MM-DD'); return; }
+  const reason=prompt('離職原因（選填）：','')||'';
+
+  // 若「上傳文件 → 退保資訊」已有檔案，直接視為已退保
+  const _hasInsDoc = Array.isArray(r.docs && r.docs.insLeave) && r.docs.insLeave.length > 0;
+  r.pendingResign = {
+    resignDate: d,
+    reason: reason.trim(),
+    markedBy: currentUserName,
+    markedAt: new Date().toISOString(),
+    insWithdrawn: _hasInsDoc,
+    insWithdrawnAt: _hasInsDoc ? new Date().toISOString() : '',
+    insWithdrawnBy: _hasInsDoc ? currentUserName : '',
+    insWithdrawnAuto: _hasInsDoc
+  };
+  // ⚠ status 維持「在職」：當月薪資、排班、勞健保計算都還需要這個人
+  render();
+  showToast('儲存中...');
+  await saveData('標記離職待審', `${r.name}（${d}）`);
+  showToast(`已標記 ${r.name} 為離職待審，待管理員確認退保後轉入離職同仁`, 5000);
+};
+
+// ── 取消離職標記 ──
+window.cancelPendingResign=async function(id){
+  const r=employees.find(x=>x.id===id);
+  if(!r||!r.pendingResign)return;
+  if(!confirm(`確定要取消「${r.name}」的離職標記嗎？`))return;
+  delete r.pendingResign;
+  render();
+  showToast('儲存中...');
+  await saveData('取消離職標記', r.name);
+  showToast('已取消離職標記 ✓');
+};
+
+// ── 切換退保狀態（管理員）──
+window.toggleInsWithdrawn=async function(id, checked){
+  if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可確認退保'); return; }
+  const r=employees.find(x=>x.id===id);
+  if(!r||!r.pendingResign)return;
+  r.pendingResign.insWithdrawn = !!checked;
+  r.pendingResign.insWithdrawnAt = checked ? new Date().toISOString() : '';
+  r.pendingResign.insWithdrawnBy = checked ? currentUserName : '';
+  r.pendingResign.insWithdrawnAuto = false;   // 手動調整後不再被文件連動
+  render();
+  await saveData('更新退保狀態', `${r.name}：${checked?'已退保':'未退保'}`);
+};
+
+// ── 批次確認離職：真正移入離職同仁 ──
+window.confirmResignBatch=async function(){
+  if(currentUserRole!=='admin'){ showToast('⚠️ 僅管理員可確認離職'); return; }
+  const ids=[...document.querySelectorAll('.pr-check:checked')].map(el=>Number(el.value));
+  if(!ids.length){ showToast('請先勾選要確認離職的同仁'); return; }
+
+  const targets=ids.map(id=>employees.find(e=>e.id===id)).filter(Boolean);
+  const noIns=targets.filter(e=>!e.pendingResign?.insWithdrawn);
+
+  let msg=`確定要將以下 ${targets.length} 位同仁轉入離職同仁？\n\n`
+        + targets.map(e=>`・${e.name}（${e.pendingResign.resignDate}）`).join('\n');
+  if(noIns.length){
+    msg += `\n\n⚠️ 其中 ${noIns.length} 位尚未確認退保：\n`
+        + noIns.map(e=>`・${e.name}`).join('\n')
+        + '\n\n仍要繼續嗎？';
+  }
+  msg += '\n\n轉入後帳號將一併停用。';
+  if(!confirm(msg))return;
+  if(!confirm(`⚠️ 再次確認\n\n即將轉入 ${targets.length} 位同仁至離職同仁，此動作無法用「取消標記」復原（需用復職功能）。`))return;
+
+  const uids=[];
+  targets.forEach(e=>{
+    const pr=e.pendingResign||{};
+    const record={...e, status:'離職', resignDate:pr.resignDate||'', resignReason:pr.reason||''};
+    delete record.pendingResign;
+    resigned.unshift(record);
+    if(e.uid) uids.push(e.uid);
+  });
+  const idSet=new Set(ids);
+  employees=employees.filter(x=>!idSet.has(x.id));
+  if(idSet.has(selId)) selId=null;
+
+  render();
+  showToast('儲存中...');
+  await saveData('批次確認離職', `${targets.length}人`);
+
+  for(const uid of uids){
+    try{ await setAccountDisabled(uid, true); }catch(err){ console.warn('停用帳號失敗', uid, err); }
+  }
+  showToast(`已轉入離職同仁 ${targets.length} 位，帳號已停用 ✓`, 5000);
 };
 
 // ── 復職 + 啟用帳號 ──
@@ -3030,11 +3212,23 @@ window.uploadEmpDocs = async function(empId, catKey, inputEl){
   if(!Array.isArray(r.docs[catKey])) r.docs[catKey] = [];
   r.docs[catKey] = [...r.docs[catKey], ...uploaded];
 
+  // 上傳「退保資訊」且該同仁在離職待審中 → 自動標記已退保
+  let autoIns = false;
+  if(catKey==='insLeave' && r.pendingResign && !r.pendingResign.insWithdrawn){
+    r.pendingResign.insWithdrawn   = true;
+    r.pendingResign.insWithdrawnAt = new Date().toISOString();
+    r.pendingResign.insWithdrawnBy = currentUserName;
+    r.pendingResign.insWithdrawnAuto = true;   // 來源＝文件上傳，刪光文件時可自動回復
+    autoIns = true;
+  }
+
   render();
   showToast('儲存中...');
   const catName = (DOC_CATS.find(c=>c.key===catKey)||{}).name || catKey;
   await saveData('上傳文件', `${r.name}／${catName} ${uploaded.length}件`);
-  showToast(`已上傳 ${uploaded.length} 個檔案 ✓`);
+  showToast(autoIns
+    ? `已上傳 ${uploaded.length} 個檔案，並自動標記「已退保」✓`
+    : `已上傳 ${uploaded.length} 個檔案 ✓`, autoIns?5000:2000);
 };
 
 window.previewEmpDoc = function(empId, catKey, idx){
@@ -3106,10 +3300,22 @@ window.deleteEmpDoc = async function(empId, catKey, idx){
     console.warn('Storage 刪除失敗（可能已不存在）:', err.message);
   }
   list.splice(idx,1);
+
+  // 退保文件全部刪除，且「已退保」是由文件自動標記的 → 自動回復為未退保
+  let reverted = false;
+  if(catKey==='insLeave' && list.length===0
+     && r.pendingResign && r.pendingResign.insWithdrawn && r.pendingResign.insWithdrawnAuto){
+    r.pendingResign.insWithdrawn   = false;
+    r.pendingResign.insWithdrawnAt = '';
+    r.pendingResign.insWithdrawnBy = '';
+    r.pendingResign.insWithdrawnAuto = false;
+    reverted = true;
+  }
+
   render();
   showToast('儲存中...');
   await saveData('刪除文件', `${r.name}／${catName}`);
-  showToast('已刪除 ✓');
+  showToast(reverted ? '已刪除，退保狀態回復為「未退保」' : '已刪除 ✓', reverted?5000:2000);
 };
 
 window.deleteInterviewFile=async function(empId,idx){
