@@ -362,7 +362,7 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 <script type="module">
 import { authGuard, db, auth, writeOpLog as sysWriteOpLog, initStoreDisplay, isKitchen, dispStore } from './auth-guard.js?v=6';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, deleteField, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 // 店面名稱正規化（異體字容錯：舖/鋪）
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 
@@ -3083,6 +3083,52 @@ function syncLeaveDateByIns(e){
   }
 }
 
+// ── 清除薪資記錄中的「離職日手動覆蓋」──
+// salary.html 判斷順序為：rec.leaveOverride 優先於 HR 的 emp.leaveDate。
+// 若薪資頁曾手動填過離職日，HR 這邊再怎麼改都不會反映，故需一併清除。
+//
+// 安全設計：
+//   1) 只清除 leaveOverride 這一個欄位（用 deleteField），其餘欄位完全不動
+//   2) 只處理「當月與未來月份」——過去月份薪資已結算（salary.html 的 isMonthLocked），不得竄改
+//   3) 文件不存在就跳過，不會建立新文件
+//   4) 全程 try/catch，失敗只在 console 警告，絕不影響人事資料本身的儲存
+async function clearSalaryLeaveOverride(emp, resignDate){
+  try{
+    if(!emp || !resignDate) return 0;
+    const now = new Date();
+    const curY = now.getFullYear(), curM = now.getMonth()+1;
+
+    // 需要處理的月份：離職當月，以及前後一個月（涵蓋跨月結算與預先建立的記錄）
+    const rd = new Date(resignDate);
+    if(isNaN(rd.getTime())) return 0;
+    const months = [];
+    for(let off=-1; off<=1; off++){
+      const d = new Date(rd.getFullYear(), rd.getMonth()+off, 1);
+      const y = d.getFullYear(), m = d.getMonth()+1;
+      // 過去月份（已結算）一律跳過
+      if(y < curY || (y === curY && m < curM)) continue;
+      months.push(`${y}-${String(m).padStart(2,'0')}`);
+    }
+    if(!months.length) return 0;
+
+    let cleared = 0;
+    for(const ym of months){
+      const ref = doc(db,'salary_records',`${emp.id}_${ym}`);
+      try{
+        const snap = await getDoc(ref);
+        if(!snap.exists()) continue;                 // 沒有記錄就不動
+        if(snap.data().leaveOverride == null) continue; // 沒有手動覆蓋就不動
+        await updateDoc(ref, { leaveOverride: deleteField() });
+        cleared++;
+      }catch(e1){ console.warn('[clearSalaryLeaveOverride] 略過', ym, e1.message); }
+    }
+    return cleared;
+  }catch(err){
+    console.warn('[clearSalaryLeaveOverride] 失敗（不影響人事資料）', err);
+    return 0;
+  }
+}
+
 // ── 標記離職（不立即移出，進入「離職待審」）──
 window.resignEmployee=async function(id){
   const r=employees.find(x=>x.id===id);
@@ -3108,6 +3154,7 @@ window.resignEmployee=async function(id){
   render();
   showToast('儲存中...');
   await saveData('標記離職待審', `${r.name}（${d}）`);
+  if(r.leaveDate) await clearSalaryLeaveOverride(r, r.leaveDate);
   showToast(`已標記 ${r.name} 為離職待審，待管理員確認退保後轉入離職同仁`, 5000);
 };
 
@@ -3116,11 +3163,13 @@ window.cancelPendingResign=async function(id){
   const r=employees.find(x=>x.id===id);
   if(!r||!r.pendingResign)return;
   if(!confirm(`確定要取消「${r.name}」的離職標記嗎？`))return;
+  const _pd = (r.pendingResign && r.pendingResign.resignDate) || r.leaveDate || '';
   delete r.pendingResign;
   delete r.leaveDate;      // 一併清除薪資計算用的離職日
   render();
   showToast('儲存中...');
   await saveData('取消離職標記', r.name);
+  if(_pd) await clearSalaryLeaveOverride(r, _pd);
   showToast('已取消離職標記 ✓');
 };
 
@@ -3267,6 +3316,7 @@ window.uploadEmpDocs = async function(empId, catKey, inputEl){
   showToast('儲存中...');
   const catName = (DOC_CATS.find(c=>c.key===catKey)||{}).name || catKey;
   await saveData('上傳文件', `${r.name}／${catName} ${uploaded.length}件`);
+  if(autoIns && r.leaveDate) await clearSalaryLeaveOverride(r, r.leaveDate);
   showToast(autoIns
     ? `已上傳 ${uploaded.length} 個檔案，已標記「已退保」，薪資離職日設為 ${r.pendingResign.resignDate} ✓`
     : `已上傳 ${uploaded.length} 個檔案 ✓`, autoIns?6000:2000);
@@ -3343,6 +3393,7 @@ window.deleteEmpDoc = async function(empId, catKey, idx){
   list.splice(idx,1);
 
   // 退保文件全部刪除 → 回復為未退保，並清空薪資離職日
+  const _prevLeaveDate = r.leaveDate || (r.pendingResign && r.pendingResign.resignDate) || '';
   let reverted = false;
   if(catKey==='insLeave' && list.length===0 && r.pendingResign){
     r.pendingResign.insWithdrawnAt = '';
@@ -3354,6 +3405,7 @@ window.deleteEmpDoc = async function(empId, catKey, idx){
   render();
   showToast('儲存中...');
   await saveData('刪除文件', `${r.name}／${catName}`);
+  if(reverted && _prevLeaveDate) await clearSalaryLeaveOverride(r, _prevLeaveDate);
   showToast(reverted ? '已刪除，退保狀態回復「未退保」，薪資離職日已清空' : '已刪除 ✓', reverted?6000:2000);
 };
 
