@@ -655,7 +655,7 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 <script type="module">
 import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
-import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+import { doc, getDoc, setDoc, deleteDoc, collection, query, where, documentId, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
   import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 let CU={name:'',role:'',uid:''};
@@ -1317,46 +1317,74 @@ function isCentral(store){
 }
 let _allEmployeesRaw=[]; // 含離職的完整名單
 let _resignedRaw=[];     // hr/resigned 離職名單
+let _resignedReady=Promise.resolve();
 async function loadEmployees(){
+  // 離職主檔同步開始下載，但不阻塞在職名單及首頁；補歷史人員時再等它。
+  _resignedRaw=[];
+  _resignedReady=getDoc(doc(db,'hr','resigned')).then(r=>{
+    if(r.exists())_resignedRaw=(r.data().list||r.data().resigned||[]);
+  }).catch(()=>{});
   try{
-    const[s,r]=await Promise.all([
-      getDoc(doc(db,'hr','employees')),
-      getDoc(doc(db,'hr','resigned')).catch(()=>null)
-    ]);
+    const s=await getDoc(doc(db,'hr','employees'));
     if(s.exists()){
       _allEmployeesRaw=(s.data().list||[]);
       employees=_allEmployeesRaw.filter(e=>e.status==='在職'||!e.status);
     }
-    // 離職員工（可能存在 hr/resigned 的 list，或 hr/employees 裡 status=離職）
-    _resignedRaw=[];
-    if(r&&r.exists())_resignedRaw=(r.data().list||r.data().resigned||[]);
-    // 也把 hr/employees 裡標記離職的納入
-    const inEmpResigned=_allEmployeesRaw.filter(e=>e.status&&e.status!=='在職');
-    _resignedRaw=[..._resignedRaw,...inEmpResigned];
   }catch(e){console.error(e);}
+}
+// 以既有文件 ID 分批查詢，不需新欄位／索引，也不略過缺離職日期的歷史人員。
+// 一批最多 30 人、同時最多 3 批，避免數百筆 getDoc 一起搶占首頁連線。
+async function readSalaryRecords(empIds,y,m,isCurrent=()=>true){
+  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  const ids=[...new Set(empIds.filter(id=>id!=null).map(String))];
+  const records=new Map();
+  let next=0;
+  async function worker(){
+    while(next<ids.length&&isCurrent()){
+      const batch=ids.slice(next,next+=30);
+      try{
+        const result=await getDocs(query(collection(db,'salary_records'),where(documentId(),'in',batch.map(id=>`${id}_${ym}`))));
+        result.forEach(s=>{
+          const id=s.id.slice(0,-(ym.length+1));
+          records.set(id,s.data());
+        });
+      }catch(e){
+        // 個別環境查詢失敗時沿用原本的單筆讀法；逐筆回退，避免再次大量併發。
+        for(const id of batch){
+          if(!isCurrent())break;
+          try{const s=await readSalaryDoc('salary_records',`${id}_${ym}`);if(s.exists())records.set(id,s.data());}catch(_){}
+        }
+      }
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(3,Math.ceil(ids.length/30))},()=>worker()));
+  return records;
 }
 // 把「當月有薪資快照」的離職員工補進 employees（讓離職者仍可查閱/下載當月薪資單）
 async function mergeSnapshotEmployees(y,m){
   const token=_monthLoadToken;
-  const ym=`${y}-${String(m).padStart(2,'0')}`;
+  const isCurrent=()=>token===_monthLoadToken&&y===viewYear&&m===viewMonth;
+  await _resignedReady;
+  if(!isCurrent())return;
   const activeIds=new Set(employees.map(e=>String(e.id)));
   // 離職名單（hr/resigned + hr/employees 標記離職者），排除已在現職清單的
-  const resigned=_resignedRaw.filter(e=>e&&e.id!=null&&!activeIds.has(String(e.id)));
+  const inEmpResigned=_allEmployeesRaw.filter(e=>e.status&&e.status!=='在職');
+  const resigned=[..._resignedRaw,...inEmpResigned].filter(e=>e&&e.id!=null&&!activeIds.has(String(e.id)));
   // 去重（同一 id 只查一次）
   const seen=new Set();const uniqResigned=resigned.filter(e=>{const k=String(e.id);if(seen.has(k))return false;seen.add(k);return true;});
   if(!uniqResigned.length)return;
-  const checks=await Promise.all(uniqResigned.map(async e=>{
-    try{const snap=await readSalaryDoc('salary_records',`${e.id}_${ym}`);
+  const records=await readSalaryRecords(uniqResigned.map(e=>e.id),y,m,isCurrent);
+  const checks=uniqResigned.map(e=>{
+    const rec=records.get(String(e.id));
       // 只要該月有薪資記錄就載入（原本要求必須已有 snapshot，會造成 catch-22：
       // 缺 snapshot 的離職員工永遠不被載入 → 無法出現在清單 → 無法補建存檔金額）
-      if(snap.exists()){
-        const es=snap.data().empSnapshot;
+      if(rec){
+        const es=rec.empSnapshot;
         return es?{...e,...es,_fromSnapshot:true}:{...e,_fromSnapshot:true};
       }
-    }catch(_){}
     return null;
-  }));
-  if(token!==_monthLoadToken || y!==viewYear || m!==viewMonth)return;
+  });
+  if(!isCurrent())return;
   checks.filter(Boolean).forEach(e=>{
     if(!employees.some(x=>String(x.id)===String(e.id)))employees.push(e);
   });
@@ -1372,13 +1400,13 @@ async function loadSnapStoreMap(y,m){
   if(_snapStoreCache.has(ym)){ _snapStoreMap=_snapStoreCache.get(ym); return; }
   // 只需查現職同仁（_fromSnapshot 的離職者其 workLocation 已是快照值）
   const targets=employees.filter(e=>e&&e.id!=null&&!e._fromSnapshot);
-  const pairs=await Promise.all(targets.map(async e=>{
-    try{
-      const snap=await readSalaryDoc('salary_records',`${e.id}_${ym}`);
-      const loc=snap.exists()?(snap.data().empSnapshot||{}).workLocation:null;
-      return loc?[String(e.id),loc]:null;
-    }catch(_){ return null; }
-  }));
+  const isCurrent=()=>token===_monthLoadToken&&y===viewYear&&m===viewMonth;
+  const records=await readSalaryRecords(targets.map(e=>e.id),y,m,isCurrent);
+  if(!isCurrent())return; // 切月取消的部分結果不可存成完整月份快取。
+  const pairs=targets.map(e=>{
+    const loc=(records.get(String(e.id))?.empSnapshot||{}).workLocation;
+    return loc?[String(e.id),loc]:null;
+  });
   const map=new Map(pairs.filter(Boolean));
   _snapStoreCache.set(ym,map);
   if(token===_monthLoadToken && y===viewYear && m===viewMonth) _snapStoreMap=map;
