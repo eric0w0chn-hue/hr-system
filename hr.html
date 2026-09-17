@@ -1689,7 +1689,10 @@ function renderPendingResign(){
             <td data-label="標記人／原因"><div style="font-size:11.5px">${pr.markedBy||'—'}</div>
               <div style="font-size:11px;color:var(--text3)">${pr.reason||'—'}</div></td>
             <td data-label="操作">
-              <button class="ibt" title="取消離職標記" style="color:#e24b4a" onclick="cancelPendingResign(${e.id})">↩</button>
+              <div style="display:flex;gap:4px;justify-content:flex-end">
+                <button class="ibt" title="同步薪資離職日" onclick="syncSalaryLeaveDate(${e.id})">🔄</button>
+                <button class="ibt" title="取消離職標記" style="color:#e24b4a" onclick="cancelPendingResign(${e.id})">↩</button>
+              </div>
             </td>
           </tr>`;
         }).join('')}
@@ -3128,6 +3131,36 @@ async function clearSalaryLeaveOverride(emp, resignDate){
     return 0;
   }
 }
+
+// ── 手動同步薪資離職日（診斷／補救用）──
+window.syncSalaryLeaveDate = async function(id){
+  const r = employees.find(x=>x.id===id);
+  if(!r || !r.pendingResign){ showToast('找不到離職待審資料'); return; }
+
+  const hasDoc = hasInsLeaveDoc(r);
+  const resignDate = r.pendingResign.resignDate || '';
+
+  // 先確保 HR 端欄位正確
+  syncLeaveDateByIns(r);
+  await saveData('同步薪資離職日', `${r.name}（${resignDate}）`);
+
+  const cleared = await clearSalaryLeaveOverride(r, resignDate || r.leaveDate);
+
+  const lines = [
+    `同仁：${r.name}`,
+    `退保文件：${hasDoc ? '有（'+r.docs.insLeave.length+' 份）' : '無'}`,
+    `離職日（待審）：${resignDate||'未設定'}`,
+    `人事資料 leaveDate：${r.leaveDate||'（空）'}`,
+    `已清除薪資頁手動覆蓋：${cleared} 筆`,
+    '',
+    cleared>0
+      ? '✅ 請重新整理「薪資計算」頁面確認。'
+      : (hasDoc
+          ? '薪資記錄中沒有手動覆蓋值，離職日應已直接採用人事資料。\n若薪資頁仍顯示舊日期，請重新整理該頁面。'
+          : '⚠️ 尚未上傳退保文件，離職日不會帶入薪資計算。')
+  ];
+  alert(lines.join('\n'));
+};
 
 // ── 標記離職（不立即移出，進入「離職待審」）──
 window.resignEmployee=async function(id){
