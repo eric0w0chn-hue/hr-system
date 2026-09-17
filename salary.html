@@ -7,9 +7,6 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://www.googleapis.com" crossorigin>
 <title>薪資計算 — 鑫系統</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#ECEEF2;--surface:#fff;--surface2:#F4F5F8;--border:#DDE1E9;
@@ -1271,20 +1268,21 @@ window.closeManual=function(){
 };
 
 authGuard('salary',async({user,uid,role,locations,userData})=>{
-  // 載入店家主檔以取得顯示名稱；失敗時 dispStore() 原樣回傳店名
-  try{ await initStoreDisplay(); }catch(_){}
   CU={name:userData.name||user.email,role,uid};
   document.getElementById('roleChip').textContent=ROLE_NAMES[role]||role;
-  init(locations,userData);
+  await init(locations,userData,initStoreDisplay().catch(()=>{}));
 });
 
-async function init(locations,userData){
+let _monthLoadToken=0, _sheetLoadToken=0;
+async function init(locations,userData,storeReady=Promise.resolve()){
   await Promise.all([loadEmployees(),loadStores(locations,userData),loadOtConfig(),loadLocTypes(),loadConfig()]);
+  await storeReady; // 店家主檔並行載入，但須就緒後才顯示／判定店別。
+  const token=_monthLoadToken;
   await loadSnapStoreMap(viewYear,viewMonth); // 當月直接 return，過去月才讀快照
   renderMain(); // 先畫出畫面（在職員工，不含離職快照）
   // 背景補進「當月有薪資紀錄的離職員工」，有變化才 re-render（不阻塞首次顯示）
   mergeSnapshotEmployees(viewYear,viewMonth).then(()=>{
-    if(employees.some(e=>e._fromSnapshot)) renderMain();
+    if(token===_monthLoadToken && employees.some(e=>e._fromSnapshot)) renderMain();
   }).catch(()=>{});
 }
 // 載入系統設定（底薪 + 費率表），僅 ADMIN 可改
@@ -1339,6 +1337,7 @@ async function loadEmployees(){
 }
 // 把「當月有薪資快照」的離職員工補進 employees（讓離職者仍可查閱/下載當月薪資單）
 async function mergeSnapshotEmployees(y,m){
+  const token=_monthLoadToken;
   const ym=`${y}-${String(m).padStart(2,'0')}`;
   const activeIds=new Set(employees.map(e=>String(e.id)));
   // 離職名單（hr/resigned + hr/employees 標記離職者），排除已在現職清單的
@@ -1347,7 +1346,7 @@ async function mergeSnapshotEmployees(y,m){
   const seen=new Set();const uniqResigned=resigned.filter(e=>{const k=String(e.id);if(seen.has(k))return false;seen.add(k);return true;});
   if(!uniqResigned.length)return;
   const checks=await Promise.all(uniqResigned.map(async e=>{
-    try{const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
+    try{const snap=await readSalaryDoc('salary_records',`${e.id}_${ym}`);
       // 只要該月有薪資記錄就載入（原本要求必須已有 snapshot，會造成 catch-22：
       // 缺 snapshot 的離職員工永遠不被載入 → 無法出現在清單 → 無法補建存檔金額）
       if(snap.exists()){
@@ -1357,6 +1356,7 @@ async function mergeSnapshotEmployees(y,m){
     }catch(_){}
     return null;
   }));
+  if(token!==_monthLoadToken || y!==viewYear || m!==viewMonth)return;
   checks.filter(Boolean).forEach(e=>{
     if(!employees.some(x=>String(x.id)===String(e.id)))employees.push(e);
   });
@@ -1366,6 +1366,7 @@ async function mergeSnapshotEmployees(y,m){
 const _snapStoreCache = new Map(); // ym -> Map(empId -> workLocation)
 let _snapStoreMap = null;          // 當前檢視月份適用的對照表（null = 用現況）
 async function loadSnapStoreMap(y,m){
+  const token=_monthLoadToken;
   if(!isMonthLocked(y,m)){ _snapStoreMap=null; return; }   // 當月/未來：不回溯
   const ym=`${y}-${String(m).padStart(2,'0')}`;
   if(_snapStoreCache.has(ym)){ _snapStoreMap=_snapStoreCache.get(ym); return; }
@@ -1373,14 +1374,14 @@ async function loadSnapStoreMap(y,m){
   const targets=employees.filter(e=>e&&e.id!=null&&!e._fromSnapshot);
   const pairs=await Promise.all(targets.map(async e=>{
     try{
-      const snap=await getDoc(doc(db,'salary_records',`${e.id}_${ym}`));
+      const snap=await readSalaryDoc('salary_records',`${e.id}_${ym}`);
       const loc=snap.exists()?(snap.data().empSnapshot||{}).workLocation:null;
       return loc?[String(e.id),loc]:null;
     }catch(_){ return null; }
   }));
   const map=new Map(pairs.filter(Boolean));
   _snapStoreCache.set(ym,map);
-  _snapStoreMap=map;
+  if(token===_monthLoadToken && y===viewYear && m===viewMonth) _snapStoreMap=map;
 }
 // 取得某員工「在當前檢視月份」所屬店別
 function empStoreAt(e){
@@ -1410,13 +1411,26 @@ async function saveOtConfig(){
 }
 function getDefOt(store){return storeOtConfig[normStore(store)]??storeOtConfig[store]??2;}
 
+// 只合併尚未完成的同一文件讀取，不保留薪資／班表的長期快取。
+const _salaryReads=new Map();
+function readSalaryDoc(col,key){
+  const path=col+'/'+key;
+  if(_salaryReads.has(path))return _salaryReads.get(path);
+  const pending=getDoc(doc(db,col,key)).finally(()=>{
+    if(_salaryReads.get(path)===pending)_salaryReads.delete(path);
+  });
+  _salaryReads.set(path,pending);
+  return pending;
+}
 async function loadRec(empId,y,m){
   const k=`${empId}_${y}-${String(m).padStart(2,'0')}`;
-  try{const s=await getDoc(doc(db,'salary_records',k));return s.exists()?s.data():null;}catch(e){return null;}
+  try{const s=await readSalaryDoc('salary_records',k);return s.exists()?s.data():null;}catch(e){return null;}
 }
 async function saveRec(empId,y,m,data){
   const k=`${empId}_${y}-${String(m).padStart(2,'0')}`;
+  _salaryReads.delete('salary_records/'+k);
   try{await setDoc(doc(db,'salary_records',k),{...data,updatedAt:new Date().toISOString(),updatedBy:CU.name});return true;}catch(e){return false;}
+  finally{_salaryReads.delete('salary_records/'+k);}
 }
 async function loadShifts(empId,y,m){
   const emp=employees.find(e=>String(e.id)===String(empId));
@@ -1428,13 +1442,13 @@ async function loadShifts(empId,y,m){
     // 嘗試多種店名變體
     const variants=[baseLoc, normStore(baseLoc), String(baseLoc).replace(/舖/g,'鋪')];
     for(const loc of [...new Set(variants)]){
-      try{const s=await getDoc(doc(db,'schedules',`${ym}_${loc}`));
+      try{const s=await readSalaryDoc('schedules',`${ym}_${loc}`);
         if(s.exists())return s.data().shifts||{};}catch(e){}
     }
   }
   // 保險：班表已不存在（店面關閉/改名）時，改用薪資記錄內的排班快照
   try{
-    const r=await getDoc(doc(db,'salary_records',`${empId}_${ym}`));
+    const r=await readSalaryDoc('salary_records',`${empId}_${ym}`);
     if(r.exists()){
       const snap=r.data().shiftsSnapshot;
       if(snap&&Object.keys(snap).length)return snap;
@@ -2136,17 +2150,20 @@ function renderMain(){
 }
 
 window.chgMonth=async function(){
+  const token=++_monthLoadToken;
+  ++_sheetLoadToken;
   viewYear=+document.getElementById('yearSel').value;viewMonth=+document.getElementById('monthSel').value;selectedEmpId=null;
   // 移除上個月補進的快照離職員工
   employees=employees.filter(e=>!e._fromSnapshot);
   await loadSnapStoreMap(viewYear,viewMonth); // 過去月讀快照店別，當月直接 return
+  if(token!==_monthLoadToken)return;
   renderMain(); // 先畫出在職員工
   // 背景補進當月有薪資紀錄的離職員工，有變化才 re-render
   mergeSnapshotEmployees(viewYear,viewMonth).then(()=>{
-    if(employees.some(e=>e._fromSnapshot)) renderMain();
+    if(token===_monthLoadToken && employees.some(e=>e._fromSnapshot)) renderMain();
   }).catch(()=>{});
 };
-window.chgStore=function(s){selectedStore=s;selectedEmpId=null;renderMain();};
+window.chgStore=function(s){++_sheetLoadToken;selectedStore=s;selectedEmpId=null;renderMain();};
 window.setStoreOt=function(s,v){storeOtConfig[normStore(s)]=v;renderMain();};
 window.doSaveOtConfig=saveOtConfig;
 window.toggleOtPanel=function(){showOtPanel=!showOtPanel;renderMain();};
@@ -2175,19 +2192,21 @@ window.selEmp=window.selEmpFromSel; // 相容
 // 背景預載當店各員工本月實領，更新下拉選項文字
 let _preloadToken=0;
 async function preloadSnapshots(emps){
-  if(!emps||!emps.length)return;
   const token=++_preloadToken;
+  if(!emps||!emps.length)return;
+  const y=viewYear,m=viewMonth;
   // 並行預載當店所有員工（取代逐一 await，N人由序列累加改為一次等待）
   const pending=emps.filter(e=>{
-    const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+    const snapKey=`${e.id}_${y}-${String(m).padStart(2,'0')}`;
     return snapCache[snapKey]==null;
   });
   await Promise.all(pending.map(async e=>{
-    const snapKey=`${e.id}_${viewYear}-${String(viewMonth).padStart(2,'0')}`;
+    const snapKey=`${e.id}_${y}-${String(m).padStart(2,'0')}`;
     try{
-      const rec=await loadRec(e.id,viewYear,viewMonth);
-      const shifts=(e._fromSnapshot&&rec&&rec.shiftsSnapshot)?rec.shiftsSnapshot:await loadShifts(e.id,viewYear,viewMonth);
-      if(token!==_preloadToken)return; // 已切換店面/月份，放棄
+      const rec=await loadRec(e.id,y,m);
+      if(token!==_preloadToken || y!==viewYear || m!==viewMonth)return;
+      const shifts=(e._fromSnapshot&&rec&&rec.shiftsSnapshot)?rec.shiftsSnapshot:await loadShifts(e.id,y,m);
+      if(token!==_preloadToken || y!==viewYear || m!==viewMonth)return; // 已切換店面/月份，放棄
       const c=calcSalary(e,rec||{dailyData:{}},shifts);
       // 方案C：過去月份以存檔金額為準（與明細頁一致）
       const _st=(isMonthLocked(viewYear,viewMonth)&&rec&&rec.snapshot&&typeof rec.snapshot.netPay==='number')?rec.snapshot.netPay:null;
@@ -2206,12 +2225,16 @@ async function preloadSnapshots(emps){
 }
 
 async function loadAndRender(empId,doScroll){
+  const token=++_sheetLoadToken,y=viewYear,m=viewMonth,store=selectedStore;
+  const isCurrent=()=>token===_sheetLoadToken && y===viewYear && m===viewMonth && store===selectedStore && String(empId)===String(selectedEmpId);
   const emp=employees.find(e=>String(e.id)===String(empId));if(!emp)return;
-  const rec=await loadRec(empId,viewYear,viewMonth);
+  const rec=await loadRec(empId,y,m);
+  if(!isCurrent())return;
   // 離職員工（快照來源）用當初存下的排班快照，避免抓不到即時排班
   let shifts;
   if(emp._fromSnapshot&&rec&&rec.shiftsSnapshot){shifts=rec.shiftsSnapshot;}
-  else{shifts=await loadShifts(empId,viewYear,viewMonth);}
+  else{shifts=await loadShifts(empId,y,m);}
+  if(!isCurrent())return;
   currentRec=rec||{dailyData:{}};
   if(!currentRec.dailyData)currentRec.dailyData={};
   curShifts=shifts;
@@ -2811,7 +2834,8 @@ window.deleteThisRec=async function(){
   if(!_exists){ showToast('本月沒有已存的薪資記錄，無需刪除'); return; }
   if(!confirm(`確定刪除「${nm}」${viewYear}年${viewMonth}月的薪資記錄？\n\n此動作會清除該月所有已存的出勤、請假與存檔金額，無法復原。\n（僅刪除此月記錄，不影響其他月份與人員資料）`))return;
   try{
-    await deleteDoc(doc(db,'salary_records',_k));
+    _salaryReads.delete('salary_records/'+_k);
+    await deleteDoc(doc(db,'salary_records',_k)).finally(()=>_salaryReads.delete('salary_records/'+_k));
     if(typeof snapCache!=='undefined')delete snapCache[`${selectedEmpId}_${viewYear}-${viewMonth}`];
     currentRec={dailyData:{}};
     showToast('✓ 已刪除本月記錄');
@@ -2909,10 +2933,44 @@ window.applyAllStoresInsSuggest=async function(){
 };
 
 // ── 匯出全部店面本月實領薪資 xlsx ──
+// 匯出元件按需載入：共用進行中請求，失敗／逾時可重試，版本維持不變。
+const _exportLibraries=new Map();
+const EXPORT_LIBRARY_URLS={
+  XLSX:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  html2canvas:'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+};
+function loadExportLibrary(name){
+  if(window[name])return Promise.resolve(window[name]);
+  if(_exportLibraries.has(name))return _exportLibraries.get(name);
+  const pending=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    const fail=()=>{clearTimeout(timer);script.onload=script.onerror=null;script.remove();reject(new Error('EXPORT_LIBRARY_FAILED'));};
+    const timer=setTimeout(fail,20000);
+    script.src=EXPORT_LIBRARY_URLS[name];script.async=true;
+    script.onload=()=>{if(!window[name]){fail();return;}clearTimeout(timer);resolve(window[name]);};
+    script.onerror=fail;
+    document.head.appendChild(script);
+  });
+  _exportLibraries.set(name,pending);
+  pending.catch(()=>{if(_exportLibraries.get(name)===pending)_exportLibraries.delete(name);});
+  return pending;
+}
+async function ensureExportLibraries(names){
+  if(names.every(name=>window[name]))return true;
+  const context=JSON.stringify([viewYear,viewMonth,selectedStore,selectedEmpId]);
+  showToast('載入匯出元件中，請稍候…',20000);
+  try{await Promise.all(names.map(loadExportLibrary));}
+  catch(e){showToast('⚠️ 匯出元件載入失敗，請再按一次重試');return false;}
+  if(context!==JSON.stringify([viewYear,viewMonth,selectedStore,selectedEmpId])){
+    showToast('月份或人員已切換，請重新執行匯出');return false;
+  }
+  return true;
+}
 // 格式：每店一個工作表，欄=人員（系統清單順序），單月一列
 window.exportSalaryXlsx=async function(){
   if(CU.role!=='admin'){showToast('⚠️ 此功能僅限管理員使用');return;}
-  if(typeof XLSX==='undefined'){showToast('⚠️ SheetJS 尚未載入，請稍後再試');return;}
+  if(!await ensureExportLibraries(['XLSX']))return;
   const allStores=viewableStores; // 目前使用者可見的全部店面
   if(!allStores||!allStores.length){showToast('⚠️ 無法取得店面清單');return;}
   showToast(`載入各店面薪資中，請稍候…`,30000);
@@ -3310,8 +3368,7 @@ window.batchExportSlips=async function(){
   const emps=storeEmps(selectedStore).filter(e=>{const e2=calcEmployedDays(e,viewYear,viewMonth,null);return e2.days>0;});
   if(!emps.length){showToast('無在職同仁');return;}
   if(!confirm(`將產生「${selectedStore}」${emps.length} 位在職同仁的薪資單圖片並打包下載 ZIP，請稍候。`))return;
-  if(typeof JSZip==='undefined'){showToast('⚠️ JSZip 套件未載入，請稍後再試');return;}
-  if(typeof html2canvas==='undefined'){showToast('⚠️ html2canvas 套件未載入，請稍後再試');return;}
+  if(!await ensureExportLibraries(['JSZip','html2canvas']))return;
 
   // 建一個隱藏容器來渲染薪資單
   const container=document.createElement('div');
@@ -3983,7 +4040,7 @@ window.closeSlip=function(){
 window.saveJpg=async function(filename){
   const body=document.getElementById('slipBody');if(!body)return;
   const btn=document.getElementById('saveJpgBtn');
-  if(typeof html2canvas==='undefined'){showToast('⚠️ 圖檔元件載入中，請稍候再試');return;}
+  if(!await ensureExportLibraries(['html2canvas']))return;
   if(btn){btn.disabled=true;btn.textContent='產生中…';}
   try{
     const canvas=await html2canvas(body,{scale:2,backgroundColor:'#ffffff',useCORS:true});

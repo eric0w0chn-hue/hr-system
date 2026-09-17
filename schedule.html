@@ -233,7 +233,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 [data-embed="1"] #app{padding-top:0!important}
 [data-embed="1"] .main{padding-top:16px!important}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
   /* embed 模式：被 iframe 嵌入時隱藏 topbar、移除 body 頂部 padding */
   (function(){
@@ -357,7 +356,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <script type="module">
 import { authGuard, db, auth, writeOpLog, initStoreDisplay, storeMeta, dispStore } from './auth-guard.js?v=6';
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[],currentUserName='';
@@ -378,9 +377,9 @@ let selectedLocation='';
 // 只有主檔確實填了 code 才覆蓋；留空或主檔不可用時完全不動，
 // 沿用 hr/settings.locationCodes 與寫死預設，行為與改動前一致。
 // 這樣新增店面只要在店家管理填排班代碼即可，不用改這支程式。
-async function applyStoreCodes(){
+async function applyStoreCodes(storeReady){
   try{
-    await initStoreDisplay();
+    await (storeReady || initStoreDisplay());
     (workLocations||[]).forEach(loc=>{
       const m = storeMeta(loc);
       if(m && m.code) locationCodes[loc] = m.code;
@@ -393,6 +392,8 @@ let shiftTypes=[]; // 自訂班別
 let pendingBatches=[]; // 待儲存的分批指派
 let batchKind='work';  // 目前這批類型 work/annual
 let twHolidays={}; // 台灣國定假日 {YYYY-MM-DD: '名稱'}
+const _holidayLoads=new Map();
+let _scheduleLoadToken=0, _xlsxLoad=null, _shiftTypesLocation='';
 let isReadOnly=false; // 同仁唯讀模式
 let filterEmpIds=new Set(); // 人員複選篩選
 let filterShift=''; // 班別篩選（格式：'HH:MM-HH:MM'，空字串=全部）
@@ -412,6 +413,12 @@ window.exportToExcel = async function() {
     : (currentLocations.length ? currentLocations : (selectedLocation ? [selectedLocation] : []));
 
   if(!exportLocs.length){ showToast('無可匯出的店面，請先選擇店面'); return; }
+  const context=JSON.stringify([viewYear,viewMonth,selectedLocation]);
+  if(!window.XLSX){
+    showToast('載入 Excel 元件中，請稍候…');
+    try{await loadScheduleXlsx();}catch(e){showToast('Excel 元件載入失敗，請再按一次重試');return;}
+    if(context!==JSON.stringify([viewYear,viewMonth,selectedLocation])){showToast('月份或店面已切換，請重新匯出');return;}
+  }
 
   showToast('匯出中，請稍候...');
 
@@ -574,18 +581,44 @@ function getEmpColor(empId){
 }
 
 // ── 載入台灣國定假日（人事行政局 API）──
+function loadScheduleXlsx(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(_xlsxLoad)return _xlsxLoad;
+  _xlsxLoad=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    const fail=()=>{clearTimeout(timer);script.onload=script.onerror=null;script.remove();reject(new Error('XLSX_LOAD_FAILED'));};
+    const timer=setTimeout(fail,20000);
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';script.async=true;
+    script.onload=()=>{if(!window.XLSX){fail();return;}clearTimeout(timer);resolve(window.XLSX);};
+    script.onerror=fail;
+    document.head.appendChild(script);
+  });
+  _xlsxLoad.catch(()=>{_xlsxLoad=null;});
+  return _xlsxLoad;
+}
 async function loadHolidays(year){
   try{
-    const res=await fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`);
-    const data=await res.json();
-    twHolidays={};
-    data.forEach(d=>{
-      if(d.isHoliday){
-        const ds=`${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
-        twHolidays[ds]=d.description||'假日';
-      }
-    });
-  }catch(e){twHolidays={};}
+    let entry=_holidayLoads.get(year);
+    if(!entry || Date.now()-entry.ts>60*60*1000){
+      const promise=(async()=>{
+        const res=await fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`);
+        if(!res.ok)throw new Error('HOLIDAYS_LOAD_FAILED');
+        const data=await res.json(),holidays={};
+        data.forEach(d=>{
+          if(d.isHoliday){
+            const ds=`${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
+            holidays[ds]=d.description||'假日';
+          }
+        });
+        return holidays;
+      })();
+      entry={ts:Date.now(),promise};
+      _holidayLoads.set(year,entry);
+      promise.catch(()=>{if(_holidayLoads.get(year)===entry)_holidayLoads.delete(year);});
+    }
+    const holidays=await entry.promise;
+    if(year===viewYear)twHolidays=holidays; // 跨年快速切換時，舊回應不可覆蓋新年份。
+  }catch(e){if(year===viewYear)twHolidays={};}
 }
 
 // ── 月份導航 ──
@@ -594,7 +627,6 @@ window.changeMonth=async function(dir){
   if(viewMonth>12){viewMonth=1;viewYear++;}
   if(viewMonth<1){viewMonth=12;viewYear--;}
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
-  await loadHolidays(viewYear);
   if(!isReadOnly && window._checkScheduleLock){
     const lockMsg=window._checkScheduleLock();
     if(lockMsg){
@@ -607,7 +639,7 @@ window.changeMonth=async function(dir){
       document.getElementById('toolbarBtns').style.display='flex';
     }
   }
-  loadShifts();
+  await loadShifts(false,loadHolidays(viewYear));
 };
 
 // ── 店面選擇 ──
@@ -617,16 +649,23 @@ window.onLocationChange=async function(){
   filterShift=''; // 重設班別篩選
   shifts={}; // 先清空，避免顯示舊店資料
   renderCalendar();renderLegend();renderSidebar();
-  await loadShiftTypes(); // 載入該店的班別設定
-  await loadShifts();
+  await loadShifts(true); // 班別與班表並行讀取，完整就緒後再顯示。
 };
 
 // ── 載入班表 ──
-async function loadShifts(){
-  if(!selectedLocation){renderCalendar();return;}
+async function loadShifts(includeTypes=false,ready=Promise.resolve()){
+  const token=++_scheduleLoadToken,loc=selectedLocation;
+  const needsTypes=includeTypes || _shiftTypesLocation!==loc;
   const key=`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`;
-  try{const snap=await getDoc(doc(db,'schedules',key));shifts=snap.exists()?(snap.data().shifts||{}):{};
-  }catch(e){shifts={};}
+  if(!loc){await ready;if(token===_scheduleLoadToken)renderCalendar();return;}
+  const [snap,types]=await Promise.all([
+    getDoc(doc(db,'schedules',key)).catch(()=>null),
+    needsTypes ? loadShiftTypes(loc) : Promise.resolve(null),
+    ready
+  ]);
+  if(token!==_scheduleLoadToken || loc!==selectedLocation || key!==`${viewYear}-${String(viewMonth).padStart(2,'0')}_${selectedLocation}`)return;
+  shifts=snap&&snap.exists()?(snap.data().shifts||{}):{};
+  if(needsTypes){shiftTypes=types;_shiftTypesLocation=loc;}
   renderCalendar();renderLegend();renderSidebar();
 }
 
@@ -651,13 +690,13 @@ async function saveShifts(){
 }
 
 // ── 載入 & 儲存班別設定（依店面分開儲存）──
-async function loadShiftTypes(){
-  if(!selectedLocation){ shiftTypes=[]; return; }
+async function loadShiftTypes(loc=selectedLocation){
+  if(!loc)return [];
   try{
-    const s=await getDoc(doc(db,'shift_types',selectedLocation));
-    shiftTypes=s.exists()?(s.data().list||[]):[];
+    const s=await getDoc(doc(db,'shift_types',loc));
+    return s.exists()?(s.data().list||[]):[];
   }
-  catch(e){shiftTypes=[];}
+  catch(e){return [];}
 }
 async function saveShiftTypes(){
   if(!selectedLocation){ showToast('請先選擇店面'); return; }
@@ -1445,6 +1484,8 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
     document.getElementById('exportBtn').style.display='';
   }
 
+  // 店家主檔與其餘資料並行；代碼套用仍在 hr/settings 載入之後。
+  const storeReady=initStoreDisplay().catch(()=>{});
   // 並行載入所有資料
   await Promise.all([
     getDoc(doc(db,'hr','settings')).then(s=>{
@@ -1455,14 +1496,14 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
       }
     }),
     getDoc(doc(db,'hr','employees')).then(s=>{allEmployees=s.exists()?(s.data().list||[]):[]; }),
-    getDocs(collection(db,'users')).then(snap=>{
+    getDocs(query(collection(db,'users'),where('role','in',['consultant','manager']))).then(snap=>{
       allUsers=[];
       snap.forEach(d=>{const u=d.data();allUsers.push({name:u.name,role:u.role,locations:u.locations||[]});});
     }).catch(()=>{allUsers=[];}),
     loadHolidays(viewYear),
   ]);
 
-  await applyStoreCodes();
+  await applyStoreCodes(storeReady);
 
   const locSelect=document.getElementById('locationFilter');
   const availLocs=currentRole==='admin'?workLocations:
@@ -1473,12 +1514,10 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
 
   if(availLocs.length===1){
     locSelect.value=availLocs[0];selectedLocation=availLocs[0];
-    await loadShiftTypes();await loadShifts();
   } else if(availLocs.length>1 && (currentRole==='manager'||currentRole==='consultant')){
     const primaryLoc = currentLocations[0]||'';
     const matchedLoc = availLocs.find(l=>normLoc(l)===normLoc(primaryLoc)) || availLocs[0];
     locSelect.value=matchedLoc;selectedLocation=matchedLoc;
-    await loadShiftTypes();await loadShifts();
   }
 
   document.getElementById('monthLabel').textContent=`${viewYear} 年 ${viewMonth} 月`;
@@ -1494,7 +1533,7 @@ authGuard('schedule', async ({ user, role, locations, userData }) => {
     }
   }
 
-  await loadShifts();
+  await loadShifts(true);
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
 });
