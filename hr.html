@@ -13,10 +13,14 @@
   --text:#1A1D23;--text2:#5A6175;--text3:#9AA0B4;--accent:#2D3142;--accent-light:#F0F2F5;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);min-height:100vh;font-size:14px;padding:0}
+html{height:100%}
+/* 固定高度 flex 版面：捲動只發生在 .main，topbar 與分頁列不參與捲動，
+   因此不需要 position:sticky（sticky 在 iframe 內不可靠）。 */
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:var(--text);height:100%;font-size:14px;padding:0;display:flex;flex-direction:column;overflow:hidden}
+#modalArea,.toast{flex:0 0 auto}
 .app{max-width:100%;margin:0;padding:0}
 /* 頂部 bar */
-.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:200;gap:10px}
+.topbar{height:60px;background:var(--accent);display:flex;align-items:center;justify-content:space-between;padding:0 28px;flex:0 0 auto;z-index:200;gap:10px}
 .topbar-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;overflow:hidden}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .back-btn{font-size:12px;padding:5px 13px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
@@ -28,13 +32,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 #clockLabel{font-size:13px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.5px}
 .card{background:var(--card-bg);border:none;overflow:visible;margin-bottom:16px}
 /* 分頁列 */
-.tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;padding:0 max(20px, calc(50vw - 630px));position:sticky;top:60px;z-index:150}
-/* 嵌入 dashboard 時 topbar 隱藏，分頁列直接貼齊頂端 */
-[data-embed="1"] .tabs{top:0}
+.tabs{display:flex;border-bottom:2px solid var(--border);background:#fff;padding:0 max(20px, calc(50vw - 630px));flex:0 0 auto;z-index:150}
 .tab{padding:12px 18px;font-size:13px;color:var(--text-2);cursor:pointer;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;white-space:nowrap;font-family:inherit;font-weight:500;transition:color .15s}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 .tab:hover:not(.active){color:var(--text);background:#F1F5F9}
-.main{max-width:1300px;margin:0 auto;padding:24px 20px}
+.main{max-width:1300px;margin:0 auto;padding:24px 20px;width:100%;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);height:36px;font-family:inherit}
 .toolbar input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,49,66,.1)}
@@ -166,9 +168,6 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 
 
 @media(max-width:700px){
-  /* ⚠ 不可用 overflow-x:hidden：會讓 position:sticky（分頁列）失效。
-     overflow-x:clip 一樣防止橫向溢出，但不會建立捲動容器。 */
-  html,body{max-width:100%;overflow-x:clip}
   .dg,.dg3,.fg{grid-template-columns:1fr}
   .stats{grid-template-columns:1fr 1fr}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -1594,8 +1593,8 @@ function setActiveTab(key){
 }
 
 // 捲動到選取中的資料列。
-// ⚠ 本頁多半在 dashboard 的 iframe 內，iframe 若為自動高度則由外層捲動，
-//   此時 window.scrollTo 無效；scrollIntoView 會自動傳遞到父層 frame。
+// ⚠ 捲動容器是 .main（非 window），且本頁多半在 iframe 內，
+//   一律使用 scrollIntoView，它會自動找到正確的捲動容器。
 function scrollSelectedRowIntoView(){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const row=document.querySelector('tr.data-row.selected');
@@ -1619,12 +1618,10 @@ window.gotoEmployee = function(id){
   render();
   const r = employees.find(x=>x.id===id);
   showToast(`已切換至在職同仁：${r?r.name:''}`, 2500);
-  // 先回到分頁列位置，確保使用者看得到畫面已切換，再捲到該同仁
-  try{
-    const tabsEl=document.querySelector('.tabs');
-    if(tabsEl) tabsEl.scrollIntoView({behavior:'auto', block:'start'});
-  }catch(_){}
-  setTimeout(scrollSelectedRowIntoView, 180);
+  // 分頁列已固定不動，直接把內容區捲回頂端再捲到該同仁
+  const mainEl=document.getElementById('mainContent');
+  if(mainEl) mainEl.scrollTop=0;
+  setTimeout(scrollSelectedRowIntoView, 120);
 };
 
 // ── 離職待審清單（管理員）──
