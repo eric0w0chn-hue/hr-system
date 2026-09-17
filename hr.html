@@ -1211,8 +1211,8 @@ function render() {
           //     原本此處計算的 hasAlert / alertMsg 未被任何 UI 使用（死代碼），已移除。
         return`<tr class="data-row${selId===r.id?' selected':''}${r.pendingResign?' pr-row':''}" onclick="detailTab='basic';setSelId(${r.id})">
         <td data-label="同仁編號">${r.empNo||'—'}</td>
-        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div>${r.pendingResign?`<span class="pr-badge" style="margin-left:0;margin-right:6px" title="離職日 ${r.pendingResign.resignDate}｜${hasInsLeaveDoc(r)?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</span>`:''}<span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
-        <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
+        <td data-label="姓名"><div class="nc"><div class="av ${avCls(r.name)}">${ini(r.name)}</div><span>${r.name}</span><button type="button" class="copy-btn" title="複製姓名" onclick="event.stopPropagation();copyText('${escAttr(r.name)}','姓名')">⧉</button></div></td>
+        <td data-label="工作地點">${r.workLocation||'—'}</td><td data-label="職稱">${r.title||'—'}${r.pendingResign?`<div class="pr-badge" style="margin-top:3px;display:inline-flex" title="離職日 ${r.pendingResign.resignDate}｜${hasInsLeaveDoc(r)?'已退保':'未退保'}">🚪 ${(r.pendingResign.resignDate||'').slice(5)} 離職待審</div>`:''}</td><td data-label="年資">${r.startDate?calcYears(r.startDate):'—'}</td>
         <td data-label="操作"><div style="display:flex;gap:4px">
           <button class="ibt" onclick="event.stopPropagation();openModal('editEmployee',${r.id})" title="編輯">✎</button>
           <button class="ibt" onclick="event.stopPropagation();delRow(${r.id})" title="刪除" style="color:#e24b4a">✕</button>
