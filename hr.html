@@ -166,7 +166,9 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 
 
 @media(max-width:700px){
-  html,body{max-width:100%;overflow-x:hidden}
+  /* ⚠ 不可用 overflow-x:hidden：會讓 position:sticky（分頁列）失效。
+     overflow-x:clip 一樣防止橫向溢出，但不會建立捲動容器。 */
+  html,body{max-width:100%;overflow-x:clip}
   .dg,.dg3,.fg{grid-template-columns:1fr}
   .stats{grid-template-columns:1fr 1fr}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
