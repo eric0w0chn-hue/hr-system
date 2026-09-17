@@ -1567,6 +1567,18 @@ function render() {
   bindSearchInput();
 }
 
+// 捲動到選取中的資料列。
+// ⚠ 本頁多半在 dashboard 的 iframe 內，iframe 若為自動高度則由外層捲動，
+//   此時 window.scrollTo 無效；scrollIntoView 會自動傳遞到父層 frame。
+function scrollSelectedRowIntoView(){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const row=document.querySelector('tr.data-row.selected');
+    if(!row) return;
+    try{ row.scrollIntoView({behavior:'smooth', block:'center'}); }
+    catch(_){ row.scrollIntoView(true); }
+  }));
+}
+
 // 從待審清單跳回「在職同仁」並展開該同仁資料
 window.gotoEmployee = function(id){
   tab='employee';
@@ -1579,15 +1591,7 @@ window.gotoEmployee = function(id){
   const idx=list.findIndex(r=>r.id===id);
   currentPage = idx>=0 ? Math.floor(idx/PAGE_SIZE)+1 : 1;
   render();
-  setTimeout(()=>{
-    const row=document.querySelector('tr.data-row.selected');
-    if(!row) return;
-    const tb=document.querySelector('.topbar');
-    let offset=12;
-    if(tb && tb.offsetParent!==null) offset+=tb.getBoundingClientRect().height;
-    const top=row.getBoundingClientRect().top + window.pageYOffset - offset;
-    window.scrollTo({top:Math.max(top,0),behavior:'smooth'});
-  },80);
+  setTimeout(scrollSelectedRowIntoView, 60);
 };
 
 // ── 離職待審清單（管理員）──
@@ -2259,17 +2263,7 @@ window.setSelId=(id)=>{
   selId=(selId===id?null:id);
   render();
   if(opening && selId !== null){
-    setTimeout(()=>{
-      // 內嵌展開：把被點選的那一列捲到畫面上緣，下方展開內容即完整入鏡
-      const target=document.querySelector('tr.data-row.selected')||document.querySelector('.detail');
-      if(!target)return;
-      // topbar 可見時（非 iframe 嵌入）扣掉其高度，避免該列被遮住
-      const tb=document.querySelector('.topbar');
-      let offset=12;
-      if(tb && tb.offsetParent!==null) offset+=tb.getBoundingClientRect().height;
-      const top=target.getBoundingClientRect().top + window.pageYOffset - offset;
-      window.scrollTo({top:Math.max(top,0),behavior:'smooth'});
-    },60);
+    setTimeout(scrollSelectedRowIntoView, 60);
   }
 };
 window.setDetailTab=function(t){
