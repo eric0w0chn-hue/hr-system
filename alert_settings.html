@@ -104,6 +104,13 @@ input:checked + .slider::before{transform:translateX(20px)}
           <label class="switch"><input type="checkbox" id="item_bonus"><span class="slider"></span></label>
         </div>
       </div>
+      <div class="row">
+        <div class="row-label" style="flex:1">🚪 離職待審（有尚未退保人員）</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="time" id="time_resign">
+          <label class="switch"><input type="checkbox" id="item_resign"><span class="slider"></span></label>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -124,9 +131,9 @@ import { authGuard, db, writeOpLog } from './auth-guard.js?v=2';
 import { doc, getDoc, setDoc, collection, getDocs } from
   "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const KEYS = ['task','price','cctv','delivery','bonus'];
+const KEYS = ['task','price','cctv','delivery','bonus','resign'];
 // 各項目的預設推播時間（首次開啟或舊設定沒有 checkTimes 時使用）
-const DEFAULT_TIMES = { task:'10:00', price:'14:00', cctv:'21:00', delivery:'18:00', bonus:'09:00' };
+const DEFAULT_TIMES = { task:'10:00', price:'14:00', cctv:'21:00', delivery:'18:00', bonus:'09:00', resign:'11:00' };
 
 let hasChanges = false;
 function markChanged(){ hasChanges = true; document.getElementById('saveBtn').disabled = false; }

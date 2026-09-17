@@ -730,6 +730,22 @@ async function checkUnfinishedAlerts(){
         });
         if(hasPending) alerts['bonus']=true;
       }catch(e){ console.error('[bonus 紅點]', e); }
+    })(),
+    // ⑥ 離職待審：已標記離職但尚未上傳退保文件（僅管理員提示）
+    (async()=>{
+      try{
+        if(role!=='admin') return;              // 僅 admin 需要處理退保
+        const empSnap = await getDoc(doc(db,'hr','employees'));
+        if(!empSnap.exists()) return;
+        const emps = empSnap.data().list||[];
+        // 退保判定與 hr.html 一致：docs.insLeave 是否有檔案
+        const hasNoIns = emps.some(e=>{
+          if(!e || !e.pendingResign) return false;
+          const insDoc = Array.isArray(e.docs && e.docs.insLeave) && e.docs.insLeave.length>0;
+          return !insDoc;
+        });
+        if(hasNoIns) alerts['hr']=true;
+      }catch(e){ console.error('[離職待審 紅點]', e); }
     })()
   ]);
 
