@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>人資後端切換驗證</title>
+<style>
+body{font:16px/1.7 system-ui,sans-serif;background:#f4f5f8;color:#202735;margin:0;padding:24px}main{max-width:720px;margin:24px auto;padding:28px;background:white;border-radius:12px}h1{font-size:24px}button{display:block;margin:18px 0;padding:12px 18px;border:0;border-radius:8px;background:#25364e;color:white;font:inherit;cursor:pointer}button:disabled{background:#b6bbc3;cursor:not-allowed}#status{padding:16px;background:#eef2f7;white-space:pre-wrap}a{color:#244b88}.note{color:#505969}
+</style>
+</head>
+<body><main>
+<h1>人資後端切換驗證</h1>
+<p>僅限已登入的系統管理員。本頁不顯示個人資料，也不要求輸入帳號或密碼。</p>
+<p><a href="./index.html" target="_blank" rel="noopener">開啟原登入頁</a>：請自行登入，再回到本頁。</p>
+<p id="status" role="status" aria-live="polite">準備中；尚未執行任何驗證或寫入。</p>
+<button id="probe" type="button" disabled>1. 驗證登入與後端（不寫入）</button>
+<p class="note">第一步傳送兩個必須被拒絕的請求，確認後端的身分驗證與衝突保護。沒有寫入任何資料。</p>
+<button id="write" type="button" disabled>2. 驗證正式寫入（只更新版本與稽核）</button>
+<p class="note">第二步僅在第一步通過後，由您按鈕確認執行一次：增加人資版本並新增後端稽核紀錄，不更改員工、帳號、薪資或設定。任何失敗都不自動重送。</p>
+<script type="module">
+import { db, auth } from './auth-guard.js?v=6';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { doc, getDocFromServer } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+
+const status = document.getElementById('status');
+const probeButton = document.getElementById('probe');
+const writeButton = document.getElementById('write');
+const invoke = httpsCallable(getFunctions(db.app, 'asia-east1'), 'hrSourceWrite', {timeout:60000});
+let identity = null, authGeneration = 0, adminReady = false, busy = false, probesPassed = false, writeAttempted = false;
+function render() {
+  probeButton.disabled = !adminReady || busy || writeAttempted;
+  writeButton.disabled = !adminReady || busy || !probesPassed || writeAttempted;
+}
+function failure(code) { const error = new Error(code); error.safeCode = code; return error; }
+function safeFailure(error) {
+  const localCodes = ['ADMIN_REQUIRED','AUTH_CHANGED','PROBE_UNEXPECTED_RESULT','SOURCE_VERSION_REQUIRED','SOURCE_JSON_REQUIRED','SOURCE_UNSAFE_KEY','WRITE_RESPONSE_INVALID','WRITE_READBACK_INVALID'];
+  if (localCodes.includes(error?.safeCode)) return error.safeCode;
+  const remoteCodes = ['unauthenticated','permission-denied','unavailable','deadline-exceeded','aborted','failed-precondition','internal','resource-exhausted','invalid-argument','not-found'];
+  for (const code of remoteCodes) if (error?.code === code || error?.code === 'functions/' + code) return code;
+  return 'CHECK_FAILED';
+}
+function stableSourceJson(value) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableSourceJson).join(',') + ']';
+  if (!value || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw failure('SOURCE_JSON_REQUIRED');
+  const keys = Object.keys(value).sort();
+  if (keys.some(key => ['__proto__','prototype','constructor'].includes(key))) throw failure('SOURCE_UNSAFE_KEY');
+  return '{' + keys.map(key => JSON.stringify(key) + ':' + stableSourceJson(value[key])).join(',') + '}';
+}
+async function hashSnapshot(snapshot) {
+  const bytes = new TextEncoder().encode(stableSourceJson(snapshot.data()));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2,'0')).join('');
+}
+function assertIdentity(generation) {
+  if (!adminReady || generation !== authGeneration || !identity || auth.currentUser?.uid !== identity) throw failure('AUTH_CHANGED');
+}
+async function assertAdmin(generation) {
+  assertIdentity(generation);
+  const ownProfile = await getDocFromServer(doc(db, 'users', identity));
+  assertIdentity(generation);
+  if (!ownProfile.exists() || ownProfile.data().role !== 'admin' || ownProfile.data().disabled === true) throw failure('ADMIN_REQUIRED');
+}
+async function expectRejection(payload, code, message, generation) {
+  assertIdentity(generation);
+  try { await invoke(payload); }
+  catch (error) {
+    assertIdentity(generation);
+    if (error?.code === code && error?.message === message) return;
+    throw failure('PROBE_UNEXPECTED_RESULT');
+  }
+  throw failure('PROBE_UNEXPECTED_RESULT');
+}
+onAuthStateChanged(auth, async user => {
+  const generation = ++authGeneration;
+  identity = user?.uid || null; adminReady = false; probesPassed = false;
+  render();
+  if (!identity) { status.textContent = '需要登入：請開啟原登入頁，以系統管理員登入後返回。本頁不會代您登入。'; return; }
+  status.textContent = '確認管理員資格中；尚未呼叫寫入後端。';
+  try {
+    const profile = await getDocFromServer(doc(db, 'users', identity));
+    if (generation !== authGeneration || auth.currentUser?.uid !== identity) return;
+    if (!profile.exists() || profile.data().role !== 'admin' || profile.data().disabled === true) throw failure('ADMIN_REQUIRED');
+    adminReady = true;
+    status.textContent = '準備完成，請先按第一步。尚未執行探針或寫入。';
+  } catch (error) {
+    if (generation !== authGeneration) return;
+    status.textContent = '無法開始：' + safeFailure(error) + '。未寫入資料。';
+  }
+  render();
+}, () => {
+  ++authGeneration; identity = null; adminReady = false; probesPassed = false;
+  status.textContent = '登入狀態無法確認：AUTH_UNAVAILABLE。未執行新請求。'; render();
+});
+probeButton.addEventListener('click', async () => {
+  if (probeButton.disabled || busy) return;
+  const generation = authGeneration;
+  busy = true; probesPassed = false; render(); status.textContent = '第一步執行中；兩個請求皆必須被拒絕。';
+  try {
+    await assertAdmin(generation);
+    await expectRejection({module:'hr',writes:[]}, 'functions/invalid-argument', 'INVALID_WRITES', generation);
+    // Even an impossible zero-hash match cannot write: hr cannot modify bonus_log.
+    await expectRejection({module:'hr',writes:[{path:'hr/bonus_log',kind:'update',data:{list:[]},expectedHash:'0'.repeat(64)}]}, 'functions/aborted', 'VERSION_CONFLICT', generation);
+    assertIdentity(generation); probesPassed = true;
+    status.textContent = '第一步通過：登入驗證與來源衝突保護正常；未寫入資料。若要驗證正式寫入，請明確按第二步。';
+  } catch (error) { probesPassed = false; status.textContent = '第一步未通過：' + safeFailure(error) + '。第二步維持停用；未執行正式寫入。'; }
+  finally { busy = false; render(); }
+});
+writeButton.addEventListener('click', async () => {
+  if (writeButton.disabled || busy || !probesPassed || writeAttempted) return;
+  const generation = authGeneration;
+  busy = true; render(); status.textContent = '第二步執行中；只允許版本與稽核更新。';
+  try {
+    await assertAdmin(generation);
+    const versionRef = doc(db, 'hr', '_version');
+    const before = await getDocFromServer(versionRef);
+    assertIdentity(generation);
+    const version = before.exists() ? before.data().v : null;
+    if (!Number.isSafeInteger(version) || version < 0 || version >= Number.MAX_SAFE_INTEGER) throw failure('SOURCE_VERSION_REQUIRED');
+    const expectedHash = await hashSnapshot(before);
+    assertIdentity(generation);
+    writeAttempted = true; // A lost response is ambiguous: never retry automatically.
+    const response = await invoke({module:'hr',expectedVersion:version,writes:[{path:'hr/_version',kind:'update',data:{},expectedHash}]});
+    assertIdentity(generation);
+    if (response?.data?.ok !== true || response.data.version !== version + 1) throw failure('WRITE_RESPONSE_INVALID');
+    const after = await getDocFromServer(versionRef);
+    assertIdentity(generation);
+    if (!after.exists() || !Number.isSafeInteger(after.data().v) || after.data().v < response.data.version) throw failure('WRITE_READBACK_INVALID');
+    status.textContent = '第二步通過：後端寫入成功，已由伺服器重新讀取確認版本。僅更新版本與稽核；未更改員工、帳號、薪資或設定。';
+  } catch (error) {
+    status.textContent = '第二步未確認：' + safeFailure(error) + (writeAttempted ? '。請求可能已完成，已鎖定重送；請由工程端核對，不要重複操作。' : '。尚未送出版本寫入請求。');
+  } finally { busy = false; render(); }
+});
+</script>
+</main></body>
+</html>
