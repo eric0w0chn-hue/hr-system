@@ -18,24 +18,28 @@ body{font:16px/1.7 system-ui,sans-serif;background:#f4f5f8;color:#202735;margin:
 <p class="note">第一步傳送兩個必須被拒絕的請求，確認後端的身分驗證與衝突保護。沒有寫入任何資料。</p>
 <button id="write" type="button" disabled>2. 驗證正式寫入（只更新版本與稽核）</button>
 <p class="note">第二步僅在第一步通過後，由您按鈕確認執行一次：增加人資版本並新增後端稽核紀錄，不更改員工、帳號、薪資或設定。任何失敗都不自動重送。</p>
+<button id="rules" type="button" disabled>3. 驗證新 Rules 的直寫封鎖</button>
+<p class="note">獨立驗證：讀取當下版本後，以交易嘗試寫回完全相同內容，必須被新 Rules 拒絕；再確認同步命名空間禁止讀取。不呼叫寫入後端，也不重做第二步。</p>
 <script type="module">
 import { db, auth } from './auth-guard.js?v=6';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { doc, getDocFromServer } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { doc, getDocFromServer, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 const status = document.getElementById('status');
 const probeButton = document.getElementById('probe');
 const writeButton = document.getElementById('write');
+const rulesButton = document.getElementById('rules');
 const invoke = httpsCallable(getFunctions(db.app, 'asia-east1'), 'hrSourceWrite', {timeout:60000});
 let identity = null, authGeneration = 0, adminReady = false, busy = false, probesPassed = false, writeAttempted = false;
 function render() {
   probeButton.disabled = !adminReady || busy || writeAttempted;
   writeButton.disabled = !adminReady || busy || !probesPassed || writeAttempted;
+  rulesButton.disabled = !adminReady || busy;
 }
 function failure(code) { const error = new Error(code); error.safeCode = code; return error; }
 function safeFailure(error) {
-  const localCodes = ['ADMIN_REQUIRED','AUTH_CHANGED','PROBE_UNEXPECTED_RESULT','SOURCE_VERSION_REQUIRED','SOURCE_JSON_REQUIRED','SOURCE_UNSAFE_KEY','WRITE_RESPONSE_INVALID','WRITE_READBACK_INVALID'];
+  const localCodes = ['ADMIN_REQUIRED','AUTH_CHANGED','PROBE_UNEXPECTED_RESULT','SOURCE_VERSION_REQUIRED','SOURCE_JSON_REQUIRED','SOURCE_UNSAFE_KEY','WRITE_RESPONSE_INVALID','WRITE_READBACK_INVALID','RULES_SOURCE_REQUIRED','RULES_DIRECT_WRITE_NOT_BLOCKED','RULES_NAMESPACE_NOT_BLOCKED'];
   if (localCodes.includes(error?.safeCode)) return error.safeCode;
   const remoteCodes = ['unauthenticated','permission-denied','unavailable','deadline-exceeded','aborted','failed-precondition','internal','resource-exhausted','invalid-argument','not-found'];
   for (const code of remoteCodes) if (error?.code === code || error?.code === 'functions/' + code) return code;
@@ -132,6 +136,49 @@ writeButton.addEventListener('click', async () => {
     status.textContent = '第二步通過：後端寫入成功，已由伺服器重新讀取確認版本。僅更新版本與稽核；未更改員工、帳號、薪資或設定。';
   } catch (error) {
     status.textContent = '第二步未確認：' + safeFailure(error) + (writeAttempted ? '。請求可能已完成，已鎖定重送；請由工程端核對，不要重複操作。' : '。尚未送出版本寫入請求。');
+  } finally { busy = false; render(); }
+});
+rulesButton.addEventListener('click', async () => {
+  if (rulesButton.disabled || busy) return;
+  const generation = authGeneration;
+  busy = true; render(); status.textContent = '第三步執行中：確認來源可讀、原值直寫被拒絕及同步命名空間禁止讀取。';
+  try {
+    await assertAdmin(generation);
+    const versionRef = doc(db, 'hr', '_version');
+    const readable = await getDocFromServer(versionRef);
+    assertIdentity(generation);
+    if (!readable.exists()) throw failure('RULES_SOURCE_REQUIRED');
+    let attemptedWrite = false, directWriteDenied = false;
+    try {
+      await runTransaction(db, async transaction => {
+        const current = await transaction.get(versionRef);
+        assertIdentity(generation);
+        if (!current.exists()) throw failure('RULES_SOURCE_REQUIRED');
+        // Transaction retries re-read the current document; never overwrite newer data.
+        transaction.set(versionRef, current.data());
+        attemptedWrite = true;
+      });
+    } catch (error) {
+      assertIdentity(generation);
+      if (attemptedWrite && error?.code === 'permission-denied') directWriteDenied = true;
+      else throw error;
+    }
+    assertIdentity(generation);
+    if (!directWriteDenied) throw failure('RULES_DIRECT_WRITE_NOT_BLOCKED');
+    for (const path of ['hr_msgc_v1/root','hr_msgc_v1/root/issuers/cutover_probe/metadata/access_check']) {
+      let denied = false;
+      try { await getDocFromServer(doc(db, ...path.split('/'))); }
+      catch (error) {
+        assertIdentity(generation);
+        if (error?.code === 'permission-denied') denied = true;
+        else throw error;
+      }
+      assertIdentity(generation);
+      if (!denied) throw failure('RULES_NAMESPACE_NOT_BLOCKED');
+    }
+    status.textContent = '第三步通過：管理員來源讀取正常，原值直寫遭 Rules 拒絕，同步命名空間根目錄與深層讀取皆遭拒絕。沒有更改資料內容。';
+  } catch (error) {
+    status.textContent = '第三步未通過：' + safeFailure(error) + '。不視為 Rules 切換完成；未呼叫寫入後端。';
   } finally { busy = false; render(); }
 });
 </script>
