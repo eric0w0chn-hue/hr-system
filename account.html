@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -228,10 +229,12 @@ select.filter-select{padding:8px 10px;border:1px solid var(--border);border-radi
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=4';
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createHrSourceClient } from './hr-source-client.js?v=hr-source-r5-20260919';
+import { collection, getDocs, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
+const hrSource = createHrSourceClient({db});
 const PAGE_SIZE = 10;
 let allUsers = [];
 let currentPage = 1;
@@ -413,21 +416,8 @@ window.toggleDisable = async function(uid, disable){
 window.delUser = async function(uid){
   if(!confirm('確定要刪除此帳號？此操作無法復原，hr 員工資料也將一併移除。')) return;
   try{
-    // 1. 刪除 Firestore users 文件
-    await deleteDoc(doc(db,'users',uid));
-
-    // 2. 刪除 hr 員工資料（依 uid 找到對應筆）
-    try{
-      const hrSnap = await getDoc(doc(db,'hr','employees'));
-      if(hrSnap.exists()){
-        const data = hrSnap.data();
-        const employees = data.list || [];
-        const filtered = employees.filter(e => e.uid !== uid);
-        if(filtered.length !== employees.length){
-          await updateDoc(doc(db,'hr','employees'), {list: filtered});
-        }
-      }
-    }catch(e){ console.warn('hr 資料刪除失敗', e); }
+    // 後端核對目前權限後，原子刪除 users 文件與對應 HR 人員資料。
+    await hrSource.deleteAccount(uid);
 
     const delName = allUsers.find(x=>x.uid===uid)?.name || uid;
     allUsers = allUsers.filter(x=>x.uid!==uid);

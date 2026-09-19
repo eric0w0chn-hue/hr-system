@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -361,8 +362,10 @@ th.sort-desc::after{content:' ↓';color:var(--accent)}
 
 <script type="module">
 import { authGuard, db, auth, writeOpLog as sysWriteOpLog, initStoreDisplay, isKitchen, dispStore } from './auth-guard.js?v=6';
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
 import { getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { doc, getDoc, setDoc, deleteDoc, updateDoc, deleteField, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, getDocFromServer, setDoc, deleteDoc, updateDoc, deleteField, runTransaction, serverTimestamp, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const hrSource = createHrSourceClient({db});
 // 店面名稱正規化（異體字容錯：舖/鋪）
 function normLoc(s){return (s||'').replace(/鋪/g,'舖').replace(/　/g,' ').trim();}
 
@@ -406,6 +409,7 @@ let sortField='', sortDir=1;
 let currentPage=1;
 const PAGE_SIZE=15; // sortDir: 1=升冪 -1=降冪
 let _hrDataReady=false, _resignedLoaded=false, _resignedLoadPromise=null;
+let _settingsBaseHash=null, _settingsBaseValue=null;
 let _resignedLoadError='', _dataLoadId=0;
 const HR_CACHE_KEY='hr_cache_v2'; // null 代表離職名單尚未載入，不是空名單
 
@@ -503,24 +507,24 @@ window.cddSelect=function(safeId,inputId,val){
   // 工作地點變更時觸發求職者比對提示
   if(inputId==='m-workLocation') checkInterviewMatch();
 };
-window.cddDel=function(listName,val,safeId,inputId){
+window.cddDel=async function(listName,val,safeId,inputId){
   if(!confirm(`確定要刪除「${val}」嗎？`))return;
   const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
   const arr=maps[listName];if(!arr)return;
   const idx=arr.indexOf(val);if(idx>=0)arr.splice(idx,1);
-  saveData();showToast(`已刪除「${val}」`);
+  await saveData();showToast(`已刪除「${val}」`);
   const menu=document.getElementById('cdd-menu-'+safeId);
   if(menu){const item=Array.from(menu.querySelectorAll('.cdd-item')).find(el=>el.querySelector('span')&&el.querySelector('span').textContent===val);if(item)item.remove();}
   const inp=document.getElementById(inputId);
   if(inp&&inp.value===val){inp.value='';const lbl=document.getElementById('cdd-label-'+safeId);if(lbl){lbl.textContent='請選擇或新增';lbl.classList.add('cdd-placeholder');}}
 };
-window.cddAdd=function(listName,safeId,inputId){
+window.cddAdd=async function(listName,safeId,inputId){
   const cinp=document.getElementById('cdd-input-'+safeId);if(!cinp||!cinp.value.trim())return;
   const n=cinp.value.trim();
   const maps={interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades};
   const arr=maps[listName];if(!arr)return;
   if(arr.includes(n)){showToast('此項目已存在');return;}
-  arr.push(n);saveData();showToast(`已新增「${n}」`);cinp.value='';
+  arr.push(n);await saveData();showToast(`已新增「${n}」`);cinp.value='';
   const menu=document.getElementById('cdd-menu-'+safeId);
   if(menu){
     const addRow=menu.querySelector('.cdd-add');
@@ -554,7 +558,7 @@ window.cddDragOver=function(e){
 window.cddDragLeave=function(e){
   e.currentTarget.classList.remove('drag-over');
 };
-window.cddDrop=function(e,listName,safeId,inputId){
+window.cddDrop=async function(e,listName,safeId,inputId){
   e.preventDefault();e.stopPropagation();
   e.currentTarget.classList.remove('drag-over');
   if(!_dragSrcEl||_dragSrcEl===e.currentTarget) return;
@@ -574,7 +578,7 @@ window.cddDrop=function(e,listName,safeId,inputId){
   const newItems=[...menu.querySelectorAll('.cdd-item[draggable]')];
   const newOrder=newItems.map(el=>el.dataset.val).filter(Boolean);
   arr.length=0;newOrder.forEach(v=>arr.push(v));
-  saveData();
+  await saveData();
   _dragSrcEl=null;
 };
 document.addEventListener('dragend',()=>{
@@ -652,6 +656,8 @@ async function ensureResignedLoaded(){
 
 async function loadData(storeReady=Promise.resolve()) {
   _hrDataReady=false;
+  _settingsBaseHash=null;
+  _settingsBaseValue=null;
   _resignedLoaded=false;
   _resignedLoadPromise=null;
   _resignedLoadError='';
@@ -671,7 +677,11 @@ async function loadData(storeReady=Promise.resolve()) {
     } catch(e) {}
 
     // 先讀版本再讀主要資料；求職者仍供新增同仁比對，離職名單不阻擋進頁。
-    const verSnap=await getDoc(doc(db,'hr','_version'));
+    // 店家管理可獨立更新 settings、不推進 HR 版本；即使命中名冊快取也讀取實際設定。
+    const [verSnap,locSnap]=await Promise.all([
+      getDoc(doc(db,'hr','_version')),
+      getDocFromServer(doc(db,'hr','settings'))
+    ]);
     const remoteVer = verSnap.exists() ? verSnap.data().v : 0;
 
     if(cachedData && cachedData.v === remoteVer){
@@ -681,28 +691,25 @@ async function loadData(storeReady=Promise.resolve()) {
       resigned           = cachedData.resigned||[];
       _resignedLoaded    = Array.isArray(cachedData.resigned);
       _dataVersion       = cachedData.v;
-      interviewLocations = cachedData.interviewLocations||[];
-      workLocations      = cachedData.workLocations||[];
-      titleOptions       = cachedData.titleOptions||[];
-      bankOptions        = cachedData.bankOptions||[];
-      insuranceGrades    = cachedData.insuranceGrades||[];
     } else {
       // 快取失效或不存在，重讀
-      const [ivSnap,evSnap,locSnap] = await Promise.all([
+      const [ivSnap,evSnap] = await Promise.all([
         getDoc(doc(db,'hr','interviews')),
-        getDoc(doc(db,'hr','employees')),
-        getDoc(doc(db,'hr','settings'))
+        getDoc(doc(db,'hr','employees'))
       ]);
       interviews       = ivSnap.exists() ? ivSnap.data().list : [];
       employees        = evSnap.exists() ? evSnap.data().list : [];
       resigned         = [];
       _dataVersion     = remoteVer;
-      interviewLocations = locSnap.exists() ? (locSnap.data().interviewLocations||[]) : [];
-      workLocations      = locSnap.exists() ? (locSnap.data().workLocations||[]) : [];
-      titleOptions       = locSnap.exists() ? (locSnap.data().titleOptions||[]) : [];
-      bankOptions        = locSnap.exists() ? (locSnap.data().bankOptions||[]) : [];
-      insuranceGrades    = locSnap.exists() ? (locSnap.data().insuranceGrades||[]) : [];
     }
+    const settingsData=locSnap.exists()?locSnap.data():{};
+    interviewLocations=settingsData.interviewLocations||[];
+    workLocations=settingsData.workLocations||[];
+    titleOptions=settingsData.titleOptions||[];
+    bankOptions=settingsData.bankOptions||[];
+    insuranceGrades=settingsData.insuranceGrades||[];
+    _settingsBaseValue=structuredClone({interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
+    _settingsBaseHash=await hashSnapshot(locSnap);
     await storeReady;
     _hrDataReady=true;
     cacheHrData();
@@ -736,98 +743,60 @@ async function writeOpLog(action, detail=''){
 let _dataVersion = null;
 
 async function saveData(action='', detail='') {
-  if(!_hrDataReady){ showToast('資料尚未載入完成，請重新整理後再操作'); return false; }
-  const MAX_TRY = 3;
-  let lastErr = null;
-
-  for(let attempt = 1; attempt <= MAX_TRY; attempt++){
-    try {
-      // ── 店長/顧問：transaction 外先讀完整清單，補回其他店員工 ──
-      //    （每次重試都重讀，確保其他店資料是最新的）
-      let finalEmployees = employees;
-      let finalResigned  = resigned;
-      const writeResigned = _resignedLoaded;
-      if((currentUserRole==='manager' || currentUserRole==='consultant') && currentUserLocations.length){
-        const [fullEmpSnap, fullResSnap] = await Promise.all([
-          getDoc(doc(db,'hr','employees')),
-          writeResigned ? getDoc(doc(db,'hr','resigned')) : Promise.resolve(null),
-        ]);
-        if(fullEmpSnap.exists()){
-          const fullList = fullEmpSnap.data().list || [];
-          const myIds = new Set(employees.map(r=>r.id));
-          const othersEmp = fullList.filter(r => !currentUserLocations.includes(r.workLocation) && !myIds.has(r.id));
-          finalEmployees = [...employees, ...othersEmp];
-        }
-        if(fullResSnap && fullResSnap.exists()){
-          const fullResList = fullResSnap.data().list || [];
-          const myResIds = new Set(resigned.map(r=>r.id));
-          const othersRes = fullResList.filter(r => !currentUserLocations.includes(r.workLocation) && !myResIds.has(r.id));
-          finalResigned = [...resigned, ...othersRes];
-        }
+  try {
+    if(!_hrDataReady || !Number.isSafeInteger(_dataVersion) || _dataVersion<0 || !_settingsBaseValue || !/^[a-f0-9]{64}$/.test(_settingsBaseHash||''))throw new Error('SOURCE_NOT_READY');
+    // 固定此次畫面版本與內容，不以最新版本重試覆蓋，也不把 await 期間的新輸入算作已儲存。
+    const expectedVersion=_dataVersion;
+    const writeResigned=_resignedLoaded;
+    const local=structuredClone({interviews,employees,resigned:writeResigned?resigned:[],settings:{interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades}});
+    const writeSettings=JSON.stringify(local.settings)!==JSON.stringify(_settingsBaseValue);
+    const expectedSettingsHash=_settingsBaseHash;
+    const [ivSnap,empSnap,resSnap]=await Promise.all([
+      getDocFromServer(doc(db,'hr','interviews')),
+      getDocFromServer(doc(db,'hr','employees')),
+      writeResigned?getDocFromServer(doc(db,'hr','resigned')):Promise.resolve(null)
+    ]);
+    let finalEmployees=local.employees,finalResigned=local.resigned;
+    if((currentUserRole==='manager'||currentUserRole==='consultant')&&currentUserLocations.length){
+      const myIds=new Set(local.employees.map(r=>r.id));
+      const othersEmp=(empSnap.exists()?(empSnap.data().list||[]):[]).filter(r=>!currentUserLocations.includes(r.workLocation)&&!myIds.has(r.id));
+      finalEmployees=[...local.employees,...othersEmp];
+      if(writeResigned){
+        const myResIds=new Set(local.resigned.map(r=>r.id));
+        const othersRes=(resSnap.exists()?(resSnap.data().list||[]):[]).filter(r=>!currentUserLocations.includes(r.workLocation)&&!myResIds.has(r.id));
+        finalResigned=[...local.resigned,...othersRes];
       }
-
-      await runTransaction(db, async tx => {
-        const vRef = doc(db,'hr','_version');
-        const vSnap = await tx.get(vRef);
-        const remoteVer = vSnap.exists() ? vSnap.data().v : 0;
-
-        // 版本不符：第 1~2 次自動接受最新版本重試（保住使用者剛輸入的資料），
-        // 最後一次才視為真正衝突。
-        if(_dataVersion !== null && remoteVer !== _dataVersion){
-          if(attempt < MAX_TRY){
-            _dataVersion = remoteVer;            // 接受最新版本
-            throw Object.assign(new Error('RETRY'), {isRetry:true});
-          }
-          throw Object.assign(new Error('VERSION_CONFLICT'), {isConflict:true});
-        }
-
-        const nextVer = (remoteVer||0) + 1;
-        tx.set(vRef, {v: nextVer, lastEditor: currentUserName, lastEditAt: new Date().toISOString()});
-        tx.set(doc(db,'hr','interviews'), {list:interviews});
-        tx.set(doc(db,'hr','employees'),  {list:finalEmployees});
-        // 尚未載入的離職名單絕不寫回，避免空陣列覆蓋歷史資料。
-        if(writeResigned) tx.set(doc(db,'hr','resigned'), {list:finalResigned});
-        tx.set(doc(db,'hr','settings'),   {interviewLocations,workLocations,titleOptions,bankOptions,insuranceGrades});
-        _dataVersion = nextVer;
-      });
-
-      // ── 成功 ──
-      cacheHrData();
-      if(action) writeOpLog(action, detail);
-      return true;
-
-    } catch(e) {
-      lastErr = e;
-      if(e.isRetry){
-        console.warn(`[saveData] 版本已更新，自動重試 ${attempt}/${MAX_TRY}`);
-        await new Promise(r=>setTimeout(r, 250 * attempt)); // 稍等再試，降低碰撞
-        continue;
-      }
-      break; // 非重試類錯誤，直接跳出
     }
-  }
-
-  // ── 失敗處理 ──
-  const e = lastErr;
-  console.error('[saveData] 失敗', e);
-  if(e && e.isConflict){
-    showToast('⚠️ 資料被其他人同時修改，正在重新載入...', 3000);
-    await loadData();
-    render();
-    showToast('已重新載入最新資料，請再操作一次', 4000);
-  } else {
+    const writes=[
+      {path:'hr/interviews',kind:'set',data:{list:local.interviews},expectedHash:await hashSnapshot(ivSnap)},
+      {path:'hr/employees',kind:'set',data:{list:finalEmployees},expectedHash:await hashSnapshot(empSnap)}
+    ];
+    if(writeSettings)writes.push({path:'hr/settings',kind:'set',data:local.settings,expectedHash:expectedSettingsHash});
+    if(writeResigned)writes.push({path:'hr/resigned',kind:'set',data:{list:finalResigned},expectedHash:await hashSnapshot(resSnap)});
+    const result=await hrSource.commit({module:'hr',writes,expectedVersion});
+    _dataVersion=result.version;
+    if(writeSettings){
+      _settingsBaseHash=result.hashes['hr/settings'];
+      _settingsBaseValue=structuredClone(local.settings);
+    }
+    try{sessionStorage.removeItem(HR_CACHE_KEY);}catch(_){}
+    if(action)writeOpLog(action,detail);
+    return true;
+  }catch(e){
+    console.error('[saveData] 失敗',e);
     const code = (e && (e.code || e.name)) || '未知';
     const msg  = (e && e.message) || '';
-    // 常見原因給明確指引
     let hint = '';
-    if(/permission|PERMISSION_DENIED/i.test(code + msg)) hint = '（權限不足：請確認 Firestore 規則 hr/{docId} 已開放 isStaff）';
+    if(e.isConflict || /aborted|VERSION_CONFLICT|SOURCE_CONFLICT/i.test(code+msg))hint='（資料版本已改變；請先保留畫面輸入，確認差異後再重試）';
+    else if(msg==='SOURCE_NOT_READY')hint='（資料尚未載入完成，請勿儲存）';
+    else if(/permission|PERMISSION_DENIED/i.test(code + msg)) hint = '（後端權限檢查未通過，請聯絡系統管理員）';
     else if(/exceeds|maximum size|INVALID_ARGUMENT/i.test(code + msg)) hint = '（資料量超過 Firestore 單一文件 1MB 上限）';
     else if(/unavailable|network|deadline/i.test(code + msg)) hint = '（網路連線不穩，請稍後再試）';
     else if(/undefined/i.test(msg)) hint = '（有欄位值為 undefined）';
-    showToast(`儲存失敗：${code} ${hint}`, 6000);
-    alert(`儲存失敗，資料未變更。\n\n錯誤代碼：${code}\n訊息：${msg}\n${hint}\n\n請把此訊息回報給系統管理員。`);
+    showToast(`儲存失敗，畫面輸入尚未儲存：${code} ${hint}`,6000);
+    alert(`儲存未確認成功，畫面輸入已保留，不會自動重新載入。\n\n錯誤代碼：${code}\n訊息：${msg}\n${hint}\n\n請先保留輸入並回報系統管理員。`);
+    throw e;
   }
-  return false;
 }
 
 let interviews=[], employees=[], resigned=[];
@@ -1057,13 +1026,13 @@ function importJSON() {
   input.onchange=e=>{
     const f=e.target.files[0];if(!f)return;
     const reader=new FileReader();
-    reader.onload=ev=>{
+    reader.onload=async ev=>{
       try{
         const d=JSON.parse(ev.target.result);
         if(d.interviews&&d.employees){
-          interviews=d.interviews;employees=d.employees;saveData();render();showToast('資料匯入成功');
+          interviews=d.interviews;employees=d.employees;await saveData();render();showToast('資料匯入成功');
         }else{showToast('檔案格式不正確');}
-      }catch{showToast('匯入失敗，請確認檔案格式');}
+      }catch(err){showToast('匯入未完成，請保留資料並確認錯誤：'+err.message,6000);}
     };reader.readAsText(f);
   };input.click();
 }
@@ -2267,25 +2236,8 @@ async function delRow(id){
   if(!confirm(`確定要刪除${_kind}「${_name}」${_loc?'（'+_loc+'）':''}嗎？\n此操作無法復原，帳號也將一併移除。`))return;
   // 第二層確認
   if(!confirm(`⚠️ 再次確認\n\n您即將永久刪除「${_name}」，此動作無法復原。\n\n按「確定」正式刪除，按「取消」放棄。`))return;
-  // 若是員工，先找出 uid 刪除 users 文件 + Firebase Auth 帳號
+  // 先保存人事刪除；來源版本衝突時不得先刪帳號。
   if(tab==='employee'){
-    const r=employees.find(x=>x.id===id);
-    if(r&&r.uid){
-      try{
-        await deleteDoc(doc(db,'users', r.uid));
-      }catch(e){
-        console.error('users 文件刪除失敗', e);
-      }
-      // 刪除 Firebase Auth 帳號（透過 Cloud Function）
-      try{
-        const {getFunctions, httpsCallable} = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js');
-        const fn = httpsCallable(getFunctions(), 'deleteAuthUser');
-        await fn({uid: r.uid});
-      }catch(e){
-        console.warn('Auth 帳號刪除失敗（可能本來就沒有）', e);
-      }
-    }
-    const _delName = (employees.find(x=>x.id===id)||{}).name||String(id);
     employees=employees.filter(r=>r.id!==id);
   } else if(tab==='interview'){
     const _delName2 = (interviews.find(x=>x.id===id)||{}).name||String(id);
@@ -2298,7 +2250,20 @@ async function delRow(id){
   if(selId===id) selId=null;
   render();
   showToast('刪除中...');
-  await saveData('刪除同仁', (employees.find(x=>x.id===id)||{}).name||String(id));
+  await saveData('刪除同仁',_name);
+  if(_target.uid){
+    let userDeleteFailed=false,authDeleteFailed=false;
+    try{await deleteDoc(doc(db,'users',_target.uid));}
+    catch(e){userDeleteFailed=true;console.warn('users 文件刪除失敗',e);}
+    try{
+      const fn=httpsCallable(getFunctions(),'deleteAuthUser');
+      await fn({uid:_target.uid});
+    }catch(e){authDeleteFailed=true;console.warn('Auth 帳號刪除失敗',e);}
+    if(userDeleteFailed||authDeleteFailed){
+      showToast(`人員資料已刪除；${userDeleteFailed?'users 帳號未刪除；':''}${authDeleteFailed?'Auth 帳號未刪除；':''}請追蹤處理。`,10000);
+      return;
+    }
+  }
   showToast('已刪除 ✓');
 }
 
@@ -2379,7 +2344,7 @@ window.updateLeaveUsed=(id,annual)=>updateLeaveUsed(id,annual);
 window.addBank=()=>addBank();
 
 // ── 刪除自訂下拉選項 ──
-window.delCustomOption=function(listName, selectId){
+window.delCustomOption=async function(listName, selectId){
   const sel=document.getElementById(selectId);
   if(!sel||!sel.value){showToast('請先選擇要刪除的項目');return;}
   const val=sel.value;
@@ -2389,7 +2354,7 @@ window.delCustomOption=function(listName, selectId){
   if(!arr)return;
   const idx=arr.indexOf(val);
   if(idx>=0)arr.splice(idx,1);
-  saveData(); showToast(`已刪除「${val}」`);
+  await saveData(); showToast(`已刪除「${val}」`);
   sel.remove(sel.selectedIndex); sel.value='';
 };
 
@@ -3066,13 +3031,13 @@ window.undoTransfer = async function(empId){
 };
 
 // ── 新增銀行 ──
-function addBank(){
+async function addBank(){
   const name=prompt('請輸入銀行名稱（例：台灣銀行、玉山銀行）：');
   if(!name||!name.trim())return;
   const n=name.trim();
   if(bankOptions.includes(n)){showToast('此銀行已存在');return;}
   bankOptions.push(n);
-  saveData();
+  await saveData();
   showToast(`已新增「${n}」`);
   const sel=document.getElementById('m-bankName');
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
@@ -3094,39 +3059,39 @@ async function updateLeaveUsed(id, annual){
   await saveData();
   showToast('特休已更新 ✓');
 }
-window.addLocation=function(){
+window.addLocation=async function(){
   const name=prompt('請輸入新的面試地點名稱：');
   if(!name||!name.trim())return;
   const n=name.trim();
   if(interviewLocations.includes(n)){showToast('此地點已存在');return;}
   interviewLocations.push(n);
-  saveData();
+  await saveData();
   showToast(`已新增「${n}」`);
   const sel=document.getElementById('m-location');
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
 };
 
 // ── 新增工作地點 ──
-window.addWorkLocation=function(){
+window.addWorkLocation=async function(){
   const name=prompt('請輸入新的工作地點名稱：');
   if(!name||!name.trim())return;
   const n=name.trim();
   if(workLocations.includes(n)){showToast('此地點已存在');return;}
   workLocations.push(n);
-  saveData();
+  await saveData();
   showToast(`已新增「${n}」`);
   const sel=document.getElementById('m-workLocation');
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
 };
 
 // ── 新增職稱 ──
-window.addTitle=function(){
+window.addTitle=async function(){
   const name=prompt('請輸入新的職稱：');
   if(!name||!name.trim())return;
   const n=name.trim();
   if(titleOptions.includes(n)){showToast('此職稱已存在');return;}
   titleOptions.push(n);
-  saveData();
+  await saveData();
   showToast(`已新增「${n}」`);
   const sel=document.getElementById('m-title');
   if(sel){const opt=document.createElement('option');opt.value=n;opt.textContent=n;opt.selected=true;sel.appendChild(opt);}
@@ -3135,11 +3100,7 @@ window.addTitle=function(){
 // ── 帳號停用/啟用 工具函式 ──
 async function setAccountDisabled(uid, disabled){
   if(!uid) return;
-  try {
-    await setDoc(doc(db,'users', uid), { disabled }, { merge: true });
-  } catch(e) {
-    console.error('帳號狀態更新失敗', e);
-  }
+  await updateDoc(doc(db,'users', uid), { disabled });
 }
 
 // ── 離職：移到離職員工 + 停用帳號 ──
@@ -3316,10 +3277,14 @@ window.confirmResignBatch=async function(){
   showToast('儲存中...');
   await saveData('批次確認離職', `${targets.length}人`);
 
+  let disabledCount=0,failedCount=0;
   for(const uid of uids){
-    try{ await setAccountDisabled(uid, true); }catch(err){ console.warn('停用帳號失敗', uid, err); }
+    try{await setAccountDisabled(uid,true);disabledCount++;}catch(err){failedCount++;console.warn('停用帳號失敗',err);}
   }
-  showToast(`已轉入離職同仁 ${targets.length} 位，帳號已停用 ✓`, 5000);
+  const missingUidCount=targets.length-uids.length;
+  if(failedCount||missingUidCount){
+    showToast(`離職資料已儲存 ${targets.length} 位；帳號停用成功 ${disabledCount}、失敗 ${failedCount}、無綁定 UID ${missingUidCount}，請追蹤未完成項目。`,10000);
+  }else showToast(`已轉入離職同仁 ${targets.length} 位，帳號已停用 ✓`,5000);
 };
 
 // ── 復職 + 啟用帳號 ──
@@ -3336,14 +3301,14 @@ window.restoreEmployee=async function(id){
   if(selId===id)selId=null;
   tab='employee';
   render();
+  await saveData('復職',r.name||String(id));
   // 啟用帳號
   if(r.uid){
-    await setAccountDisabled(r.uid, false);
-    showToast('已復職，帳號已重新啟用 ✓');
+    try{await setAccountDisabled(r.uid,false);showToast('已復職，帳號已重新啟用 ✓');}
+    catch(err){showToast('復職資料已儲存，但帳號尚未啟用：'+err.message,8000);}
   } else {
     showToast('已復職，移回在職同仁 ✓');
   }
-  await saveData();
 };
 
 // ── 訪談紀錄 ──

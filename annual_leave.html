@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>特休假管理</title>
@@ -181,12 +182,15 @@ tbody tr:hover .sticky-l{background:var(--accent-light)}
 
 <script type="module">
 import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const hrSource = createHrSourceClient({db});
 
 /* ═══ 狀態 ═══ */
 let CUR={role:'',name:'',uid:''};
 let VIEW_LOCS=[];
 let employees=[];
+let employeeBaseHash=null;
 let workLocations=[];
 let mode='temp';               // temp=臨時版（extraLeave）／legal=正規版（勞基法週期）
 let selId=null;
@@ -574,7 +578,7 @@ window.addDate=async function(){
     if(t.usedDates.includes(v)){alert('此日期已登記');return;}
     t.usedDates.push(v);t.usedDates.sort();
   }
-  await save(`登記特休 ${v}`, e.name);
+  if(!await save(`登記特休 ${v}`, e.name))return;
   openDetail(e.id);render();
 };
 window.delDate=async function(d){
@@ -592,7 +596,7 @@ window.delDate=async function(d){
       if(Array.isArray(l.usedDates)){const i=l.usedDates.indexOf(d);if(i>=0)l.usedDates.splice(i,1);}
     });
   }
-  await save(`移除特休 ${d}`, e.name);
+  if(!await save(`移除特休 ${d}`, e.name))return;
   openDetail(e.id);render();
 };
 
@@ -613,7 +617,7 @@ window.toggleSettled=async function(id){
     if(!confirm(`將「${e.name}」上週期未休 ${s.lastRemain} 天標記為已發放薪資？\n\n（週期 ${s.last.start} ~ ${s.last.end}）`))return;
     e.leaveSettled=s.cur.start;
   }
-  await saveEmp(e, on?'取消特休結算標記':'標記特休已發放', e.name);
+  if(!await saveEmp(e, on?'取消特休結算標記':'標記特休已發放', e.name))return;
   render();
   if(document.querySelector('.overlay'))openDetail(e.id);
 };
@@ -653,19 +657,23 @@ window.batchSettle=async function(){
     const s=summarize(e);
     if(s.cur.start){e.leaveSettled=s.cur.start;n++;}
   });
-  await saveAll(`批次標記特休已發放（上週期 ${y}→${y+1}）`, `${n} 位、共 ${tot} 天`);
+  if(!await saveAll(`批次標記特休已發放（上週期 ${y}→${y+1}）`, `${n} 位、共 ${tot} 天`))return;
   render();
   alert(`✓ 已標記 ${n} 位同仁的上週期特休為已發放。`);
 };
 
 /* ═══ 儲存（寫回 hr/employees，維持既有結構）═══ */
-// 以遠端最新資料為底，只覆寫指定員工的特休相關欄位，避免蓋掉他人同時的編輯
+// 畫面載入版本必須仍有效；版本變更時保留輸入並要求重載，不用新 hash 重送舊畫面。
 async function writeBack(empList,action,detail){
   try{
+    const expectedHash=employeeBaseHash;
+    if(!/^[a-f0-9]{64}$/.test(expectedHash||''))throw new Error('畫面資料版本尚未確認，請重新載入後重試');
+    const submitted=JSON.parse(JSON.stringify(empList));
     const snap=await getDoc(doc(db,'hr','employees'));
+    if(await hashSnapshot(snap)!==expectedHash)throw new Error('資料版本已改變；請先保留畫面輸入並重新載入後重試');
     const remote=snap.exists()?(snap.data().list||[]):[];
     let hit=0;
-    empList.forEach(edited=>{
+    submitted.forEach(edited=>{
       const idx=remote.findIndex(x=>String(x.id)===String(edited.id));
       if(idx<0)return;
       remote[idx].extraLeave=edited.extraLeave||{};
@@ -674,23 +682,30 @@ async function writeBack(empList,action,detail){
       else delete remote[idx].leaveSettled;
       hit++;
     });
-    if(!hit)return;
-    await setDoc(doc(db,'hr','employees'),{list:remote},{merge:true});
+    if(!hit)throw new Error('找不到對應同仁，資料未儲存');
+    const result=await hrSource.commit({module:'annual_leave',writes:[{path:'hr/employees',kind:'set',data:{list:remote},merge:true,expectedHash}]});
+    const savedHash=result?.hashes?.['hr/employees'];
+    if(!/^[a-f0-9]{64}$/.test(savedHash||'')){
+      employeeBaseHash=null;
+      throw new Error('無法確認儲存後的資料版本，請重新載入確認結果後重試');
+    }
+    employeeBaseHash=savedHash;
     writeOpLog({editor:CUR.name,role:CUR.role,module:'annual_leave',action,detail:detail||''});
+    return true;
   }catch(err){
-    console.error(err);alert('儲存失敗：'+(err&&err.message||err));
+    console.error(err);alert('儲存失敗，畫面修改尚未儲存：'+(err&&err.message||err));return false;
   }
 }
 // 單筆（詳情頁增刪日期用，沿用 selId）
 async function save(action,detail){
   const edited=employees.find(x=>String(x.id)===String(selId));
   if(!edited)return;
-  await writeBack([edited],action,detail);
+  return writeBack([edited],action,detail);
 }
 // 單筆（指定員工）
-async function saveEmp(e,action,detail){ await writeBack([e],action,detail); }
+async function saveEmp(e,action,detail){ return writeBack([e],action,detail); }
 // 批次
-async function saveAll(action,detail){ await writeBack(visibleEmployees(),action,detail); }
+async function saveAll(action,detail){ return writeBack(visibleEmployees(),action,detail); }
 
 /* ═══ 匯出 CSV ═══ */
 window.exportCsv=function(){
@@ -730,11 +745,13 @@ authGuard('annual_leave', async ({ uid, role, locations, userData }) => {
   const rc=$('roleChip');
   if(rc)rc.textContent=({admin:'管理員',consultant:'顧問',manager:'店長/副店長',employee:'同仁'})[role]||role;
 
+  employeeBaseHash=null;
   try{
     const [empSnap,setSnap]=await Promise.all([
       getDoc(doc(db,'hr','employees')),
       getDoc(doc(db,'hr','settings')).catch(()=>null),
     ]);
+    employeeBaseHash=await hashSnapshot(empSnap);
     const all=empSnap.exists()?(empSnap.data().list||[]):[];
     employees=all.filter(e=>e&&(!e.status||e.status==='在職'));   // 僅在職同仁
     workLocations=(setSnap&&setSnap.exists()?(setSnap.data().workLocations||[]):[]).slice();

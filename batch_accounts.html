@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -119,6 +120,7 @@ tr:hover td{background:#FAFBFC}
 
     <div class="action-bar">
       <button class="btn btn-success" id="startBtn" onclick="startBatch()">▶ 開始批次建立</button>
+      <button class="btn" id="retryBindingsBtn" onclick="retryBindings()" style="display:none">重試 HR 綁定（不重建帳號）</button>
       <button class="btn" onclick="location.reload()">↺ 重新整理</button>
       <div class="progress-wrap" id="progressWrap" style="display:none">
         <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
@@ -153,11 +155,13 @@ tr:hover td{background:#FAFBFC}
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
 
 const firebaseConfig={apiKey:"AIzaSyAg_dfvoxA1dQYqHzdqPtEot8wT-wKZal4",authDomain:"liangpinghri.firebaseapp.com",projectId:"liangpinghri",storageBucket:"liangpinghri.firebasestorage.app",messagingSenderId:"410255807470",appId:"1:410255807470:web:dc08ba070c7db4f083f4ff"};
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+const hrSource = createHrSourceClient({db});
 
 let employees = [];
 let empStatuses = {}; // empId -> 'pending'|'done'|'error'|'skip'
@@ -237,7 +241,13 @@ function updateRowStatus(empId, status){
 window.startBatch = async function(){
   if(isRunning) return;
   const needCreate = employees.filter(e => !e.uid && e.idNo && e.birthday);
-  if(!needCreate.length){log('沒有需要建立的帳號！','info');return;}
+  if(!needCreate.length){
+    if(employees.some(e=>!e.uid)){
+      log('✕ 仍有同仁缺少 UID，且建立帳號所需資料不足；HR 綁定未完成，請先人工核對資料。','err');
+      document.getElementById('retryBindingsBtn').style.display='';
+    }else log('沒有需要建立的帳號！','info');
+    return;
+  }
   if(!confirm(`即將為 ${needCreate.length} 位員工批次建立帳號，確定繼續？`)) return;
 
   isRunning = true;
@@ -301,9 +311,9 @@ window.startBatch = async function(){
       done++;
     } catch(err){
       if(err.code === 'auth/email-already-in-use'){
-        log(`↷ ${emp.name} (${idNo}) 帳號已存在，跳過`, 'info');
-        updateRowStatus(emp.id, 'skip');
-        done++;
+        log(`✕ ${emp.name} (${idNo}) 帳號已存在，但尚未確認 UID；HR 綁定未完成，需人工核對。`, 'err');
+        updateRowStatus(emp.id, 'error');
+        errors++;
       } else {
         log(`✕ ${emp.name} (${idNo}) 失敗：${err.message}`, 'err');
         updateRowStatus(emp.id, 'error');
@@ -315,24 +325,51 @@ window.startBatch = async function(){
     await new Promise(r=>setTimeout(r,1200));
   }
 
-  // 最後把 uid 更新回 Firestore employees
-  try{
-    const snap = await getDoc(doc(db,'hr','employees'));
-    const list = snap.exists() ? snap.data().list : [];
-    const empMap = {};
-    employees.forEach(e=>{ if(e.uid) empMap[e.id]=e.uid; });
-    const updated = list.map(e=> empMap[e.id] ? {...e, uid:empMap[e.id]} : e);
-    await setDoc(doc(db,'hr','employees'), {list:updated});
-    log(`\n✓ 已將所有 uid 同步回員工資料`, 'ok');
-  } catch(e){
-    log(`✕ 同步 uid 回員工資料失敗：${e.message}`, 'err');
-  }
+  // 帳號建立與 HR 綁定分開；綁定失败不可顯示整批完成。
+  const bindingsSynced=await syncEmployeeBindings();
 
   document.getElementById('progressFill').style.width = '100%';
-  document.getElementById('progressText').textContent = `完成！成功 ${done} 筆，失敗 ${errors} 筆`;
-  log(`\n完成！成功：${done}，失敗：${errors}`, 'ok');
+  document.getElementById('progressText').textContent = bindingsSynced?`完成！成功 ${done} 筆，失敗 ${errors} 筆`:`帳號建立成功 ${done} 筆、失敗 ${errors} 筆，但 HR 綁定未完成`;
+  log(bindingsSynced?`\n完成！成功：${done}，失敗：${errors}`:'\n⚠ HR 綁定未完成；已建立帳號不會回滾，請保留此頁資料並按「重試 HR 綁定」。', bindingsSynced?'ok':'err');
   document.getElementById('startBtn').disabled = false;
   isRunning = false;
+};
+
+async function syncEmployeeBindings(){
+  try{
+    const pending=employees.filter(e=>!e.uid);
+    const confirmed=employees.filter(e=>e.uid);
+    if(pending.length&&!confirmed.length)throw new Error(`尚有 ${pending.length} 位同仁缺少 UID，沒有可確認的綁定；請保留此頁並人工核對，不會自動推測既有帳號 UID`);
+    const snap = await getDoc(doc(db,'hr','employees'));
+    const expectedHash=await hashSnapshot(snap);
+    const list = snap.exists() ? snap.data().list : [];
+    const empMap = {};
+    confirmed.forEach(e=>{ empMap[e.id]=e.uid; });
+    const updated = list.map(e=> empMap[e.id] ? {...e, uid:empMap[e.id]} : e);
+    await hrSource.commit({module:'batch_accounts',writes:[{path:'hr/employees',kind:'set',data:{list:updated},merge:true,expectedHash}]});
+    if(pending.length){
+      document.getElementById('retryBindingsBtn').style.display='';
+      log(`⚠ 已確認的 UID 已同步，但仍有 ${pending.length} 位同仁缺少 UID；HR 綁定未全部完成，請保留此頁並人工核對後再重試。`, 'err');
+      return false;
+    }
+    document.getElementById('retryBindingsBtn').style.display='none';
+    log(`\n✓ 已將所有 uid 同步回員工資料`, 'ok');
+    return true;
+  } catch(e){
+    log(`✕ 同步 uid 回員工資料失敗：${e.message}`, 'err');
+    document.getElementById('retryBindingsBtn').style.display='';
+    return false;
+  }
+}
+
+window.retryBindings=async function(){
+  if(isRunning)return;
+  isRunning=true;
+  const retryButton=document.getElementById('retryBindingsBtn');
+  retryButton.disabled=true;
+  try{
+    if(await syncEmployeeBindings())document.getElementById('progressText').textContent='HR 綁定已完成（未重新建立帳號）';
+  }finally{isRunning=false;retryButton.disabled=false;}
 };
 
 // ── 初始化 ──

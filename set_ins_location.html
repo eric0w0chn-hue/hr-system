@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <title>批次設定投保地點（一次性工具）</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -67,7 +68,9 @@ td{padding:7px 10px;border-bottom:1px solid #F1F5F9}
 
 <script type="module">
 import { authGuard, db, writeOpLog } from './auth-guard.js?v=3';
-import { doc, getDoc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const hrSource = createHrSourceClient({db});
 
 const CENTRAL = ['鑫雞肉央廚','泉州鑫廚房','新莊央廚'];
 const CENTRAL_INS = '梁平有限公司';
@@ -136,6 +139,7 @@ window.run = async function(){
       getDoc(doc(db,'hr','employees')),
       getDoc(doc(db,'hr','resigned')),
     ]);
+    const expectedHash=await hashSnapshot(evS);
     const snapEv = evS.exists()? (evS.data().list||[]) : [];
     const snapIv = ivS.exists()? (ivS.data().list||[]) : [];
     const snapRs = rsS.exists()? (rsS.data().list||[]) : [];
@@ -154,18 +158,12 @@ window.run = async function(){
     const merged = snapEv.map(e=>{
       const t = planMap.get(String(e.id));
       if(t===undefined) return e;
-      const insurance = { ...(e.insurance||{grade:'',dependents:[],gradeHistory:[]}), insLocation: t };
+      const insurance = { ...(e.insurance||{}), insLocation: t };
       return { ...e, insurance };
     });
 
     log('寫入…');
-    await runTransaction(db, async tx=>{
-      const vRef=doc(db,'hr','_version');
-      const vSnap=await tx.get(vRef);
-      const nextV=((vSnap.exists()?vSnap.data().v:0)||0)+1;
-      tx.set(vRef,{v:nextV,lastEditor:me,lastEditAt:new Date().toISOString()});
-      tx.set(doc(db,'hr','employees'),{list:merged});
-    });
+    await hrSource.commit({module:'set_ins_location',writes:[{path:'hr/employees',kind:'set',data:{list:merged},merge:true,expectedHash}]});
     try{ writeOpLog({editor:me,role:'admin',module:'hr',action:'批次設定投保地點',detail:plan.length+'人'}); }catch(_){}
 
     log('🎉 完成，共設定 '+plan.length+' 人');

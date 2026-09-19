@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // =============================================================================
-//  梁平鑫系統 Firestore Rules — 2026/09/17 已部署，模擬器 29 項測試通過
+//  梁平鑫系統 Firestore Rules — 人事授權來源保護候選（尚未部署）
+//  前版：2026/09/17 已部署，模擬器 29 項測試通過；本候選測試另行記錄。
 //  基準：repo firestore.rules（2026/09/16 Console 匯出）
 //  部署與測試紀錄以 CODEX交接文件_梁平鑫系統.md §4 為準。
 //
@@ -13,14 +14,16 @@ rules_version = '2';
 //   [SEC-05] 角色授權檢查已修補：所有角色判斷加入 isActive()，
 //       停用帳號無法取得管理職讀寫權；缺 disabled 欄位視為未停用。
 //       僅需登入／本人身分的規則仍維持原邏輯，Auth 撤銷 token 尚待後端處理。
+//   [授權來源／本候選] hr/employees、hr/resigned、hr/_version 僅允許受控後端寫入，
+//       包含其深層路徑；hr_source_audit 僅 admin 可讀、client 不可寫。
+//       必須與所有前端寫入路徑遷移及後端同批啟用，不可單獨部署此規則。
 //
 //  仍待處理（本次未擴大修補）：
 //   [SEC-02/03] 跨店資料隔離仍僅靠前端 normLoc()；Rules 未限制管理職的店別。
 //       需先補穩定 storeId 與受控讀取路徑。
 //   [SEC-02] store_accounts 密碼仍為明文且 staff 可整批讀取；
 //       待目錄／秘密分離與後端單筆揭露。
-//   [授權來源] hr/employees 是單一文件內的員工陣列，Rules 無法對陣列元素
-//       做欄位級比對；正式串接前須以後端代理寫入或拆分文件保護在職狀態等欄位。
+//   [授權來源] 本候選須完成受控後端、前端遷移及部署驗收，才能認定正式修補完成。
 // =============================================================================
 
 service cloud.firestore {
@@ -88,11 +91,20 @@ service cloud.firestore {
       allow delete: if isAdminA() && request.auth.uid != uid;
     }
 
-    // ── 授權來源：一併補 isActive() ──
-    // ⚠ 仍允許管理職寫入（結構限制，見檔頭）；正式串接前需改後端代理。
+    // ── 人事授權來源：瀏覽器不得直接寫入，Admin SDK 後端由 IAM／驗證保護 ──
     match /hr/{docId} {
       allow read:  if isStaffA();
-      allow write: if isStaffA();
+      allow write: if isStaffA() && !(docId in ['employees', 'resigned', '_version']);
+    }
+    // 排除全域兜底後，保留原有 admin 對其他 hr 文件／深層路徑的權限。
+    // v2 遞迴萬用字元亦可匹配零層；來源根文件和深層都必須擋寫。
+    match /hr/{docId}/{nested=**} {
+      allow read: if isAdminA();
+      allow write: if isAdminA() && !(docId in ['employees', 'resigned', '_version']);
+    }
+    match /hr_source_audit/{document=**} {
+      allow read: if isAdminA();
+      allow write: if false;
     }
     match /settings/{docId} {
       allow read:  if isLoggedIn();
@@ -144,6 +156,12 @@ service cloud.firestore {
 
     match /devices/{uid} { allow read, write: if isLoggedIn() && request.auth.uid == uid; }
 
+    // Backend-only sync state, snapshots, outbox, nonces and security metadata.
+    // Explicit deny is insufficient on its own: the admin catchall also excludes this root.
+    match /hr_msgc_v1/{document=**} {
+      allow read, write: if false;
+    }
+
     // ── 兜底規則 ──
     // ⚠ Firestore 多條規則同時匹配時是 OR 語意：只要有一條 allow 就放行，
     //   細規則【不會】覆蓋粗規則。
@@ -151,11 +169,11 @@ service cloud.firestore {
     //   使上面「admin 不得自改權限欄位、不得刪除自己」形同虛設
     //   （2026/09/17 模擬器實測 G9/G10 因此失敗，G11 為其連鎖結果）。
     //
-    //   解法：兜底改為 `/{col}/{doc=**}` 並排除 users，
-    //   讓 users 只受上面那組規則管轄。
+    //   解法：兜底改為 `/{col}/{doc=**}`，精確排除 users、hr、hr_source_audit，
+    //   讓這些集合只受上面明確規則管轄，避免 admin 兜底繞過來源寫入限制。
     //   ⚠ 新增集合若未在本檔列出，會落到這條兜底（admin 可讀寫）。
     match /{col}/{doc=**} {
-      allow read, write: if isAdminA() && col != 'users';
+      allow read, write: if isAdminA() && !(col in ['users', 'hr', 'hr_source_audit', 'hr_msgc_v1']);
     }
   }
 }

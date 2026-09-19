@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -356,8 +357,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Ar
 
 <script type="module">
 import { authGuard, db, auth, writeOpLog, initStoreDisplay, storeMeta, dispStore } from './auth-guard.js?v=6';
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, orderBy, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+const hrSource = createHrSourceClient({db});
 const roleNames={admin:'管理員',consultant:'顧問',manager:'店長',employee:'同仁'};
 let currentUser=null,currentRole='',currentLocations=[],currentUserName='';
 let viewYear=new Date().getFullYear(),viewMonth=new Date().getMonth()+1;
@@ -927,7 +930,7 @@ window.confirmBatchDelete=async function(empId){
   showToast('儲存中...');
   await saveShifts();
   // 同步移除 HR 特休記錄
-  if(annualDatesToRemove.length){await syncAnnualToHR(empId,annualDatesToRemove,false);}
+  if(annualDatesToRemove.length&&!await syncAnnualToHR(empId,annualDatesToRemove,false))return;
   showToast(`已刪除 ${selected.length} 天排班 ✓`);
 };
 function renderSidebar(){
@@ -1359,7 +1362,7 @@ window.saveAllBatches=async function(){
   showToast('儲存中...');
   await saveShifts();
   // 特休同步到 hr 臨時特休
-  if(annualDates.length){await syncAnnualToHR(empId,annualDates,true);}
+  if(annualDates.length&&!await syncAnnualToHR(empId,annualDates,true))return;
   showToast(`已儲存 ${totalDays} 筆排班 ✓`);
 };
 
@@ -1367,10 +1370,11 @@ window.saveAllBatches=async function(){
 async function syncAnnualToHR(empId,dates,add){
   try{
     const snap=await getDoc(doc(db,'hr','employees'));
-    if(!snap.exists())return;
+    const expectedHash=await hashSnapshot(snap);
+    if(!snap.exists())throw new Error('找不到人員資料，未同步特休');
     const list=snap.data().list||[];
     const emp=list.find(e=>String(e.id)===String(empId));
-    if(!emp)return;
+    if(!emp)throw new Error('找不到對應同仁，未同步特休');
     if(!emp.extraLeave)emp.extraLeave={};
     dates.forEach(ds=>{
       const yr=new Date(ds).getFullYear();
@@ -1379,8 +1383,9 @@ async function syncAnnualToHR(empId,dates,add){
       if(add){if(idx<0)arr.push(ds);}else{if(idx>=0)arr.splice(idx,1);}
       arr.sort();
     });
-    await setDoc(doc(db,'hr','employees'),{list},{merge:true});
-  }catch(e){console.error('syncAnnualToHR',e);}
+    await hrSource.commit({module:'schedule',writes:[{path:'hr/employees',kind:'set',data:{list},merge:true,expectedHash}]});
+    return true;
+  }catch(e){console.error('syncAnnualToHR',e);showToast('❌ 班表已另行儲存，但人員特休未同步，請勿視為完成：'+e.message,8000);return false;}
 }
 
 window.saveEdit=async function(dateStr,idx){
@@ -1413,9 +1418,9 @@ window.saveEdit=async function(dateStr,idx){
   showToast('儲存中...');await saveShifts();
   // ── HR 臨時特休同步（修正：原本編輯排班會丟失 kind 且不清 HR，造成孤兒特休）──
   // 原本是特休 → 先移除舊日期/舊同仁的 HR 記錄
-  if(_wasAnnual&&_origEmpId){await syncAnnualToHR(_origEmpId,[dateStr],false);}
+  if(_wasAnnual&&_origEmpId&&!await syncAnnualToHR(_origEmpId,[dateStr],false))return;
   // 仍維持特休 → 依新日期/新同仁加回
-  if(_keepAnnual){await syncAnnualToHR(empId,[date],true);}
+  if(_keepAnnual&&!await syncAnnualToHR(empId,[date],true))return;
   showToast('已更新 ✓');
 };
 
@@ -1429,7 +1434,7 @@ window.deleteShift=async function(dateStr,idx){
   renderCalendar();renderLegend();renderSidebar();
   showToast('儲存中...');await saveShifts();
   // 若刪的是特休 → 同步移除 hr 臨時特休
-  if(removed&&removed.kind==='annual'&&removed.empId){await syncAnnualToHR(removed.empId,[dateStr],false);}
+  if(removed&&removed.kind==='annual'&&removed.empId&&!await syncAnnualToHR(removed.empId,[dateStr],false))return;
   showToast('已刪除 ✓');
 };
 

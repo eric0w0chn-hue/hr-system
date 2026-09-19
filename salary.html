@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -655,9 +656,11 @@ td.cmp-diff .ac-edit{border-color:var(--red);color:var(--red);font-weight:700}
 
 <script type="module">
 import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
 import { doc, getDoc, setDoc, deleteDoc, collection, query, where, documentId, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
   import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
+const hrSource = createHrSourceClient({db});
 let CU={name:'',role:'',uid:''};
 let employees=[], allStores=[], viewableStores=[], storeOtConfig={};
 let locationTypes={}; // 各店類型 central/store
@@ -3450,18 +3453,26 @@ window.batchExportSlips=async function(){
 };
 window.expandDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=true;persist();rerender();};
 window.collapseDay=function(ds){if(!currentRec)return;dayRec(ds).expanded=false;persist();rerender();};
-window.updType=function(el){
+window.updType=async function(el){
   if(!currentRec)return;
   const type=el.value,ds=el.dataset.date;
   const r=dayRec(ds);
+  const previousType=r.type,previousWorkedHours=r.workedHours;
+  const hadWorkedHours=Object.prototype.hasOwnProperty.call(r,'workedHours');
   const emp=employees.find(e=>String(e.id)===String(selectedEmpId));
   const prevEff=getEffectiveType(emp,r,ds,typeof curShifts!=='undefined'?curShifts:null); // 變更前的有效假別（含HR帶入）
   r.type=type;
   if(type==='normal'){delete r.workedHours;r.workedHours=null;} // 切回正常清掉請假時數
   else if((LEAVE_TYPES[type]||{}).pay==='full'){r.workedHours=null;} // 全薪假為整日假別，清掉殘留出勤時數
   // 特休假 ↔ 同步 HR 臨時特休
-  if(type==='annual'&&prevEff!=='annual'){syncAnnualToHR(ds,true);}
-  else if(prevEff==='annual'&&type!=='annual'){syncAnnualToHR(ds,false);}
+  let synced=true;
+  if(type==='annual'&&prevEff!=='annual')synced=await syncAnnualToHR(ds,true);
+  else if(prevEff==='annual'&&type!=='annual')synced=await syncAnnualToHR(ds,false);
+  if(!synced){
+    if(previousType===undefined)delete r.type;else r.type=previousType;
+    if(hadWorkedHours)r.workedHours=previousWorkedHours;else delete r.workedHours;
+    el.value=previousType||prevEff;return;
+  }
   persist();rerender();
 };
 // 同步特休日期到 hr/employees 的 extraLeave[年]（同時更新記憶體 employees）
@@ -3469,29 +3480,25 @@ async function syncAnnualToHR(ds,add){
   try{
     const empId=selectedEmpId;
     const yr=new Date(ds).getFullYear();
-    // 先更新記憶體（讓 getEffectiveType 即時反映、下拉實領重算正確）
-    const memEmp=employees.find(e=>String(e.id)===String(empId));
-    if(memEmp){
-      if(!memEmp.extraLeave)memEmp.extraLeave={};
-      if(!memEmp.extraLeave[yr])memEmp.extraLeave[yr]=[];
-      const ma=memEmp.extraLeave[yr];const mi=ma.indexOf(ds);
-      if(add){if(mi<0){ma.push(ds);ma.sort();}}else{if(mi>=0)ma.splice(mi,1);}
-    }
-    // 寫回 Firestore
+    // 以實際讀取版本交由後端驗證；成功後才更新記憶體。
     const snap=await getDoc(doc(db,'hr','employees'));
-    if(!snap.exists())return;
+    const expectedHash=await hashSnapshot(snap);
+    if(!snap.exists())throw new Error('找不到人員資料，未同步特休');
     const list=snap.data().list||[];
     const emp=list.find(e=>String(e.id)===String(empId));
-    if(!emp)return;
+    if(!emp)throw new Error('找不到對應同仁，未同步特休');
     if(!emp.extraLeave)emp.extraLeave={};
     if(!emp.extraLeave[yr])emp.extraLeave[yr]=[];
     const arr=emp.extraLeave[yr];
     const idx=arr.indexOf(ds);
     if(add){if(idx<0){arr.push(ds);arr.sort();}}
     else{if(idx>=0)arr.splice(idx,1);}
-    await setDoc(doc(db,'hr','employees'),{list},{merge:true});
+    await hrSource.commit({module:'salary',writes:[{path:'hr/employees',kind:'set',data:{list},merge:true,expectedHash}]});
+    const memEmp=employees.find(e=>String(e.id)===String(empId));
+    if(memEmp)memEmp.extraLeave=structuredClone(emp.extraLeave);
     showToast(add?`✓ 特休 ${ds} 已同步至人員資訊`:`✓ 已移除 ${ds} 特休同步`);
-  }catch(e){console.error('syncAnnualToHR',e);}
+    return true;
+  }catch(e){console.error('syncAnnualToHR',e);showToast('❌ 特休未同步，畫面修改尚未儲存：'+e.message,6000);return false;}
 }
 window.patchDay=function(ds,field,value){if(!currentRec)return;dayRec(ds)[field]=value;persist();rerender();};
 // 上班時段輸入：更新輸入欄位後，即時換算基本工時與固定加班（寫入 baseWorked / autoOt）

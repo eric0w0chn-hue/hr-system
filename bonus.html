@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+<meta name="hr-source-release" content="hr-source-r5-20260919">
 <meta charset="UTF-8">
 <title>獎金／補助管理</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -138,9 +139,12 @@ select,input,textarea{padding:8px 12px;border:1px solid var(--border);border-rad
 
 <script type="module">
 import { initStoreDisplay, dispStore, authGuard, db, writeOpLog } from './auth-guard.js?v=6';
-import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { createHrSourceClient, hashSnapshot } from './hr-source-client.js?v=hr-source-r5-20260919';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const hrSource = createHrSourceClient({db});
 
 let allEmployees = [], workLocations = [], bonusLog = [];
+let employeeBaseData = null, employeeBaseHash = null, bonusLogBaseHash = null;
 let currentRole = '', currentLocations = [], currentUserName = '';
 
 const roleTxt = {admin:'管理員', consultant:'顧問', manager:'店長', employee:'同仁'};
@@ -185,6 +189,8 @@ async function load(){
     getDoc(doc(db,'hr','settings')),
     getDoc(doc(db,'hr','bonus_log'))
   ]);
+  employeeBaseData = empSnap.exists() ? structuredClone(empSnap.data()) : null;
+  [employeeBaseHash, bonusLogBaseHash] = await Promise.all([hashSnapshot(empSnap),hashSnapshot(logSnap)]);
   allEmployees = empSnap.exists() ? (empSnap.data().list||[]).filter(e=>!e.status||e.status==='在職'||e.status==='留職停薪') : [];
   const settings = setSnap.exists() ? setSnap.data() : {};
   workLocations = settings.workLocations || [];
@@ -213,11 +219,13 @@ async function load(){
 //    待發放改完全依規則顯示（廚師鞋＝到職滿3個月；健檢＝每年到職週年日一次，須滿3個月）。──
 async function migrateLegacyBonuses(){
   let changed = 0;
+  const editableIds = new Set(allEmployees.map(e=>String(e.id)));
 
   // ① 撤回所有 operator='（資料遷移）' 的固定補助紀錄（廚師鞋 shoe / 健檢 health_YYYY），
   //    並把對應已發放旗標設回 false → 回到待發放
   const migIds = [];
   for(const l of bonusLog){
+    if(!editableIds.has(String(l?.empId)))continue;
     if(l && l.operator === '（資料遷移）' && l.cat === 'fixed' && typeof l.key === 'string'
         && (l.key === 'shoe' || l.key.indexOf('health_') === 0)){
       migIds.push(l.id);
@@ -245,6 +253,7 @@ async function migrateLegacyBonuses(){
 
   // ③ 既有「人工發放」的健檢紀錄 label 補年度（冪等；只在缺正確年度前綴時補，保留 $0 原因等後綴）
   for(const l of bonusLog){
+    if(!editableIds.has(String(l?.empId)))continue;
     if(l && l.cat === 'fixed' && typeof l.key === 'string' && l.key.indexOf('health_') === 0){
       const y = l.key.replace('health_', '');
       const want = '🏥 ' + y + '健康檢查補助';
@@ -567,7 +576,8 @@ window.markPaid = async function(empId, key, cat, amount, label, checkbox){
       return;
     }
     bonusLog = freshLog;                    // 以最新紀錄為底 append，避免整份覆蓋抹掉他人紀錄
-  } catch(err){ console.warn('並發檢查讀取失敗，續行寫入', err); }
+    bonusLogBaseHash = await hashSnapshot(logSnap);
+  } catch(err){ console.warn('並發檢查讀取失敗，停止寫入', err);checkbox.checked=false;alert('無法確認最新發放紀錄，未儲存：'+err.message);return; }
 
   const today = new Date().toISOString().slice(0,10);
 
@@ -830,43 +840,55 @@ window.revertLog = async function(logId){
   await saveAll();
 };
 
-async function buildFinalEmployees(){
-  const fullSnap = await getDoc(doc(db,'hr','employees'));
-  if(!fullSnap.exists()) return allEmployees;
-  const fullList = fullSnap.data().list || [];
-  const myIds = new Set(allEmployees.map(r=>r.id));
-  const others = fullList.filter(r => !myIds.has(r.id));
-  return [...allEmployees, ...others];
+function buildFinalEmployees(){
+  if(!employeeBaseData || !employeeBaseHash)throw new Error('人員基底版本尚未載入，未儲存');
+  const edited = new Map(allEmployees.map(e=>[String(e.id),e]));
+  return (employeeBaseData.list||[]).map(original=>{
+    const local=edited.get(String(original.id));
+    const merged=structuredClone(original);
+    if(!local)return merged;
+    // 獎金頁只送獎金欄位，身分、在職與門市資料保持讀取版本原樣。
+    for(const key of ['bonuses','fixedBonuses']){
+      if(Object.prototype.hasOwnProperty.call(local,key))merged[key]=structuredClone(local[key]);
+      else delete merged[key];
+    }
+    return merged;
+  });
 }
 
 async function saveEmployeesOnly(){
   try {
-    const finalList = await buildFinalEmployees();
-    await runTransaction(db, async tx => {
-      const vRef = doc(db,'hr','_version');
-      const vSnap = await tx.get(vRef);
-      const nextVer = ((vSnap.exists()?vSnap.data().v:0)||0) + 1;
-      tx.set(vRef, {v:nextVer, lastEditor:currentUserName, lastEditAt:new Date().toISOString()});
-      tx.set(doc(db,'hr','employees'), {list: finalList});
-    });
-  } catch(err){ console.error(err); alert('儲存失敗：'+err.message); }
+    const finalList = buildFinalEmployees();
+    const result=await hrSource.commit({module:'bonus',writes:[{path:'hr/employees',kind:'set',data:{list:finalList},merge:true,expectedHash:employeeBaseHash}]});
+    employeeBaseData={...employeeBaseData,list:structuredClone(finalList)};
+    employeeBaseHash=result.hashes['hr/employees'];
+    return true;
+  } catch(err){ console.error(err); alert('儲存失敗，畫面修改尚未儲存：'+err.message);return false; }
 }
 
 async function saveAll(silent=false){
   try {
-    const finalList = await buildFinalEmployees();
-    await runTransaction(db, async tx => {
-      const vRef = doc(db,'hr','_version');
-      const vSnap = await tx.get(vRef);
-      const nextVer = ((vSnap.exists()?vSnap.data().v:0)||0) + 1;
-      tx.set(vRef, {v:nextVer, lastEditor:currentUserName, lastEditAt:new Date().toISOString()});
-      tx.set(doc(db,'hr','employees'), {list: finalList});
-      tx.set(doc(db,'hr','bonus_log'), {list: bonusLog});
-    });
+    const finalList = buildFinalEmployees();
+    const submittedLog=structuredClone(bonusLog);
+    const result=await hrSource.commit({module:'bonus',writes:[
+      {path:'hr/employees',kind:'set',data:{list:finalList},merge:true,expectedHash:employeeBaseHash},
+      {path:'hr/bonus_log',kind:'set',data:{list:submittedLog},merge:true,expectedHash:bonusLogBaseHash}
+    ]});
+    const canonicalLog=result.documents?.['hr/bonus_log']?.list;
+    if(!Array.isArray(canonicalLog))throw new Error('後端未回傳已儲存的發放紀錄，請保留畫面並確認版本');
+    const submittedById=new Map(submittedLog.map(row=>[row.id,row]));
+    const canonicalById=new Map(canonicalLog.map(row=>[row.id,row]));
+    // 換入後端確認的操作者／時間；await 期間新增、撤回或修改的本地輸入不丟棄。
+    bonusLog=bonusLog.map(row=>JSON.stringify(row)===JSON.stringify(submittedById.get(row.id))
+      ?structuredClone(canonicalById.get(row.id)||row):row);
+    employeeBaseData={...employeeBaseData,list:structuredClone(finalList)};
+    employeeBaseHash=result.hashes['hr/employees'];
+    bonusLogBaseHash=result.hashes['hr/bonus_log'];
     if(!silent){
       try { writeOpLog({editor:currentUserName, role:currentRole, module:'bonus', action:'更新獎金發放', detail:''}); } catch(e){}
     }
-  } catch(err){ console.error(err); if(!silent) alert('儲存失敗：'+err.message); }
+    return true;
+  } catch(err){ console.error(err); alert('儲存失敗，畫面修改尚未儲存：'+err.message);return false; }
 }
 </script>
 </body>

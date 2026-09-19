@@ -2,11 +2,56 @@
  * sw.js — 梁平鑫系統 Service Worker
  * 策略：
  *   - Firebase SDK (gstatic CDN)：Cache First（版本固定，永遠快取）
- *   - 本站 HTML / JS / CSS：Stale While Revalidate（快取版先顯示，背景更新）
+ *   - HR 受控寫入九頁與 helper：同版本 Network First（混版拒絕、離線僅回本版）
+ *   - 其餘本站 HTML / JS / CSS：Stale While Revalidate
  *   - Firestore / Auth API：不快取（必須走網路取最新資料）
  */
 
-const CACHE_NAME = 'lp-xin-v18';
+const CACHE_NAME = 'lp-xin-v19-hr-source-r5';
+const SDK_CACHE_NAME = 'lp-xin-firebase-sdk';
+const HR_SOURCE_RELEASE = 'hr-source-r5-20260919';
+const HR_SOURCE_FILES = new Set(['hr.html','account.html','backup.html','batch_accounts.html','annual_leave.html','salary.html','schedule.html','bonus.html','set_ins_location.html','hr-source-client.js']);
+const SOURCE_BASE = new URL('./',self.location.href);
+const isSdkUrl = value => {const url=new URL(value);return url.protocol==='https:'&&url.hostname==='www.gstatic.com'&&url.pathname.startsWith('/firebasejs/');};
+function sourceFile(request){
+  const url=new URL(request.url);
+  if(request.method!=='GET'||url.origin!==SOURCE_BASE.origin||!url.pathname.startsWith(SOURCE_BASE.pathname))return null;
+  const file=url.pathname.slice(SOURCE_BASE.pathname.length);
+  return HR_SOURCE_FILES.has(file)?file:null;
+}
+async function sameSourceRelease(response,file){
+  if(!response||response.status!==200)return false;
+  const text=await response.clone().text();
+  return file==='hr-source-client.js'
+    ? text.includes("export const HR_SOURCE_RELEASE = '"+HR_SOURCE_RELEASE+"';")
+    : text.includes('<meta name="hr-source-release" content="'+HR_SOURCE_RELEASE+'">');
+}
+function sourceUnavailable(){return new Response('HR 系統版本更新中或目前離線。請保留其他分頁的未儲存內容，稍後手動重新載入。',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});}
+async function sourceNetworkFirst(request,file){
+  let response;
+  try{response=await fetch(request,{cache:'no-store'});}catch{
+    try{const cached=await (await caches.open(CACHE_NAME)).match(request);if(await sameSourceRelease(cached,file))return cached;}catch{}
+    return sourceUnavailable();
+  }
+  if(!response.ok)return response;
+  if(!await sameSourceRelease(response,file))return sourceUnavailable();
+  try{await (await caches.open(CACHE_NAME)).put(request,response.clone());}catch{}
+  return response;
+}
+async function preserveSdkAndCleanOldCaches(){
+  const sdk=await caches.open(SDK_CACHE_NAME);
+  const old=(await caches.keys()).filter(key=>/^lp-xin-v\d+(?:-|$)/.test(key)&&key!==CACHE_NAME);
+  await Promise.all(old.map(async key=>{
+    try{
+      const cache=await caches.open(key);
+      for(const request of await cache.keys())if(isSdkUrl(request.url)){
+        const response=await cache.match(request);if(response)await sdk.put(request,response);
+      }
+      await caches.delete(key);
+    }catch{console.warn('[SW] SDK 快取保留未完成，保留舊快取');}
+  }));
+}
+function announceSourceRelease(client){client?.postMessage({type:'HR_SOURCE_RELEASE',release:HR_SOURCE_RELEASE});}
 
 // 預先快取的靜態資源（Firebase SDK 四個模組 + auth-guard）
 const PRECACHE = [
@@ -29,39 +74,47 @@ const NETWORK_ONLY = [
 // ── install：預先快取 Firebase SDK ──
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(PRECACHE).catch(err => {
-        console.warn('[SW] precache 部分失敗（不影響運作）:', err);
-      });
-    }).then(() => self.skipWaiting())
+    Promise.all(PRECACHE.map(async url=>{
+      try{
+        const sdk=isSdkUrl(new URL(url,self.location.href).href);
+        const cache=await caches.open(sdk?SDK_CACHE_NAME:CACHE_NAME);
+        if(sdk){const cached=await caches.match(url);if(cached){await cache.put(url,cached);return;}}
+        await cache.addAll([url]);
+      }catch{console.warn('[SW] precache 部分失敗（不影響運作）');}
+    })).then(() => self.skipWaiting())
   );
 });
 
 // ── activate：清除舊版快取 ──
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    preserveSdkAndCleanOldCaches().then(() => self.clients.claim())
+      .then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true}))
+      .then(clients=>clients.forEach(announceSourceRelease))
   );
 });
+
+self.addEventListener('message',event=>{if(event.data?.type==='HR_SOURCE_RELEASE_REQUEST')announceSourceRelease(event.source);});
 
 // ── fetch：攔截請求 ──
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
+  const criticalFile=sourceFile(event.request);
+  if(criticalFile){event.respondWith(sourceNetworkFirst(event.request,criticalFile));return;}
+
   // 1. Firebase API — 永遠走網路，不介入
   if(NETWORK_ONLY.some(d => url.includes(d))) return;
 
   // 2. Firebase SDK (gstatic) — Cache First
-  if(url.includes('www.gstatic.com/firebasejs/')) {
+  if(event.request.method==='GET'&&isSdkUrl(url)) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if(cached) return cached;
         return fetch(event.request).then(resp => {
           if(resp.ok){
             const clone = resp.clone();
-            caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+            caches.open(SDK_CACHE_NAME).then(c => c.put(event.request, clone));
           }
           return resp;
         });

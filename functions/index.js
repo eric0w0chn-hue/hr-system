@@ -10,6 +10,19 @@ const axios = require("axios");
 admin.initializeApp();
 setGlobalOptions({ maxInstances: 10 });
 
+// HR authority writes: new, independently deployable endpoint. Existing functions are unchanged.
+const { createWriter: createHrSourceWriter } = require('./hr-source-write');
+const { createHrSourceCallable } = require('./hr-source-callable');
+exports.hrSourceWrite = onCall({
+  region: 'asia-east1', minInstances: 0, maxInstances: 2,
+  concurrency: 10, memory: '256MiB', timeoutSeconds: 60,
+  serviceAccount: 'hr-source-writer@liangpinghri.iam.gserviceaccount.com',
+}, createHrSourceCallable({
+  writer: createHrSourceWriter({db: admin.firestore(), auth: admin.auth()}),
+  auth: admin.auth(), projectId: process.env.GCLOUD_PROJECT || admin.app().options.projectId,
+  HttpsError,
+}));
+
 const OMADA_CLIENT_ID = { value: () => process.env.OMADA_CLIENT_ID };
 const OMADA_CLIENT_SECRET = { value: () => process.env.OMADA_CLIENT_SECRET };
 const OMADA_BASE_URL = "https://52.68.0.26";
